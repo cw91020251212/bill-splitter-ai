@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="分帳管家 AI">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#22C55E"/>
+      <stop offset="1" stop-color="#117A3A"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112.64" fill="url(#bg)"/>
+  <g>
+    <path d="M164.25,111.82 H301.88 a26.21,26.21 0 0 1 26.21,26.21 V360.86 L153.87,380.52 L169.71,360.86 L185.55,380.52 L201.39,360.86 L217.22,380.52 L233.06,360.86 L248.9,380.52 L264.74,360.86 L280.58,380.52 L296.41,360.86 L312.25,380.52 L328.09,360.86 V138.04 a26.21,26.21 0 0 1 26.21,26.21 Z" fill="#FFFFFF"/>
+    <rect x="164.25" y="147.87" width="117.96" height="26.21" rx="13.11" fill="#16A34A"/>
+    <rect x="164.25" y="200.29" width="131.07" height="19.66" rx="9.83" fill="#C6D5CD"/>
+    <rect x="164.25" y="246.17" width="98.3" height="19.66" rx="9.83" fill="#C6D5CD"/>
+    <rect x="164.25" y="292.04" width="72.09" height="19.66" rx="9.83" fill="#C6D5CD"/>
+    <circle cx="341.2" cy="334.64" r="85.2" fill="#0D6F33"/>
+    <circle cx="341.2" cy="334.64" r="75.37" fill="#FFFFFF"/>
+    <path d="M310.07,336.28 L331.37,359.22 L373.96,305.15" fill="none" stroke="#15803D" stroke-width="26.21" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>

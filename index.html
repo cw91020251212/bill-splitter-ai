@@ -1,0 +1,1448 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+
+  <!-- ============================ PWA / Icons ============================ -->
+  <meta name="description" content="用 AI 讀單據、朋友自助認領，自動計出每人應付幾錢。支援多幣種、服務費分攤、歷史紀錄同 CSV 匯出。">
+  <meta name="theme-color" content="#16a34a">
+  <meta name="color-scheme" content="light">
+  <link rel="manifest" href="manifest.webmanifest">
+
+  <link rel="icon" href="icons/favicon.ico" sizes="any">
+  <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
+
+  <!-- iOS standalone -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="分帳管家">
+  <meta name="application-name" content="分帳管家 AI">
+  <!-- ==================================================================== -->
+  <title>分帳管家 AI</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    .animate-spin { animation: spin 1s linear infinite; }
+    @keyframes spin { 100% { transform: rotate(360deg); } }
+    input, textarea { font-size: 16px !important; }
+    @keyframes flashTarget {
+      0%, 100% { background-color: transparent; }
+      25%, 75% { background-color: #fef08a; }
+    }
+    .flash-target { animation: flashTarget 1.5s ease-in-out; }
+
+    /* Respect notches / home indicator when launched as an installed app. */
+    @media (display-mode: standalone) {
+      body { padding-top: env(safe-area-inset-top, 0px); }
+      body { padding-bottom: env(safe-area-inset-bottom, 0px); }
+    }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-800 font-sans">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useRef, useEffect, useMemo } = React;
+
+    const Icon = ({ path, size=24, className="" }) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} dangerouslySetInnerHTML={{__html: path}} />
+    );
+    const icons = {
+      upload: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/>',
+      receipt: '<path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 17V7"/>',
+      fileText: '<path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" x2="8" y1="13" y2="13"/><line x1="16" x2="8" y1="17" y2="17"/><line x1="10" x2="8" y1="9" y2="9"/>',
+      trash: '<path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/>',
+      plus: '<line x1="12" x2="12" y1="5" y2="19"/><line x1="5" x2="19" y1="12" y2="12"/>',
+      copy: '<rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>',
+      arrowRight: '<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',
+      settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>',
+      calculator: '<rect width="16" height="20" x="4" y="2" rx="2"/><line x1="8" x2="16" y1="6" y2="6"/><line x1="16" x2="16" y1="14" y2="18"/><path d="M16 10h.01"/><path d="M12 10h.01"/><path d="M8 10h.01"/><path d="M12 14h.01"/><path d="M8 14h.01"/><path d="M12 18h.01"/><path d="M8 18h.01"/>',
+      loader: '<path d="M21 12a9 9 0 1 1-6.219-8.56"/>',
+      check: '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>',
+      msg: '<path d="m3 21 1.9-5.7a8.5 8.5 0 1 1 3.8 3.8z"/>',
+      alert: '<circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/>',
+      history: '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/>',
+      key: '<path d="m15.5 7.5 2.3 2.3a1 1 0 0 0 1.4 0l2.1-2.1a1 1 0 0 0 0-1.4L19 4"/><path d="m21 2-9.6 9.6"/><circle cx="7.5" cy="15.5" r="5.5"/>',
+      lock: '<rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+      save: '<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>',
+      fileImage: '<path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><circle cx="10" cy="13" r="2"/><path d="m20 17-1.09-1.09a2 2 0 0 0-2.82 0L10 22"/>',
+      book: '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>',
+      help: '<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" x2="12.01" y1="17" y2="17"/>',
+      chevronDown: '<path d="m6 9 6 6 6-6"/>',
+      chevronUp: '<path d="m18 15-6-6-6 6"/>',
+      arrowLeft: '<path d="M19 12H5"/><path d="m12 19-7-7 7-7"/>',
+      send: '<path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>',
+      download: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/>',
+      edit: '<path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>',
+      eye: '<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>'
+    };
+
+    const Button = ({ children, onClick, variant = 'primary', className = '', disabled = false }) => {
+      const baseStyle = "flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl font-bold text-base transition-all duration-200 active:scale-95 disabled:opacity-50 w-full md:w-auto";
+      const variants = {
+        primary: "bg-green-600 text-white hover:bg-green-700 shadow-lg shadow-green-200",
+        secondary: "bg-gray-100 text-gray-800 hover:bg-gray-200",
+        outline: "border-2 border-green-600 text-green-600 hover:bg-green-50",
+      };
+      return <button onClick={onClick} disabled={disabled} className={`${baseStyle} ${variants[variant]} ${className}`}>{children}</button>;
+    };
+
+    const Card = ({ children, className = '' }) => (
+      <div className={`bg-white rounded-2xl shadow-sm border border-gray-100 p-5 ${className}`}>{children}</div>
+    );
+
+    const PROVIDERS = {
+      openrouter: {
+        models: [
+          "openrouter/free",
+          "google/gemma-4-31b-it:free",
+          "google/gemma-4-26b-a4b-it:free",
+          "minimax/minimax-m3:free",
+          "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+          "thinkingmachines/inkling:free",
+          "thinkingmachines/inkling-small:free",
+          "dots-studio/dots-3-note-preview:free"
+        ]
+      }
+    };
+
+    const toNum = (v) => {
+      if (typeof v === 'number') return isFinite(v) ? v : 0;
+      if (v === null || v === undefined) return 0;
+      const m = String(v).replace(/[^\d.\-]/g, '');
+      const n = parseFloat(m);
+      return isNaN(n) ? 0 : n;
+    };
+
+    const extractPayload = (rawText) => {
+      let txt = String(rawText).replace(/```json/gi, '').replace(/```/g, '').trim();
+      let data = null;
+      try { data = JSON.parse(txt); } catch (e) {
+        const objMatch = txt.match(/\{[\s\S]*\}/);
+        const arrMatch = txt.match(/\[[\s\S]*\]/);
+        const candidate = (objMatch && arrMatch) ? (objMatch.index <= arrMatch.index ? objMatch[0] : arrMatch[0]) : (objMatch ? objMatch[0] : (arrMatch ? arrMatch[0] : null));
+        if (!candidate) throw new Error('AI 回傳的內容不是有效 JSON，請重試或改用其他模型。');
+        data = JSON.parse(candidate);
+      }
+      if (Array.isArray(data)) return { items: data, taxTotal: null, taxNote: '', currency: 'HKD' };
+      const items = Array.isArray(data.items) ? data.items : (Array.isArray(data.data) ? data.data : []);
+      let taxTotal = null;
+      if (data.taxTotal !== undefined && data.taxTotal !== null && data.taxTotal !== '') taxTotal = toNum(data.taxTotal);
+      else if (data.tax !== undefined && data.tax !== null && data.tax !== '') taxTotal = toNum(data.tax);
+      return { items, taxTotal, taxNote: data.taxNote || data.tax_note || '', currency: data.currency || data.Currency || 'HKD' };
+    };
+
+    const STEP_LABELS = ['睇單', '認領', '運算', '結果'];
+
+    const SEP  = '\n\n➖➖➖➖➖➖➖➖➖➖\n\n';
+    const TAIL = '\n\n';                 
+
+    const appendReply = (existing, incoming) => {
+      const clean = String(incoming || '').trim();
+      if (!clean) return { text: existing, added: false };
+      const base = String(existing || '').replace(/\s+$/, '');
+      const text = base ? base + SEP + clean + TAIL : clean + TAIL;
+      return { text, added: true, blockStart: base ? base.length + SEP.length : 0 };
+    };
+
+    const parkCaret = (el) => {
+      if (!el) return;
+      requestAnimationFrame(() => {
+        const end = el.value.length;
+        el.setSelectionRange(end, end);
+      });
+    };
+
+    const ensureTail = (t) => {
+      const s = String(t || '');
+      if (!s.trim()) return s;                      
+      return s.replace(/\s+$/, '') + TAIL;
+    };
+
+    const normalizeReplies = (raw) => {
+      const lines = String(raw || '').split('\n');
+      const out = [];
+      const isNameLine = (s) => /(?:👤|姓名)\s*[:：=＝]/.test(s);
+      const isSepLine  = (s) => /➖{3,}/.test(s);
+
+      lines.forEach((line, i) => {
+        if (i > 0 && isNameLine(line)) {
+          let j = out.length - 1;
+          while (j >= 0 && out[j].trim() === '') j--;
+          const prev = j >= 0 ? out[j] : '';
+          if (prev && !isSepLine(prev)) {
+            while (out.length && out[out.length - 1].trim() === '') out.pop();
+            out.push('', '➖➖➖➖➖➖➖➖➖➖', '');
+          }
+        }
+        out.push(line);
+      });
+      return out.join('\n');
+    };
+
+    // ── 深度強化解析器：自動過濾隱形字元與全形空格 ──
+    const parseClaims = (raw, items) => {
+      const lines = String(raw || '').split('\n');
+      const claims = {};
+      const people = [];
+      const duplicatePeople = [];
+      const unknownIds = new Set();
+      let currentPerson = null;
+      let lastSeenId = null;
+      let totalClaimLines = 0;
+      const issues = [];
+      const itemIds = new Set(items.map(i => i.id));
+
+      lines.forEach((line, index) => {
+        const lineNo = index + 1;
+        // 清洗：將全形空格 \u3000 轉為半形空格，過濾各類無法顯示字元，再把全形數字/符號轉半形
+        let cleanLine = line.replace(/\u3000/g, ' ').replace(/[\u200B-\u200D\uFEFF]/g, '').trim();
+        cleanLine = cleanLine.replace(/[\uff01-\uff5e]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xfee0));
+        
+        if (!cleanLine) return;
+
+        if (cleanLine.includes('👤') || cleanLine.includes('姓名')) {
+          const nameMatch = cleanLine.split(/[:=]/);
+          if (nameMatch.length > 1) {
+            currentPerson = nameMatch[1].trim();
+            lastSeenId = null; 
+            if (currentPerson) {
+              if (people.includes(currentPerson)) {
+                if (!duplicatePeople.includes(currentPerson)) duplicatePeople.push(currentPerson);
+              } else {
+                people.push(currentPerson);
+              }
+              if (!claims[currentPerson]) claims[currentPerson] = {};
+            }
+          } else {
+            issues.push({ type: 'name_no_delim', line: lineNo, text: cleanLine.substring(0, 40) });
+          }
+        } else if (currentPerson) {
+          if (cleanLine.match(/^\D*\d{2}.*=/)) {
+            const idMatch = cleanLine.match(/\d{2}/);
+            const parts = cleanLine.split(/=/);
+            const qtyMatch = parts[1].match(/[\d.]+/);
+            const qty = qtyMatch ? parseFloat(qtyMatch[0]) : NaN;
+            
+            if (idMatch) {
+                const id = idMatch[0];
+                if (!itemIds.has(id)) {
+                    unknownIds.add(id);
+                    issues.push({ type: 'unknown_id', line: lineNo, text: cleanLine.substring(0, 40), person: currentPerson, id });
+                }
+                if (!isNaN(qty)) {
+                    if (qty > 0) {
+                        claims[currentPerson][id] = qty;
+                        totalClaimLines++;
+                    } else if (qty < 0) {
+                        issues.push({ type: 'qty_negative', line: lineNo, text: cleanLine.substring(0, 40), person: currentPerson });
+                    } else {
+                        issues.push({ type: 'qty_zero', line: lineNo, text: cleanLine.substring(0, 40), person: currentPerson });
+                    }
+                } else {
+                    issues.push({ type: 'qty_not_number', line: lineNo, text: cleanLine.substring(0, 40), person: currentPerson });
+                }
+            }
+          } else if (cleanLine.match(/^\D*\d{2}/)) {
+            const idMatch = cleanLine.match(/\d{2}/);
+            if (idMatch) {
+              lastSeenId = idMatch[0];
+              if (!itemIds.has(lastSeenId)) {
+                  unknownIds.add(lastSeenId);
+                  issues.push({ type: 'unknown_id', line: lineNo, text: cleanLine.substring(0, 40), person: currentPerson, id: lastSeenId });
+              }
+            }
+          } else if (lastSeenId && (cleanLine.includes('數量') || cleanLine.includes('='))) {
+            const parts = cleanLine.split(/=/);
+            const qtyStr = parts.length >= 2 ? parts[1] : cleanLine;
+            const qtyMatch = qtyStr.match(/[\d.]+/);
+            const qty = qtyMatch ? parseFloat(qtyMatch[0]) : NaN;
+            
+            if (!isNaN(qty)) {
+                if (qty > 0) {
+                    claims[currentPerson][lastSeenId] = qty;
+                    totalClaimLines++;
+                } else if (qty < 0) {
+                    issues.push({ type: 'qty_negative', line: lineNo, text: cleanLine.substring(0, 40), person: currentPerson });
+                } else {
+                    issues.push({ type: 'qty_zero', line: lineNo, text: cleanLine.substring(0, 40), person: currentPerson });
+                }
+                lastSeenId = null;
+            } else {
+                issues.push({ type: 'qty_not_number', line: lineNo, text: cleanLine.substring(0, 40), person: currentPerson });
+            }
+          } else if (/\d/.test(cleanLine) && !cleanLine.includes('➖➖')) {
+             issues.push({ type: 'stray_number', line: lineNo, text: cleanLine.substring(0, 40), person: currentPerson });
+          }
+        } else if (cleanLine.includes('數量') || cleanLine.includes('=')) {
+           issues.push({ type: 'no_person', line: lineNo, text: cleanLine.substring(0, 40) });
+        }
+      });
+
+      const peopleWithNoClaims = people.filter(p => !claims[p] || Object.keys(claims[p]).length === 0);
+      return { claims, people, totalClaimLines, issues, duplicatePeople, unknownIds: Array.from(unknownIds), peopleWithNoClaims };
+    };
+
+    const KEY_RULES = {
+      openrouter: { prefix: 'sk-or-', expectLen: 73, pattern: /^sk-or-v1-[a-f0-9]{64}$/i, label: 'OpenRouter' },
+      gemini: { prefix: 'AIza', expectLen: 39, pattern: /^AIza[0-9A-Za-z\-_]{35}$/, label: 'Gemini' }
+    };
+
+    const sanitizeKey = (raw) => {
+      let s = String(raw || '');
+      const notes = [];
+      s = s.replace(/[\uff01-\uff5e]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xfee0));
+      const before = s;
+      s = s.replace(/[\u200B-\u200D\uFEFF\u00A0\s]/g, ''); 
+      if (s !== before) notes.push('removed_invisible');
+      s = s.replace(/^["'「『]+|["'」』]+$/g, '');
+      s = s.replace(/^Bearer/i, '');
+      for (const prefix of ['sk-or-v1-', 'sk-or-', 'AIza']) {
+        const idx = s.lastIndexOf(prefix);
+        if (idx > 0) {
+          s = s.slice(idx);
+          notes.push('deduped');
+          break;
+        }
+      }
+      return { key: s, notes };
+    };
+
+    const validateKey = (key, engine) => {
+      const r = KEY_RULES[engine];
+      const k = String(key || '');
+      const checks = {
+        notEmpty:   k.length > 0,
+        prefixOk:   k.startsWith(r.prefix),
+        lengthOk:   k.length === r.expectLen,
+        charsOk:    /^[\x21-\x7E]+$/.test(k),
+        patternOk:  r.pattern.test(k)
+      };
+      const tooLong  = k.length > r.expectLen * 1.5;
+      const severity = !checks.notEmpty ? 'empty' : tooLong ? 'likely_duplicate' : !checks.prefixOk ? 'bad_prefix' : !checks.lengthOk ? 'bad_length' : !checks.patternOk? 'bad_chars' : 'ok';
+      return { checks, severity, expectLen: r.expectLen, actualLen: k.length, label: r.label };
+    };
+
+    const maskKey = (k) => {
+      const s = String(k || '');
+      if (s.length <= 12) return '•'.repeat(s.length);
+      return s.slice(0, 13) + '•'.repeat(Math.min(18, s.length - 17)) + s.slice(-4);
+    };
+
+    const Accordion = ({ title, icon, children, defaultOpen = false, tone = 'gray' }) => {
+      const [open, setOpen] = useState(defaultOpen);
+      const tones = {
+        gray: 'bg-white border-gray-200', amber: 'bg-amber-50 border-amber-200',
+        green: 'bg-green-50 border-green-200', blue: 'bg-blue-50 border-blue-200',
+      };
+      return (
+        <div className={`rounded-2xl border-2 overflow-hidden ${tones[tone]}`}>
+          <button onClick={() => setOpen(!open)} className="w-full flex items-center justify-between gap-3 p-4 text-left">
+            <span className="flex items-center gap-2.5 font-bold text-gray-900 text-base">
+              {icon && <Icon path={icon} size={20} className="text-gray-600 shrink-0"/>}
+              {title}
+            </span>
+            <Icon path={open ? icons.chevronUp : icons.chevronDown} size={20} className="text-gray-500 shrink-0"/>
+          </button>
+          {open && <div className="px-4 pb-4 pt-0 text-sm text-gray-700 leading-relaxed space-y-3 border-t border-gray-200/70 mt-0">{children}</div>}
+        </div>
+      );
+    };
+
+    // ── 全域智能貨幣系統 ──
+    const getCurrencySymbol = (curr) => {
+      const map = { 'HKD': '$', 'MOP': 'MOP$', 'USD': 'US$', 'TWD': 'NT$', 'JPY': '¥', 'KRW': '₩', 'THB': '฿', 'EUR': '€', 'GBP': '£', 'CNY': '¥', 'AUD': 'A$', 'CAD': 'C$', 'SGD': 'S$' };
+      return map[curr?.toUpperCase()] || curr + ' ';
+    };
+
+    const getCurrencyName = (curr) => {
+      const map = { 'HKD': '港幣 (HKD)', 'JPY': '日元 (JPY)', 'KRW': '韓圜 (KRW)', 'TWD': '台幣 (TWD)', 'THB': '泰銖 (THB)', 'USD': '美金 (USD)', 'EUR': '歐元 (EUR)', 'GBP': '英鎊 (GBP)', 'CNY': '人民幣 (CNY)' };
+      return map[curr?.toUpperCase()] || curr;
+    };
+
+    const formatMoney = (amount, curr) => {
+      const num = Number(amount || 0);
+      const sym = getCurrencySymbol(curr);
+      if (['JPY', 'KRW'].includes(curr?.toUpperCase())) {
+        return `${sym}${Math.round(num)}`;
+      }
+      return `${sym}${num.toFixed(2)}`;
+    };
+
+    function App() {
+      const [step, setStep] = useState(1);
+      const [items, setItems] = useState([]);
+      const [taxAmount, setTaxAmount] = useState('');
+      const [taxNote, setTaxNote] = useState('');
+      const [friendsReplies, setFriendsReplies] = useState('');
+      
+      const [isAnalyzing, setIsAnalyzing] = useState(false);
+      const [progress, setProgress] = useState(0);
+      const [progressText, setProgressText] = useState('');
+      const [uploadError, setUploadError] = useState('');
+      const [stepError, setStepError] = useState('');
+      
+      const [payer, setPayer] = useState('');
+      const [detectedCurrency, setDetectedCurrency] = useState('HKD');
+      const [currency, setCurrency] = useState('HKD');
+
+      const [taxSplitMethod, setTaxSplitMethod] = useState('proportional');
+      // 將預設付款方式獨立於貨幣邏輯外，單純表示方法
+      const [paymentMethod, setPaymentMethod] = useState('轉數快 (FPS)');
+      const [results, setResults] = useState(null);
+      const fileInputRef = useRef(null);
+
+      const [savedHistory, setSavedHistory] = useState([]);
+      const [showHistory, setShowHistory] = useState(false);
+      const [showSettings, setShowSettings] = useState(false);
+      const [showTutorial, setShowTutorial] = useState(false);
+      const [isSaved, setIsSaved] = useState(false);
+
+      const [detailLang, setDetailLang] = useState('zh');
+      
+      const [aiEngine, setAiEngine] = useState('openrouter');
+      const [keys, setKeys] = useState({ openrouter: '', gemini: '' });
+      const apiKey = keys[aiEngine];
+      const setApiKey = (v) => setKeys(k => ({ ...k, [aiEngine]: v }));
+
+      const [apiModel, setApiModel] = useState('openrouter/free');
+      const [rememberKey, setRememberKey] = useState(false);
+
+      const [isEditingKey, setIsEditingKey] = useState(false);
+      const [showKey, setShowKey] = useState(false);
+      const [keyHint, setKeyHint] = useState('');
+      const [keyTesting, setKeyTesting] = useState(false);
+      const [keyTestResult, setKeyTestResult] = useState(null);
+      const editKeyRef = useRef('');
+
+      const [claimInfo, setClaimInfo] = useState(null);
+      const fieldRefs = useRef({});
+
+      const [kbOpen, setKbOpen] = useState(false);
+      const [statusExpanded, setStatusExpanded] = useState(false);
+      const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+      useEffect(() => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }, [step, showHistory, showSettings, showTutorial]);
+
+      useEffect(() => {
+        const handleFocus = (e) => {
+          const target = e.target;
+          if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+            setTimeout(() => { target.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 300);
+          }
+        };
+        document.addEventListener('focusin', handleFocus);
+        return () => document.removeEventListener('focusin', handleFocus);
+      }, []);
+
+      useEffect(() => {
+        try {
+          const storedHistory = localStorage.getItem('billSplitterHistory');
+          if (storedHistory) setSavedHistory(JSON.parse(storedHistory));
+
+          const persisted = localStorage.getItem('billSplitterApiConfig') || sessionStorage.getItem('billSplitterApiConfig');
+          if (persisted) {
+            const cfg = JSON.parse(persisted);
+            if (cfg.engine) setAiEngine(cfg.engine);
+            if (cfg.keys) {
+                setKeys(cfg.keys);
+            } else if (cfg.key) {
+                setKeys({ openrouter: cfg.engine === 'gemini' ? '' : cfg.key, gemini: cfg.engine === 'gemini' ? cfg.key : '' });
+            }
+            setApiModel(PROVIDERS.openrouter.models.includes(cfg.model) ? cfg.model : 'openrouter/free');
+            if(localStorage.getItem('billSplitterApiConfig')) setRememberKey(true);
+          }
+        } catch(e) {}
+      }, []);
+
+      useEffect(() => {
+        try { localStorage.setItem('billSplitterHistory', JSON.stringify(savedHistory)); } catch(e) {}
+      }, [savedHistory]);
+
+      useEffect(() => {
+          const handleOnline = () => setIsOnline(true);
+          const handleOffline = () => setIsOnline(false);
+          window.addEventListener('online', handleOnline);
+          window.addEventListener('offline', handleOffline);
+          return () => { window.removeEventListener('online', handleOnline); window.removeEventListener('offline', handleOffline); }
+      }, []);
+
+      useEffect(() => {
+        if (!friendsReplies.trim()) { setClaimInfo(null); return; }
+        const t = setTimeout(() => { setClaimInfo(parseClaims(friendsReplies, items)); }, 400);
+        return () => clearTimeout(t);
+      }, [friendsReplies, items]);
+
+      useEffect(() => {
+        const vv = window.visualViewport;
+        if (!vv) return;
+        const onResize = () => { setKbOpen(window.innerHeight - vv.height > 150); };
+        vv.addEventListener('resize', onResize);
+        vv.addEventListener('scroll', onResize);
+        onResize();
+        return () => { vv.removeEventListener('resize', onResize); vv.removeEventListener('scroll', onResize); };
+      }, []);
+
+      useEffect(() => {
+        const h = kbOpen ? 44 : (statusExpanded ? 200 : 96);
+        document.body.style.paddingBottom = `calc(${h}px + env(safe-area-inset-bottom))`;
+      }, [kbOpen, statusExpanded]);
+
+      const toast = (text, color = '#16a34a') => {
+        const msg = document.createElement('div');
+        msg.style.cssText = `position:fixed;top:20px;left:50%;transform:translateX(-50%);background:${color};color:white;padding:12px 24px;border-radius:8px;z-index:9999;font-weight:bold;box-shadow:0 4px 6px rgba(0,0,0,0.1);max-width:90vw;text-align:center;`;
+        msg.textContent = text;
+        document.body.appendChild(msg);
+        setTimeout(() => { if (msg.parentNode) document.body.removeChild(msg); }, 2500);
+      };
+
+      const focusField = (key) => {
+        const el = fieldRefs.current[key];
+        if (!el) return;
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.focus({ preventScroll: true });
+        el.classList.add('flash-target');
+        setTimeout(() => el.classList.remove('flash-target'), 1500);
+      };
+
+      const focusReplyLine = (lineNo) => {
+        const el = fieldRefs.current.replies;
+        if (!el) return;
+        const lines = el.value.split('\n');
+        const start = lines.slice(0, lineNo - 1).join('\n').length + (lineNo > 1 ? 1 : 0);
+        const end = start + (lines[lineNo - 1] || '').length;
+        el.focus();
+        el.setSelectionRange(start, end);
+        const lineH = parseFloat(getComputedStyle(el).lineHeight) || 20;
+        el.scrollTop = Math.max(0, (lineNo - 3) * lineH);
+        el.classList.add('flash-target');
+        setTimeout(() => el.classList.remove('flash-target'), 1500);
+      };
+
+      const testKey = async () => {
+        setKeyTesting(true);
+        setKeyTestResult(null);
+        try {
+          if (aiEngine === 'openrouter') {
+            const r = await fetch('https://openrouter.ai/api/v1/models', { headers: { 'Authorization': `Bearer ${apiKey.trim()}` } });
+            if (r.status === 401) throw new Error('鎖匙被拒（401）—— 請檢查有冇漏字或黏埋舊鎖匙');
+            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+            setKeyTestResult({ ok: true, msg: '✓ 鎖匙有效' });
+          } else {
+            const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey.trim()}`);
+            if (!r.ok) throw new Error(r.status === 400 ? '鎖匙無效' : `HTTP ${r.status}`);
+            setKeyTestResult({ ok: true, msg: '✓ 鎖匙有效' });
+          }
+        } catch (e) {
+          setKeyTestResult({ ok: false, msg: e.message });
+        } finally { setKeyTesting(false); }
+      };
+
+      const saveApiConfig = () => {
+        const v = validateKey(apiKey, aiEngine);
+        if (v.severity === 'likely_duplicate') {
+          setKeyHint(`鎖匙長度 ${v.actualLen} 字，正常應為 ${v.expectLen} 字 —— 似乎兩條黏埋咗。`);
+          return; 
+        }
+        if (v.severity !== 'ok' && v.severity !== 'empty') {
+          setKeyHint('鎖匙格式似乎唔對，請核對頭尾同長度。');
+          return;
+        }
+        setKeyHint('');
+        const payload = JSON.stringify({ engine: aiEngine, keys, model: apiModel });
+        sessionStorage.setItem('billSplitterApiConfig', payload);
+        try {
+          if (rememberKey) localStorage.setItem('billSplitterApiConfig', payload);
+          else localStorage.removeItem('billSplitterApiConfig');
+        } catch(e) {}
+        setIsEditingKey(false);
+        setShowSettings(false);
+        toast(rememberKey ? '✅ 設定已記存於本機。' : '✅ 設定已暫存於目前分頁。');
+      };
+
+      const forgetApiKey = () => {
+        if(window.confirm("確定要清除鎖匙嗎？")) {
+          try { localStorage.removeItem('billSplitterApiConfig'); sessionStorage.removeItem('billSplitterApiConfig'); } catch(e) {}
+          setApiKey(''); setIsEditingKey(true); setRememberKey(false);
+          toast('🗑️ 已清除鎖匙。', '#ef4444');
+        }
+      };
+
+      const saveCurrentRecord = () => {
+        if (!results) return;
+        const billTotal = items.reduce((sum, item) => sum + toNum(item.total), 0) + toNum(taxAmount);
+        const newRecord = { id: Date.now(), date: results.date, payer, totalAmount: billTotal, currency: results.currency, simplifiedText: getSimplifiedResult(), detailedText: getDetailedResult('zh'), detailedFullText: getDetailedResult('full') };
+        setSavedHistory([newRecord, ...savedHistory]);
+        setIsSaved(true);
+        toast('✅ 紀錄已儲存！');
+      };
+
+      const deleteRecord = (id) => { 
+        if (window.confirm("確定刪除此歷史紀錄？")) { setSavedHistory(savedHistory.filter(r => r.id !== id)); }
+      };
+
+      const exportCSV = () => {
+        if (savedHistory.length === 0) return;
+        const headers = ['日期', '墊支人', '總金額', '貨幣', '追數版內容', '詳細版內容'];
+        const escapeCSV = (str) => { if (str === null || str === undefined) return '""'; return `"${String(str).replace(/"/g, '""')}"`; };
+        const rows = savedHistory.map(record => [ escapeCSV(record.date), escapeCSV(record.payer), escapeCSV(record.totalAmount?.toFixed(2)), escapeCSV(record.currency), escapeCSV(record.simplifiedText), escapeCSV(record.detailedText) ].join(','));
+        const csvContent = '\uFEFF' + [headers.join(','), ...rows].join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a'); link.href = url; link.setAttribute('download', `分帳紀錄_${new Date().toISOString().split('T')[0]}.csv`);
+        document.body.appendChild(link); link.click(); document.body.removeChild(link); URL.revokeObjectURL(url);
+        toast('✅ 成功匯出 CSV！');
+      };
+
+      const handleGoToStep1 = () => { 
+        setStepError(''); setItems([]); setFriendsReplies(''); setResults(null); 
+        setIsSaved(false); setTaxAmount(''); setTaxNote(''); 
+        // 修正重置邏輯：將貨幣與付款方式還原至最乾淨嘅預設值
+        setCurrency('HKD'); setDetectedCurrency('HKD'); setPaymentMethod('轉數快 (FPS)'); setStep(1); 
+      };
+      
+      const handleGoToStep2 = (manual = false) => { setStepError(''); if (manual) setItems([]); setStep(2); };
+      
+      const handleGoToStep3 = () => {
+        setStepError('');
+        if (items.length === 0) { setStepError("⚠️ 請至少新增一個項目！"); return; }
+        for (let i = 0; i < items.length; i++) { 
+            if (!items[i].name.trim()) { setStepError(`⚠️ 項目 ${items[i].id} 未填寫名稱！`); focusField(`item-name-${i}`); return; } 
+        }
+        if (!friendsReplies.trim()) { setStepError("⚠️ 尚未貼上朋友的認領回覆！"); focusField('replies'); return; }
+        setStep(3);
+      };
+
+      const jumpToStep = (target) => {
+        if (target === step) return;
+        setStepError('');
+        if (target < step) { setStep(target); return; }
+        if (target >= 2 && items.length === 0) { setStepError('⚠️ 請先上傳單據或手動輸入項目。'); return; }
+        if (target >= 3) {
+          for (let i = 0; i < items.length; i++) { 
+              if (!String(items[i].name || '').trim()) { setStepError(`⚠️ 項目 ${items[i].id} 未填寫名稱！`); focusField(`item-name-${i}`); return; } 
+          }
+          if (!friendsReplies.trim()) { setStepError('⚠️ 尚未貼上朋友的回覆！'); focusField('replies'); return; }
+        }
+        if (target === 4 && !results) { setStepError('⚠️ 請先完成運算。'); return; }
+        setStep(target);
+      };
+
+      const handlePasteReplies = (e) => {
+        e.preventDefault();
+        const incoming = (e.clipboardData || window.clipboardData).getData('text/plain');
+        const el = e.target;
+        const { text, added, blockStart } = appendReply(friendsReplies, incoming);
+        if (!added) return;
+
+        setFriendsReplies(text);
+        setStepError('');
+
+        requestAnimationFrame(() => {
+          el.focus();
+          el.setSelectionRange(text.length, text.length);
+          const lines = text.slice(0, blockStart).split('\n').length;
+          const lineH = parseFloat(getComputedStyle(el).lineHeight) || 20;
+          el.scrollTop = Math.max(0, (lines - 1) * lineH - 8);
+        });
+      };
+
+      const onFocusReplies = (e) => {
+        const el = e.target;
+        const atEnd = el.selectionStart >= el.value.replace(/\s+$/, '').length;
+        const fixed = ensureTail(el.value);
+        if (fixed !== el.value) setFriendsReplies(fixed);
+        if (atEnd) parkCaret(el);
+      };
+
+      const onBlurReplies = (e) => {
+        const fixed = ensureTail(normalizeReplies(e.target.value));
+        if (fixed !== friendsReplies) setFriendsReplies(fixed);
+      };
+
+      const triggerUpload = () => {
+        if (!apiKey.trim()) { toast('⚠️ 請先申請及輸入鎖匙', '#ef4444'); setShowSettings(true); return; }
+        if(fileInputRef.current) fileInputRef.current.click();
+      };
+
+      const handleFileUpload = async (event) => {
+        const files = Array.from(event.target.files);
+        if (files.length === 0) return;
+        const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+        const totalSize = files.reduce((sum, file) => sum + file.size, 0);
+        
+        if (files.length > 5) { setUploadError({ main: '一次最多可上傳 5 張圖片', sub: '', action: null }); event.target.value = ''; return; }
+        if (files.some(file => !allowedTypes.includes(file.type))) { setUploadError({ main: '只支援 JPG、PNG 或 WebP 圖片', sub: '', action: null }); event.target.value = ''; return; }
+        if (totalSize > 12 * 1024 * 1024) { setUploadError({ main: '圖片合計不可超過 12 MB', sub: '', action: null }); event.target.value = ''; return; }
+        
+        setIsAnalyzing(true);
+        setUploadError('');
+        setProgress(5);
+        setProgressText('正在讀取圖片...');
+        
+        let progressInterval = setInterval(() => {
+          setProgress(prev => {
+            if (prev < 30) { setProgressText('傳送至 AI 伺服器...'); return prev + 15; }
+            if (prev < 60) { setProgressText('AI 正在抽取文字與價錢...'); return prev + 10; }
+            if (prev < 85) { setProgressText('整理消費項目與稅費中...'); return prev + 5; }
+            if (prev < 98) { setProgressText('就快完成，請稍候...'); return prev + 1; }
+            return prev;
+          });
+        }, 1200);
+
+        try {
+          const base64Promises = files.map(file => {
+            return new Promise((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = () => resolve({ mimeType: file.type, data: reader.result.split(',')[1] });
+              reader.onerror = () => reject(new Error(`未能讀取圖片：${file.name}`));
+              reader.readAsDataURL(file);
+            });
+          });
+          const imageDataArray = await Promise.all(base64Promises);
+
+          const promptText = `你是一個專門分析單據的 OCR 分帳助手。你唯一的任務是：讀取單據上的文字，抽取消費項目、稅費，並判斷貨幣，然後輸出 JSON。不要做任何運算解釋、不要加註解、不要輸出 Markdown。
+這裡有 ${files.length} 張單據。請仔細辨識，合併成一份清單。
+【A. 消費項目 items】
+1. "name"：項目名稱翻譯成「繁體中文」。
+2. "original"：單據上的原文字樣（日/韓/英）。
+3. "ja"：該項目的日文名稱。
+4. "price"（單價）、"qty"（數量）、"total"（該項總額），皆為數字。不可包含稅金、服務費、折扣。
+【B. 稅費 taxTotal】
+尋找所有附加費用（消費税、サービス料、加一、VAT）加總成 "taxTotal"。若已「內含」（税込），填 0。
+"taxNote"：簡短說明稅費。
+【C. 結算貨幣 currency】
+判斷單據使用的貨幣，填入標準 3 字母代碼（例如 HKD, JPY, TWD, THB, KRW, USD, GBP, EUR 等）。若無法確定請預設填 HKD。
+【D. 輸出格式】嚴格輸出以下 JSON 物件：
+{"items":[{"name":"凍檸茶","original":"アイスレモンティー","ja":"アイスレモンティー","price":15,"qty":2,"total":30}],"taxTotal":45,"taxNote":"消費税 ¥45（外税）","currency":"JPY"}`;
+
+          let parsedItems = [];
+          let parsedTax = null;
+          let parsedTaxNote = '';
+          let parsedCurrency = 'HKD';
+
+          if (aiEngine === 'gemini') {
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey.trim()}`;
+            const imageParts = imageDataArray.map(img => ({ inlineData: { mimeType: img.mimeType, data: img.data } }));
+            const payload = { contents: [{ role: "user", parts: [{ text: promptText }, ...imageParts] }], generationConfig: { responseMimeType: "application/json" } };
+            const res = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            if (!res.ok) throw new Error(`HTTP Error ${res.status}: 鎖匙被拒（401）。常見原因：複製時漏字、或新舊鎖匙黏埋一條。`);
+            const data = await res.json();
+            const jsonText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (!jsonText) throw new Error('AI 未能回傳有效結果。');
+            const shaped = extractPayload(jsonText);
+            parsedItems = shaped.items; parsedTax = shaped.taxTotal; parsedTaxNote = shaped.taxNote; parsedCurrency = shaped.currency?.toUpperCase() || 'HKD';
+          } else {
+            const contentArray = [{ type: "text", text: promptText }];
+            imageDataArray.forEach(img => { contentArray.push({ type: "image_url", image_url: { url: `data:${img.mimeType};base64,${img.data}` } }); });
+            const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+              method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey.trim()}` },
+              body: JSON.stringify({ model: apiModel, messages: [{ role: "user", content: contentArray }], temperature: 0.1 })
+            });
+            if (!response.ok) throw new Error(`OpenRouter HTTP ${response.status}: 鎖匙被拒（401）。常見原因：複製時漏字、或新舊鎖匙黏埋一條。`);
+            const data = await response.json();
+            const jsonText = data.choices?.[0]?.message?.content;
+            if (!jsonText) throw new Error('OpenRouter 冇回傳內容。');
+            const shaped = extractPayload(jsonText);
+            parsedItems = shaped.items; parsedTax = shaped.taxTotal; parsedTaxNote = shaped.taxNote; parsedCurrency = shaped.currency?.toUpperCase() || 'HKD';
+          }
+
+          if (!Array.isArray(parsedItems)) throw new Error('AI 回傳格式不符。');
+          const formattedItems = parsedItems.map((item, idx) => ({
+            id: String(idx + 1).padStart(2, '0'), name: item.name || '項目', original: item.original || '', ja: item.ja || '',
+            price: toNum(item.price), qty: toNum(item.qty) || 1, total: toNum(item.total) || (toNum(item.price) * (toNum(item.qty) || 1)) || 0
+          }));
+
+          clearInterval(progressInterval);
+          setProgress(100);
+          setProgressText('處理完成！');
+          
+          setTimeout(() => {
+            setItems(formattedItems);
+            // 同步設定自動偵測出嘅貨幣
+            setCurrency(parsedCurrency);
+            setDetectedCurrency(parsedCurrency);
+
+            if (parsedTax !== null && !isNaN(parsedTax) && parsedTax > 0) {
+              setTaxAmount(String(Number(parsedTax.toFixed ? parsedTax.toFixed(2) : parsedTax)));
+              setTaxNote(parsedTaxNote || '');
+              toast(`✅ 已自動填入稅／服務費：${formatMoney(parsedTax, parsedCurrency)}`);
+            } else {
+              setTaxAmount('');
+              setTaxNote(parsedTaxNote || '');
+            }
+            
+            setStep(2);
+            setIsAnalyzing(false);
+          }, 600);
+
+        } catch (error) {
+          clearInterval(progressInterval);
+          setIsAnalyzing(false);
+          const detail = error?.message || '未知錯誤';
+          setUploadError({ main: '讀取失敗', sub: detail, action: null });
+        } finally { 
+          if(fileInputRef.current) fileInputRef.current.value = '';
+        }
+      };
+
+      const addItem = () => setItems([...items, { id: String(items.length + 1).padStart(2, '0'), name: '', original: '', ja: '', price: '', qty: 1, total: 0 }]);
+      const updateItem = (index, field, value) => {
+        const newItems = [...items]; newItems[index][field] = value;
+        if (field === 'price' || field === 'qty') {
+          const price = parseFloat(newItems[index].price) || 0; const qty = parseFloat(newItems[index].qty) || 0;
+          newItems[index].total = price * qty;
+        }
+        setItems(newItems);
+      };
+      const removeItem = (index) => {
+        const newItems = items.filter((_, i) => i !== index);
+        setItems(newItems.map((item, i) => ({ ...item, id: String(i + 1).padStart(2, '0') })));
+      };
+
+      const generateFriendTemplate = () => {
+        let tpl = `🧾 *分帳認領表* 🧾\n\n👤 姓名：\n\n📌 *填寫方法（好簡單，睇一睇）*\n1️⃣ 先在上面「姓名」填你的名字。\n2️⃣ 你有食／有買的項目，在「數量」後面填數字。\n3️⃣ *冇食的項目，留空或填 0 就得，唔需要刪走。*\n4️⃣ 這個「數量」= 你想出的「份數比例」，食飯開心最緊要，唔使計到咁足：\n　　• 兩個人一齊 share → 大家都填「1」（一人一半）\n　　• 你食得多，心意想出多少少 → 填「2」\n　　• 食得好少 / 試咗啖仔 → 填「0.5」\n5️⃣ 填好後，*整段複製*返給我就完成。\n━━━━━━━━━━━━━━\n\n`;
+        items.forEach(item => { tpl += `🔶 ${item.id} ${item.name}\n👉🏻 數量 ＝ \n\n`; });
+        tpl += `━━━━━━━━━━━━━━\n✅ 唔使自己計錢，系統會自動按份數幫你分攤。\n\n`;
+        return tpl;
+      };
+
+      const copyToClipboard = (text, btnLabel) => {
+        const textArea = document.createElement("textarea"); textArea.value = text; document.body.appendChild(textArea);
+        textArea.select(); 
+        try { document.execCommand('copy'); toast(`✅ ${btnLabel}已複製！`); } catch (err) {}
+        document.body.removeChild(textArea);
+      };
+
+      const calculateSplit = () => {
+        setStepError('');
+        if (!payer.trim()) { setStepError("⚠️ 請填寫墊支人姓名！"); focusField('payer'); return; }
+
+        const parsed = parseClaims(friendsReplies, items);
+        const personClaims = parsed.claims;
+
+        if (parsed.people.length === 0) { setStepError("⚠️ 未能解析！請確保已正確貼上朋友回覆並填寫數量。"); focusField('replies'); return; }
+
+        const itemClaimTotals = {};
+        items.forEach(item => { itemClaimTotals[item.id] = 0; Object.keys(personClaims).forEach(person => { itemClaimTotals[item.id] += (personClaims[person][item.id] || 0); }); });
+
+        const personTotals = {}; let totalItemsCost = 0;
+        Object.keys(personClaims).forEach(person => { personTotals[person] = { items: [], subtotal: 0, tax: 0, total: 0 }; });
+
+        items.forEach(item => {
+          const totalClaimed = itemClaimTotals[item.id];
+          if (totalClaimed > 0) {
+            const unitCost = item.total / totalClaimed;
+            Object.keys(personClaims).forEach(person => {
+              const claimedQty = personClaims[person][item.id] || 0;
+              if (claimedQty > 0) {
+                const cost = claimedQty * unitCost;
+                personTotals[person].items.push({ name: item.name, original: item.original || '', ja: item.ja || '', id: item.id, amount: cost, qty: claimedQty, totalClaimed });
+                personTotals[person].subtotal += cost; totalItemsCost += cost;
+              }
+            });
+          }
+        });
+
+        const taxNum = parseFloat(taxAmount) || 0; const numPeople = Object.keys(personClaims).length;
+        Object.keys(personTotals).forEach(person => {
+          let taxShare = 0;
+          if (taxSplitMethod === 'equal') taxShare = taxNum / numPeople;
+          else if (taxSplitMethod === 'proportional' && totalItemsCost > 0) taxShare = taxNum * (personTotals[person].subtotal / totalItemsCost);
+          personTotals[person].tax = taxShare; personTotals[person].total = personTotals[person].subtotal + taxShare;
+        });
+
+        setResults({ personTotals, totalItemsCost, date: new Date().toISOString().split('T')[0], currency });
+        setIsSaved(false); setStep(4);
+      };
+
+      const getSimplifiedResult = () => {
+        if (!results) return "";
+        const others = Object.keys(results.personTotals).filter(p => p !== payer);
+        const curr = results.currency;
+        let txt = `💰 *分帳結果* 💰\n📅 ${results.date}\n💳 請過數俾：*${payer}*\n💵 付款方式：${paymentMethod}\n💴 結算貨幣：*${getCurrencyName(curr)}*\n━━━━━━━━━━━━━━\n`;
+        others.forEach(person => { txt += `👤 *${person}*\n　　應付 ➡️ *${formatMoney(results.personTotals[person].total, curr)}*\n`; });
+        if (others.length === 0) txt += `（只有墊支人一位，無需過數）\n`;
+        txt += `━━━━━━━━━━━━━━\n`;
+        const owed = others.reduce((s, p) => s + results.personTotals[p].total, 0);
+        txt += `📊 應收合計：*${formatMoney(owed, curr)}*\n`;
+        if (results.personTotals[payer]) txt += `🙋 ${payer} 自己一份：${formatMoney(results.personTotals[payer].total, curr)}\n`;
+        txt += `\n🙏 收到請覆「已轉」，多謝合作！`;
+        return txt;
+      };
+
+      const getDetailedResult = (mode = 'zh') => {
+        if (!results) return "";
+        const full = mode === 'full';
+        const curr = results.currency;
+        let txt = `🧾 *分帳詳細明細* 🧾\n📅 ${results.date}\n💳 墊支人：${payer}\n💵 付款方式：${paymentMethod}\n💴 結算貨幣：${getCurrencyName(curr)}\n⚖️ 稅／服務費：${taxSplitMethod === 'equal' ? '全部人平均分' : '按消費比例分'}\n━━━━━━━━━━━━━━\n\n`;
+        let grandTotal = 0;
+        Object.keys(results.personTotals).forEach(person => {
+          const p = results.personTotals[person];
+          txt += `👤 *${person}*\n`;
+          p.items.forEach(i => {
+            txt += `　▫️ ${i.id} ${i.name}\n`;
+            if (full && i.original && i.original !== i.name) txt += `　　　🌐 原文：${i.original}\n`;
+            if (full && i.ja && i.ja !== i.original) txt += `　　　🇯🇵 日文：${i.ja}\n`;
+            const share = i.totalClaimed > 1 ? `（${i.qty}/${i.totalClaimed} 份）` : '';
+            txt += `　　　💲 ${formatMoney(i.amount, curr)}${share}\n`;
+          });
+          if (p.tax > 0) txt += `　▫️ 稅／服務費分攤　💲 ${formatMoney(p.tax, curr)}\n`;
+          txt += `　▶️ *應付：${formatMoney(p.total, curr)}*\n━━━━━━━━━━━━━━\n`;
+          grandTotal += p.total;
+        });
+        const itemsSum = items.reduce((sum, item) => sum + toNum(item.total), 0);
+        const billTotal = itemsSum + toNum(taxAmount);
+        const diff = Math.abs(grandTotal - billTotal);
+        txt += `\n📊 *總核對*\n　項目小計：${formatMoney(itemsSum, curr)}\n　稅／服務費：${formatMoney(taxAmount, curr)}\n　單據總計：${formatMoney(billTotal, curr)}\n　各人合計：${formatMoney(grandTotal, curr)}\n　差額：${formatMoney(diff, curr)} ${diff < 0.05 ? '✅' : '⚠️ 請檢查認領數量'}\n`;
+        if (full && taxNote) txt += `\n📝 稅費來源：${taxNote}\n`;
+        return txt;
+      };
+
+      const statuses = useMemo(() => {
+        const list = [];
+        const push = (level, id, main, sub, action) => list.push({ level, id, main, sub, action });
+
+        if (!isOnline) push(1, 'E4', '現在冇網絡，AI 讀單暫停', '你仍可手動輸入項目', { label: '手動輸入', run: () => { setShowSettings(false); jumpToStep(2); } });
+        if (uploadError) push(1, 'U-ERR', uploadError.main, uploadError.sub, { label: '重試', run: () => setUploadError('') });
+        if (!apiKey.trim() && step === 1 && !showSettings && !showTutorial && !showHistory) push(1, 'E1', '未設定 AI 鎖匙，暫時只可手動輸入', '去設定申請一條免費鎖匙', { label: '去設定', run: () => setShowSettings(true) });
+
+        if (step === 3 && !payer.trim()) push(2, 'S1', '未填墊支人姓名', '填咗才可以出結果', { label: '跳去輸入', run: () => focusField('payer') });
+        if (step === 2 && items.length > 0) {
+            const emptyNameIdx = items.findIndex(i => !i.name.trim());
+            if (emptyNameIdx !== -1) push(2, 'S2', `項目 ${items[emptyNameIdx].id} 未填寫名稱`, '請填寫名稱以便認領', { label: '填寫', run: () => focusField(`item-name-${emptyNameIdx}`) });
+        }
+        if (step >= 2 && items.length === 0) push(2, 'S3', '請至少新增一個項目', '', { label: '新增', run: () => { jumpToStep(2); addItem(); } });
+        if (step === 2 && !friendsReplies.trim() && items.length > 0) push(2, 'S4', '尚未貼上朋友的認領回覆', '收集後貼上才能進行運算', { label: '前往貼上', run: () => focusField('replies') });
+
+        if (step === 2 && claimInfo && claimInfo.issues.length > 0) {
+            const firstIssue = claimInfo.issues[0];
+            let msg = ''; let subMsg = `在第 ${firstIssue.line} 行`;
+            if (firstIssue.type === 'unknown_id') msg = `有人填了項目「${firstIssue.id}」，單上冇此編號`;
+            else if (firstIssue.type === 'qty_negative') msg = `數量不可為負數`;
+            else if (firstIssue.type === 'no_person') msg = `有數量但未指定姓名`;
+            else msg = `回覆內容存在格式疑問`;
+            push(3, 'C1', msg, subMsg, { label: '查看', run: () => focusReplyLine(firstIssue.line) });
+        }
+
+        if (step === 2 && claimInfo && items.length > 0) {
+            let unclaimedCount = 0; let unclaimedCost = 0;
+            const itemClaimTotals = {};
+            items.forEach(item => {
+                itemClaimTotals[item.id] = 0;
+                if(claimInfo.claims) Object.keys(claimInfo.claims).forEach(person => { itemClaimTotals[item.id] += (claimInfo.claims[person][item.id] || 0); });
+            });
+            items.forEach(item => { if (itemClaimTotals[item.id] <= 0) { unclaimedCount++; unclaimedCost += toNum(item.total); } });
+            if (unclaimedCount > 0) push(3, 'C2', `${unclaimedCount} 項冇人認領（${formatMoney(unclaimedCost, currency)} 未分攤）`, '請補回認領，或刪走冇人食嘅項目', { label: '前往', run: () => jumpToStep(2) });
+        }
+
+        if (isAnalyzing) push(4, 'A1', progressText, `進度 ${progress}%`, null);
+        if (step === 1 && !isAnalyzing && items.length === 0 && apiKey.trim() && !showSettings && !showTutorial && !showHistory) {
+            push(5, 'G1', '請上傳單據照片，讓 AI 幫你讀取', '或手動建立項目', { label: '手動輸入', run: () => { setItems([]); setStep(2); } });
+        } else if (step === 2 && items.length > 0 && friendsReplies.trim() && (!claimInfo || claimInfo.issues.length === 0)) {
+            push(5, 'G2', '認領資料準備就緒', '可以進行分帳運算', { label: '下一步', run: calculateSplit });
+        }
+        if (list.length === 0) push(6, 'I1', '貼上回覆時可以連續貼幾份，系統會自動加分隔線。', '', null);
+
+        return list.sort((a, b) => a.level - b.level);
+    }, [isOnline, uploadError, apiKey, step, showSettings, showTutorial, showHistory, payer, items, friendsReplies, claimInfo, isAnalyzing, progressText, progress, currency]);
+
+    const StatusBar = ({ statuses, expanded, setExpanded, kbOpen }) => {
+        if (!statuses.length) return null;
+        const top = statuses[0];
+        const rest = statuses.slice(1);
+        const TONE = { 1: { bg: 'bg-red-50', border: 'border-red-300', text: 'text-red-700', dot: '🔴' }, 2: { bg: 'bg-orange-50', border: 'border-orange-300', text: 'text-orange-700', dot: '🟠' }, 3: { bg: 'bg-amber-50', border: 'border-amber-300', text: 'text-amber-800', dot: '🟡' }, 4: { bg: 'bg-blue-50', border: 'border-blue-300', text: 'text-blue-700', dot: '🔵' }, 5: { bg: 'bg-green-50', border: 'border-green-300', text: 'text-green-700', dot: '🟢' }, 6: { bg: 'bg-gray-50', border: 'border-gray-200', text: 'text-gray-500', dot: '⚪' } }[top.level] || { bg: 'bg-gray-50', border: 'border-gray-200', text: 'text-gray-500', dot: '⚪' };
+
+        return (
+            <div role="status" aria-live="polite" className={`fixed bottom-0 left-0 right-0 z-30 border-t-2 ${TONE.bg} ${TONE.border} shadow-[0_-4px_12px_rgba(0,0,0,0.06)]`} style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+                {rest.length > 0 && !kbOpen && (
+                    <button onClick={() => setExpanded(!expanded)} className="w-full flex items-center justify-between px-4 py-1.5 text-xs font-bold text-gray-600 border-b border-gray-200/60 bg-white/50">
+                        <span>{expanded ? '▼ 全部問題' : `▲ 仲有 ${rest.length} 個提示`}</span><span className="opacity-60">{expanded ? '收起' : '拉開'}</span>
+                    </button>
+                )}
+                {expanded && !kbOpen && (
+                    <div className="max-h-40 overflow-y-auto divide-y divide-gray-200/60 bg-white">
+                        {rest.map(s => {
+                            const ST = { 1: { dot: '🔴' }, 2: { dot: '🟠' }, 3: { dot: '🟡' }, 4: { dot: '🔵' }, 5: { dot: '🟢' }, 6: { dot: '⚪' } }[s.level] || { dot: '⚪' };
+                            return (
+                                <div key={s.id} className="flex items-center gap-2 px-4 py-2 text-xs"><span className="shrink-0">{ST.dot}</span><span className="flex-1 leading-snug">{s.main}</span>
+                                    {s.action && (<button onClick={() => { s.action.run(); setExpanded(false); }} className="shrink-0 px-2 py-1 bg-gray-100 border border-gray-300 rounded-lg font-bold text-gray-700">→</button>)}
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+                <div className={`flex items-start gap-2.5 px-4 ${kbOpen ? 'py-2' : 'py-3'}`}>
+                    <span className="shrink-0 text-base leading-none mt-0.5">{TONE.dot}</span>
+                    <div className="flex-1 min-w-0"><div className={`font-bold text-sm leading-snug ${TONE.text}`}>{top.main}</div>{!kbOpen && top.sub && (<div className="text-xs text-gray-600 mt-0.5 leading-snug">{top.sub}</div>)}</div>
+                    {!kbOpen && top.action && (<button onClick={() => { top.action.run(); setExpanded(false); }} className="shrink-0 px-3 py-2 bg-white border-2 rounded-xl text-xs font-bold active:scale-95 shadow-sm text-gray-800">{top.action.label} →</button>)}
+                </div>
+            </div>
+        );
+    };
+
+      // ── 選項重設為純粹獨立 ──
+      const paymentOptions = ['轉數快 (FPS)', 'PayMe', '現金', '銀行轉帳'];
+      const displayCurrencies = Array.from(new Set([detectedCurrency, 'HKD', 'JPY', 'TWD', 'THB', 'KRW', 'USD', 'MOP', 'GBP', 'EUR'])).filter(Boolean).slice(0, 9);
+
+      return (
+        <React.Fragment>
+          <header className="bg-white shadow-sm sticky top-0 z-20">
+            <div className="w-full px-4 py-4 flex items-center justify-between border-b border-gray-100">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-green-600 text-white rounded-xl flex items-center justify-center shadow-inner shrink-0">
+                  <Icon path={icons.msg} size={22} />
+                </div>
+                <h1 className="text-xl font-bold text-gray-900 leading-tight">分帳管家 AI</h1>
+              </div>
+              <div className="flex items-center gap-2">
+                {(showHistory || showSettings || showTutorial) ? (
+                  <button onClick={() => {setShowHistory(false); setShowSettings(false); setShowTutorial(false);}} className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-bold transition-colors">
+                    <Icon path={icons.arrowLeft} size={16}/> 返回
+                  </button>
+                ) : (
+                  <React.Fragment>
+                    <button onClick={() => setShowTutorial(true)} title="新手教學" className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-800 rounded-lg text-sm font-bold transition-colors">
+                      <Icon path={icons.book} size={16}/> 教學
+                    </button>
+                    <button onClick={() => setShowSettings(true)} title="設定鎖匙" className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-bold transition-colors">
+                      <Icon path={icons.settings} size={16}/>
+                    </button>
+                    <button onClick={() => setShowHistory(true)} title="歷史紀錄" className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-bold transition-colors">
+                      <Icon path={icons.history} size={16}/>
+                    </button>
+                  </React.Fragment>
+                )}
+              </div>
+            </div>
+            {(!showHistory && !showSettings && !showTutorial) && (
+              <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
+                <div className="flex w-full gap-1.5 mb-2">
+                  {[1, 2, 3, 4].map(num => (
+                    <div key={num} className={`flex-1 h-1.5 rounded-full transition-colors duration-300 ${step > num ? 'bg-green-600' : step === num ? 'bg-green-500' : 'bg-gray-200'}`}></div>
+                  ))}
+                </div>
+                <div className="flex items-center justify-between px-0.5">
+                  {STEP_LABELS.map((label, i) => {
+                    const num = i + 1;
+                    const done = step > num;
+                    const active = step === num;
+                    return (
+                      <React.Fragment key={num}>
+                        <button onClick={() => jumpToStep(num)} className={`flex items-center gap-1.5 rounded-lg px-1.5 py-1 -mx-0.5 transition-all active:scale-95 ${active ? 'text-green-700' : done ? 'text-green-600' : 'text-gray-400'}`}>
+                          <span className={`w-5 h-5 shrink-0 rounded-full flex items-center justify-center text-[10px] font-bold border-2 ${active ? 'bg-green-600 border-green-600 text-white' : done ? 'bg-white border-green-500 text-green-600' : 'bg-white border-gray-300 text-gray-400'}`}>{done ? '✓' : num}</span>
+                          <span className="text-xs font-bold">{label}</span>
+                        </button>
+                        {num < 4 && <span className="flex-1 mx-1 border-t-2 border-dotted border-gray-300 min-w-[6px]"></span>}
+                      </React.Fragment>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </header>
+
+          <StatusBar statuses={statuses} expanded={statusExpanded} setExpanded={setStatusExpanded} kbOpen={kbOpen} />
+
+          {showTutorial ? (
+            <main className="w-full px-4 py-6 max-w-lg mx-auto space-y-4 pb-10">
+              <div className="bg-gradient-to-br from-amber-400 to-amber-500 text-gray-900 rounded-2xl p-5 shadow-lg shadow-amber-200">
+                <h2 className="text-xl font-bold flex items-center gap-2"><Icon path={icons.book} size={22}/> 新手教學</h2>
+                <p className="text-sm mt-2 leading-relaxed text-gray-800">第一次用？睇完以下幾點就上手。<br/>最重要的是第 2 節「數量點填」——這是最多人搞錯的地方。</p>
+              </div>
+
+              <div className="bg-white border-2 border-gray-200 rounded-2xl p-4">
+                <h3 className="font-bold text-gray-900 mb-3">🗺️ 整個流程（4 步）</h3>
+                <div className="space-y-2.5 text-sm">
+                  {[
+                    ['1', '睇單', '拍／揀單據照片，AI 自動讀出項目、價錢同稅費。亦可手動輸入。'],
+                    ['2', '認領', '複製「認領表」發到 WhatsApp 群組，朋友填數量後傳回，你貼回輸入框。'],
+                    ['3', '運算', '填墊支人姓名、確認自動偵測的貨幣、付款方式。'],
+                    ['4', '結果', '得出「追數版」同「詳細版」，複製後發返群組。'],
+                  ].map(([n, t, d]) => (
+                    <div key={n} className="flex gap-3">
+                      <span className="w-6 h-6 shrink-0 bg-green-600 text-white rounded-full flex items-center justify-center text-xs font-bold">{n}</span>
+                      <div><span className="font-bold text-gray-900">{t}</span><span className="text-gray-600"> — {d}</span></div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <Accordion title="⭐ 2. 「數量」到底點填？（最重要）" tone="amber" defaultOpen={true}>
+                <div className="bg-white border-2 border-amber-300 rounded-xl p-3.5">
+                  <p className="font-bold text-amber-900 text-base mb-1.5">一句話核心：</p>
+                  <p className="text-gray-800">呢個數字純粹係<strong className="text-amber-800">你想出嘅「份數比例」</strong>。如果成碟嘢得你一個人食，咪填 1 全包；兩個人一齊食，大家各填 1 就一人一半，如此類推。</p>
+                </div>
+
+                <p className="font-bold text-gray-900 pt-1">例子：兩個人 share 一個薄餅 🍕</p>
+                <div className="bg-white border border-gray-200 rounded-xl p-3 text-xs space-y-2.5">
+                  <p>一個薄餅 $120，阿明同 Cathy 一齊食。阿明覺得自己食多啲，想出多一份，就填 <strong>2</strong>；Cathy 填 <strong>1</strong>。</p>
+                  <div className="bg-gray-50 border border-gray-100 rounded p-2 text-[11px] text-gray-600 font-mono">
+                    系統自動計：合共 3 份 → 每份 $40。<br/>阿明 2 份 = $80，Cathy 1 份 = $40。
+                  </div>
+                  <p className="text-green-700 font-bold mt-1">✅ 唔使數切咗幾件、食咗幾啖。想出幾多份，就填幾多。</p>
+                </div>
+              </Accordion>
+
+              <Accordion title="🔑 6. AI 設定與鎖匙" tone="gray">
+                <p><strong>OpenRouter</strong>：推薦香港人使用，免 VPN，速度快。只需去官網申請免費鎖匙。</p>
+                <p><strong>Gemini 模式</strong>：需要全程開啟 VPN 才能申請同埋使用鎖匙。</p>
+                <div className="bg-white border border-gray-200 rounded-xl p-3 text-xs space-y-1">
+                  <p className="font-bold text-gray-800">記住我的鎖匙（免每次重輸）</p>
+                  <p className="text-gray-700">在設定勾選「記住鎖匙」，只存本機，唔會上傳。共用電腦請勿勾選。</p>
+                </div>
+              </Accordion>
+
+              <Button className="w-full mt-2" onClick={() => { setShowTutorial(false); }}>
+                <Icon path={icons.check} size={18}/> 我明白了，開始分帳
+              </Button>
+            </main>
+          ) : showSettings ? (
+            <main className="w-full px-4 py-6 max-w-lg mx-auto animate-in fade-in">
+              <h2 className="text-xl font-bold mb-4 flex items-center gap-2"><Icon path={icons.settings} className="text-gray-600"/> 鎖匙設定</h2>
+              
+              <Card className="space-y-5">
+                <div className="space-y-3">
+                  <label className="font-bold text-gray-800 block text-base">選擇執行環境</label>
+                  <div className="grid grid-cols-1 gap-3">
+                    <label className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${aiEngine === 'openrouter' ? 'bg-blue-50 border-blue-600' : 'bg-white border-gray-200 hover:bg-gray-50'}`}>
+                      <input type="radio" name="engine" checked={aiEngine === 'openrouter'} onChange={() => { setAiEngine('openrouter'); setIsEditingKey(!keys.openrouter); }} className="w-5 h-5 text-blue-600" />
+                      <div>
+                        <div className="font-bold text-gray-900 text-base">OpenRouter (推薦)</div>
+                        <div className="text-xs text-gray-500 mt-1">香港使用免 VPN，直連速度快。</div>
+                      </div>
+                    </label>
+                    <label className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${aiEngine === 'gemini' ? 'bg-green-50 border-green-600' : 'bg-white border-gray-200 hover:bg-gray-50'}`}>
+                      <input type="radio" name="engine" checked={aiEngine === 'gemini'} onChange={() => { setAiEngine('gemini'); setIsEditingKey(!keys.gemini); }} className="w-5 h-5 text-green-600" />
+                      <div>
+                        <div className="font-bold text-gray-900 text-base">Gemini 官方模式 <span className="text-red-500">(需用 VPN)</span></div>
+                        <div className="text-xs text-red-500 mt-1 font-bold">⚠️ 香港地區必須全程開啟 VPN 才能申請鎖匙及使用。</div>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+
+                <div className="space-y-4 pt-4 border-t border-gray-200 animate-in fade-in">
+                  <div className="bg-gray-50 border border-gray-200 text-gray-700 p-3 rounded-xl text-sm leading-relaxed">
+                    <p>請前往 {aiEngine === 'openrouter' ? <a href="https://openrouter.ai/settings/keys" target="_blank" className="text-blue-600 underline font-bold">OpenRouter 官網</a> : <a href="https://aistudio.google.com/app/apikey" target="_blank" className="text-green-600 underline font-bold">Google AI Studio</a>} 申請免費鎖匙，並貼於下方。</p>
+                  </div>
+                  
+                  {aiEngine === 'openrouter' && (
+                    <div className="space-y-2">
+                      <label className="font-bold text-gray-800">選擇免費 AI 模型</label>
+                      <select value={apiModel} onChange={(e) => setApiModel(e.target.value)} className="w-full border-2 border-gray-200 rounded-xl p-3 outline-none focus:border-blue-600 bg-white">
+                        {PROVIDERS.openrouter.models.map(m => (<option key={m} value={m}>{m}</option>))}
+                      </select>
+                    </div>
+                  )}
+
+                  <div className="space-y-2">
+                    <label className="font-bold text-gray-800 flex justify-between items-center"><span>你的鎖匙 (API Key)</span></label>
+                    {!isEditingKey && apiKey ? (
+                      <div className="bg-gray-50 border-2 border-gray-200 rounded-xl p-3 space-y-3">
+                        <div className="font-mono text-sm break-all text-gray-700 bg-white p-2 rounded border border-gray-200">{maskKey(apiKey)}</div>
+                        <div className="flex gap-2 text-xs">
+                          <button onClick={() => { editKeyRef.current = apiKey; setApiKey(''); setIsEditingKey(true); }} className="flex-1 py-2 bg-white border border-gray-300 rounded-lg font-bold flex items-center justify-center gap-1.5 hover:bg-gray-50"><Icon path={icons.edit} size={14}/> 更換鎖匙</button>
+                          <button onClick={testKey} className="flex-1 py-2 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg font-bold hover:bg-blue-100 flex items-center justify-center">🧪 測試</button>
+                          <button onClick={forgetApiKey} className="px-3 py-2 bg-red-50 text-red-600 border border-red-200 rounded-lg hover:bg-red-100"><Icon path={icons.trash} size={14}/></button>
+                        </div>
+                        {keyTesting && <div className="text-sm text-blue-600 font-bold flex items-center gap-2 mt-2"><Icon path={icons.loader} className="animate-spin" size={16}/> 測試中...</div>}
+                        {keyTestResult && <div className={`text-sm font-bold mt-2 ${keyTestResult.ok ? 'text-green-600' : 'text-red-600'}`}>{keyTestResult.msg}</div>}
+                      </div>
+                    ) : (
+                      <div className="relative group">
+                        <input 
+                          type={showKey ? 'text' : 'password'} value={apiKey} onChange={(e) => setApiKey(e.target.value)} 
+                          onPaste={(e) => { e.preventDefault(); const { key, notes } = sanitizeKey(e.clipboardData.getData('text')); setApiKey(key); if (notes.includes('deduped')) setKeyHint('偵測到兩條鎖匙黏埋，已自動只保留最新貼上嘅一條'); }}
+                          onFocus={(e) => e.target.select()} placeholder={`在此貼上 ${aiEngine === 'openrouter' ? 'OpenRouter' : 'Gemini'} 新鎖匙...`} 
+                          autoCapitalize="off" autoCorrect="off" spellCheck="false" autoComplete="off" inputMode="text" name="not-a-password"
+                          className={`w-full border-2 border-gray-300 rounded-xl p-3 pr-20 outline-none font-mono text-sm ${aiEngine === 'openrouter' ? 'focus:border-blue-600' : 'focus:border-green-600'}`} 
+                        />
+                        <div className="absolute right-2 top-2 flex gap-1">
+                          <button onMouseDown={() => setShowKey(true)} onMouseUp={() => setShowKey(false)} onTouchStart={() => setShowKey(true)} onTouchEnd={() => setShowKey(false)} className="p-1.5 text-gray-400 hover:text-gray-700 bg-white"><Icon path={icons.eye} size={18}/></button>
+                          <button onClick={() => setApiKey('')} className="p-1.5 text-gray-400 hover:text-red-500 bg-white"><Icon path={icons.trash} size={18}/></button>
+                        </div>
+                        {editKeyRef.current && (
+                           <div className="mt-2 text-right"><button onClick={() => { setApiKey(editKeyRef.current); setIsEditingKey(false); editKeyRef.current=''; setKeyHint(''); }} className="text-xs text-gray-500 underline">取消更改並回復舊鎖匙</button></div>
+                        )}
+                        <div className="flex gap-2 text-xs mt-3">
+                           <button onClick={testKey} disabled={!apiKey.trim()} className="flex-1 py-2 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg font-bold hover:bg-blue-100 disabled:opacity-50">🧪 測試鎖匙</button>
+                           <button onClick={saveApiConfig} disabled={!apiKey.trim()} className="flex-1 py-2 bg-green-50 text-green-700 border border-green-200 rounded-lg font-bold hover:bg-green-100 disabled:opacity-50">💾 儲存</button>
+                        </div>
+                        {keyHint && <div className="mt-2 text-sm font-bold text-orange-600 bg-orange-50 p-2 rounded border border-orange-200">{keyHint}</div>}
+                        {keyTesting && <div className="text-sm text-blue-600 font-bold flex items-center gap-2 mt-2"><Icon path={icons.loader} className="animate-spin" size={16}/> 測試中...</div>}
+                        {keyTestResult && <div className={`text-sm font-bold mt-2 ${keyTestResult.ok ? 'text-green-600' : 'text-red-600'}`}>{keyTestResult.msg}</div>}
+                      </div>
+                    )}
+                  </div>
+
+                  <label className={`flex items-start gap-3 p-3.5 rounded-xl border-2 cursor-pointer transition-all ${rememberKey ? 'bg-green-50 border-green-500' : 'bg-white border-gray-200 hover:bg-gray-50'}`}>
+                    <input type="checkbox" checked={rememberKey} onChange={(e) => setRememberKey(e.target.checked)} className="w-5 h-5 mt-0.5 text-green-600 shrink-0" />
+                    <div>
+                      <div className="font-bold text-gray-900 text-sm flex items-center gap-1.5"><Icon path={icons.lock} size={14}/> 記住我的鎖匙（下次免再輸入）</div>
+                      <div className="text-xs text-gray-600 mt-1 leading-relaxed">只儲存於本機瀏覽器，不會上傳。共用電腦請勿勾選。</div>
+                    </div>
+                  </label>
+
+                </div>
+
+                {!isEditingKey && <Button className="w-full mt-4" onClick={() => setShowSettings(false)}><Icon path={icons.check} size={18}/> 返回</Button>}
+              </Card>
+            </main>
+          ) : showHistory ? (
+            <main className="w-full px-4 py-6 max-w-lg mx-auto animate-in fade-in">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold flex items-center gap-2"><Icon path={icons.history} className="text-gray-600"/> 歷史紀錄</h2>
+                {savedHistory.length > 0 && (
+                  <button onClick={exportCSV} className="flex items-center gap-1.5 px-3 py-1.5 bg-green-50 text-green-700 hover:bg-green-100 border border-green-200 rounded-lg text-sm font-bold transition-colors shadow-sm">
+                    <Icon path={icons.download} size={16}/> 匯出 CSV
+                  </button>
+                )}
+              </div>
+              {savedHistory.length === 0 ? (
+                <div className="text-center py-10 text-gray-500"><Icon path={icons.receipt} size={48} className="mx-auto mb-3 opacity-20"/><p>暫無儲存的紀錄</p></div>
+              ) : (
+                <div className="space-y-4">
+                  {savedHistory.map(record => (
+                    <Card key={record.id} className="p-0 overflow-hidden border-2 border-gray-200">
+                      <div className="bg-gray-50 p-4 flex justify-between items-start border-b border-gray-200">
+                        <div><h3 className="font-bold text-gray-800 text-lg">{record.date}</h3><p className="text-sm text-gray-500 mt-1">墊支人: <span className="font-bold text-gray-700">{record.payer}</span></p></div>
+                        <div className="text-right"><div className="font-bold text-green-700 text-lg">{formatMoney(record.totalAmount, record.currency)}</div><div className="text-xs text-gray-400">{record.currency}</div></div>
+                      </div>
+                      <div className="p-4 bg-white flex gap-2">
+                        <Button variant="outline" className="flex-1 !py-2 !text-sm !px-2" onClick={() => copyToClipboard(record.simplifiedText, '追數版')}><Icon path={icons.copy} size={16}/> 追數版</Button>
+                        <Button variant="secondary" className="flex-1 !py-2 !text-sm !px-2" onClick={() => copyToClipboard(record.detailedText, '詳細版')}><Icon path={icons.copy} size={16}/> 詳細版</Button>
+                        <button onClick={() => deleteRecord(record.id)} className="p-2 bg-red-50 text-red-500 rounded-xl hover:bg-red-100 shrink-0"><Icon path={icons.trash} size={20}/></button>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </main>
+          ) : (
+            <main className="w-full px-4 py-6 space-y-6 max-w-lg mx-auto">
+              {step === 1 && (
+                <div className="space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                  <h2 className="text-xl font-bold flex items-center gap-2 text-gray-800"><Icon path={icons.upload} className="text-green-600"/> 第一步：睇單 (1/4)</h2>
+
+                  <button onClick={() => setShowTutorial(true)} className="w-full flex items-center gap-3 bg-amber-50 border-2 border-amber-300 text-left p-3.5 rounded-xl hover:bg-amber-100 transition-colors active:scale-[0.99]">
+                    <span className="w-10 h-10 shrink-0 bg-amber-400 text-white rounded-xl flex items-center justify-center"><Icon path={icons.book} size={20}/></span>
+                    <span className="flex-1">
+                      <span className="block font-bold text-amber-900 text-sm">第一次用？先睇新手教學</span>
+                      <span className="block text-xs text-amber-700 mt-0.5">3 分鐘睇完，特別是「數量點填」一節</span>
+                    </span>
+                    <Icon path={icons.arrowRight} size={18} className="text-amber-600 shrink-0"/>
+                  </button>
+
+                  <button 
+                    onClick={() => setShowSettings(true)}
+                    className={`w-full flex items-center gap-3 p-3.5 rounded-xl border-2 transition-all active:scale-[0.99] text-left mb-2 shadow-sm ${
+                      apiKey.trim() 
+                        ? 'bg-green-50 border-green-300 hover:bg-green-100 text-green-800' 
+                        : 'bg-red-50 border-red-300 hover:bg-red-100 text-red-800'
+                    }`}
+                  >
+                    <span className={`w-10 h-10 shrink-0 rounded-xl flex items-center justify-center text-white shadow-inner ${apiKey.trim() ? 'bg-green-500' : 'bg-red-500'}`}>
+                      <Icon path={icons.key} size={20}/>
+                    </span>
+                    <span className="flex-1">
+                      <span className="block font-bold text-sm">
+                        {apiKey.trim() ? `✅ 現已有鎖匙可以使用 (${aiEngine === 'openrouter' ? 'OpenRouter' : 'Gemini'})` : '⚠️ 尚未有鎖匙，請點擊設定申請'}
+                      </span>
+                    </span>
+                    <Icon path={icons.settings} size={18} className="shrink-0 opacity-70"/>
+                  </button>
+
+                  <input type="file" accept="image/jpeg,image/png,image/webp" multiple className="hidden" ref={fileInputRef} onChange={handleFileUpload} />
+                  <div onClick={!isAnalyzing ? triggerUpload : undefined} className={`w-full rounded-2xl border-2 border-dashed p-8 flex flex-col items-center justify-center text-center transition-all cursor-pointer ${isAnalyzing ? 'border-green-300 bg-green-50' : 'border-green-400 bg-green-50/50 hover:bg-green-100'}`}>
+                    {isAnalyzing ? (
+                      <div className="w-full max-w-[200px] mx-auto animate-in fade-in">
+                        <div className="flex justify-between text-sm font-bold text-green-800 mb-1.5"><span>{progressText}</span><span>{progress}%</span></div>
+                        <div className="w-full bg-green-200 rounded-full h-2.5 overflow-hidden">
+                          <div className="bg-green-600 h-2.5 rounded-full transition-all duration-500 ease-out" style={{width: `${progress}%`}}></div>
+                        </div>
+                        <p className="text-xs text-green-700 mt-3">請勿離開畫面，運算需時約 10-20 秒</p>
+                      </div>
+                    ) : (
+                      <React.Fragment>
+                        <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-3"><Icon path={icons.fileImage} size={32} /></div>
+                        <h3 className="text-lg font-bold text-gray-800">點擊拍照或選取單據</h3>
+                        <p className="text-sm text-gray-500 mt-1">💡 支援 JPG/PNG/WebP，最多 5 張</p>
+                      </React.Fragment>
+                    )}
+                  </div>
+
+                  <div className="pt-2 border-t border-gray-200"><Button variant="secondary" onClick={() => handleGoToStep2(true)}>略過上傳，手動輸入 <Icon path={icons.arrowRight} size={18}/></Button></div>
+                </div>
+              )}
+
+              {step === 2 && (
+                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                  <h2 className="text-xl font-bold flex items-center justify-between text-gray-800"><span className="flex items-center gap-2"><Icon path={icons.fileText} className="text-green-600"/> 第二步：轉發俾朋友揀 (2/4)</span></h2>
+                  <div className="space-y-3">
+                    {items.map((item, idx) => (
+                      <div key={idx} className="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm relative">
+                        <button onClick={() => removeItem(idx)} className="absolute top-3 right-3 text-gray-400 hover:text-red-500 p-2"><Icon path={icons.trash} size={18} /></button>
+                        <div className="pr-10 mb-3">
+                          <label className="text-xs font-bold text-gray-500 mb-1 block">項目 {item.id}</label>
+                          <input type="text" ref={el => fieldRefs.current[`item-name-${idx}`] = el} value={item.name} onChange={(e) => updateItem(idx, 'name', e.target.value)} className="w-full text-base font-medium border-b border-gray-300 focus:border-green-600 outline-none pb-1" placeholder="請輸入項目名稱..." />
+                          {(item.original || item.ja) && (
+                            <div className="mt-2 space-y-0.5">
+                              {item.original && item.original !== item.name && <p className="text-xs text-gray-500 leading-snug"><span className="font-bold text-gray-400">原文</span>　{item.original}</p>}
+                              {item.ja && item.ja !== item.original && <p className="text-xs text-gray-500 leading-snug"><span className="font-bold text-gray-400">日文</span>　{item.ja}</p>}
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex gap-4">
+                          <div className="flex-1">
+                              <label className="text-xs font-bold text-gray-500 mb-1 block">單價</label>
+                              <div className="flex items-center">
+                                  <span className="text-gray-500 mr-1 font-bold">{getCurrencySymbol(currency)}</span>
+                                  <input type="number" placeholder="0" value={item.price} onChange={(e) => updateItem(idx, 'price', e.target.value)} className="w-full text-base font-medium border-b border-gray-300 focus:border-green-600 outline-none pb-1" />
+                              </div>
+                          </div>
+                          <div className="w-20"><label className="text-xs font-bold text-gray-500 mb-1 block">數量</label><input type="number" placeholder="1" value={item.qty} onChange={(e) => updateItem(idx, 'qty', e.target.value)} className="w-full text-base font-medium border-b border-gray-300 focus:border-green-600 outline-none pb-1 text-center" /></div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <Button variant="outline" onClick={addItem} className="w-full border-dashed"><Icon path={icons.plus} size={18}/> 新增項目</Button>
+                  
+                  <Card className="bg-gray-100 border-none">
+                    <div className="flex justify-between items-center gap-3">
+                      <label className="font-bold text-gray-700">稅金/服務費等雜費</label>
+                      <div className="flex items-center w-28 shrink-0">
+                          <span className="text-gray-500 mr-1 font-bold">{getCurrencySymbol(currency)}</span>
+                          <input type="number" placeholder="0" value={taxAmount} onChange={(e) => setTaxAmount(e.target.value)} className="w-full text-lg font-bold bg-white border border-gray-300 rounded-lg p-2 text-right focus:border-green-600 outline-none" />
+                      </div>
+                    </div>
+                    {taxNote && <p className="text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded-lg p-2.5 mt-3 leading-relaxed"><strong>🤖 AI 稅費判讀：</strong>{taxNote}</p>}
+                  </Card>
+
+                  <div className="space-y-4 pt-4 border-t border-gray-200">
+                    <div className="space-y-2">
+                      <h3 className="font-bold flex items-center justify-between"><span>📱 轉發 WhatsApp 認領</span></h3>
+                      <Button variant="primary" onClick={() => copyToClipboard(generateFriendTemplate(), '認領模板')} className="w-full text-sm"><Icon path={icons.copy} size={18}/> 一鍵複製認領模板（已含教學）</Button>
+                    </div>
+                    <div className="space-y-2 pt-4">
+                      <h3 className="font-bold flex justify-between items-center"><span>📩 貼上朋友回覆</span>{friendsReplies.length === 0 && <span className="text-xs text-red-500 animate-pulse font-normal">*(必填)</span>}</h3>
+                      <textarea 
+                        ref={el => fieldRefs.current.replies = el} value={friendsReplies} onChange={(e) => {setFriendsReplies(e.target.value); setStepError('');}} onPaste={handlePasteReplies} onFocus={onFocusReplies} onBlur={onBlurReplies}
+                        placeholder="在此貼上收齊的回覆...（可以連續貼幾份，系統會自動分隔）" className="w-full h-56 bg-white border border-gray-300 rounded-xl p-4 text-base font-mono focus:border-green-600 outline-none resize-y shadow-inner">
+                      </textarea>
+                    </div>
+                  </div>
+                  
+                  <div className="flex gap-3 pt-4 pb-6"><Button variant="secondary" className="w-1/3 px-2" onClick={handleGoToStep1}>上一步</Button><Button variant="primary" className="w-2/3" onClick={handleGoToStep3}>下一步：分帳運算 <Icon path={icons.arrowRight} size={18}/></Button></div>
+                </div>
+              )}
+
+              {step === 3 && (
+                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                  <h2 className="text-xl font-bold flex items-center gap-2"><Icon path={icons.calculator} className="text-green-600"/> 第三步：分帳運算 (3/4)</h2>
+                  <Card className="space-y-6">
+                    <div className="space-y-3">
+                      <label className="font-bold text-gray-800 flex justify-between text-lg"><span>墊支人姓名</span>{!payer && <span className="text-sm text-red-500 animate-pulse font-normal">*(必填)</span>}</label>
+                      <input type="text" ref={el => fieldRefs.current.payer = el} value={payer} onChange={(e) => {setPayer(e.target.value); setStepError('');}} placeholder="請輸入姓名" className="w-full border-2 border-gray-200 rounded-xl p-4 text-lg outline-none focus:border-green-600" />
+                    </div>
+                    
+                    <div className="space-y-3">
+                      <label className="font-bold text-gray-800 block text-lg">結算貨幣 (AI 智能判讀)</label>
+                      <div className="flex flex-wrap gap-2">
+                        {displayCurrencies.map(c => (
+                            <button 
+                                key={c} onClick={() => setCurrency(c)} 
+                                className={`px-4 py-2 rounded-xl border-2 font-bold transition-all ${currency === c ? 'border-green-600 bg-green-50 text-green-700' : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'}`}
+                            >
+                                {getCurrencyName(c)}
+                            </button>
+                        ))}
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-3">
+                      <label className="font-bold text-gray-800 block text-lg">付款方式</label>
+                      <div className="flex flex-wrap gap-2">
+                        {paymentOptions.map(pm => (
+                          <button 
+                            key={pm} onClick={() => setPaymentMethod(pm)} 
+                            className={`px-4 py-2 rounded-xl border-2 font-bold transition-all ${paymentMethod === pm ? 'border-green-600 bg-green-50 text-green-700' : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'}`}
+                          >
+                            {pm}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      <label className="font-bold text-gray-800 block text-lg">稅金/服務費分攤方式</label>
+                      <div className="space-y-3">
+                        {[{ id: 'proportional', label: '按消費比例分' }, { id: 'equal', label: '全部人平均分' }].map(opt => (<label key={opt.id} className={`flex items-center gap-4 p-4 rounded-xl border-2 cursor-pointer ${taxSplitMethod === opt.id ? 'bg-green-50 border-green-600' : 'bg-white border-gray-200'}`}><input type="radio" name="taxSplit" checked={taxSplitMethod === opt.id} onChange={() => setTaxSplitMethod(opt.id)} className="w-5 h-5 text-green-600" /><div className="font-bold text-gray-900 text-base">{opt.label}</div></label>))}
+                      </div>
+                    </div>
+                  </Card>
+                  
+                  <div className="flex gap-3 pt-2"><Button variant="secondary" className="w-1/3 px-2" onClick={() => setStep(2)}>上一步</Button><Button variant="primary" className="w-2/3" onClick={calculateSplit}>下一步：俾出結果 <Icon path={icons.arrowRight} size={18}/></Button></div>
+                </div>
+              )}
+
+              {step === 4 && results && (
+                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                  <h2 className="text-xl font-bold flex items-center gap-2 text-gray-800 mb-2"><Icon path={icons.check} className="text-green-600"/> 第四步：俾出結果 (4/4)</h2>
+
+                  <Card className="border-t-4 border-t-green-500 p-0 overflow-hidden mt-0">
+                    <div className="p-4 bg-gray-50 flex items-center justify-between border-b border-gray-200 gap-2">
+                      <div>
+                        <h3 className="font-bold text-gray-800">💰 追數版</h3>
+                        <p className="text-xs text-gray-500 mt-0.5">發到群組用</p>
+                      </div>
+                      <Button onClick={() => copyToClipboard(getSimplifiedResult(), '追數版')} variant="outline" className="!px-3 !py-1.5 !w-auto text-sm shrink-0"><Icon path={icons.copy} size={16}/> 複製</Button>
+                    </div>
+                    <div className="p-4 bg-white font-mono text-sm text-gray-800 whitespace-pre-wrap break-words">{getSimplifiedResult()}</div>
+                  </Card>
+
+                  <Card className="p-0 overflow-hidden">
+                    <div className="p-4 bg-gray-50 border-b border-gray-200 space-y-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <div>
+                          <h3 className="font-bold text-gray-800">🧾 詳細版</h3>
+                          <p className="text-xs text-gray-500 mt-0.5">{detailLang === 'zh' ? '純中文，適合分享' : '含原文／日文，適合自己核對'}</p>
+                        </div>
+                        <Button onClick={() => copyToClipboard(getDetailedResult(detailLang), detailLang === 'zh' ? '詳細版（中文）' : '詳細版（含原文）')} variant="secondary" className="!px-3 !py-1.5 !w-auto text-sm shrink-0"><Icon path={icons.copy} size={16}/> 複製</Button>
+                      </div>
+                      <div className="flex gap-1 bg-gray-200 p-1 rounded-xl">
+                        <button onClick={() => setDetailLang('zh')} className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${detailLang === 'zh' ? 'bg-white text-green-700 shadow-sm' : 'text-gray-600'}`}>🇭🇰 純中文（分享）</button>
+                        <button onClick={() => setDetailLang('full')} className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${detailLang === 'full' ? 'bg-white text-blue-700 shadow-sm' : 'text-gray-600'}`}>🌐 ＋原文/日文</button>
+                      </div>
+                    </div>
+                    <div className="p-4 bg-white font-mono text-xs text-gray-800 whitespace-pre-wrap break-words">{getDetailedResult(detailLang)}</div>
+                  </Card>
+                  
+                  <div className="pt-2"><Button onClick={saveCurrentRecord} disabled={isSaved} className={`w-full ${isSaved ? 'bg-gray-200 text-gray-500 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-200'}`}>{isSaved ? <Icon path={icons.check} size={20}/> : <Icon path={icons.save} size={20}/>}{isSaved ? '已儲存至歷史紀錄' : '💾 儲存此分帳紀錄'}</Button></div>
+                  <div className="flex gap-3 pt-4 pb-8">
+                    <Button variant="secondary" className="w-1/3 px-2" onClick={() => { setStepError(''); setStep(3); }}><Icon path={icons.arrowLeft} size={16}/> 上一步</Button>
+                    <Button onClick={handleGoToStep1} className="bg-gray-800 hover:bg-black text-white w-2/3">處理新單據</Button>
+                  </div>
+                </div>
+              )}
+            </main>
+          )}
+        </React.Fragment>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+
+  <script src="pwa.js" defer></script>
+</body>
+</html>
