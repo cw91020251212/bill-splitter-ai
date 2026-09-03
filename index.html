@@ -2,50 +2,58 @@
 <html lang="zh-HK">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-
-  <!-- ============================ PWA / Icons ============================ -->
-  <meta name="description" content="用 AI 讀單據、朋友自助認領，自動計出每人應付幾錢。支援多幣種、服務費分攤、歷史紀錄同 CSV 匯出。">
-  <meta name="theme-color" content="#16a34a">
-  <meta name="color-scheme" content="light">
-  <link rel="manifest" href="manifest.webmanifest">
-
-  <link rel="icon" href="icons/favicon.ico" sizes="any">
-  <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
-  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
-  <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png">
-  <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
-
-  <!-- iOS standalone -->
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="分帳管家">
-  <meta name="application-name" content="分帳管家 AI">
-  <!-- ==================================================================== -->
-  <title>分帳管家 AI</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>分帳管家 AI Pro</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: { 50: '#ecfdf5', 100: '#d1fae5', 400: '#34d399', 500: '#10b981', 600: '#059669', 700: '#047857', 900: '#064e3b' }
+          },
+          boxShadow: {
+            'card': '0 2px 8px -2px rgba(0, 0, 0, 0.05), 0 4px 16px -4px rgba(0, 0, 0, 0.02)',
+          }
+        }
+      }
+    }
+  </script>
   <style>
+    body { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+    
+    /* --- 增強視覺對比：全局輪廓線最幼 (1px) 且加深為深灰色 --- */
+    input[type="text"], input[type="number"], input[type="password"], textarea {
+      border-width: 1px !important;
+      border-color: #64748b !important; /* 深灰色 slate-500 */
+      background-color: #ffffff !important;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    input:focus, textarea:focus {
+      border-color: #059669 !important; /* 聚焦時變為品牌深綠 */
+    }
+    
     .animate-spin { animation: spin 1s linear infinite; }
     @keyframes spin { 100% { transform: rotate(360deg); } }
     input, textarea { font-size: 16px !important; }
+    
     @keyframes flashTarget {
-      0%, 100% { background-color: transparent; }
-      25%, 75% { background-color: #fef08a; }
+      0%, 100% { background-color: transparent; box-shadow: none; }
+      25%, 75% { background-color: #fef08a; box-shadow: 0 0 0 2px rgba(253, 224, 71, 0.8); }
     }
-    .flash-target { animation: flashTarget 1.5s ease-in-out; }
-
-    /* Respect notches / home indicator when launched as an installed app. */
-    @media (display-mode: standalone) {
-      body { padding-top: env(safe-area-inset-top, 0px); }
-      body { padding-bottom: env(safe-area-inset-bottom, 0px); }
-    }
+    .flash-target { animation: flashTarget 1.5s ease-in-out; border-radius: 8px; }
+    
+    /* 自訂卷軸 */
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #64748b; }
   </style>
 </head>
-<body class="bg-gray-50 text-gray-800 font-sans">
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
 
   <script type="text/babel">
@@ -81,22 +89,53 @@
       send: '<path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>',
       download: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/>',
       edit: '<path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>',
-      eye: '<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>'
+      eye: '<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>',
+      x: '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>'
     };
 
     const Button = ({ children, onClick, variant = 'primary', className = '', disabled = false }) => {
-      const baseStyle = "flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl font-bold text-base transition-all duration-200 active:scale-95 disabled:opacity-50 w-full md:w-auto";
+      const baseStyle = "flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl font-semibold text-base transition-all duration-200 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed w-full md:w-auto outline-none focus:ring-2 focus:ring-offset-2";
       const variants = {
-        primary: "bg-green-600 text-white hover:bg-green-700 shadow-lg shadow-green-200",
-        secondary: "bg-gray-100 text-gray-800 hover:bg-gray-200",
-        outline: "border-2 border-green-600 text-green-600 hover:bg-green-50",
+        primary: "bg-brand-600 text-white hover:bg-brand-700 shadow-md focus:ring-brand-500 border border-brand-700",
+        secondary: "bg-white text-slate-800 border border-slate-400 hover:bg-slate-100 shadow-sm focus:ring-slate-400",
+        outline: "border border-brand-600 text-brand-700 bg-transparent hover:bg-brand-50 focus:ring-brand-500",
+        danger: "bg-red-600 text-white hover:bg-red-700 shadow-md focus:ring-red-500 border border-red-700",
       };
       return <button onClick={onClick} disabled={disabled} className={`${baseStyle} ${variants[variant]} ${className}`}>{children}</button>;
     };
 
     const Card = ({ children, className = '' }) => (
-      <div className={`bg-white rounded-2xl shadow-sm border border-gray-100 p-5 ${className}`}>{children}</div>
+      <div className={`bg-white rounded-2xl shadow-card border border-slate-400 p-5 md:p-6 ${className}`}>{children}</div>
     );
+
+    const Label = ({ children, required, className = '' }) => (
+      <label className={`font-bold text-slate-800 block mb-1.5 ${className}`}>
+        {children} 
+        {required && <span className="ml-2 inline-block px-2 py-0.5 rounded bg-red-50 text-red-700 text-xs tracking-wide border border-red-500">必填</span>}
+      </label>
+    );
+
+    const Accordion = ({ title, icon, children, defaultOpen = false, tone = 'slate' }) => {
+      const [open, setOpen] = useState(defaultOpen);
+      const tones = {
+        slate: 'bg-white border border-slate-500', 
+        amber: 'bg-amber-50 border border-amber-500',
+        emerald: 'bg-emerald-50 border border-brand-500', 
+        blue: 'bg-blue-50 border border-blue-500',
+      };
+      return (
+        <div className={`rounded-xl border overflow-hidden ${tones[tone]} shadow-sm`}>
+          <button onClick={() => setOpen(!open)} className="w-full flex items-center justify-between gap-3 p-4 text-left outline-none hover:bg-slate-50 transition-colors">
+            <span className="flex items-center gap-2.5 font-bold text-slate-800 text-base">
+              {icon && <Icon path={icon} size={20} className="text-slate-600 shrink-0"/>}
+              {title}
+            </span>
+            <Icon path={open ? icons.chevronUp : icons.chevronDown} size={20} className="text-slate-500 shrink-0"/>
+          </button>
+          {open && <div className="px-4 pb-4 pt-1 text-sm text-slate-700 leading-relaxed space-y-3">{children}</div>}
+        </div>
+      );
+    };
 
     const PROVIDERS = {
       openrouter: {
@@ -131,16 +170,19 @@
         if (!candidate) throw new Error('AI 回傳的內容不是有效 JSON，請重試或改用其他模型。');
         data = JSON.parse(candidate);
       }
-      if (Array.isArray(data)) return { items: data, taxTotal: null, taxNote: '', currency: 'HKD' };
+      if (Array.isArray(data)) return { items: data, taxTotal: null, taxNote: '', currency: 'HKD', date: null, receiptTotal: null };
       const items = Array.isArray(data.items) ? data.items : (Array.isArray(data.data) ? data.data : []);
       let taxTotal = null;
       if (data.taxTotal !== undefined && data.taxTotal !== null && data.taxTotal !== '') taxTotal = toNum(data.taxTotal);
       else if (data.tax !== undefined && data.tax !== null && data.tax !== '') taxTotal = toNum(data.tax);
-      return { items, taxTotal, taxNote: data.taxNote || data.tax_note || '', currency: data.currency || data.Currency || 'HKD' };
+      const rawDate = data.date || data.receiptDate || data.Date || null;
+      const date = (typeof rawDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(rawDate.trim())) ? rawDate.trim() : null;
+      const rawTotal = (data.receiptTotal !== undefined && data.receiptTotal !== null && data.receiptTotal !== '') ? data.receiptTotal : null;
+      const receiptTotal = rawTotal === null ? null : toNum(rawTotal);
+      return { items, taxTotal, taxNote: data.taxNote || data.tax_note || '', currency: data.currency || data.Currency || 'HKD', date, receiptTotal };
     };
 
-    const STEP_LABELS = ['睇單', '認領', '運算', '結果'];
-
+    const STEP_LABELS = ['上載睇單', '朋友認領', '分帳運算', '最終結果'];
     const SEP  = '\n\n➖➖➖➖➖➖➖➖➖➖\n\n';
     const TAIL = '\n\n';                 
 
@@ -187,7 +229,6 @@
       return out.join('\n');
     };
 
-    // ── 深度強化解析器：自動過濾隱形字元與全形空格 ──
     const parseClaims = (raw, items) => {
       const lines = String(raw || '').split('\n');
       const claims = {};
@@ -202,7 +243,6 @@
 
       lines.forEach((line, index) => {
         const lineNo = index + 1;
-        // 清洗：將全形空格 \u3000 轉為半形空格，過濾各類無法顯示字元，再把全形數字/符號轉半形
         let cleanLine = line.replace(/\u3000/g, ' ').replace(/[\u200B-\u200D\uFEFF]/g, '').trim();
         cleanLine = cleanLine.replace(/[\uff01-\uff5e]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xfee0));
         
@@ -336,27 +376,6 @@
       return s.slice(0, 13) + '•'.repeat(Math.min(18, s.length - 17)) + s.slice(-4);
     };
 
-    const Accordion = ({ title, icon, children, defaultOpen = false, tone = 'gray' }) => {
-      const [open, setOpen] = useState(defaultOpen);
-      const tones = {
-        gray: 'bg-white border-gray-200', amber: 'bg-amber-50 border-amber-200',
-        green: 'bg-green-50 border-green-200', blue: 'bg-blue-50 border-blue-200',
-      };
-      return (
-        <div className={`rounded-2xl border-2 overflow-hidden ${tones[tone]}`}>
-          <button onClick={() => setOpen(!open)} className="w-full flex items-center justify-between gap-3 p-4 text-left">
-            <span className="flex items-center gap-2.5 font-bold text-gray-900 text-base">
-              {icon && <Icon path={icon} size={20} className="text-gray-600 shrink-0"/>}
-              {title}
-            </span>
-            <Icon path={open ? icons.chevronUp : icons.chevronDown} size={20} className="text-gray-500 shrink-0"/>
-          </button>
-          {open && <div className="px-4 pb-4 pt-0 text-sm text-gray-700 leading-relaxed space-y-3 border-t border-gray-200/70 mt-0">{children}</div>}
-        </div>
-      );
-    };
-
-    // ── 全域智能貨幣系統 ──
     const getCurrencySymbol = (curr) => {
       const map = { 'HKD': '$', 'MOP': 'MOP$', 'USD': 'US$', 'TWD': 'NT$', 'JPY': '¥', 'KRW': '₩', 'THB': '฿', 'EUR': '€', 'GBP': '£', 'CNY': '¥', 'AUD': 'A$', 'CAD': 'C$', 'SGD': 'S$' };
       return map[curr?.toUpperCase()] || curr + ' ';
@@ -394,7 +413,6 @@
       const [currency, setCurrency] = useState('HKD');
 
       const [taxSplitMethod, setTaxSplitMethod] = useState('proportional');
-      // 將預設付款方式獨立於貨幣邏輯外，單純表示方法
       const [paymentMethod, setPaymentMethod] = useState('轉數快 (FPS)');
       const [results, setResults] = useState(null);
       const fileInputRef = useRef(null);
@@ -432,17 +450,6 @@
       useEffect(() => {
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }, [step, showHistory, showSettings, showTutorial]);
-
-      useEffect(() => {
-        const handleFocus = (e) => {
-          const target = e.target;
-          if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
-            setTimeout(() => { target.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 300);
-          }
-        };
-        document.addEventListener('focusin', handleFocus);
-        return () => document.removeEventListener('focusin', handleFocus);
-      }, []);
 
       useEffect(() => {
         try {
@@ -493,16 +500,21 @@
       }, []);
 
       useEffect(() => {
-        const h = kbOpen ? 44 : (statusExpanded ? 200 : 96);
+        const h = kbOpen ? 44 : 64;
         document.body.style.paddingBottom = `calc(${h}px + env(safe-area-inset-bottom))`;
-      }, [kbOpen, statusExpanded]);
+      }, [kbOpen]);
 
-      const toast = (text, color = '#16a34a') => {
+      const toast = (text, type = 'success') => {
         const msg = document.createElement('div');
-        msg.style.cssText = `position:fixed;top:20px;left:50%;transform:translateX(-50%);background:${color};color:white;padding:12px 24px;border-radius:8px;z-index:9999;font-weight:bold;box-shadow:0 4px 6px rgba(0,0,0,0.1);max-width:90vw;text-align:center;`;
+        const color = type === 'error' ? '#dc2626' : '#059669';
+        msg.style.cssText = `position:fixed;top:24px;left:50%;transform:translateX(-50%);background:${color};color:white;padding:12px 24px;border-radius:12px;z-index:9999;font-weight:600;font-size:14px;box-shadow:0 10px 25px -5px rgba(0,0,0,0.15);max-width:90vw;text-align:center;animation:fade-in-down 0.3s ease-out;`;
         msg.textContent = text;
         document.body.appendChild(msg);
-        setTimeout(() => { if (msg.parentNode) document.body.removeChild(msg); }, 2500);
+        setTimeout(() => { 
+            msg.style.opacity = '0'; 
+            msg.style.transition = 'opacity 0.3s ease-out';
+            setTimeout(() => { if (msg.parentNode) document.body.removeChild(msg); }, 300);
+        }, 2500);
       };
 
       const focusField = (key) => {
@@ -536,11 +548,11 @@
             const r = await fetch('https://openrouter.ai/api/v1/models', { headers: { 'Authorization': `Bearer ${apiKey.trim()}` } });
             if (r.status === 401) throw new Error('鎖匙被拒（401）—— 請檢查有冇漏字或黏埋舊鎖匙');
             if (!r.ok) throw new Error(`HTTP ${r.status}`);
-            setKeyTestResult({ ok: true, msg: '✓ 鎖匙有效' });
+            setKeyTestResult({ ok: true, msg: '✓ 鎖匙有效 (Valid API Key)' });
           } else {
             const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey.trim()}`);
             if (!r.ok) throw new Error(r.status === 400 ? '鎖匙無效' : `HTTP ${r.status}`);
-            setKeyTestResult({ ok: true, msg: '✓ 鎖匙有效' });
+            setKeyTestResult({ ok: true, msg: '✓ 鎖匙有效 (Valid API Key)' });
           }
         } catch (e) {
           setKeyTestResult({ ok: false, msg: e.message });
@@ -566,14 +578,14 @@
         } catch(e) {}
         setIsEditingKey(false);
         setShowSettings(false);
-        toast(rememberKey ? '✅ 設定已記存於本機。' : '✅ 設定已暫存於目前分頁。');
+        toast(rememberKey ? '✅ 設定已記存於本機' : '✅ 設定已暫存於目前分頁');
       };
 
       const forgetApiKey = () => {
-        if(window.confirm("確定要清除鎖匙嗎？")) {
+        if(window.confirm("確定要清除鎖匙嗎？這將會刪除您本機上的設定。")) {
           try { localStorage.removeItem('billSplitterApiConfig'); sessionStorage.removeItem('billSplitterApiConfig'); } catch(e) {}
           setApiKey(''); setIsEditingKey(true); setRememberKey(false);
-          toast('🗑️ 已清除鎖匙。', '#ef4444');
+          toast('🗑️ 已清除鎖匙', 'error');
         }
       };
 
@@ -583,11 +595,11 @@
         const newRecord = { id: Date.now(), date: results.date, payer, totalAmount: billTotal, currency: results.currency, simplifiedText: getSimplifiedResult(), detailedText: getDetailedResult('zh'), detailedFullText: getDetailedResult('full') };
         setSavedHistory([newRecord, ...savedHistory]);
         setIsSaved(true);
-        toast('✅ 紀錄已儲存！');
+        toast('✅ 紀錄已成功儲存！');
       };
 
       const deleteRecord = (id) => { 
-        if (window.confirm("確定刪除此歷史紀錄？")) { setSavedHistory(savedHistory.filter(r => r.id !== id)); }
+        if (window.confirm("確定刪除此歷史紀錄？資料將無法復原。")) { setSavedHistory(savedHistory.filter(r => r.id !== id)); }
       };
 
       const exportCSV = () => {
@@ -606,7 +618,6 @@
       const handleGoToStep1 = () => { 
         setStepError(''); setItems([]); setFriendsReplies(''); setResults(null); 
         setIsSaved(false); setTaxAmount(''); setTaxNote(''); 
-        // 修正重置邏輯：將貨幣與付款方式還原至最乾淨嘅預設值
         setCurrency('HKD'); setDetectedCurrency('HKD'); setPaymentMethod('轉數快 (FPS)'); setStep(1); 
       };
       
@@ -643,10 +654,8 @@
         const el = e.target;
         const { text, added, blockStart } = appendReply(friendsReplies, incoming);
         if (!added) return;
-
         setFriendsReplies(text);
         setStepError('');
-
         requestAnimationFrame(() => {
           el.focus();
           el.setSelectionRange(text.length, text.length);
@@ -670,7 +679,7 @@
       };
 
       const triggerUpload = () => {
-        if (!apiKey.trim()) { toast('⚠️ 請先申請及輸入鎖匙', '#ef4444'); setShowSettings(true); return; }
+        if (!apiKey.trim()) { toast('⚠️ 請先前往設定輸入 API 鎖匙', 'error'); setShowSettings(true); return; }
         if(fileInputRef.current) fileInputRef.current.click();
       };
 
@@ -681,8 +690,8 @@
         const totalSize = files.reduce((sum, file) => sum + file.size, 0);
         
         if (files.length > 5) { setUploadError({ main: '一次最多可上傳 5 張圖片', sub: '', action: null }); event.target.value = ''; return; }
-        if (files.some(file => !allowedTypes.includes(file.type))) { setUploadError({ main: '只支援 JPG、PNG 或 WebP 圖片', sub: '', action: null }); event.target.value = ''; return; }
-        if (totalSize > 12 * 1024 * 1024) { setUploadError({ main: '圖片合計不可超過 12 MB', sub: '', action: null }); event.target.value = ''; return; }
+        if (files.some(file => !allowedTypes.includes(file.type))) { setUploadError({ main: '只支援 JPG、PNG 或 WebP 圖片格式', sub: '', action: null }); event.target.value = ''; return; }
+        if (totalSize > 12 * 1024 * 1024) { setUploadError({ main: '圖片總容量不可超過 12 MB', sub: '請壓縮後再試', action: null }); event.target.value = ''; return; }
         
         setIsAnalyzing(true);
         setUploadError('');
@@ -691,10 +700,10 @@
         
         let progressInterval = setInterval(() => {
           setProgress(prev => {
-            if (prev < 30) { setProgressText('傳送至 AI 伺服器...'); return prev + 15; }
-            if (prev < 60) { setProgressText('AI 正在抽取文字與價錢...'); return prev + 10; }
+            if (prev < 30) { setProgressText('傳送至 AI 伺服器分析...'); return prev + 15; }
+            if (prev < 60) { setProgressText('AI 正在精準提取文字與價錢...'); return prev + 10; }
             if (prev < 85) { setProgressText('整理消費項目與稅費中...'); return prev + 5; }
-            if (prev < 98) { setProgressText('就快完成，請稍候...'); return prev + 1; }
+            if (prev < 98) { setProgressText('即將完成，請稍候...'); return prev + 1; }
             return prev;
           });
         }, 1200);
@@ -710,20 +719,14 @@
           });
           const imageDataArray = await Promise.all(base64Promises);
 
-          const promptText = `你是一個專門分析單據的 OCR 分帳助手。你唯一的任務是：讀取單據上的文字，抽取消費項目、稅費，並判斷貨幣，然後輸出 JSON。不要做任何運算解釋、不要加註解、不要輸出 Markdown。
-這裡有 ${files.length} 張單據。請仔細辨識，合併成一份清單。
-【A. 消費項目 items】
-1. "name"：項目名稱翻譯成「繁體中文」。
-2. "original"：單據上的原文字樣（日/韓/英）。
-3. "ja"：該項目的日文名稱。
-4. "price"（單價）、"qty"（數量）、"total"（該項總額），皆為數字。不可包含稅金、服務費、折扣。
-【B. 稅費 taxTotal】
-尋找所有附加費用（消費税、サービス料、加一、VAT）加總成 "taxTotal"。若已「內含」（税込），填 0。
-"taxNote"：簡短說明稅費。
-【C. 結算貨幣 currency】
-判斷單據使用的貨幣，填入標準 3 字母代碼（例如 HKD, JPY, TWD, THB, KRW, USD, GBP, EUR 等）。若無法確定請預設填 HKD。
-【D. 輸出格式】嚴格輸出以下 JSON 物件：
-{"items":[{"name":"凍檸茶","original":"アイスレモンティー","ja":"アイスレモンティー","price":15,"qty":2,"total":30}],"taxTotal":45,"taxNote":"消費税 ¥45（外税）","currency":"JPY"}`;
+          const promptText = `你是一個專門分析單據的 OCR 分帳助手。任務：讀取單據文字，抽取消費項目、稅費，並判斷貨幣，輸出 JSON。不要做任何運算解釋、不要加註解、不要輸出 Markdown。
+這裡有 ${files.length} 張單據。請合併成一份清單。
+【A. 消費項目 items】"name":繁體中文名稱, "original":單據原文字樣, "ja":日文名稱(如有), "price":單價(數字), "qty":數量(數字), "total":該項總額(數字)。不可含稅金服務費折扣。
+【B. 稅費 taxTotal】附加費用（消費税/服務料/加一/VAT）總和。若已內含填0。"taxNote"：簡短說明。
+【C. 結算貨幣 currency】標準3字母代碼(HKD, JPY, TWD等)。無法確定填 HKD。
+【D. 單據日期 date】YYYY-MM-DD。無則 null。切勿用今日日期。
+【E. 單據總額 receiptTotal】單據上的「最後應付總額」。無則 null。
+【F. 輸出格式】嚴格輸出 JSON: {"items":[{"name":"凍檸茶","original":"アイスレモンティー","ja":"アイスレモンティー","price":15,"qty":2,"total":30}],"taxTotal":45,"taxNote":"消費税 ¥45（外税）","currency":"JPY","date":"2026-03-14","receiptTotal":75}`;
 
           let parsedItems = [];
           let parsedTax = null;
@@ -735,7 +738,7 @@
             const imageParts = imageDataArray.map(img => ({ inlineData: { mimeType: img.mimeType, data: img.data } }));
             const payload = { contents: [{ role: "user", parts: [{ text: promptText }, ...imageParts] }], generationConfig: { responseMimeType: "application/json" } };
             const res = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-            if (!res.ok) throw new Error(`HTTP Error ${res.status}: 鎖匙被拒（401）。常見原因：複製時漏字、或新舊鎖匙黏埋一條。`);
+            if (!res.ok) throw new Error(`HTTP Error ${res.status}: 鎖匙被拒（401）。請檢查您的 API 金鑰。`);
             const data = await res.json();
             const jsonText = data.candidates?.[0]?.content?.parts?.[0]?.text;
             if (!jsonText) throw new Error('AI 未能回傳有效結果。');
@@ -748,10 +751,10 @@
               method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey.trim()}` },
               body: JSON.stringify({ model: apiModel, messages: [{ role: "user", content: contentArray }], temperature: 0.1 })
             });
-            if (!response.ok) throw new Error(`OpenRouter HTTP ${response.status}: 鎖匙被拒（401）。常見原因：複製時漏字、或新舊鎖匙黏埋一條。`);
+            if (!response.ok) throw new Error(`OpenRouter HTTP ${response.status}: 鎖匙被拒。請檢查 API 金鑰。`);
             const data = await response.json();
             const jsonText = data.choices?.[0]?.message?.content;
-            if (!jsonText) throw new Error('OpenRouter 冇回傳內容。');
+            if (!jsonText) throw new Error('OpenRouter 伺服器未回傳內容。');
             const shaped = extractPayload(jsonText);
             parsedItems = shaped.items; parsedTax = shaped.taxTotal; parsedTaxNote = shaped.taxNote; parsedCurrency = shaped.currency?.toUpperCase() || 'HKD';
           }
@@ -768,14 +771,13 @@
           
           setTimeout(() => {
             setItems(formattedItems);
-            // 同步設定自動偵測出嘅貨幣
             setCurrency(parsedCurrency);
             setDetectedCurrency(parsedCurrency);
 
             if (parsedTax !== null && !isNaN(parsedTax) && parsedTax > 0) {
               setTaxAmount(String(Number(parsedTax.toFixed ? parsedTax.toFixed(2) : parsedTax)));
               setTaxNote(parsedTaxNote || '');
-              toast(`✅ 已自動填入稅／服務費：${formatMoney(parsedTax, parsedCurrency)}`);
+              toast(`✅ 已自動帶入稅金／服務費：${formatMoney(parsedTax, parsedCurrency)}`);
             } else {
               setTaxAmount('');
               setTaxNote(parsedTaxNote || '');
@@ -788,8 +790,7 @@
         } catch (error) {
           clearInterval(progressInterval);
           setIsAnalyzing(false);
-          const detail = error?.message || '未知錯誤';
-          setUploadError({ main: '讀取失敗', sub: detail, action: null });
+          setUploadError({ main: '讀取失敗', sub: error?.message || '未知錯誤', action: null });
         } finally { 
           if(fileInputRef.current) fileInputRef.current.value = '';
         }
@@ -809,6 +810,25 @@
         setItems(newItems.map((item, i) => ({ ...item, id: String(i + 1).padStart(2, '0') })));
       };
 
+      // 智慧自動導向邏輯
+      const handleItemKeyDown = (e, currentType, idx) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          if (currentType === 'name') {
+            focusField(`item-price-${idx}`);
+          } else if (currentType === 'price') {
+            focusField(`item-qty-${idx}`);
+          } else if (currentType === 'qty') {
+            if (idx < items.length - 1) {
+              focusField(`item-name-${idx + 1}`);
+            } else {
+              addItem();
+              setTimeout(() => focusField(`item-name-${idx + 1}`), 100); 
+            }
+          }
+        }
+      };
+
       const generateFriendTemplate = () => {
         let tpl = `🧾 *分帳認領表* 🧾\n\n👤 姓名：\n\n📌 *填寫方法（好簡單，睇一睇）*\n1️⃣ 先在上面「姓名」填你的名字。\n2️⃣ 你有食／有買的項目，在「數量」後面填數字。\n3️⃣ *冇食的項目，留空或填 0 就得，唔需要刪走。*\n4️⃣ 這個「數量」= 你想出的「份數比例」，食飯開心最緊要，唔使計到咁足：\n　　• 兩個人一齊 share → 大家都填「1」（一人一半）\n　　• 你食得多，心意想出多少少 → 填「2」\n　　• 食得好少 / 試咗啖仔 → 填「0.5」\n5️⃣ 填好後，*整段複製*返給我就完成。\n━━━━━━━━━━━━━━\n\n`;
         items.forEach(item => { tpl += `🔶 ${item.id} ${item.name}\n👉🏻 數量 ＝ \n\n`; });
@@ -819,7 +839,7 @@
       const copyToClipboard = (text, btnLabel) => {
         const textArea = document.createElement("textarea"); textArea.value = text; document.body.appendChild(textArea);
         textArea.select(); 
-        try { document.execCommand('copy'); toast(`✅ ${btnLabel}已複製！`); } catch (err) {}
+        try { document.execCommand('copy'); toast(`✅ ${btnLabel} 已成功複製`); } catch (err) {}
         document.body.removeChild(textArea);
       };
 
@@ -908,6 +928,10 @@
         return txt;
       };
 
+      const paymentOptions = ['轉數快 (FPS)', 'PayMe', '現金', '銀行轉帳'];
+      const displayCurrencies = Array.from(new Set([detectedCurrency, 'HKD', 'JPY', 'TWD', 'THB', 'KRW', 'USD', 'MOP', 'GBP', 'EUR'])).filter(Boolean).slice(0, 9);
+
+      // ── 智能提示欄邏輯 (StatusBar) ──
       const statuses = useMemo(() => {
         const list = [];
         const push = (level, id, main, sub, action) => list.push({ level, id, main, sub, action });
@@ -954,96 +978,132 @@
         if (list.length === 0) push(6, 'I1', '貼上回覆時可以連續貼幾份，系統會自動加分隔線。', '', null);
 
         return list.sort((a, b) => a.level - b.level);
-    }, [isOnline, uploadError, apiKey, step, showSettings, showTutorial, showHistory, payer, items, friendsReplies, claimInfo, isAnalyzing, progressText, progress, currency]);
+      }, [isOnline, uploadError, apiKey, step, showSettings, showTutorial, showHistory, payer, items, friendsReplies, claimInfo, isAnalyzing, progressText, progress, currency]);
 
-    const StatusBar = ({ statuses, expanded, setExpanded, kbOpen }) => {
-        if (!statuses.length) return null;
-        const top = statuses[0];
-        const rest = statuses.slice(1);
-        const TONE = { 1: { bg: 'bg-red-50', border: 'border-red-300', text: 'text-red-700', dot: '🔴' }, 2: { bg: 'bg-orange-50', border: 'border-orange-300', text: 'text-orange-700', dot: '🟠' }, 3: { bg: 'bg-amber-50', border: 'border-amber-300', text: 'text-amber-800', dot: '🟡' }, 4: { bg: 'bg-blue-50', border: 'border-blue-300', text: 'text-blue-700', dot: '🔵' }, 5: { bg: 'bg-green-50', border: 'border-green-300', text: 'text-green-700', dot: '🟢' }, 6: { bg: 'bg-gray-50', border: 'border-gray-200', text: 'text-gray-500', dot: '⚪' } }[top.level] || { bg: 'bg-gray-50', border: 'border-gray-200', text: 'text-gray-500', dot: '⚪' };
+      const StatusBar = ({ statuses, expanded, setExpanded, kbOpen }) => {
+          if (!statuses.length) return null;
+          const top = statuses[0];
+          
+          /* 將所有邊框提升至 500 深色系 */
+          const TONE = { 
+              1: { bg: 'bg-red-50', border: 'border-red-500', text: 'text-red-700', dot: '🔴' }, 
+              2: { bg: 'bg-orange-50', border: 'border-orange-500', text: 'text-orange-700', dot: '🟠' }, 
+              3: { bg: 'bg-amber-50', border: 'border-amber-500', text: 'text-amber-800', dot: '🟡' }, 
+              4: { bg: 'bg-blue-50', border: 'border-blue-500', text: 'text-blue-700', dot: '🔵' }, 
+              5: { bg: 'bg-brand-50', border: 'border-brand-500', text: 'text-brand-700', dot: '🟢' }, 
+              6: { bg: 'bg-slate-50', border: 'border-slate-500', text: 'text-slate-600', dot: '⚪' } 
+          }[top.level] || { bg: 'bg-slate-50', border: 'border-slate-500', text: 'text-slate-600', dot: '⚪' };
 
-        return (
-            <div role="status" aria-live="polite" className={`fixed bottom-0 left-0 right-0 z-30 border-t-2 ${TONE.bg} ${TONE.border} shadow-[0_-4px_12px_rgba(0,0,0,0.06)]`} style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
-                {rest.length > 0 && !kbOpen && (
-                    <button onClick={() => setExpanded(!expanded)} className="w-full flex items-center justify-between px-4 py-1.5 text-xs font-bold text-gray-600 border-b border-gray-200/60 bg-white/50">
-                        <span>{expanded ? '▼ 全部問題' : `▲ 仲有 ${rest.length} 個提示`}</span><span className="opacity-60">{expanded ? '收起' : '拉開'}</span>
-                    </button>
-                )}
-                {expanded && !kbOpen && (
-                    <div className="max-h-40 overflow-y-auto divide-y divide-gray-200/60 bg-white">
-                        {rest.map(s => {
-                            const ST = { 1: { dot: '🔴' }, 2: { dot: '🟠' }, 3: { dot: '🟡' }, 4: { dot: '🔵' }, 5: { dot: '🟢' }, 6: { dot: '⚪' } }[s.level] || { dot: '⚪' };
-                            return (
-                                <div key={s.id} className="flex items-center gap-2 px-4 py-2 text-xs"><span className="shrink-0">{ST.dot}</span><span className="flex-1 leading-snug">{s.main}</span>
-                                    {s.action && (<button onClick={() => { s.action.run(); setExpanded(false); }} className="shrink-0 px-2 py-1 bg-gray-100 border border-gray-300 rounded-lg font-bold text-gray-700">→</button>)}
-                                </div>
-                            );
-                        })}
-                    </div>
-                )}
-                <div className={`flex items-start gap-2.5 px-4 ${kbOpen ? 'py-2' : 'py-3'}`}>
-                    <span className="shrink-0 text-base leading-none mt-0.5">{TONE.dot}</span>
-                    <div className="flex-1 min-w-0"><div className={`font-bold text-sm leading-snug ${TONE.text}`}>{top.main}</div>{!kbOpen && top.sub && (<div className="text-xs text-gray-600 mt-0.5 leading-snug">{top.sub}</div>)}</div>
-                    {!kbOpen && top.action && (<button onClick={() => { top.action.run(); setExpanded(false); }} className="shrink-0 px-3 py-2 bg-white border-2 rounded-xl text-xs font-bold active:scale-95 shadow-sm text-gray-800">{top.action.label} →</button>)}
-                </div>
-            </div>
-        );
-    };
+          return (
+              <React.Fragment>
+                  {/* 小巧底欄 (點擊觸發彈出視窗) */}
+                  <div role="status" aria-live="polite" onClick={() => setExpanded(true)} className={`fixed bottom-0 left-0 right-0 z-30 border-t ${TONE.bg} ${TONE.border} shadow-[0_-2px_10px_rgba(0,0,0,0.05)] cursor-pointer hover:brightness-95 transition-all`} style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+                      <div className={`flex items-center gap-2.5 px-3 ${kbOpen ? 'py-1.5' : 'py-2'}`}>
+                          <span className="shrink-0 text-sm leading-none">{TONE.dot}</span>
+                          <div className="flex-1 min-w-0">
+                              <div className={`font-bold text-xs leading-tight line-clamp-1 ${TONE.text}`}>
+                                  {top.main} {statuses.length > 1 && <span className="opacity-70 ml-1">(+{statuses.length - 1})</span>}
+                              </div>
+                              {!kbOpen && top.sub && (<div className="text-[10px] text-slate-500 font-medium mt-0.5 leading-tight line-clamp-1">{top.sub}</div>)}
+                          </div>
+                          {!kbOpen && (
+                              <div className="shrink-0 text-[10px] font-bold text-slate-500 bg-white/80 px-2 py-1 rounded-md border border-slate-500 shadow-sm">
+                                  點擊展開 ⤴
+                              </div>
+                          )}
+                      </div>
+                  </div>
 
-      // ── 選項重設為純粹獨立 ──
-      const paymentOptions = ['轉數快 (FPS)', 'PayMe', '現金', '銀行轉帳'];
-      const displayCurrencies = Array.from(new Set([detectedCurrency, 'HKD', 'JPY', 'TWD', 'THB', 'KRW', 'USD', 'MOP', 'GBP', 'EUR'])).filter(Boolean).slice(0, 9);
+                  {/* 彈出視窗 (Modal) - 顯示完整文字，不截斷 */}
+                  {expanded && (
+                      <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200" onClick={() => setExpanded(false)}>
+                          <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden mb-4 sm:mb-0 animate-in slide-in-from-bottom-4 duration-300 border border-slate-400" onClick={e => e.stopPropagation()}>
+                              <div className="p-4 border-b border-slate-400 flex justify-between items-center bg-slate-50">
+                                  <h3 className="font-bold text-slate-800 text-base">系統提示與建議 ({statuses.length})</h3>
+                                  <button onClick={() => setExpanded(false)} className="w-8 h-8 flex items-center justify-center rounded-full bg-white border border-slate-400 text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition-colors">
+                                      <Icon path={icons.x} size={16}/>
+                                  </button>
+                              </div>
+                              <div className="max-h-[60vh] overflow-y-auto p-3 space-y-3 bg-slate-50/50">
+                                  {statuses.map(s => {
+                                      const ST = { 1: { dot: '🔴', bg: 'bg-red-50', text: 'text-red-800', border: 'border-red-500' }, 2: { dot: '🟠', bg: 'bg-orange-50', text: 'text-orange-800', border: 'border-orange-500' }, 3: { dot: '🟡', bg: 'bg-amber-50', text: 'text-amber-900', border: 'border-amber-500' }, 4: { dot: '🔵', bg: 'bg-blue-50', text: 'text-blue-800', border: 'border-blue-500' }, 5: { dot: '🟢', bg: 'bg-brand-50', text: 'text-brand-800', border: 'border-brand-500' }, 6: { dot: '⚪', bg: 'bg-white', text: 'text-slate-700', border: 'border-slate-500' } }[s.level] || { dot: '⚪', bg: 'bg-white', text: 'text-slate-700', border: 'border-slate-500' };
+                                      return (
+                                          <div key={s.id} className={`flex flex-col gap-2 p-3.5 rounded-xl border ${ST.border} shadow-sm ${ST.bg}`}>
+                                              <div className="flex items-start gap-2.5">
+                                                  <span className="shrink-0 text-base mt-0.5">{ST.dot}</span>
+                                                  <div className="flex-1">
+                                                      <div className={`font-bold text-sm leading-relaxed ${ST.text}`}>{s.main}</div>
+                                                      {s.sub && <div className="text-xs text-slate-600 font-medium mt-1 leading-relaxed">{s.sub}</div>}
+                                                  </div>
+                                              </div>
+                                              {s.action && (
+                                                  <div className="flex justify-end mt-2">
+                                                      <button onClick={() => { s.action.run(); setExpanded(false); }} className="px-4 py-2 bg-white border border-slate-500 rounded-lg text-xs font-bold shadow-sm text-slate-800 hover:bg-slate-50 active:scale-[0.98] transition-all">
+                                                          {s.action.label} →
+                                                      </button>
+                                                  </div>
+                                              )}
+                                          </div>
+                                      );
+                                  })}
+                              </div>
+                          </div>
+                      </div>
+                  )}
+              </React.Fragment>
+          );
+      };
 
       return (
         <React.Fragment>
-          <header className="bg-white shadow-sm sticky top-0 z-20">
-            <div className="w-full px-4 py-4 flex items-center justify-between border-b border-gray-100">
+          {/* Header */}
+          <header className="bg-white border-b border-slate-400 sticky top-0 z-20 shadow-sm backdrop-blur-md bg-white/90">
+            <div className="w-full px-4 py-3.5 flex items-center justify-between max-w-2xl mx-auto">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-green-600 text-white rounded-xl flex items-center justify-center shadow-inner shrink-0">
-                  <Icon path={icons.msg} size={22} />
+                <div className="w-10 h-10 bg-brand-600 text-white rounded-xl flex items-center justify-center shadow-inner shrink-0">
+                  <Icon path={icons.calculator} size={22} />
                 </div>
-                <h1 className="text-xl font-bold text-gray-900 leading-tight">分帳管家 AI</h1>
+                <h1 className="text-xl font-extrabold text-slate-800 tracking-tight">分帳管家 <span className="text-brand-600 font-black">Pro</span></h1>
               </div>
               <div className="flex items-center gap-2">
                 {(showHistory || showSettings || showTutorial) ? (
-                  <button onClick={() => {setShowHistory(false); setShowSettings(false); setShowTutorial(false);}} className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-bold transition-colors">
+                  <button onClick={() => {setShowHistory(false); setShowSettings(false); setShowTutorial(false);}} className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-semibold transition-colors border border-slate-400">
                     <Icon path={icons.arrowLeft} size={16}/> 返回
                   </button>
                 ) : (
                   <React.Fragment>
-                    <button onClick={() => setShowTutorial(true)} title="新手教學" className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-800 rounded-lg text-sm font-bold transition-colors">
+                    <button onClick={() => setShowTutorial(true)} title="新手教學" className="flex items-center gap-1.5 px-3 py-2 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-500 rounded-lg text-sm font-semibold transition-colors">
                       <Icon path={icons.book} size={16}/> 教學
                     </button>
-                    <button onClick={() => setShowSettings(true)} title="設定鎖匙" className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-bold transition-colors">
+                    <button onClick={() => setShowSettings(true)} title="設定" className="flex items-center gap-1.5 px-2.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-400 rounded-lg text-sm font-semibold transition-colors">
                       <Icon path={icons.settings} size={16}/>
                     </button>
-                    <button onClick={() => setShowHistory(true)} title="歷史紀錄" className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-bold transition-colors">
+                    <button onClick={() => setShowHistory(true)} title="紀錄" className="flex items-center gap-1.5 px-2.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-400 rounded-lg text-sm font-semibold transition-colors">
                       <Icon path={icons.history} size={16}/>
                     </button>
                   </React.Fragment>
                 )}
               </div>
             </div>
+            
+            {/* Steps Indicator */}
             {(!showHistory && !showSettings && !showTutorial) && (
-              <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
-                <div className="flex w-full gap-1.5 mb-2">
+              <div className="bg-slate-50/80 px-4 py-3 border-t border-slate-400 max-w-2xl mx-auto">
+                <div className="flex w-full gap-2 mb-2.5">
                   {[1, 2, 3, 4].map(num => (
-                    <div key={num} className={`flex-1 h-1.5 rounded-full transition-colors duration-300 ${step > num ? 'bg-green-600' : step === num ? 'bg-green-500' : 'bg-gray-200'}`}></div>
+                    <div key={num} className={`flex-1 h-1.5 rounded-full transition-colors duration-300 ${step > num ? 'bg-brand-500' : step === num ? 'bg-brand-400' : 'bg-slate-300'}`}></div>
                   ))}
                 </div>
-                <div className="flex items-center justify-between px-0.5">
+                <div className="flex items-center justify-between px-1">
                   {STEP_LABELS.map((label, i) => {
                     const num = i + 1;
                     const done = step > num;
                     const active = step === num;
                     return (
-                      <React.Fragment key={num}>
-                        <button onClick={() => jumpToStep(num)} className={`flex items-center gap-1.5 rounded-lg px-1.5 py-1 -mx-0.5 transition-all active:scale-95 ${active ? 'text-green-700' : done ? 'text-green-600' : 'text-gray-400'}`}>
-                          <span className={`w-5 h-5 shrink-0 rounded-full flex items-center justify-center text-[10px] font-bold border-2 ${active ? 'bg-green-600 border-green-600 text-white' : done ? 'bg-white border-green-500 text-green-600' : 'bg-white border-gray-300 text-gray-400'}`}>{done ? '✓' : num}</span>
-                          <span className="text-xs font-bold">{label}</span>
-                        </button>
-                        {num < 4 && <span className="flex-1 mx-1 border-t-2 border-dotted border-gray-300 min-w-[6px]"></span>}
-                      </React.Fragment>
+                      <button key={num} onClick={() => jumpToStep(num)} className={`flex items-center gap-2 rounded-lg px-2 py-1 -mx-2 transition-all active:scale-[0.98] outline-none ${active ? 'text-brand-700 bg-brand-50' : done ? 'text-slate-600 hover:bg-slate-100' : 'text-slate-400'}`}>
+                        <span className={`w-5 h-5 shrink-0 rounded-full flex items-center justify-center text-[11px] font-bold border ${active ? 'bg-brand-600 border-brand-600 text-white shadow-sm' : done ? 'bg-white border-brand-500 text-brand-600' : 'bg-white border-slate-400 text-slate-500'}`}>{done ? '✓' : num}</span>
+                        <span className="text-xs font-semibold">{label}</span>
+                      </button>
                     );
                   })}
                 </div>
@@ -1053,388 +1113,456 @@
 
           <StatusBar statuses={statuses} expanded={statusExpanded} setExpanded={setStatusExpanded} kbOpen={kbOpen} />
 
-          {showTutorial ? (
-            <main className="w-full px-4 py-6 max-w-lg mx-auto space-y-4 pb-10">
-              <div className="bg-gradient-to-br from-amber-400 to-amber-500 text-gray-900 rounded-2xl p-5 shadow-lg shadow-amber-200">
-                <h2 className="text-xl font-bold flex items-center gap-2"><Icon path={icons.book} size={22}/> 新手教學</h2>
-                <p className="text-sm mt-2 leading-relaxed text-gray-800">第一次用？睇完以下幾點就上手。<br/>最重要的是第 2 節「數量點填」——這是最多人搞錯的地方。</p>
-              </div>
-
-              <div className="bg-white border-2 border-gray-200 rounded-2xl p-4">
-                <h3 className="font-bold text-gray-900 mb-3">🗺️ 整個流程（4 步）</h3>
-                <div className="space-y-2.5 text-sm">
-                  {[
-                    ['1', '睇單', '拍／揀單據照片，AI 自動讀出項目、價錢同稅費。亦可手動輸入。'],
-                    ['2', '認領', '複製「認領表」發到 WhatsApp 群組，朋友填數量後傳回，你貼回輸入框。'],
-                    ['3', '運算', '填墊支人姓名、確認自動偵測的貨幣、付款方式。'],
-                    ['4', '結果', '得出「追數版」同「詳細版」，複製後發返群組。'],
-                  ].map(([n, t, d]) => (
-                    <div key={n} className="flex gap-3">
-                      <span className="w-6 h-6 shrink-0 bg-green-600 text-white rounded-full flex items-center justify-center text-xs font-bold">{n}</span>
-                      <div><span className="font-bold text-gray-900">{t}</span><span className="text-gray-600"> — {d}</span></div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <Accordion title="⭐ 2. 「數量」到底點填？（最重要）" tone="amber" defaultOpen={true}>
-                <div className="bg-white border-2 border-amber-300 rounded-xl p-3.5">
-                  <p className="font-bold text-amber-900 text-base mb-1.5">一句話核心：</p>
-                  <p className="text-gray-800">呢個數字純粹係<strong className="text-amber-800">你想出嘅「份數比例」</strong>。如果成碟嘢得你一個人食，咪填 1 全包；兩個人一齊食，大家各填 1 就一人一半，如此類推。</p>
+          {/* Main Content Area */}
+          <main className="w-full px-4 py-6 md:py-8 max-w-2xl mx-auto pb-24">
+            
+            {/* Step 1: Upload */}
+            {step === 1 && !showSettings && !showHistory && !showTutorial && (
+              <div className="space-y-6 animate-in fade-in duration-500">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="w-8 h-8 rounded-full bg-brand-100 border border-brand-500 text-brand-700 flex items-center justify-center font-bold">1</span>
+                  <h2 className="text-2xl font-bold text-slate-800 tracking-tight">上載並分析單據</h2>
                 </div>
 
-                <p className="font-bold text-gray-900 pt-1">例子：兩個人 share 一個薄餅 🍕</p>
-                <div className="bg-white border border-gray-200 rounded-xl p-3 text-xs space-y-2.5">
-                  <p>一個薄餅 $120，阿明同 Cathy 一齊食。阿明覺得自己食多啲，想出多一份，就填 <strong>2</strong>；Cathy 填 <strong>1</strong>。</p>
-                  <div className="bg-gray-50 border border-gray-100 rounded p-2 text-[11px] text-gray-600 font-mono">
-                    系統自動計：合共 3 份 → 每份 $40。<br/>阿明 2 份 = $80，Cathy 1 份 = $40。
-                  </div>
-                  <p className="text-green-700 font-bold mt-1">✅ 唔使數切咗幾件、食咗幾啖。想出幾多份，就填幾多。</p>
-                </div>
-              </Accordion>
-
-              <Accordion title="🔑 6. AI 設定與鎖匙" tone="gray">
-                <p><strong>OpenRouter</strong>：推薦香港人使用，免 VPN，速度快。只需去官網申請免費鎖匙。</p>
-                <p><strong>Gemini 模式</strong>：需要全程開啟 VPN 才能申請同埋使用鎖匙。</p>
-                <div className="bg-white border border-gray-200 rounded-xl p-3 text-xs space-y-1">
-                  <p className="font-bold text-gray-800">記住我的鎖匙（免每次重輸）</p>
-                  <p className="text-gray-700">在設定勾選「記住鎖匙」，只存本機，唔會上傳。共用電腦請勿勾選。</p>
-                </div>
-              </Accordion>
-
-              <Button className="w-full mt-2" onClick={() => { setShowTutorial(false); }}>
-                <Icon path={icons.check} size={18}/> 我明白了，開始分帳
-              </Button>
-            </main>
-          ) : showSettings ? (
-            <main className="w-full px-4 py-6 max-w-lg mx-auto animate-in fade-in">
-              <h2 className="text-xl font-bold mb-4 flex items-center gap-2"><Icon path={icons.settings} className="text-gray-600"/> 鎖匙設定</h2>
-              
-              <Card className="space-y-5">
-                <div className="space-y-3">
-                  <label className="font-bold text-gray-800 block text-base">選擇執行環境</label>
-                  <div className="grid grid-cols-1 gap-3">
-                    <label className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${aiEngine === 'openrouter' ? 'bg-blue-50 border-blue-600' : 'bg-white border-gray-200 hover:bg-gray-50'}`}>
-                      <input type="radio" name="engine" checked={aiEngine === 'openrouter'} onChange={() => { setAiEngine('openrouter'); setIsEditingKey(!keys.openrouter); }} className="w-5 h-5 text-blue-600" />
-                      <div>
-                        <div className="font-bold text-gray-900 text-base">OpenRouter (推薦)</div>
-                        <div className="text-xs text-gray-500 mt-1">香港使用免 VPN，直連速度快。</div>
-                      </div>
-                    </label>
-                    <label className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${aiEngine === 'gemini' ? 'bg-green-50 border-green-600' : 'bg-white border-gray-200 hover:bg-gray-50'}`}>
-                      <input type="radio" name="engine" checked={aiEngine === 'gemini'} onChange={() => { setAiEngine('gemini'); setIsEditingKey(!keys.gemini); }} className="w-5 h-5 text-green-600" />
-                      <div>
-                        <div className="font-bold text-gray-900 text-base">Gemini 官方模式 <span className="text-red-500">(需用 VPN)</span></div>
-                        <div className="text-xs text-red-500 mt-1 font-bold">⚠️ 香港地區必須全程開啟 VPN 才能申請鎖匙及使用。</div>
-                      </div>
-                    </label>
-                  </div>
-                </div>
-
-                <div className="space-y-4 pt-4 border-t border-gray-200 animate-in fade-in">
-                  <div className="bg-gray-50 border border-gray-200 text-gray-700 p-3 rounded-xl text-sm leading-relaxed">
-                    <p>請前往 {aiEngine === 'openrouter' ? <a href="https://openrouter.ai/settings/keys" target="_blank" className="text-blue-600 underline font-bold">OpenRouter 官網</a> : <a href="https://aistudio.google.com/app/apikey" target="_blank" className="text-green-600 underline font-bold">Google AI Studio</a>} 申請免費鎖匙，並貼於下方。</p>
-                  </div>
-                  
-                  {aiEngine === 'openrouter' && (
-                    <div className="space-y-2">
-                      <label className="font-bold text-gray-800">選擇免費 AI 模型</label>
-                      <select value={apiModel} onChange={(e) => setApiModel(e.target.value)} className="w-full border-2 border-gray-200 rounded-xl p-3 outline-none focus:border-blue-600 bg-white">
-                        {PROVIDERS.openrouter.models.map(m => (<option key={m} value={m}>{m}</option>))}
-                      </select>
-                    </div>
-                  )}
-
-                  <div className="space-y-2">
-                    <label className="font-bold text-gray-800 flex justify-between items-center"><span>你的鎖匙 (API Key)</span></label>
-                    {!isEditingKey && apiKey ? (
-                      <div className="bg-gray-50 border-2 border-gray-200 rounded-xl p-3 space-y-3">
-                        <div className="font-mono text-sm break-all text-gray-700 bg-white p-2 rounded border border-gray-200">{maskKey(apiKey)}</div>
-                        <div className="flex gap-2 text-xs">
-                          <button onClick={() => { editKeyRef.current = apiKey; setApiKey(''); setIsEditingKey(true); }} className="flex-1 py-2 bg-white border border-gray-300 rounded-lg font-bold flex items-center justify-center gap-1.5 hover:bg-gray-50"><Icon path={icons.edit} size={14}/> 更換鎖匙</button>
-                          <button onClick={testKey} className="flex-1 py-2 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg font-bold hover:bg-blue-100 flex items-center justify-center">🧪 測試</button>
-                          <button onClick={forgetApiKey} className="px-3 py-2 bg-red-50 text-red-600 border border-red-200 rounded-lg hover:bg-red-100"><Icon path={icons.trash} size={14}/></button>
-                        </div>
-                        {keyTesting && <div className="text-sm text-blue-600 font-bold flex items-center gap-2 mt-2"><Icon path={icons.loader} className="animate-spin" size={16}/> 測試中...</div>}
-                        {keyTestResult && <div className={`text-sm font-bold mt-2 ${keyTestResult.ok ? 'text-green-600' : 'text-red-600'}`}>{keyTestResult.msg}</div>}
-                      </div>
-                    ) : (
-                      <div className="relative group">
-                        <input 
-                          type={showKey ? 'text' : 'password'} value={apiKey} onChange={(e) => setApiKey(e.target.value)} 
-                          onPaste={(e) => { e.preventDefault(); const { key, notes } = sanitizeKey(e.clipboardData.getData('text')); setApiKey(key); if (notes.includes('deduped')) setKeyHint('偵測到兩條鎖匙黏埋，已自動只保留最新貼上嘅一條'); }}
-                          onFocus={(e) => e.target.select()} placeholder={`在此貼上 ${aiEngine === 'openrouter' ? 'OpenRouter' : 'Gemini'} 新鎖匙...`} 
-                          autoCapitalize="off" autoCorrect="off" spellCheck="false" autoComplete="off" inputMode="text" name="not-a-password"
-                          className={`w-full border-2 border-gray-300 rounded-xl p-3 pr-20 outline-none font-mono text-sm ${aiEngine === 'openrouter' ? 'focus:border-blue-600' : 'focus:border-green-600'}`} 
-                        />
-                        <div className="absolute right-2 top-2 flex gap-1">
-                          <button onMouseDown={() => setShowKey(true)} onMouseUp={() => setShowKey(false)} onTouchStart={() => setShowKey(true)} onTouchEnd={() => setShowKey(false)} className="p-1.5 text-gray-400 hover:text-gray-700 bg-white"><Icon path={icons.eye} size={18}/></button>
-                          <button onClick={() => setApiKey('')} className="p-1.5 text-gray-400 hover:text-red-500 bg-white"><Icon path={icons.trash} size={18}/></button>
-                        </div>
-                        {editKeyRef.current && (
-                           <div className="mt-2 text-right"><button onClick={() => { setApiKey(editKeyRef.current); setIsEditingKey(false); editKeyRef.current=''; setKeyHint(''); }} className="text-xs text-gray-500 underline">取消更改並回復舊鎖匙</button></div>
-                        )}
-                        <div className="flex gap-2 text-xs mt-3">
-                           <button onClick={testKey} disabled={!apiKey.trim()} className="flex-1 py-2 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg font-bold hover:bg-blue-100 disabled:opacity-50">🧪 測試鎖匙</button>
-                           <button onClick={saveApiConfig} disabled={!apiKey.trim()} className="flex-1 py-2 bg-green-50 text-green-700 border border-green-200 rounded-lg font-bold hover:bg-green-100 disabled:opacity-50">💾 儲存</button>
-                        </div>
-                        {keyHint && <div className="mt-2 text-sm font-bold text-orange-600 bg-orange-50 p-2 rounded border border-orange-200">{keyHint}</div>}
-                        {keyTesting && <div className="text-sm text-blue-600 font-bold flex items-center gap-2 mt-2"><Icon path={icons.loader} className="animate-spin" size={16}/> 測試中...</div>}
-                        {keyTestResult && <div className={`text-sm font-bold mt-2 ${keyTestResult.ok ? 'text-green-600' : 'text-red-600'}`}>{keyTestResult.msg}</div>}
-                      </div>
-                    )}
-                  </div>
-
-                  <label className={`flex items-start gap-3 p-3.5 rounded-xl border-2 cursor-pointer transition-all ${rememberKey ? 'bg-green-50 border-green-500' : 'bg-white border-gray-200 hover:bg-gray-50'}`}>
-                    <input type="checkbox" checked={rememberKey} onChange={(e) => setRememberKey(e.target.checked)} className="w-5 h-5 mt-0.5 text-green-600 shrink-0" />
-                    <div>
-                      <div className="font-bold text-gray-900 text-sm flex items-center gap-1.5"><Icon path={icons.lock} size={14}/> 記住我的鎖匙（下次免再輸入）</div>
-                      <div className="text-xs text-gray-600 mt-1 leading-relaxed">只儲存於本機瀏覽器，不會上傳。共用電腦請勿勾選。</div>
-                    </div>
-                  </label>
-
-                </div>
-
-                {!isEditingKey && <Button className="w-full mt-4" onClick={() => setShowSettings(false)}><Icon path={icons.check} size={18}/> 返回</Button>}
-              </Card>
-            </main>
-          ) : showHistory ? (
-            <main className="w-full px-4 py-6 max-w-lg mx-auto animate-in fade-in">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold flex items-center gap-2"><Icon path={icons.history} className="text-gray-600"/> 歷史紀錄</h2>
-                {savedHistory.length > 0 && (
-                  <button onClick={exportCSV} className="flex items-center gap-1.5 px-3 py-1.5 bg-green-50 text-green-700 hover:bg-green-100 border border-green-200 rounded-lg text-sm font-bold transition-colors shadow-sm">
-                    <Icon path={icons.download} size={16}/> 匯出 CSV
-                  </button>
-                )}
-              </div>
-              {savedHistory.length === 0 ? (
-                <div className="text-center py-10 text-gray-500"><Icon path={icons.receipt} size={48} className="mx-auto mb-3 opacity-20"/><p>暫無儲存的紀錄</p></div>
-              ) : (
-                <div className="space-y-4">
-                  {savedHistory.map(record => (
-                    <Card key={record.id} className="p-0 overflow-hidden border-2 border-gray-200">
-                      <div className="bg-gray-50 p-4 flex justify-between items-start border-b border-gray-200">
-                        <div><h3 className="font-bold text-gray-800 text-lg">{record.date}</h3><p className="text-sm text-gray-500 mt-1">墊支人: <span className="font-bold text-gray-700">{record.payer}</span></p></div>
-                        <div className="text-right"><div className="font-bold text-green-700 text-lg">{formatMoney(record.totalAmount, record.currency)}</div><div className="text-xs text-gray-400">{record.currency}</div></div>
-                      </div>
-                      <div className="p-4 bg-white flex gap-2">
-                        <Button variant="outline" className="flex-1 !py-2 !text-sm !px-2" onClick={() => copyToClipboard(record.simplifiedText, '追數版')}><Icon path={icons.copy} size={16}/> 追數版</Button>
-                        <Button variant="secondary" className="flex-1 !py-2 !text-sm !px-2" onClick={() => copyToClipboard(record.detailedText, '詳細版')}><Icon path={icons.copy} size={16}/> 詳細版</Button>
-                        <button onClick={() => deleteRecord(record.id)} className="p-2 bg-red-50 text-red-500 rounded-xl hover:bg-red-100 shrink-0"><Icon path={icons.trash} size={20}/></button>
-                      </div>
-                    </Card>
-                  ))}
-                </div>
-              )}
-            </main>
-          ) : (
-            <main className="w-full px-4 py-6 space-y-6 max-w-lg mx-auto">
-              {step === 1 && (
-                <div className="space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                  <h2 className="text-xl font-bold flex items-center gap-2 text-gray-800"><Icon path={icons.upload} className="text-green-600"/> 第一步：睇單 (1/4)</h2>
-
-                  <button onClick={() => setShowTutorial(true)} className="w-full flex items-center gap-3 bg-amber-50 border-2 border-amber-300 text-left p-3.5 rounded-xl hover:bg-amber-100 transition-colors active:scale-[0.99]">
-                    <span className="w-10 h-10 shrink-0 bg-amber-400 text-white rounded-xl flex items-center justify-center"><Icon path={icons.book} size={20}/></span>
-                    <span className="flex-1">
-                      <span className="block font-bold text-amber-900 text-sm">第一次用？先睇新手教學</span>
-                      <span className="block text-xs text-amber-700 mt-0.5">3 分鐘睇完，特別是「數量點填」一節</span>
-                    </span>
-                    <Icon path={icons.arrowRight} size={18} className="text-amber-600 shrink-0"/>
-                  </button>
-
+                <Card className="bg-gradient-to-br from-brand-50 to-white border-brand-500">
                   <button 
                     onClick={() => setShowSettings(true)}
-                    className={`w-full flex items-center gap-3 p-3.5 rounded-xl border-2 transition-all active:scale-[0.99] text-left mb-2 shadow-sm ${
+                    className={`w-full flex items-center gap-4 p-4 rounded-xl border transition-all active:scale-[0.99] text-left shadow-sm ${
                       apiKey.trim() 
-                        ? 'bg-green-50 border-green-300 hover:bg-green-100 text-green-800' 
-                        : 'bg-red-50 border-red-300 hover:bg-red-100 text-red-800'
+                        ? 'bg-white border-brand-500 hover:border-brand-600 text-slate-700' 
+                        : 'bg-red-50 border-red-500 hover:bg-red-100 text-red-800'
                     }`}
                   >
-                    <span className={`w-10 h-10 shrink-0 rounded-xl flex items-center justify-center text-white shadow-inner ${apiKey.trim() ? 'bg-green-500' : 'bg-red-500'}`}>
-                      <Icon path={icons.key} size={20}/>
+                    <span className={`w-12 h-12 shrink-0 rounded-full flex items-center justify-center text-white shadow-sm ${apiKey.trim() ? 'bg-brand-500' : 'bg-red-500'}`}>
+                      <Icon path={icons.key} size={24}/>
                     </span>
-                    <span className="flex-1">
-                      <span className="block font-bold text-sm">
-                        {apiKey.trim() ? `✅ 現已有鎖匙可以使用 (${aiEngine === 'openrouter' ? 'OpenRouter' : 'Gemini'})` : '⚠️ 尚未有鎖匙，請點擊設定申請'}
+                    <div className="flex-1">
+                      <span className="block font-bold text-[15px] mb-0.5">
+                        {apiKey.trim() ? `✅ API 金鑰已設定 (${aiEngine === 'openrouter' ? 'OpenRouter' : 'Gemini'})` : '⚠️ 尚未設定 API 金鑰'}
                       </span>
-                    </span>
-                    <Icon path={icons.settings} size={18} className="shrink-0 opacity-70"/>
+                      <span className={`block text-xs font-medium ${apiKey.trim() ? 'text-slate-500' : 'text-red-600'}`}>
+                        {apiKey.trim() ? '系統已準備就緒，可進行高效 AI 辨識' : '點擊此處設定免費金鑰以啟用智能掃描'}
+                      </span>
+                    </div>
+                    <Icon path={icons.settings} size={20} className="shrink-0 text-slate-500"/>
                   </button>
+                </Card>
 
+                <div 
+                  onClick={!isAnalyzing ? triggerUpload : undefined} 
+                  className={`w-full rounded-2xl border border-dashed p-10 flex flex-col items-center justify-center text-center transition-all cursor-pointer ${isAnalyzing ? 'border-brand-500 bg-brand-50 shadow-inner' : 'border-slate-500 bg-white hover:border-brand-500 hover:bg-slate-50 shadow-sm'}`}
+                >
                   <input type="file" accept="image/jpeg,image/png,image/webp" multiple className="hidden" ref={fileInputRef} onChange={handleFileUpload} />
-                  <div onClick={!isAnalyzing ? triggerUpload : undefined} className={`w-full rounded-2xl border-2 border-dashed p-8 flex flex-col items-center justify-center text-center transition-all cursor-pointer ${isAnalyzing ? 'border-green-300 bg-green-50' : 'border-green-400 bg-green-50/50 hover:bg-green-100'}`}>
-                    {isAnalyzing ? (
-                      <div className="w-full max-w-[200px] mx-auto animate-in fade-in">
-                        <div className="flex justify-between text-sm font-bold text-green-800 mb-1.5"><span>{progressText}</span><span>{progress}%</span></div>
-                        <div className="w-full bg-green-200 rounded-full h-2.5 overflow-hidden">
-                          <div className="bg-green-600 h-2.5 rounded-full transition-all duration-500 ease-out" style={{width: `${progress}%`}}></div>
+                  
+                  {isAnalyzing ? (
+                    <div className="w-full max-w-xs mx-auto">
+                      <div className="flex justify-between text-sm font-bold text-brand-700 mb-2"><span>{progressText}</span><span>{progress}%</span></div>
+                      <div className="w-full bg-brand-100 border border-brand-300 rounded-full h-3 overflow-hidden shadow-inner">
+                        <div className="bg-brand-500 h-3 rounded-full transition-all duration-300 ease-out relative overflow-hidden" style={{width: `${progress}%`}}>
+                          <div className="absolute inset-0 bg-white/20 animate-pulse"></div>
                         </div>
-                        <p className="text-xs text-green-700 mt-3">請勿離開畫面，運算需時約 10-20 秒</p>
                       </div>
-                    ) : (
-                      <React.Fragment>
-                        <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-3"><Icon path={icons.fileImage} size={32} /></div>
-                        <h3 className="text-lg font-bold text-gray-800">點擊拍照或選取單據</h3>
-                        <p className="text-sm text-gray-500 mt-1">💡 支援 JPG/PNG/WebP，最多 5 張</p>
-                      </React.Fragment>
-                    )}
-                  </div>
-
-                  <div className="pt-2 border-t border-gray-200"><Button variant="secondary" onClick={() => handleGoToStep2(true)}>略過上傳，手動輸入 <Icon path={icons.arrowRight} size={18}/></Button></div>
+                      <p className="text-xs text-brand-600/80 mt-4 font-medium">請稍候，AI 正在進行深度解析 (約 10-20 秒)</p>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center">
+                      <div className="w-20 h-20 bg-slate-100 text-slate-500 rounded-full flex items-center justify-center mb-4 shadow-sm border border-slate-400 transition-transform group-hover:scale-105"><Icon path={icons.fileImage} size={36} /></div>
+                      <h3 className="text-lg font-bold text-slate-800">點擊拍照或上載單據照片</h3>
+                      <p className="text-sm font-medium text-slate-500 mt-2">支援 JPG, PNG, WebP 格式 (最多 5 張)</p>
+                    </div>
+                  )}
                 </div>
-              )}
 
-              {step === 2 && (
-                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                  <h2 className="text-xl font-bold flex items-center justify-between text-gray-800"><span className="flex items-center gap-2"><Icon path={icons.fileText} className="text-green-600"/> 第二步：轉發俾朋友揀 (2/4)</span></h2>
-                  <div className="space-y-3">
-                    {items.map((item, idx) => (
-                      <div key={idx} className="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm relative">
-                        <button onClick={() => removeItem(idx)} className="absolute top-3 right-3 text-gray-400 hover:text-red-500 p-2"><Icon path={icons.trash} size={18} /></button>
-                        <div className="pr-10 mb-3">
-                          <label className="text-xs font-bold text-gray-500 mb-1 block">項目 {item.id}</label>
-                          <input type="text" ref={el => fieldRefs.current[`item-name-${idx}`] = el} value={item.name} onChange={(e) => updateItem(idx, 'name', e.target.value)} className="w-full text-base font-medium border-b border-gray-300 focus:border-green-600 outline-none pb-1" placeholder="請輸入項目名稱..." />
-                          {(item.original || item.ja) && (
-                            <div className="mt-2 space-y-0.5">
-                              {item.original && item.original !== item.name && <p className="text-xs text-gray-500 leading-snug"><span className="font-bold text-gray-400">原文</span>　{item.original}</p>}
-                              {item.ja && item.ja !== item.original && <p className="text-xs text-gray-500 leading-snug"><span className="font-bold text-gray-400">日文</span>　{item.ja}</p>}
-                            </div>
-                          )}
+                <div className="flex items-center gap-4 py-2">
+                  <div className="h-px bg-slate-400 flex-1"></div>
+                  <span className="text-xs font-semibold text-slate-500 uppercase tracking-widest">OR</span>
+                  <div className="h-px bg-slate-400 flex-1"></div>
+                </div>
+
+                <Button variant="secondary" className="w-full border-slate-500" onClick={() => handleGoToStep2(true)}>
+                  手動輸入項目 <Icon path={icons.arrowRight} size={18}/>
+                </Button>
+              </div>
+            )}
+
+            {/* Step 2: Items & Claims */}
+            {step === 2 && (
+              <div className="space-y-6 animate-in fade-in duration-500">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="w-8 h-8 rounded-full bg-brand-100 border border-brand-500 text-brand-700 flex items-center justify-center font-bold">2</span>
+                  <h2 className="text-2xl font-bold text-slate-800 tracking-tight">核對項目與朋友認領</h2>
+                </div>
+                
+                <div className="space-y-4">
+                  <div className="flex justify-between items-end mb-1">
+                    <Label className="!mb-0 text-lg">消費明細清單</Label>
+                    <span className="text-sm font-semibold text-brand-700 bg-brand-50 px-2.5 py-1 rounded-md border border-brand-500">共 {items.length} 項</span>
+                  </div>
+                  
+                  {items.map((item, idx) => (
+                    <Card key={idx} className="relative overflow-visible !p-4 group">
+                      <button onClick={() => removeItem(idx)} className="absolute -top-3 -right-3 w-8 h-8 bg-white border border-slate-400 text-slate-500 hover:text-red-700 hover:border-red-500 hover:bg-red-50 rounded-full flex items-center justify-center shadow-sm transition-colors z-10 opacity-0 group-hover:opacity-100 md:opacity-100">
+                        <Icon path={icons.trash} size={14} />
+                      </button>
+                      <div className="grid gap-4">
+                        <div>
+                          <label className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5 block">編號 {item.id} - 名稱</label>
+                          <input type="text" ref={el => fieldRefs.current[`item-name-${idx}`] = el} value={item.name} onChange={(e) => updateItem(idx, 'name', e.target.value)} onKeyDown={(e) => handleItemKeyDown(e, 'name', idx)} className="w-full text-base font-semibold text-slate-800 border-b border-slate-500 focus:border-brand-500 bg-transparent outline-none pb-1" placeholder="輸入項目名稱..." />
                         </div>
                         <div className="flex gap-4">
                           <div className="flex-1">
-                              <label className="text-xs font-bold text-gray-500 mb-1 block">單價</label>
-                              <div className="flex items-center">
-                                  <span className="text-gray-500 mr-1 font-bold">{getCurrencySymbol(currency)}</span>
-                                  <input type="number" placeholder="0" value={item.price} onChange={(e) => updateItem(idx, 'price', e.target.value)} className="w-full text-base font-medium border-b border-gray-300 focus:border-green-600 outline-none pb-1" />
-                              </div>
+                            <label className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5 block">單價</label>
+                            <div className="flex items-center border-b border-slate-500 focus-within:border-brand-500 transition-colors">
+                              <span className="text-slate-600 font-bold mr-1.5">{getCurrencySymbol(currency)}</span>
+                              <input type="number" ref={el => fieldRefs.current[`item-price-${idx}`] = el} value={item.price} onChange={(e) => updateItem(idx, 'price', e.target.value)} onKeyDown={(e) => handleItemKeyDown(e, 'price', idx)} className="w-full text-base font-semibold text-slate-800 bg-transparent outline-none pb-1 border-none shadow-none focus:ring-0" placeholder="0" />
+                            </div>
                           </div>
-                          <div className="w-20"><label className="text-xs font-bold text-gray-500 mb-1 block">數量</label><input type="number" placeholder="1" value={item.qty} onChange={(e) => updateItem(idx, 'qty', e.target.value)} className="w-full text-base font-medium border-b border-gray-300 focus:border-green-600 outline-none pb-1 text-center" /></div>
+                          <div className="w-24">
+                            <label className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5 block">數量</label>
+                            <input type="number" ref={el => fieldRefs.current[`item-qty-${idx}`] = el} value={item.qty} onChange={(e) => updateItem(idx, 'qty', e.target.value)} onKeyDown={(e) => handleItemKeyDown(e, 'qty', idx)} className="w-full text-base font-semibold text-slate-800 border-b border-slate-500 focus:border-brand-500 bg-transparent outline-none pb-1 text-center" placeholder="1" />
+                          </div>
                         </div>
+                      </div>
+                    </Card>
+                  ))}
+                  <Button variant="outline" onClick={addItem} className="w-full border-dashed border-brand-500 bg-white/50 hover:bg-brand-50 text-brand-700"><Icon path={icons.plus} size={18}/> 新增一筆項目</Button>
+                </div>
+
+                <Card className="bg-slate-50">
+                  <div className="flex justify-between items-center gap-4">
+                    <div className="flex-1">
+                      <Label className="!mb-0.5">附加稅金／服務費</Label>
+                      <p className="text-xs text-slate-500 font-medium">如有額外費用請在此填寫</p>
+                    </div>
+                    <div className="flex items-center w-32 shrink-0 bg-white border border-slate-500 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-brand-500 focus-within:border-brand-500 transition-all shadow-sm">
+                      <span className="pl-3 pr-1 text-slate-600 font-bold bg-slate-50 border-r border-slate-500 py-2">{getCurrencySymbol(currency)}</span>
+                      <input type="number" placeholder="0" value={taxAmount} onChange={(e) => setTaxAmount(e.target.value)} className="w-full text-base font-bold text-slate-800 p-2 text-right outline-none border-none shadow-none" />
+                    </div>
+                  </div>
+                </Card>
+
+                <div className="border-t border-slate-400 my-6 pt-6 space-y-6">
+                  <div>
+                    <Label className="flex items-center justify-between mb-3"><span>1. 產生認領表發送給朋友</span></Label>
+                    <Button variant="secondary" onClick={() => copyToClipboard(generateFriendTemplate(), '認領模板')} className="w-full text-sm bg-white hover:bg-slate-50 border-slate-500">
+                      <Icon path={icons.copy} size={18} className="text-slate-600"/> 一鍵複製認領表單模板
+                    </Button>
+                  </div>
+                  
+                  <div>
+                    <Label required={friendsReplies.length === 0} className="flex items-center justify-between mb-3">
+                      <span>2. 貼上朋友們的回覆</span>
+                    </Label>
+                    <textarea 
+                      ref={el => fieldRefs.current.replies = el} value={friendsReplies} onChange={(e) => {setFriendsReplies(e.target.value); setStepError('');}} onPaste={handlePasteReplies} onFocus={onFocusReplies} onBlur={onBlurReplies}
+                      placeholder="在此處貼上朋友們填妥的認領表... (支援連續貼上多份回覆)" 
+                      className="w-full h-48 bg-white border border-slate-500 rounded-xl p-4 text-sm font-mono text-slate-700 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none resize-y shadow-inner leading-relaxed">
+                    </textarea>
+                  </div>
+                </div>
+                
+                <div className="flex gap-3 pt-2">
+                  <Button variant="secondary" className="w-1/3 !px-2 border-slate-500" onClick={handleGoToStep1}>上一步</Button>
+                  <Button variant="primary" className="w-2/3" onClick={handleGoToStep3}>進行分帳運算 <Icon path={icons.arrowRight} size={18}/></Button>
+                </div>
+              </div>
+            )}
+
+            {/* Step 3: Calculation Settings */}
+            {step === 3 && (
+              <div className="space-y-6 animate-in fade-in duration-500">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="w-8 h-8 rounded-full bg-brand-100 border border-brand-500 text-brand-700 flex items-center justify-center font-bold">3</span>
+                  <h2 className="text-2xl font-bold text-slate-800 tracking-tight">結算細節設定</h2>
+                </div>
+
+                <Card className="space-y-8">
+                  <div>
+                    <Label required={!payer} className="text-lg">墊支人姓名 (Payee)</Label>
+                    <input type="text" ref={el => fieldRefs.current.payer = el} value={payer} onChange={(e) => {setPayer(e.target.value); setStepError('');}} placeholder="請輸入先付款人的姓名..." className="w-full rounded-xl p-3.5 text-base font-semibold text-slate-800 outline-none transition-all bg-slate-50 focus:bg-white" />
+                  </div>
+                  
+                  <div>
+                    <Label className="text-lg mb-3">結算貨幣 (Currency)</Label>
+                    <div className="flex flex-wrap gap-2.5">
+                      {displayCurrencies.map(c => (
+                          <button 
+                              key={c} onClick={() => setCurrency(c)} 
+                              className={`px-4 py-2.5 rounded-xl border font-bold text-sm transition-all outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 ${currency === c ? 'border-brand-600 bg-brand-50 text-brand-700 shadow-sm' : 'border-slate-500 bg-white text-slate-600 hover:bg-slate-50'}`}
+                          >
+                              {getCurrencyName(c)}
+                          </button>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <Label className="text-lg mb-3">收款方式 (Payment Method)</Label>
+                    <div className="flex flex-wrap gap-2.5">
+                      {paymentOptions.map(pm => (
+                        <button 
+                          key={pm} onClick={() => setPaymentMethod(pm)} 
+                          className={`px-4 py-2.5 rounded-xl border font-bold text-sm transition-all outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 ${paymentMethod === pm ? 'border-brand-600 bg-brand-50 text-brand-700 shadow-sm' : 'border-slate-500 bg-white text-slate-600 hover:bg-slate-50'}`}
+                        >
+                          {pm}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="border-t border-slate-400 pt-6">
+                    <Label className="text-lg mb-3">附加費用分攤邏輯 (Tax/Fee Split)</Label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {[{ id: 'proportional', label: '按消費比例分攤', desc: '食得多出得多' }, { id: 'equal', label: '所有人平均分攤', desc: '人頭均分' }].map(opt => (
+                        <label key={opt.id} className={`flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-all ${taxSplitMethod === opt.id ? 'bg-brand-50 border-brand-500 shadow-sm' : 'bg-white border-slate-500 hover:bg-slate-50'}`}>
+                          <input type="radio" name="taxSplit" checked={taxSplitMethod === opt.id} onChange={() => setTaxSplitMethod(opt.id)} className="w-5 h-5 mt-0.5 text-brand-600 focus:ring-brand-500" />
+                          <div>
+                            <div className={`font-bold text-base ${taxSplitMethod === opt.id ? 'text-brand-900' : 'text-slate-800'}`}>{opt.label}</div>
+                            <div className="text-xs text-slate-500 mt-1">{opt.desc}</div>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                </Card>
+                
+                <div className="flex gap-3 pt-2">
+                  <Button variant="secondary" className="w-1/3 !px-2 border-slate-500" onClick={() => setStep(2)}>上一步</Button>
+                  <Button variant="primary" className="w-2/3" onClick={calculateSplit}>產生分帳報告 <Icon path={icons.check} size={18}/></Button>
+                </div>
+              </div>
+            )}
+
+            {/* Step 4: Results */}
+            {step === 4 && results && (
+              <div className="space-y-6 animate-in fade-in duration-500">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="w-8 h-8 rounded-full bg-brand-600 text-white flex items-center justify-center font-bold"><Icon path={icons.check} size={18}/></span>
+                  <h2 className="text-2xl font-bold text-slate-800 tracking-tight">最終分帳報告</h2>
+                </div>
+
+                {/* Simplified Result */}
+                <Card className="!p-0 overflow-hidden border-t-4 border-t-brand-600">
+                  <div className="p-4 bg-slate-50 flex items-center justify-between border-b border-slate-400">
+                    <div>
+                      <h3 className="font-bold text-slate-800 text-base">💰 追數版報告 (精簡)</h3>
+                      <p className="text-xs text-slate-500 font-medium mt-0.5">適合直接轉發至群組追數</p>
+                    </div>
+                    <Button onClick={() => copyToClipboard(getSimplifiedResult(), '追數版')} variant="outline" className="!px-3 !py-1.5 !w-auto text-sm bg-white hover:bg-brand-50 border-slate-500 text-slate-700 hover:text-brand-700 hover:border-brand-500"><Icon path={icons.copy} size={16}/> 複製文字</Button>
+                  </div>
+                  <div className="p-5 bg-white font-mono text-sm text-slate-700 whitespace-pre-wrap break-words leading-relaxed selection:bg-brand-100">{getSimplifiedResult()}</div>
+                </Card>
+
+                {/* Detailed Result */}
+                <Card className="!p-0 overflow-hidden">
+                  <div className="p-4 bg-slate-50 border-b border-slate-400">
+                    <div className="flex items-center justify-between mb-4">
+                      <div>
+                        <h3 className="font-bold text-slate-800 text-base">🧾 詳細明細版</h3>
+                        <p className="text-xs text-slate-500 font-medium mt-0.5">列出各人具體消費項目以供核對</p>
+                      </div>
+                      <Button onClick={() => copyToClipboard(getDetailedResult(detailLang), '詳細版')} variant="secondary" className="!px-3 !py-1.5 !w-auto text-sm bg-white border-slate-500"><Icon path={icons.copy} size={16}/> 複製</Button>
+                    </div>
+                    
+                    <div className="flex bg-slate-200/60 p-1 rounded-lg border border-slate-400">
+                      <button onClick={() => setDetailLang('zh')} className={`flex-1 py-1.5 rounded-md text-xs font-bold transition-all ${detailLang === 'zh' ? 'bg-white text-slate-800 shadow border border-slate-300' : 'text-slate-600 hover:text-slate-800'}`}>純中文版</button>
+                      <button onClick={() => setDetailLang('full')} className={`flex-1 py-1.5 rounded-md text-xs font-bold transition-all ${detailLang === 'full' ? 'bg-white text-slate-800 shadow border border-slate-300' : 'text-slate-600 hover:text-slate-800'}`}>包含原文 (供核對)</button>
+                    </div>
+                  </div>
+                  <div className="p-5 bg-white font-mono text-xs text-slate-600 whitespace-pre-wrap break-words leading-relaxed overflow-x-auto selection:bg-slate-200">{getDetailedResult(detailLang)}</div>
+                </Card>
+                
+                <div className="pt-2">
+                  <Button onClick={saveCurrentRecord} disabled={isSaved} className={`w-full ${isSaved ? 'bg-slate-100 text-brand-700 border border-brand-500' : ''}`}>
+                    {isSaved ? <><Icon path={icons.check} size={20}/> 紀錄已儲存</> : <><Icon path={icons.save} size={20}/> 儲存此分帳紀錄</>}
+                  </Button>
+                </div>
+                
+                <div className="flex gap-3 pt-2">
+                  <Button variant="secondary" className="w-1/3 !px-2 border-slate-500" onClick={() => { setStepError(''); setStep(3); }}><Icon path={icons.arrowLeft} size={16}/> 返回修改</Button>
+                  <Button onClick={handleGoToStep1} className="w-2/3 bg-slate-800 hover:bg-slate-900 text-white shadow-lg border border-slate-900">處理新一張單據</Button>
+                </div>
+              </div>
+            )}
+
+            {showTutorial && (
+              <div className="space-y-6 animate-in fade-in duration-500">
+                <Card className="bg-gradient-to-br from-amber-50 to-white border-amber-500 shadow-sm">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="w-10 h-10 bg-amber-500 text-white rounded-xl flex items-center justify-center shadow-sm shrink-0">
+                      <Icon path={icons.book} size={22}/>
+                    </div>
+                    <h2 className="text-xl font-bold text-slate-800 tracking-tight">新手教學</h2>
+                  </div>
+                  <p className="text-sm mt-1 leading-relaxed text-slate-700">第一次用？睇完以下幾點就上手。<br/>最重要的是第 2 節「數量點填」——這是最多人搞錯的地方。</p>
+                </Card>
+
+                <Card className="p-0 overflow-hidden border-slate-500">
+                  <div className="bg-slate-50 px-5 py-4 border-b border-slate-400">
+                    <h3 className="font-bold text-slate-800 text-base flex items-center gap-2">🗺️ 整個流程（4 步）</h3>
+                  </div>
+                  <div className="p-5 space-y-4">
+                    {[
+                      ['1', '睇單', '拍／揀單據照片，AI 自動讀出項目、價錢同稅費。亦可手動輸入。'],
+                      ['2', '認領', '複製「認領表」發到 WhatsApp 群組，朋友填數量後傳回，你貼回輸入框。'],
+                      ['3', '運算', '填墊支人姓名、確認自動偵測的貨幣、付款方式。'],
+                      ['4', '結果', '得出「追數版」同「詳細版」，複製後發返群組。'],
+                    ].map(([n, t, d]) => (
+                      <div key={n} className="flex gap-4 items-start">
+                        <span className="w-6 h-6 shrink-0 bg-brand-100 text-brand-700 border border-brand-500 rounded-full flex items-center justify-center text-xs font-bold mt-0.5">{n}</span>
+                        <div><span className="font-bold text-slate-800 block mb-0.5">{t}</span><span className="text-slate-600 text-sm leading-relaxed">{d}</span></div>
                       </div>
                     ))}
                   </div>
-                  <Button variant="outline" onClick={addItem} className="w-full border-dashed"><Icon path={icons.plus} size={18}/> 新增項目</Button>
-                  
-                  <Card className="bg-gray-100 border-none">
-                    <div className="flex justify-between items-center gap-3">
-                      <label className="font-bold text-gray-700">稅金/服務費等雜費</label>
-                      <div className="flex items-center w-28 shrink-0">
-                          <span className="text-gray-500 mr-1 font-bold">{getCurrencySymbol(currency)}</span>
-                          <input type="number" placeholder="0" value={taxAmount} onChange={(e) => setTaxAmount(e.target.value)} className="w-full text-lg font-bold bg-white border border-gray-300 rounded-lg p-2 text-right focus:border-green-600 outline-none" />
-                      </div>
-                    </div>
-                    {taxNote && <p className="text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded-lg p-2.5 mt-3 leading-relaxed"><strong>🤖 AI 稅費判讀：</strong>{taxNote}</p>}
-                  </Card>
+                </Card>
 
-                  <div className="space-y-4 pt-4 border-t border-gray-200">
-                    <div className="space-y-2">
-                      <h3 className="font-bold flex items-center justify-between"><span>📱 轉發 WhatsApp 認領</span></h3>
-                      <Button variant="primary" onClick={() => copyToClipboard(generateFriendTemplate(), '認領模板')} className="w-full text-sm"><Icon path={icons.copy} size={18}/> 一鍵複製認領模板（已含教學）</Button>
-                    </div>
-                    <div className="space-y-2 pt-4">
-                      <h3 className="font-bold flex justify-between items-center"><span>📩 貼上朋友回覆</span>{friendsReplies.length === 0 && <span className="text-xs text-red-500 animate-pulse font-normal">*(必填)</span>}</h3>
-                      <textarea 
-                        ref={el => fieldRefs.current.replies = el} value={friendsReplies} onChange={(e) => {setFriendsReplies(e.target.value); setStepError('');}} onPaste={handlePasteReplies} onFocus={onFocusReplies} onBlur={onBlurReplies}
-                        placeholder="在此貼上收齊的回覆...（可以連續貼幾份，系統會自動分隔）" className="w-full h-56 bg-white border border-gray-300 rounded-xl p-4 text-base font-mono focus:border-green-600 outline-none resize-y shadow-inner">
-                      </textarea>
-                    </div>
+                <Accordion title="⭐ 2. 「數量」到底點填？（最重要）" tone="amber" defaultOpen={true} icon={icons.help}>
+                  <div className="bg-amber-50/50 border border-amber-500 rounded-xl p-4 mb-3">
+                    <p className="font-bold text-amber-900 text-sm mb-1.5">一句話核心：</p>
+                    <p className="text-amber-800 text-sm leading-relaxed">呢個數字純粹係<strong className="font-extrabold underline decoration-amber-500 underline-offset-2">你想出嘅「份數比例」</strong>。如果成碟嘢得你一個人食，咪填 1 全包；兩個人一齊食，大家各填 1 就一人一半，如此類推。</p>
                   </div>
-                  
-                  <div className="flex gap-3 pt-4 pb-6"><Button variant="secondary" className="w-1/3 px-2" onClick={handleGoToStep1}>上一步</Button><Button variant="primary" className="w-2/3" onClick={handleGoToStep3}>下一步：分帳運算 <Icon path={icons.arrowRight} size={18}/></Button></div>
+                  <p className="font-bold text-slate-800 pt-1 mb-2">例子：兩個人 share 一個薄餅 🍕</p>
+                  <div className="bg-slate-50 border border-slate-400 rounded-xl p-4 text-sm space-y-3">
+                    <p className="text-slate-800">一個薄餅 $120，阿明同 Cathy 一齊食。阿明覺得自己食多啲，想出多一份，就填 <strong className="text-brand-700 bg-brand-100 border border-brand-500 px-1.5 py-0.5 rounded">2</strong>；Cathy 填 <strong className="text-brand-700 bg-brand-100 border border-brand-500 px-1.5 py-0.5 rounded">1</strong>。</p>
+                    <div className="bg-white border border-slate-400 rounded-lg p-3 text-xs text-slate-600 font-mono shadow-sm">
+                      系統自動計：合共 3 份 → 每份 $40。<br/>阿明 2 份 = $80，Cathy 1 份 = $40。
+                    </div>
+                    <p className="text-brand-700 font-bold flex items-center gap-1.5 mt-2"><Icon path={icons.check} size={16}/> 唔使數切咗幾件、食咗幾啖。想出幾多份，就填幾多。</p>
+                  </div>
+                </Accordion>
+
+                <Accordion title="🔑 6. AI 設定與鎖匙" tone="slate" icon={icons.key}>
+                  <p className="text-sm text-slate-800 leading-relaxed mb-2"><strong className="text-slate-900">OpenRouter</strong>：推薦香港人使用，免 VPN，速度快。只需去官網申請免費鎖匙。</p>
+                  <p className="text-sm text-slate-800 leading-relaxed mb-3"><strong className="text-slate-900">Gemini 模式</strong>：需要全程開啟 VPN 才能申請同埋使用鎖匙。</p>
+                  <div className="bg-slate-50 border border-slate-400 rounded-xl p-3 text-sm space-y-1.5">
+                    <p className="font-bold text-slate-800">記住我的鎖匙（免每次重輸）</p>
+                    <p className="text-slate-600 text-xs">在設定勾選「記住鎖匙」，只存本機，唔會上傳。共用電腦請勿勾選。</p>
+                  </div>
+                </Accordion>
+
+                <Button className="w-full mt-2" onClick={() => setShowTutorial(false)}>
+                  <Icon path={icons.check} size={18}/> 我明白了，開始分帳
+                </Button>
+              </div>
+            )}
+
+            {showHistory && (
+              <div className="space-y-6 animate-in fade-in duration-300">
+                <div className="flex justify-between items-center mb-2">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-slate-200 text-slate-700 border border-slate-400 rounded-xl flex items-center justify-center shadow-sm shrink-0">
+                      <Icon path={icons.history} size={22}/>
+                    </div>
+                    <h2 className="text-2xl font-bold text-slate-800 tracking-tight">歷史紀錄</h2>
+                  </div>
+                  {savedHistory.length > 0 && (
+                    <button onClick={exportCSV} className="flex items-center gap-1.5 px-3 py-2 bg-white text-slate-800 hover:bg-slate-50 border border-slate-500 rounded-lg text-sm font-bold shadow-sm transition-all active:scale-[0.98]">
+                      <Icon path={icons.download} size={16}/> 匯出 CSV
+                    </button>
+                  )}
                 </div>
-              )}
-
-              {step === 3 && (
-                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                  <h2 className="text-xl font-bold flex items-center gap-2"><Icon path={icons.calculator} className="text-green-600"/> 第三步：分帳運算 (3/4)</h2>
-                  <Card className="space-y-6">
-                    <div className="space-y-3">
-                      <label className="font-bold text-gray-800 flex justify-between text-lg"><span>墊支人姓名</span>{!payer && <span className="text-sm text-red-500 animate-pulse font-normal">*(必填)</span>}</label>
-                      <input type="text" ref={el => fieldRefs.current.payer = el} value={payer} onChange={(e) => {setPayer(e.target.value); setStepError('');}} placeholder="請輸入姓名" className="w-full border-2 border-gray-200 rounded-xl p-4 text-lg outline-none focus:border-green-600" />
-                    </div>
-                    
-                    <div className="space-y-3">
-                      <label className="font-bold text-gray-800 block text-lg">結算貨幣 (AI 智能判讀)</label>
-                      <div className="flex flex-wrap gap-2">
-                        {displayCurrencies.map(c => (
-                            <button 
-                                key={c} onClick={() => setCurrency(c)} 
-                                className={`px-4 py-2 rounded-xl border-2 font-bold transition-all ${currency === c ? 'border-green-600 bg-green-50 text-green-700' : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'}`}
-                            >
-                                {getCurrencyName(c)}
-                            </button>
-                        ))}
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-3">
-                      <label className="font-bold text-gray-800 block text-lg">付款方式</label>
-                      <div className="flex flex-wrap gap-2">
-                        {paymentOptions.map(pm => (
-                          <button 
-                            key={pm} onClick={() => setPaymentMethod(pm)} 
-                            className={`px-4 py-2 rounded-xl border-2 font-bold transition-all ${paymentMethod === pm ? 'border-green-600 bg-green-50 text-green-700' : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'}`}
-                          >
-                            {pm}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="space-y-3">
-                      <label className="font-bold text-gray-800 block text-lg">稅金/服務費分攤方式</label>
-                      <div className="space-y-3">
-                        {[{ id: 'proportional', label: '按消費比例分' }, { id: 'equal', label: '全部人平均分' }].map(opt => (<label key={opt.id} className={`flex items-center gap-4 p-4 rounded-xl border-2 cursor-pointer ${taxSplitMethod === opt.id ? 'bg-green-50 border-green-600' : 'bg-white border-gray-200'}`}><input type="radio" name="taxSplit" checked={taxSplitMethod === opt.id} onChange={() => setTaxSplitMethod(opt.id)} className="w-5 h-5 text-green-600" /><div className="font-bold text-gray-900 text-base">{opt.label}</div></label>))}
-                      </div>
-                    </div>
+                
+                {savedHistory.length === 0 ? (
+                  <Card className="flex flex-col items-center justify-center py-16 text-slate-500">
+                    <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mb-4 border border-slate-400"><Icon path={icons.receipt} size={40} className="opacity-60"/></div>
+                    <p className="font-bold text-slate-600">暫無儲存的紀錄</p>
                   </Card>
-                  
-                  <div className="flex gap-3 pt-2"><Button variant="secondary" className="w-1/3 px-2" onClick={() => setStep(2)}>上一步</Button><Button variant="primary" className="w-2/3" onClick={calculateSplit}>下一步：俾出結果 <Icon path={icons.arrowRight} size={18}/></Button></div>
-                </div>
-              )}
-
-              {step === 4 && results && (
-                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                  <h2 className="text-xl font-bold flex items-center gap-2 text-gray-800 mb-2"><Icon path={icons.check} className="text-green-600"/> 第四步：俾出結果 (4/4)</h2>
-
-                  <Card className="border-t-4 border-t-green-500 p-0 overflow-hidden mt-0">
-                    <div className="p-4 bg-gray-50 flex items-center justify-between border-b border-gray-200 gap-2">
-                      <div>
-                        <h3 className="font-bold text-gray-800">💰 追數版</h3>
-                        <p className="text-xs text-gray-500 mt-0.5">發到群組用</p>
-                      </div>
-                      <Button onClick={() => copyToClipboard(getSimplifiedResult(), '追數版')} variant="outline" className="!px-3 !py-1.5 !w-auto text-sm shrink-0"><Icon path={icons.copy} size={16}/> 複製</Button>
-                    </div>
-                    <div className="p-4 bg-white font-mono text-sm text-gray-800 whitespace-pre-wrap break-words">{getSimplifiedResult()}</div>
-                  </Card>
-
-                  <Card className="p-0 overflow-hidden">
-                    <div className="p-4 bg-gray-50 border-b border-gray-200 space-y-3">
-                      <div className="flex items-center justify-between gap-2">
-                        <div>
-                          <h3 className="font-bold text-gray-800">🧾 詳細版</h3>
-                          <p className="text-xs text-gray-500 mt-0.5">{detailLang === 'zh' ? '純中文，適合分享' : '含原文／日文，適合自己核對'}</p>
+                ) : (
+                  <div className="space-y-4">
+                    {savedHistory.map(record => (
+                      <Card key={record.id} className="!p-0 overflow-hidden group hover:border-brand-500 transition-colors">
+                        <div className="bg-slate-50 p-4 flex justify-between items-start border-b border-slate-400">
+                          <div>
+                            <h3 className="font-bold text-slate-800 text-lg">{record.date}</h3>
+                            <p className="text-sm text-slate-600 mt-0.5 font-medium">墊支人: <span className="font-bold text-slate-800">{record.payer}</span></p>
+                          </div>
+                          <div className="text-right">
+                            <div className="font-bold text-brand-700 text-xl tracking-tight">{formatMoney(record.totalAmount, record.currency)}</div>
+                            <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mt-0.5">{record.currency}</div>
+                          </div>
                         </div>
-                        <Button onClick={() => copyToClipboard(getDetailedResult(detailLang), detailLang === 'zh' ? '詳細版（中文）' : '詳細版（含原文）')} variant="secondary" className="!px-3 !py-1.5 !w-auto text-sm shrink-0"><Icon path={icons.copy} size={16}/> 複製</Button>
-                      </div>
-                      <div className="flex gap-1 bg-gray-200 p-1 rounded-xl">
-                        <button onClick={() => setDetailLang('zh')} className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${detailLang === 'zh' ? 'bg-white text-green-700 shadow-sm' : 'text-gray-600'}`}>🇭🇰 純中文（分享）</button>
-                        <button onClick={() => setDetailLang('full')} className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${detailLang === 'full' ? 'bg-white text-blue-700 shadow-sm' : 'text-gray-600'}`}>🌐 ＋原文/日文</button>
-                      </div>
-                    </div>
-                    <div className="p-4 bg-white font-mono text-xs text-gray-800 whitespace-pre-wrap break-words">{getDetailedResult(detailLang)}</div>
-                  </Card>
-                  
-                  <div className="pt-2"><Button onClick={saveCurrentRecord} disabled={isSaved} className={`w-full ${isSaved ? 'bg-gray-200 text-gray-500 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-200'}`}>{isSaved ? <Icon path={icons.check} size={20}/> : <Icon path={icons.save} size={20}/>}{isSaved ? '已儲存至歷史紀錄' : '💾 儲存此分帳紀錄'}</Button></div>
-                  <div className="flex gap-3 pt-4 pb-8">
-                    <Button variant="secondary" className="w-1/3 px-2" onClick={() => { setStepError(''); setStep(3); }}><Icon path={icons.arrowLeft} size={16}/> 上一步</Button>
-                    <Button onClick={handleGoToStep1} className="bg-gray-800 hover:bg-black text-white w-2/3">處理新單據</Button>
+                        <div className="p-4 bg-white flex gap-2.5">
+                          <Button variant="outline" className="flex-1 !py-2 !text-sm !px-2 bg-white hover:bg-brand-50 border-slate-400 text-slate-700 hover:text-brand-700 hover:border-brand-500" onClick={() => copyToClipboard(record.simplifiedText, '追數版')}><Icon path={icons.copy} size={16}/> 追數版</Button>
+                          <Button variant="secondary" className="flex-1 !py-2 !text-sm !px-2 bg-white border-slate-500" onClick={() => copyToClipboard(record.detailedText, '詳細版')}><Icon path={icons.copy} size={16}/> 詳細版</Button>
+                          <button onClick={() => deleteRecord(record.id)} className="px-3 py-2 bg-white border border-slate-500 text-slate-500 rounded-xl hover:bg-red-50 hover:text-red-700 hover:border-red-500 shrink-0 transition-colors"><Icon path={icons.trash} size={18}/></button>
+                        </div>
+                      </Card>
+                    ))}
                   </div>
-                </div>
-              )}
-            </main>
-          )}
+                )}
+              </div>
+            )}
+            
+            {showSettings && (
+               <div className="space-y-6 animate-in fade-in duration-300">
+                  <h2 className="text-xl font-bold flex items-center gap-2 text-slate-800"><Icon path={icons.settings} className="text-slate-600"/> 系統設定</h2>
+                  <Card>
+                    <Label className="text-base mb-3">API 服務供應商</Label>
+                    <div className="space-y-3 mb-6">
+                      <label className={`flex items-start gap-4 p-4 rounded-xl border cursor-pointer transition-all ${aiEngine === 'openrouter' ? 'bg-brand-50 border-brand-500 shadow-sm' : 'bg-white border-slate-500 hover:bg-slate-50'}`}>
+                        <input type="radio" checked={aiEngine === 'openrouter'} onChange={() => { setAiEngine('openrouter'); setIsEditingKey(!keys.openrouter); }} className="w-5 h-5 mt-0.5 text-brand-600 focus:ring-brand-500" />
+                        <div>
+                          <div className={`font-bold text-base ${aiEngine === 'openrouter' ? 'text-brand-900' : 'text-slate-800'}`}>OpenRouter (強烈推薦)</div>
+                          <div className="text-xs text-slate-600 font-medium mt-1">香港地區免 VPN，速度極快且穩定。</div>
+                        </div>
+                      </label>
+                      <label className={`flex items-start gap-4 p-4 rounded-xl border cursor-pointer transition-all ${aiEngine === 'gemini' ? 'bg-brand-50 border-brand-500 shadow-sm' : 'bg-white border-slate-500 hover:bg-slate-50'}`}>
+                        <input type="radio" checked={aiEngine === 'gemini'} onChange={() => { setAiEngine('gemini'); setIsEditingKey(!keys.gemini); }} className="w-5 h-5 mt-0.5 text-brand-600 focus:ring-brand-500" />
+                        <div>
+                          <div className={`font-bold text-base ${aiEngine === 'gemini' ? 'text-brand-900' : 'text-slate-800'}`}>Google Gemini API</div>
+                          <div className="text-xs font-bold text-red-700 bg-red-50 border border-red-300 inline-block px-2 py-0.5 rounded mt-1.5">⚠️ 限制：香港地區需全程開啟 VPN</div>
+                        </div>
+                      </label>
+                    </div>
+
+                    <div className="border-t border-slate-400 pt-6 space-y-5">
+                      <div>
+                        <Label className="text-base flex justify-between items-center">
+                          API 金鑰 (Key)
+                          <a href={aiEngine === 'openrouter' ? "https://openrouter.ai/settings/keys" : "https://aistudio.google.com/app/apikey"} target="_blank" className="text-sm text-brand-700 hover:text-brand-800 underline font-semibold">取得免費金鑰 ↗</a>
+                        </Label>
+                        {!isEditingKey && apiKey ? (
+                          <div className="bg-slate-50 border border-slate-400 rounded-xl p-4 mt-2">
+                            <div className="font-mono text-sm text-slate-700 bg-white p-2.5 rounded-lg border border-slate-500 mb-3 break-all font-semibold">{maskKey(apiKey)}</div>
+                            <div className="flex gap-2">
+                              <Button variant="secondary" className="flex-1 !py-2 !text-sm border-slate-500" onClick={() => { editKeyRef.current = apiKey; setApiKey(''); setIsEditingKey(true); }}><Icon path={icons.edit} size={14}/> 更換</Button>
+                              <Button variant="secondary" className="flex-1 !py-2 !text-sm text-blue-700 border-slate-500" onClick={testKey}>🧪 測試連線</Button>
+                              <Button variant="secondary" className="!py-2 !px-3 text-red-700 border-red-500 hover:bg-red-50" onClick={forgetApiKey}><Icon path={icons.trash} size={16}/></Button>
+                            </div>
+                            {keyTestResult && <div className={`text-sm font-bold mt-3 px-3 py-2 rounded-lg border ${keyTestResult.ok ? 'bg-brand-50 text-brand-800 border-brand-500' : 'bg-red-50 text-red-800 border-red-500'}`}>{keyTestResult.msg}</div>}
+                          </div>
+                        ) : (
+                          <div className="mt-2 space-y-3">
+                            <div className="relative">
+                              <input 
+                                type={showKey ? 'text' : 'password'} value={apiKey} onChange={(e) => setApiKey(e.target.value)} 
+                                placeholder="在此貼上您的 API 金鑰" 
+                                className="w-full rounded-xl p-3.5 pr-12 font-mono text-sm focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 outline-none transition-all" 
+                              />
+                              <button onMouseDown={() => setShowKey(true)} onMouseUp={() => setShowKey(false)} onTouchStart={() => setShowKey(true)} onTouchEnd={() => setShowKey(false)} className="absolute right-3 top-3.5 text-slate-500 hover:text-slate-800"><Icon path={icons.eye} size={20}/></button>
+                            </div>
+                            <div className="flex gap-2">
+                              {editKeyRef.current && <Button variant="secondary" className="flex-1 !py-2.5 text-sm border-slate-500" onClick={() => { setApiKey(editKeyRef.current); setIsEditingKey(false); editKeyRef.current=''; }}>取消修改</Button>}
+                              <Button variant="primary" className="flex-1 !py-2.5 text-sm" disabled={!apiKey.trim()} onClick={saveApiConfig}>💾 儲存並驗證</Button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      <label className="flex items-start gap-3 p-4 bg-slate-50 rounded-xl border border-slate-400 cursor-pointer hover:bg-slate-100 transition-colors">
+                        <input type="checkbox" checked={rememberKey} onChange={(e) => setRememberKey(e.target.checked)} className="w-5 h-5 mt-0.5 text-brand-600 focus:ring-brand-500 rounded" />
+                        <div>
+                          <div className="font-bold text-slate-800 text-sm">將金鑰儲存於此瀏覽器</div>
+                          <div className="text-xs text-slate-600 mt-1 font-medium">僅保存在本機端，不會上傳至任何伺服器。若為公用電腦請勿勾選。</div>
+                        </div>
+                      </label>
+                    </div>
+                  </Card>
+                  <Button variant="secondary" className="w-full border-slate-500" onClick={() => setShowSettings(false)}>返回系統</Button>
+               </div>
+            )}
+            
+          </main>
         </React.Fragment>
       );
     }
@@ -1442,7 +1570,5 @@
     const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<App />);
   </script>
-
-  <script src="pwa.js" defer></script>
 </body>
 </html>
