@@ -406,6 +406,7 @@
       const [progress, setProgress] = useState(0);
       const [progressText, setProgressText] = useState('');
       const [uploadError, setUploadError] = useState('');
+      const [lastImageData, setLastImageData] = useState([]);
       const [stepError, setStepError] = useState('');
       
       const [payer, setPayer] = useState('');
@@ -726,6 +727,9 @@
             });
           });
           const imageDataArray = await Promise.all(base64Promises);
+          // Keep the last successfully read batch so a transient AI/OCR
+          // failure can be retried without selecting the files again.
+          setLastImageData(imageDataArray);
 
           const promptText = `你是一個專門分析單據的 OCR 分帳助手。任務：讀取單據文字，抽取消費項目、稅費，並判斷貨幣，輸出 JSON。不要做任何運算解釋、不要加註解、不要輸出 Markdown。
 這裡有 ${files.length} 張單據。請合併成一份清單。
@@ -802,6 +806,17 @@
         } finally { 
           if(fileInputRef.current) fileInputRef.current.value = '';
         }
+      };
+
+      const retryLastUpload = () => {
+        if (!lastImageData.length || isAnalyzing) return;
+        const files = lastImageData.map((img, index) => {
+          const binary = atob(img.data);
+          const bytes = Uint8Array.from(binary, ch => ch.charCodeAt(0));
+          const ext = img.mimeType === 'image/png' ? 'png' : img.mimeType === 'image/webp' ? 'webp' : 'jpg';
+          return new File([bytes], `receipt-retry-${index + 1}.${ext}`, { type: img.mimeType });
+        });
+        handleFileUpload({ target: { files, value: '' } });
       };
 
       const addItem = () => setItems([...items, { id: String(items.length + 1).padStart(2, '0'), name: '', original: '', ja: '', price: '', qty: 1, total: 0 }]);
@@ -945,7 +960,7 @@
         const push = (level, id, main, sub, action) => list.push({ level, id, main, sub, action });
 
         if (!isOnline) push(1, 'E4', '現在冇網絡，AI 讀單暫停', '你仍可手動輸入項目', { label: '手動輸入', run: () => { setShowSettings(false); jumpToStep(2); } });
-        if (uploadError) push(1, 'U-ERR', uploadError.main, uploadError.sub, { label: '重試', run: () => setUploadError('') });
+        if (uploadError) push(1, 'U-ERR', uploadError.main, uploadError.sub, lastImageData.length ? { label: '用剛才圖片重試', run: retryLastUpload } : { label: '重試', run: () => setUploadError('') });
         if (!apiKey.trim() && step === 1 && !showSettings && !showTutorial && !showHistory) push(1, 'E1', '未設定 AI 鎖匙，暫時只可手動輸入', '去設定申請一條免費鎖匙', { label: '去設定', run: () => setShowSettings(true) });
 
         if (step === 3 && !payer.trim()) push(2, 'S1', '未填墊支人姓名', '填咗才可以出結果', { label: '跳去輸入', run: () => focusField('payer') });
@@ -986,7 +1001,7 @@
         if (list.length === 0) push(6, 'I1', '貼上回覆時可以連續貼幾份，系統會自動加分隔線。', '', null);
 
         return list.sort((a, b) => a.level - b.level);
-      }, [isOnline, uploadError, apiKey, step, showSettings, showTutorial, showHistory, payer, items, friendsReplies, claimInfo, isAnalyzing, progressText, progress, currency]);
+      }, [isOnline, uploadError, lastImageData, apiKey, step, showSettings, showTutorial, showHistory, payer, items, friendsReplies, claimInfo, isAnalyzing, progressText, progress, currency]);
 
       const StatusBar = ({ statuses, expanded, setExpanded, kbOpen }) => {
           if (!statuses.length) return null;
