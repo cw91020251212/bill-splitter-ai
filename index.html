@@ -819,6 +819,7 @@
           setLastImageData(imageDataArray);
 
           const promptText = `你是一個專門分析單據的 OCR 分帳助手。任務：讀取單據文字，抽取消費項目、稅費，並判斷貨幣，輸出 JSON。不要做任何運算解釋、不要加註解、不要輸出 Markdown。
+【語言硬性要求】所有翻譯後的中文（尤其是 items[].name）必須使用「繁體中文-香港（zh-HK）」；禁止輸出簡體字、簡體中文或中國大陸用語。請將單據上的簡體中文、日文或其他語言轉換成香港繁體字，例如「饮料」必須寫成「飲品」、「账单」必須寫成「帳單」、「发票」必須寫成「發票」。不可只複製原文中的簡體字。items[].original 必須保留單據原文，但 items[].name 必須是香港繁體中文。
 這裡有 ${files.length} 張單據。請合併成一份清單。
 【A. 消費項目 items】"name":繁體中文名稱, "original":單據原文字樣, "ja":日文名稱(如有), "price":單價(數字), "qty":單據數量(數字), "totalQty":可分配總數量(數字，單據冇寫總量就填 null), "unit":單位（件/杯/碟/罐/份等，未知留空）, "total":該項總額(數字)。不可含稅金服務費折扣。
 【B. 稅費 taxTotal】附加費用（消費税/服務料/加一/VAT）總和。若已內含填0。"taxNote"：簡短說明。
@@ -1591,7 +1592,7 @@
                     </div>
                     
                     <div className="flex bg-slate-200/60 p-1 rounded-lg border border-slate-400">
-                      <button onClick={() => setDetailLang('zh')} className={`flex-1 py-1.5 rounded-md text-xs font-bold transition-all ${detailLang === 'zh' ? 'bg-white text-slate-800 shadow border border-slate-300' : 'text-slate-600 hover:text-slate-800'}`}>純中文版</button>
+                      <button onClick={() => setDetailLang('zh')} className={`flex-1 py-1.5 rounded-md text-xs font-bold transition-all ${detailLang === 'zh' ? 'bg-white text-slate-800 shadow border border-slate-300' : 'text-slate-600 hover:text-slate-800'}`}>香港繁體版</button>
                       <button onClick={() => setDetailLang('full')} className={`flex-1 py-1.5 rounded-md text-xs font-bold transition-all ${detailLang === 'full' ? 'bg-white text-slate-800 shadow border border-slate-300' : 'text-slate-600 hover:text-slate-800'}`}>包含原文 (供核對)</button>
                     </div>
                   </div>
