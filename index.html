@@ -229,9 +229,16 @@
       return out.join('\n');
     };
 
+    const parseClaimValue = (raw) => {
+      const text = String(raw || '').replace(/＝/g, '=').trim();
+      const match = text.match(/([\d.]+)\s*([^\d\s=，,。！？]*)/);
+      return { qty: match ? parseFloat(match[1]) : NaN, unit: match ? String(match[2] || '').trim() : '' };
+    };
+
     const parseClaims = (raw, items) => {
       const lines = String(raw || '').split('\n');
       const claims = {};
+      const claimUnits = {};
       const people = [];
       const duplicatePeople = [];
       const unknownIds = new Set();
@@ -260,6 +267,7 @@
                 people.push(currentPerson);
               }
               if (!claims[currentPerson]) claims[currentPerson] = {};
+              if (!claimUnits[currentPerson]) claimUnits[currentPerson] = {};
             }
           } else {
             issues.push({ type: 'name_no_delim', line: lineNo, text: cleanLine.substring(0, 40) });
@@ -268,8 +276,8 @@
           if (cleanLine.match(/^\D*\d{2}.*=/)) {
             const idMatch = cleanLine.match(/\d{2}/);
             const parts = cleanLine.split(/=/);
-            const qtyMatch = parts[1].match(/[\d.]+/);
-            const qty = qtyMatch ? parseFloat(qtyMatch[0]) : NaN;
+            const parsedValue = parseClaimValue(parts.slice(1).join('='));
+            const qty = parsedValue.qty;
             
             if (idMatch) {
                 const id = idMatch[0];
@@ -280,6 +288,7 @@
                 if (!isNaN(qty)) {
                     if (qty > 0) {
                         claims[currentPerson][id] = qty;
+                        claimUnits[currentPerson][id] = parsedValue.unit;
                         totalClaimLines++;
                     } else if (qty < 0) {
                         issues.push({ type: 'qty_negative', line: lineNo, text: cleanLine.substring(0, 40), person: currentPerson });
@@ -301,13 +310,14 @@
             }
           } else if (lastSeenId && (cleanLine.includes('數量') || cleanLine.includes('='))) {
             const parts = cleanLine.split(/=/);
-            const qtyStr = parts.length >= 2 ? parts[1] : cleanLine;
-            const qtyMatch = qtyStr.match(/[\d.]+/);
-            const qty = qtyMatch ? parseFloat(qtyMatch[0]) : NaN;
+            const qtyStr = parts.length >= 2 ? parts.slice(1).join('=') : cleanLine;
+            const parsedValue = parseClaimValue(qtyStr);
+            const qty = parsedValue.qty;
             
             if (!isNaN(qty)) {
                 if (qty > 0) {
                     claims[currentPerson][lastSeenId] = qty;
+                    claimUnits[currentPerson][lastSeenId] = parsedValue.unit;
                     totalClaimLines++;
                 } else if (qty < 0) {
                     issues.push({ type: 'qty_negative', line: lineNo, text: cleanLine.substring(0, 40), person: currentPerson });
@@ -327,7 +337,7 @@
       });
 
       const peopleWithNoClaims = people.filter(p => !claims[p] || Object.keys(claims[p]).length === 0);
-      return { claims, people, totalClaimLines, issues, duplicatePeople, unknownIds: Array.from(unknownIds), peopleWithNoClaims };
+      return { claims, claimUnits, people, totalClaimLines, issues, duplicatePeople, unknownIds: Array.from(unknownIds), peopleWithNoClaims };
     };
 
     const KEY_RULES = {
@@ -809,12 +819,12 @@
 
           const promptText = `你是一個專門分析單據的 OCR 分帳助手。任務：讀取單據文字，抽取消費項目、稅費，並判斷貨幣，輸出 JSON。不要做任何運算解釋、不要加註解、不要輸出 Markdown。
 這裡有 ${files.length} 張單據。請合併成一份清單。
-【A. 消費項目 items】"name":繁體中文名稱, "original":單據原文字樣, "ja":日文名稱(如有), "price":單價(數字), "qty":數量(數字), "total":該項總額(數字)。不可含稅金服務費折扣。
+【A. 消費項目 items】"name":繁體中文名稱, "original":單據原文字樣, "ja":日文名稱(如有), "price":單價(數字), "qty":單據數量(數字), "totalQty":可分配總數量(數字，單據冇寫總量就填 null), "unit":單位（件/杯/碟/罐/份等，未知留空）, "total":該項總額(數字)。不可含稅金服務費折扣。
 【B. 稅費 taxTotal】附加費用（消費税/服務料/加一/VAT）總和。若已內含填0。"taxNote"：簡短說明。
 【C. 結算貨幣 currency】標準3字母代碼(HKD, JPY, TWD等)。無法確定填 HKD。
 【D. 單據日期 date】YYYY-MM-DD。無則 null。切勿用今日日期。
 【E. 單據總額 receiptTotal】單據上的「最後應付總額」。無則 null。
-【F. 輸出格式】嚴格輸出 JSON: {"items":[{"name":"凍檸茶","original":"アイスレモンティー","ja":"アイスレモンティー","price":15,"qty":2,"total":30}],"taxTotal":45,"taxNote":"消費税 ¥45（外税）","currency":"JPY","date":"2026-03-14","receiptTotal":75}`;
+【F. 輸出格式】嚴格輸出 JSON: {"items":[{"name":"薄餅","original":"Pizza","ja":"","price":120,"qty":1,"totalQty":8,"unit":"件","total":120}],"taxTotal":45,"taxNote":"消費税 ¥45（外税）","currency":"JPY","date":"2026-03-14","receiptTotal":165}`;
 
           let parsedItems = [];
           let parsedTax = null;
@@ -850,7 +860,7 @@
           if (!Array.isArray(parsedItems)) throw new Error('AI 回傳格式不符。');
           const formattedItems = parsedItems.map((item, idx) => ({
             id: String(idx + 1).padStart(2, '0'), name: item.name || '項目', original: item.original || '', ja: item.ja || '',
-            price: toNum(item.price), qty: toNum(item.qty) || 1, total: toNum(item.total) || (toNum(item.price) * (toNum(item.qty) || 1)) || 0
+            price: toNum(item.price), qty: toNum(item.qty) || 1, totalQty: item.totalQty === null ? null : (toNum(item.totalQty) || toNum(item.qty) || null), unit: String(item.unit || '').trim(), total: toNum(item.total) || (toNum(item.price) * (toNum(item.qty) || 1)) || 0
           }));
 
           clearInterval(progressInterval);
@@ -895,11 +905,12 @@
         handleFileUpload({ target: { files, value: '' } });
       };
 
-      const addItem = () => setItems([...items, { id: String(items.length + 1).padStart(2, '0'), name: '', original: '', ja: '', price: '', qty: 1, total: 0 }]);
+      const addItem = () => setItems([...items, { id: String(items.length + 1).padStart(2, '0'), name: '', original: '', ja: '', price: '', qty: 1, totalQty: null, unit: '', total: 0 }]);
       const updateItem = (index, field, value) => {
         const newItems = [...items]; newItems[index][field] = value;
         if (field === 'price' || field === 'qty') {
           const price = parseFloat(newItems[index].price) || 0; const qty = parseFloat(newItems[index].qty) || 0;
+          if (field === 'qty') newItems[index].totalQty = qty || 1;
           newItems[index].total = price * qty;
         }
         setItems(newItems);
@@ -929,9 +940,9 @@
       };
 
       const generateFriendTemplate = () => {
-        let tpl = `🧾 *分帳認領表* 🧾\n\n👤 姓名：\n\n📌 *填寫方法（好簡單，睇一睇）*\n1️⃣ 先在上面「姓名」填你的名字。\n2️⃣ 你有食／有買的項目，在「數量」後面填數字。\n3️⃣ *冇食的項目，留空或填 0 就得，唔需要刪走。*\n4️⃣ 這個「數量」= 你想出的「份數比例」，食飯開心最緊要，唔使計到咁足：\n　　• 兩個人一齊 share → 大家都填「1」（一人一半）\n　　• 你食得多，心意想出多少少 → 填「2」\n　　• 食得好少 / 試咗啖仔 → 填「0.5」\n5️⃣ 填好後，*整段複製*返給我就完成。\n━━━━━━━━━━━━━━\n\n`;
-        items.forEach(item => { tpl += `🔶 ${item.id} ${item.name}\n👉🏻 數量 ＝ \n\n`; });
-        tpl += `━━━━━━━━━━━━━━\n✅ 唔使自己計錢，系統會自動按份數幫你分攤。\n\n`;
+        let tpl = `🧾 *分帳認領表* 🧾\n\n👤 姓名：\n\n📌 *填寫方法（請先睇清楚）*\n1️⃣ 先在上面「姓名」填你的名字。\n2️⃣ 有食／有買的項目，填數量；冇食就留空或填 0。\n3️⃣ *只填數字*（例如 1、2、0.5）＝份數比例：總價按大家填的份數比例分。\n4️⃣ *數字後加單位*（例如 3 件、2 杯）＝實際單位：按單據總量計算每件／每杯價錢。\n　　• 例如 $120 共 8 件，填「3 件」即 $45。\n　　• 填「1」而不寫單位，即按份數比例，不是 1 件。\n5️⃣ 填好後，*整段複製*返給我就完成。\n━━━━━━━━━━━━━━\n\n`;
+        items.forEach(item => { tpl += `🔶 ${item.id} ${item.name}${item.unit && item.totalQty ? `（單據共 ${item.totalQty} ${item.unit}）` : ''}\n👉🏻 數量（可填：3 件；只填數字＝份數）＝ \n\n`; });
+        tpl += `━━━━━━━━━━━━━━\n✅ 系統會按你有冇填單位，自動用份數比例或實際單位計算。\n\n`;
         return tpl;
       };
 
@@ -948,6 +959,7 @@
 
         const parsed = parseClaims(friendsReplies, items);
         const personClaims = parsed.claims;
+        const claimUnits = parsed.claimUnits || {};
 
         if (parsed.people.length === 0) { setStepError("⚠️ 未能解析！請確保已正確貼上朋友回覆並填寫數量。"); focusField('replies'); return; }
 
@@ -959,17 +971,26 @@
 
         items.forEach(item => {
           const totalClaimed = itemClaimTotals[item.id];
-          if (totalClaimed > 0) {
-            const unitCost = item.total / totalClaimed;
-            Object.keys(personClaims).forEach(person => {
-              const claimedQty = personClaims[person][item.id] || 0;
-              if (claimedQty > 0) {
-                const cost = claimedQty * unitCost;
-                personTotals[person].items.push({ name: item.name, original: item.original || '', ja: item.ja || '', id: item.id, amount: cost, qty: claimedQty, totalClaimed });
-                personTotals[person].subtotal += cost; totalItemsCost += cost;
-              }
-            });
-          }
+          if (totalClaimed <= 0) return;
+          const people = Object.keys(personClaims);
+          const totalQty = toNum(item.totalQty);
+          const canUseActualUnits = totalQty > 0;
+          const actualTotal = people.reduce((sum, person) => sum + (canUseActualUnits && claimUnits[person]?.[item.id] ? (personClaims[person][item.id] || 0) : 0), 0);
+          const shareTotal = people.reduce((sum, person) => sum + (!(canUseActualUnits && claimUnits[person]?.[item.id]) ? (personClaims[person][item.id] || 0) : 0), 0);
+          const unitValue = toNum(item.total) / totalQty;
+          const actualCostTotal = actualTotal > 0 ? actualTotal * unitValue : 0;
+          const remainingCost = Math.max(0, toNum(item.total) - actualCostTotal);
+          people.forEach(person => {
+            const claimedQty = personClaims[person][item.id] || 0;
+            if (claimedQty <= 0) return;
+            const enteredUnit = claimUnits[person]?.[item.id] || '';
+            const isActualUnit = canUseActualUnits && Boolean(enteredUnit);
+            const cost = isActualUnit
+              ? claimedQty * unitValue
+              : (actualTotal > 0 ? (shareTotal > 0 ? claimedQty / shareTotal * remainingCost : 0) : claimedQty / totalClaimed * toNum(item.total));
+            personTotals[person].items.push({ name: item.name, original: item.original || '', ja: item.ja || '', id: item.id, amount: cost, qty: claimedQty, totalClaimed, unit: enteredUnit, unitName: item.unit || '', isActualUnit });
+            personTotals[person].subtotal += cost; totalItemsCost += cost;
+          });
         });
 
         const taxNum = parseFloat(taxAmount) || 0; const numPeople = Object.keys(personClaims).length;
@@ -1012,7 +1033,7 @@
             txt += `　▫️ ${i.id} ${i.name}\n`;
             if (full && i.original && i.original !== i.name) txt += `　　　🌐 原文：${i.original}\n`;
             if (full && i.ja && i.ja !== i.original) txt += `　　　🇯🇵 日文：${i.ja}\n`;
-            const share = i.totalClaimed > 1 ? `（${i.qty}/${i.totalClaimed} 份）` : '';
+            const share = i.isActualUnit ? `（${i.qty} ${i.unit || i.unitName || '單位'}，按實際單位）` : `（${i.qty}/${i.totalClaimed} 份比例）`;
             txt += `　　　💲 ${formatMoney(i.amount, curr)}${share}\n`;
           });
           if (p.tax > 0) txt += `　▫️ 稅／服務費分攤　💲 ${formatMoney(p.tax, curr)}\n`;
@@ -1334,9 +1355,13 @@
                             </div>
                           </div>
                           <div className="w-24">
-                            <label className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5 block">數量</label>
-                            <input type="number" ref={el => fieldRefs.current[`item-qty-${idx}`] = el} value={item.qty} onChange={(e) => updateItem(idx, 'qty', e.target.value)} onKeyDown={(e) => handleItemKeyDown(e, 'qty', idx)} className="w-full text-base font-semibold text-slate-800 border-b border-slate-500 focus:border-brand-500 bg-transparent outline-none pb-1 text-center" placeholder="1" />
+                            <label className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5 block">單據總量</label>
+                            <input type="number" ref={el => fieldRefs.current[`item-qty-${idx}`] = el} value={item.totalQty ?? ''} onChange={(e) => updateItem(idx, 'totalQty', e.target.value === '' ? null : e.target.value)} onKeyDown={(e) => handleItemKeyDown(e, 'qty', idx)} className="w-full text-base font-semibold text-slate-800 border-b border-slate-500 focus:border-brand-500 bg-transparent outline-none pb-1 text-center" placeholder="未知可留空" />
                           </div>
+                        </div>
+                        <div>
+                          <label className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5 block">單位（留空＝按份數比例）</label>
+                          <input type="text" value={item.unit || ''} onChange={(e) => updateItem(idx, 'unit', e.target.value)} className="w-full text-base font-semibold text-slate-800 border-b border-slate-500 focus:border-brand-500 bg-transparent outline-none pb-1" placeholder="例如：件、杯、碟、罐（可留空）" />
                         </div>
                       </div>
                     </Card>
@@ -1510,7 +1535,7 @@
                     </div>
                     <h2 className="text-xl font-bold text-slate-800 tracking-tight">新手教學</h2>
                   </div>
-                  <p className="text-sm mt-1 leading-relaxed text-slate-700">第一次用？睇完以下幾點就上手。<br/>最重要的是第 2 節「數量點填」——這是最多人搞錯的地方。</p>
+                  <p className="text-sm mt-1 leading-relaxed text-slate-700">第一次用？睇完以下幾點就上手。<br/>最重要的是第 2 節「份數定實際單位」——填法會直接影響分攤結果。</p>
                 </Card>
 
                 <Card className="p-0 overflow-hidden border-slate-500">
@@ -1520,7 +1545,7 @@
                   <div className="p-5 space-y-4">
                     {[
                       ['1', '睇單', '拍／揀單據照片，AI 自動讀出項目、價錢同稅費。亦可手動輸入。'],
-                      ['2', '認領', '複製「認領表」發到 WhatsApp 群組，朋友填數量後傳回，你貼回輸入框。'],
+                      ['2', '認領', '複製「認領表」發到 WhatsApp 群組；只填數字係份數比例，數字加單位就係實際食用數量。'],
                       ['3', '運算', '填墊支人姓名、確認自動偵測的貨幣、付款方式。'],
                       ['4', '結果', '得出「追數版」同「詳細版」，複製後發返群組。'],
                     ].map(([n, t, d]) => (
@@ -1532,18 +1557,24 @@
                   </div>
                 </Card>
 
-                <Accordion title="⭐ 2. 「數量」到底點填？（最重要）" tone="amber" defaultOpen={true} icon={icons.help}>
+                <Accordion title="⭐ 2. 填「份數」定「實際單位」？（最重要）" tone="amber" defaultOpen={true} icon={icons.help}>
                   <div className="bg-amber-50/50 border border-amber-500 rounded-xl p-4 mb-3">
                     <p className="font-bold text-amber-900 text-sm mb-1.5">一句話核心：</p>
-                    <p className="text-amber-800 text-sm leading-relaxed">呢個數字純粹係<strong className="font-extrabold underline decoration-amber-500 underline-offset-2">你想出嘅「份數比例」</strong>。如果成碟嘢得你一個人食，咪填 1 全包；兩個人一齊食，大家各填 1 就一人一半，如此類推。</p>
+                    <p className="text-amber-800 text-sm leading-relaxed"><strong className="font-extrabold underline decoration-amber-500 underline-offset-2">只填數字＝份數比例</strong>；數字後面加單位＝實際單位數量。系統會按填法自動選擇計算方式。</p>
                   </div>
-                  <p className="font-bold text-slate-800 pt-1 mb-2">例子：兩個人 share 一個薄餅 🍕</p>
+                  <p className="font-bold text-slate-800 pt-1 mb-2">例子一：按份數比例分一項 $120 食物</p>
                   <div className="bg-slate-50 border border-slate-400 rounded-xl p-4 text-sm space-y-3">
-                    <p className="text-slate-800">一個薄餅 $120，阿明同 Cathy 一齊食。阿明覺得自己食多啲，想出多一份，就填 <strong className="text-brand-700 bg-brand-100 border border-brand-500 px-1.5 py-0.5 rounded">2</strong>；Cathy 填 <strong className="text-brand-700 bg-brand-100 border border-brand-500 px-1.5 py-0.5 rounded">1</strong>。</p>
+                    <p className="text-slate-800">阿明填 <strong className="text-brand-700 bg-brand-100 border border-brand-500 px-1.5 py-0.5 rounded">2</strong>，Cathy 填 <strong className="text-brand-700 bg-brand-100 border border-brand-500 px-1.5 py-0.5 rounded">1</strong>，即合共 3 份。</p>
                     <div className="bg-white border border-slate-400 rounded-lg p-3 text-xs text-slate-600 font-mono shadow-sm">
-                      系統自動計：合共 3 份 → 每份 $40。<br/>阿明 2 份 = $80，Cathy 1 份 = $40。
+                      系統自動計：每份 $40。<br/>阿明 $80，Cathy $40。
                     </div>
-                    <p className="text-brand-700 font-bold flex items-center gap-1.5 mt-2"><Icon path={icons.check} size={16}/> 唔使數切咗幾件、食咗幾啖。想出幾多份，就填幾多。</p>
+                    <p className="text-brand-700 font-bold flex items-center gap-1.5 mt-2"><Icon path={icons.check} size={16}/> 唔需要知道實際有幾件，填幾多份就按比例分。</p>
+                  </div>
+                  <p className="font-bold text-slate-800 pt-1 mb-2">例子二：按實際單位分一項 $120 食物</p>
+                  <div className="bg-slate-50 border border-slate-400 rounded-xl p-4 text-sm space-y-3">
+                    <p className="text-slate-800">單據寫明共 8 件。阿明填 <strong className="text-brand-700 bg-brand-100 border border-brand-500 px-1.5 py-0.5 rounded">3 件</strong>，即係食咗 3 件。</p>
+                    <div className="bg-white border border-slate-400 rounded-lg p-3 text-xs text-slate-600 font-mono shadow-sm">每件 $120 ÷ 8 = $15<br/>阿明應付 3 × $15 = $45。</div>
+                    <p className="text-slate-600 text-xs font-medium">如果同一項目有人填「1」而冇寫單位，嗰個人會以剩餘金額按份數比例分攤。</p>
                   </div>
                 </Accordion>
 
