@@ -458,6 +458,7 @@
       const editKeyRef = useRef('');
 
       const [claimInfo, setClaimInfo] = useState(null);
+      const [reconciliation, setReconciliation] = useState(null);
       const fieldRefs = useRef({});
 
       const [kbOpen, setKbOpen] = useState(false);
@@ -966,8 +967,31 @@
         const itemClaimTotals = {};
         items.forEach(item => { itemClaimTotals[item.id] = 0; Object.keys(personClaims).forEach(person => { itemClaimTotals[item.id] += (personClaims[person][item.id] || 0); }); });
 
+        const reconciliationIssues = items.map(item => {
+          const totalQty = toNum(item.totalQty);
+          if (totalQty <= 0) return null;
+          const actualPeople = Object.keys(personClaims).filter(person => claimUnits[person]?.[item.id] && (personClaims[person][item.id] || 0) > 0);
+          const sharePeople = Object.keys(personClaims).filter(person => !claimUnits[person]?.[item.id] && (personClaims[person][item.id] || 0) > 0);
+          if (!actualPeople.length || sharePeople.length) return null;
+          const claimedQty = actualPeople.reduce((sum, person) => sum + personClaims[person][item.id], 0);
+          const difference = totalQty - claimedQty;
+          if (Math.abs(difference) < 0.0001) return null;
+          return { itemId: item.id, name: item.name, unit: item.unit || '單位', totalQty, claimedQty, difference, amount: Math.abs(difference) * (toNum(item.total) / totalQty) };
+        }).filter(Boolean);
+        const hasOverClaim = reconciliationIssues.some(issue => issue.difference < 0);
+        if (hasOverClaim) {
+          setReconciliation({ issues: reconciliationIssues, policy: '' });
+          setStepError('⚠️ 有項目認領數量超過單據總量，請返回修改後再計算。');
+          return;
+        }
+        if (reconciliationIssues.length && !reconciliation?.policy) {
+          setReconciliation({ issues: reconciliationIssues, policy: '' });
+          setStepError('⚠️ 有實際單位尚未完成數量核對，請選擇剩餘數量由誰承擔。');
+          return;
+        }
+
         const personTotals = {}; let totalItemsCost = 0;
-        Object.keys(personClaims).forEach(person => { personTotals[person] = { items: [], subtotal: 0, tax: 0, total: 0 }; });
+        Object.keys(personClaims).forEach(person => { personTotals[person] = { items: [], adjustments: [], subtotal: 0, tax: 0, total: 0 }; });
 
         items.forEach(item => {
           const totalClaimed = itemClaimTotals[item.id];
@@ -993,6 +1017,30 @@
           });
         });
 
+        reconciliationIssues.forEach(issue => {
+          const policy = reconciliation?.policy;
+          const item = items.find(candidate => candidate.id === issue.itemId);
+          const amount = issue.amount;
+          if (policy === 'payer') {
+            if (!personTotals[payer]) personTotals[payer] = { items: [], adjustments: [], subtotal: 0, tax: 0, total: 0 };
+            personTotals[payer].adjustments.push({ name: item.name, qty: issue.difference, unit: issue.unit, amount, reason: '墊支人承擔未認領數量' });
+            personTotals[payer].subtotal += amount; totalItemsCost += amount;
+          } else if (policy === 'equal') {
+            const claimants = Object.keys(personClaims).filter(person => personClaims[person][item.id] > 0);
+            claimants.forEach(person => {
+              const share = amount / claimants.length;
+              personTotals[person].adjustments.push({ name: item.name, qty: issue.difference / claimants.length, unit: issue.unit, amount: share, reason: '已認領人士平均承擔未認領數量' });
+              personTotals[person].subtotal += share; totalItemsCost += share;
+            });
+          } else if (policy && policy.startsWith('person:')) {
+            const person = policy.slice(7);
+            if (!personTotals[person]) personTotals[person] = { items: [], adjustments: [], subtotal: 0, tax: 0, total: 0 };
+            personTotals[person].adjustments.push({ name: item.name, qty: issue.difference, unit: issue.unit, amount, reason: '指定承擔未認領數量' });
+            personTotals[person].subtotal += amount; totalItemsCost += amount;
+          }
+        });
+        const reconciliationAllocations = reconciliationIssues.map(issue => ({ ...issue, policy: reconciliation?.policy }));
+
         const taxNum = parseFloat(taxAmount) || 0; const numPeople = Object.keys(personClaims).length;
         Object.keys(personTotals).forEach(person => {
           let taxShare = 0;
@@ -1001,7 +1049,7 @@
           personTotals[person].tax = taxShare; personTotals[person].total = personTotals[person].subtotal + taxShare;
         });
 
-        setResults({ personTotals, totalItemsCost, date: new Date().toISOString().split('T')[0], currency });
+        setResults({ personTotals, totalItemsCost, reconciliationAllocations, date: new Date().toISOString().split('T')[0], currency });
         setIsSaved(false); setStep(4);
       };
 
@@ -1035,6 +1083,10 @@
             if (full && i.ja && i.ja !== i.original) txt += `　　　🇯🇵 日文：${i.ja}\n`;
             const share = i.isActualUnit ? `（${i.qty} ${i.unit || i.unitName || '單位'}，按實際單位）` : `（${i.qty}/${i.totalClaimed} 份比例）`;
             txt += `　　　💲 ${formatMoney(i.amount, curr)}${share}\n`;
+          });
+          (p.adjustments || []).forEach(a => {
+            txt += `　▫️ ${a.name} 未認領數量由此人承擔\n`;
+            txt += `　　　💲 ${formatMoney(a.amount, curr)}（${a.qty} ${a.unit}，${a.reason}）\n`;
           });
           if (p.tax > 0) txt += `　▫️ 稅／服務費分攤　💲 ${formatMoney(p.tax, curr)}\n`;
           txt += `　▶️ *應付：${formatMoney(p.total, curr)}*\n━━━━━━━━━━━━━━\n`;
@@ -1395,7 +1447,7 @@
                       <span>2. 貼上朋友們的回覆</span>
                     </Label>
                     <textarea 
-                      ref={el => fieldRefs.current.replies = el} value={friendsReplies} onChange={(e) => {setFriendsReplies(e.target.value); setStepError('');}} onPaste={handlePasteReplies} onFocus={onFocusReplies} onBlur={onBlurReplies}
+                      ref={el => fieldRefs.current.replies = el} value={friendsReplies} onChange={(e) => {setFriendsReplies(e.target.value); setReconciliation(null); setStepError('');}} onPaste={handlePasteReplies} onFocus={onFocusReplies} onBlur={onBlurReplies}
                       placeholder="在此處貼上朋友們填妥的認領表... (支援連續貼上多份回覆)" 
                       className="w-full h-48 bg-white border border-slate-500 rounded-xl p-4 text-sm font-mono text-slate-700 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none resize-y shadow-inner leading-relaxed">
                     </textarea>
@@ -1416,6 +1468,39 @@
                   <span className="w-8 h-8 rounded-full bg-brand-100 border border-brand-500 text-brand-700 flex items-center justify-center font-bold">3</span>
                   <h2 className="text-2xl font-bold text-slate-800 tracking-tight">結算細節設定</h2>
                 </div>
+
+                {reconciliation?.issues?.length > 0 && (
+                  <Card className="border-amber-500 bg-amber-50 space-y-4">
+                    <div>
+                      <h3 className="font-bold text-amber-900 text-lg">⚠️ 實際數量未完全核對</h3>
+                      <p className="text-sm text-amber-800 mt-1">只填單位嘅項目必須同單據總量對得上；未認領數量唔會無故消失。</p>
+                    </div>
+                    <div className="space-y-2">
+                      {reconciliation.issues.map(issue => (
+                        <div key={issue.itemId} className="bg-white border border-amber-300 rounded-lg p-3 text-sm text-slate-700">
+                          <strong>{issue.itemId} {issue.name}</strong>：單據 {issue.totalQty} {issue.unit}，已認領 {issue.claimedQty} {issue.unit}{' '}
+                          {issue.difference > 0 ? <span className="font-bold text-amber-700">（尚欠 {issue.difference} {issue.unit}，約 {formatMoney(issue.amount, currency)}）</span> : <span className="font-bold text-red-700">（超出 {-issue.difference} {issue.unit}）</span>}
+                        </div>
+                      ))}
+                    </div>
+                    {reconciliation.issues.some(issue => issue.difference < 0) ? (
+                      <Button variant="secondary" className="w-full border-red-500 text-red-700" onClick={() => { setReconciliation(null); setStep(2); }}>返回修改認領數量</Button>
+                    ) : (
+                      <div>
+                        <Label required={!reconciliation.policy} className="text-base">剩餘數量由誰承擔？</Label>
+                        <div className="grid gap-2 mt-2">
+                          {[{ id: 'payer', label: `由墊支人（${payer || '我'}）承擔` }, { id: 'equal', label: '由已認領人士平均承擔' }, ...Object.keys(claimInfo?.claims || {}).map(person => ({ id: `person:${person}`, label: `指定由 ${person} 承擔` }))].map(option => (
+                            <label key={option.id} className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer ${reconciliation.policy === option.id ? 'bg-white border-brand-500' : 'bg-white border-amber-300'}`}>
+                              <input type="radio" name="reconciliationPolicy" checked={reconciliation.policy === option.id} onChange={() => setReconciliation(prev => ({ ...prev, policy: option.id }))} className="w-4 h-4 text-brand-600" />
+                              <span className="font-semibold text-slate-800 text-sm">{option.label}</span>
+                            </label>
+                          ))}
+                        </div>
+                        <p className="text-xs text-amber-800 mt-2">你亦可以按「上一步」返回認領表，補返未認領數量。</p>
+                      </div>
+                    )}
+                  </Card>
+                )}
 
                 <Card className="space-y-8">
                   <div>
