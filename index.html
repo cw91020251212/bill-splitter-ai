@@ -408,6 +408,9 @@
       const [uploadError, setUploadError] = useState('');
       const [lastImageData, setLastImageData] = useState([]);
       const [stepError, setStepError] = useState('');
+      const [cameraOpen, setCameraOpen] = useState(false);
+      const cameraStreamRef = useRef(null);
+      const cameraVideoRef = useRef(null);
       
       const [payer, setPayer] = useState('');
       const [detectedCurrency, setDetectedCurrency] = useState('HKD');
@@ -454,6 +457,13 @@
       useEffect(() => {
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }, [step, showHistory, showSettings, showTutorial]);
+
+      useEffect(() => () => {
+        if (cameraStreamRef.current) {
+          cameraStreamRef.current.getTracks().forEach(track => track.stop());
+          cameraStreamRef.current = null;
+        }
+      }, []);
 
       useEffect(() => {
         try {
@@ -714,7 +724,48 @@
 
       const triggerCamera = () => {
         if (!apiKey.trim()) { toast('⚠️ 請先前往設定輸入 API 鎖匙', 'error'); setShowSettings(true); return; }
-        if (cameraInputRef.current) cameraInputRef.current.click();
+        if (!navigator.mediaDevices?.getUserMedia) {
+          toast('⚠️ 此瀏覽器不支援網頁相機，請改用「選擇圖片」', 'error');
+          if (cameraInputRef.current) cameraInputRef.current.click();
+          return;
+        }
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false })
+          .then(stream => {
+            cameraStreamRef.current = stream;
+            setCameraOpen(true);
+            requestAnimationFrame(() => {
+              if (cameraVideoRef.current) {
+                cameraVideoRef.current.srcObject = stream;
+                cameraVideoRef.current.play().catch(() => {});
+              }
+            });
+          })
+          .catch(() => toast('⚠️ 未能開啟相機，請允許此網站使用相機，或改用「選擇圖片」', 'error'));
+      };
+
+      const closeCamera = () => {
+        if (cameraStreamRef.current) {
+          cameraStreamRef.current.getTracks().forEach(track => track.stop());
+          cameraStreamRef.current = null;
+        }
+        setCameraOpen(false);
+      };
+
+      const captureCameraPhoto = () => {
+        const video = cameraVideoRef.current;
+        if (!video || !video.videoWidth || !video.videoHeight) {
+          toast('⚠️ 相機仍在啟動，請稍候再按一次', 'error');
+          return;
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob(blob => {
+          if (!blob) { toast('⚠️ 未能擷取相片，請再試一次', 'error'); return; }
+          closeCamera();
+          handleFileUpload({ target: { files: [new File([blob], `receipt-camera-${Date.now()}.jpg`, { type: 'image/jpeg' })], value: '' } });
+        }, 'image/jpeg', 0.92);
       };
 
       const handleFileUpload = async (event) => {
@@ -1641,7 +1692,20 @@
                   <Button variant="secondary" className="w-full border-slate-500" onClick={() => setShowSettings(false)}>返回系統</Button>
                </div>
             )}
-            
+
+            {cameraOpen && (
+              <div className="fixed inset-0 z-[10000] bg-black/95 flex flex-col items-center justify-center p-4" role="dialog" aria-label="相機拍攝">
+                <div className="w-full max-w-lg flex items-center justify-between text-white mb-3">
+                  <h2 className="text-lg font-bold">影相上載單據</h2>
+                  <button type="button" onClick={closeCamera} className="rounded-lg bg-white/15 px-4 py-2 font-semibold">取消</button>
+                </div>
+                <video ref={cameraVideoRef} playsInline muted autoPlay className="w-full max-w-lg max-h-[68vh] rounded-2xl bg-black object-contain" />
+                <p className="text-white/80 text-sm mt-3">將單據放入畫面，按下面按鈕拍攝</p>
+                <button type="button" onClick={captureCameraPhoto} className="mt-4 w-20 h-20 rounded-full border-4 border-white bg-brand-500 shadow-lg active:scale-95" aria-label="拍攝相片">
+                  <span className="block w-12 h-12 mx-auto rounded-full border-2 border-white/80" />
+                </button>
+              </div>
+            )}
           </main>
         </React.Fragment>
       );
