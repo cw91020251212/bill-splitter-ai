@@ -960,7 +960,6 @@
         const push = (level, id, main, sub, action) => list.push({ level, id, main, sub, action });
 
         if (!isOnline) push(1, 'E4', '現在冇網絡，AI 讀單暫停', '你仍可手動輸入項目', { label: '手動輸入', run: () => { setShowSettings(false); jumpToStep(2); } });
-        if (uploadError) push(1, 'U-ERR', uploadError.main, uploadError.sub, lastImageData.length ? { label: '用剛才圖片重試', run: retryLastUpload } : { label: '重試', run: () => setUploadError('') });
         if (!apiKey.trim() && step === 1 && !showSettings && !showTutorial && !showHistory) push(1, 'E1', '未設定 AI 鎖匙，暫時只可手動輸入', '去設定申請一條免費鎖匙', { label: '去設定', run: () => setShowSettings(true) });
 
         if (step === 3 && !payer.trim()) push(2, 'S1', '未填墊支人姓名', '填咗才可以出結果', { label: '跳去輸入', run: () => focusField('payer') });
@@ -1187,6 +1186,18 @@
                       </div>
                       <p className="text-xs text-brand-600/80 mt-4 font-medium">請稍候，AI 正在進行深度解析 (約 10-20 秒)</p>
                     </div>
+                  ) : uploadError ? (
+                    <div className="flex flex-col items-center max-w-md mx-auto" onClick={(e) => e.stopPropagation()}>
+                      <div className="w-20 h-20 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center mb-4 shadow-sm border border-amber-300"><Icon path={icons.alert} size={36} /></div>
+                      <h3 className="text-lg font-bold text-slate-800">今次未能完整讀取單據</h3>
+                      <p className="text-sm font-medium text-slate-600 mt-2">AI 偶爾第一次未能成功辨識，未必係張相有問題；可以用同一張圖片即時再試一次。</p>
+                      {uploadError.sub && <p className="text-xs text-slate-500 mt-2 break-words">{uploadError.sub}</p>}
+                      {lastImageData.length ? (
+                        <Button variant="primary" className="mt-4 w-full sm:w-auto" onClick={retryLastUpload}>↻ 用剛才圖片再試一次</Button>
+                      ) : (
+                        <Button variant="secondary" className="mt-4 w-full sm:w-auto" onClick={() => { setUploadError(''); triggerUpload(); }}>重新選擇圖片</Button>
+                      )}
+                    </div>
                   ) : (
                     <div className="flex flex-col items-center">
                       <div className="w-20 h-20 bg-slate-100 text-slate-500 rounded-full flex items-center justify-center mb-4 shadow-sm border border-slate-400 transition-transform group-hover:scale-105"><Icon path={icons.fileImage} size={36} /></div>
@@ -1231,6 +1242,7 @@
                         <div>
                           <label className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5 block">編號 {item.id} - 名稱</label>
                           <input type="text" ref={el => fieldRefs.current[`item-name-${idx}`] = el} value={item.name} onChange={(e) => updateItem(idx, 'name', e.target.value)} onKeyDown={(e) => handleItemKeyDown(e, 'name', idx)} className="w-full text-base font-semibold text-slate-800 border-b border-slate-500 focus:border-brand-500 bg-transparent outline-none pb-1" placeholder="輸入項目名稱..." />
+                          {(item.original || item.ja) && <div className="mt-1 text-xs font-normal text-slate-500 italic truncate" title={item.original || item.ja}>原文：{item.original || item.ja}</div>}
                         </div>
                         <div className="flex gap-4">
                           <div className="flex-1">
