@@ -1847,7 +1847,10 @@
                 <div className="w-10 h-10 bg-brand-600 text-white rounded-xl flex items-center justify-center shadow-inner shrink-0">
                   <Icon path={icons.calculator} size={22} />
                 </div>
-                <h1 className="text-xl font-extrabold text-slate-800 tracking-tight">分帳管家 <span className="text-brand-600 font-black">Pro</span></h1>
+                <div>
+                  <h1 className="text-xl font-extrabold text-slate-800 tracking-tight">分帳管家 <span className="text-brand-600 font-black">Pro</span></h1>
+                  <div data-testid="app-version-label" className="text-right text-[10px] leading-3 font-semibold text-brand-700">V1.0</div>
+                </div>
               </div>
               <div className="flex items-center gap-2">
                 {(showHistory || showSettings || showTutorial) ? (
