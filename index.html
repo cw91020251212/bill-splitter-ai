@@ -341,8 +341,7 @@
     };
 
     const KEY_RULES = {
-      openrouter: { prefix: 'sk-or-', expectLen: 73, pattern: /^sk-or-v1-[a-f0-9]{64}$/i, label: 'OpenRouter' },
-      gemini: { prefix: 'AIza', expectLen: 39, pattern: /^AIza[0-9A-Za-z\-_]{35}$/, label: 'Gemini' }
+      openrouter: { prefix: 'sk-or-', expectLen: 73, pattern: /^sk-or-v1-[a-f0-9]{64}$/i, label: 'OpenRouter' }
     };
 
     const sanitizeKey = (raw) => {
@@ -354,7 +353,7 @@
       if (s !== before) notes.push('removed_invisible');
       s = s.replace(/^["'「『]+|["'」』]+$/g, '');
       s = s.replace(/^Bearer/i, '');
-      for (const prefix of ['sk-or-v1-', 'sk-or-', 'AIza']) {
+      for (const prefix of ['sk-or-v1-', 'sk-or-']) {
         const idx = s.lastIndexOf(prefix);
         if (idx > 0) {
           s = s.slice(idx);
@@ -405,6 +404,113 @@
       return `${sym}${num.toFixed(2)}`;
     };
 
+    const RECEIPT_DB_NAME = 'billSplitterLocalData';
+    const RECEIPT_STORE_NAME = 'receipts';
+    const openReceiptDatabase = () => new Promise((resolve, reject) => {
+      if (!window.indexedDB) { reject(new Error('此瀏覽器不支援本機單據儲存')); return; }
+      const request = window.indexedDB.open(RECEIPT_DB_NAME, 1);
+      request.onupgradeneeded = () => {
+        if (!request.result.objectStoreNames.contains(RECEIPT_STORE_NAME)) {
+          request.result.createObjectStore(RECEIPT_STORE_NAME, { keyPath: 'recordId' });
+        }
+      };
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error || new Error('無法開啟本機單據儲存'));
+    });
+    const receiptExtension = (mimeType) => mimeType === 'image/png' ? 'png' : mimeType === 'image/webp' ? 'webp' : 'jpg';
+    const receiptBase64ToBlob = (image) => {
+      const binary = atob(image.data);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      return new Blob([bytes], { type: image.mimeType || 'image/jpeg' });
+    };
+    const receiptEntriesToFiles = (entries) => entries.map((entry, index) => {
+      const mimeType = entry.mimeType || entry.blob?.type || 'image/jpeg';
+      const blob = entry.blob || receiptBase64ToBlob(entry);
+      return new File([blob], entry.name || `receipt-${index + 1}.${receiptExtension(mimeType)}`, { type: mimeType });
+    });
+    const saveReceiptImagesLocally = async (recordId, images) => {
+      const files = images.map((image, index) => ({
+        name: `receipt-${index + 1}.${receiptExtension(image.mimeType)}`,
+        mimeType: image.mimeType,
+        blob: receiptBase64ToBlob(image)
+      }));
+      const db = await openReceiptDatabase();
+      try {
+        await new Promise((resolve, reject) => {
+          const transaction = db.transaction(RECEIPT_STORE_NAME, 'readwrite');
+          transaction.objectStore(RECEIPT_STORE_NAME).put({ recordId, files });
+          transaction.oncomplete = resolve;
+          transaction.onerror = () => reject(transaction.error || new Error('無法儲存收據圖片'));
+          transaction.onabort = () => reject(transaction.error || new Error('收據圖片儲存已取消'));
+        });
+        return files;
+      } finally {
+        db.close();
+      }
+    };
+    const loadReceiptImagesLocally = async (recordId) => {
+      const db = await openReceiptDatabase();
+      try {
+        return await new Promise((resolve, reject) => {
+          const transaction = db.transaction(RECEIPT_STORE_NAME, 'readonly');
+          let files = [];
+          const request = transaction.objectStore(RECEIPT_STORE_NAME).get(recordId);
+          request.onsuccess = () => { files = request.result?.files || []; };
+          request.onerror = () => reject(request.error || new Error('無法讀取收據圖片'));
+          transaction.oncomplete = () => resolve(files);
+          transaction.onerror = () => reject(transaction.error || new Error('無法讀取收據圖片'));
+          transaction.onabort = () => reject(transaction.error || new Error('收據圖片讀取已取消'));
+        });
+      } finally {
+        db.close();
+      }
+    };
+    const deleteReceiptImagesLocally = async (recordId) => {
+      const db = await openReceiptDatabase();
+      try {
+        await new Promise((resolve, reject) => {
+          const transaction = db.transaction(RECEIPT_STORE_NAME, 'readwrite');
+          transaction.objectStore(RECEIPT_STORE_NAME).delete(recordId);
+          transaction.oncomplete = resolve;
+          transaction.onerror = () => reject(transaction.error || new Error('無法刪除收據圖片'));
+          transaction.onabort = () => reject(transaction.error || new Error('收據圖片刪除已取消'));
+        });
+      } finally {
+        db.close();
+      }
+    };
+
+    const createRedactedReceiptFile = (imageData, masks, index, quality = 0.92) => new Promise((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => {
+        try {
+          const maxDimension = 4096;
+          const scale = Math.min(1, maxDimension / Math.max(image.naturalWidth, image.naturalHeight));
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+          canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+          const context = canvas.getContext('2d');
+          if (!context) throw new Error('無法處理圖片');
+          context.drawImage(image, 0, 0, canvas.width, canvas.height);
+          context.fillStyle = '#000000';
+          (masks || []).forEach(mask => {
+            const x = Math.max(0, Math.min(1, mask.x));
+            const y = Math.max(0, Math.min(1, mask.y));
+            const right = Math.max(x, Math.min(1, mask.x + mask.width));
+            const bottom = Math.max(y, Math.min(1, mask.y + mask.height));
+            context.fillRect(Math.floor(x * canvas.width), Math.floor(y * canvas.height), Math.ceil((right - x) * canvas.width), Math.ceil((bottom - y) * canvas.height));
+          });
+          canvas.toBlob(blob => {
+            if (!blob) { reject(new Error('無法輸出遮蓋後的圖片')); return; }
+            resolve(new File([blob], `redacted-receipt-${String(index + 1).padStart(2, '0')}.jpg`, { type: 'image/jpeg' }));
+          }, 'image/jpeg', quality);
+        } catch (error) { reject(error); }
+      };
+      image.onerror = () => reject(new Error('無法載入單據圖片'));
+      image.src = `data:${imageData.mimeType};base64,${imageData.data}`;
+    });
+
     function App() {
       const [step, setStep] = useState(1);
       const [items, setItems] = useState([]);
@@ -417,6 +523,17 @@
       const [progressText, setProgressText] = useState('');
       const [uploadError, setUploadError] = useState('');
       const [lastImageData, setLastImageData] = useState([]);
+      const [includeReceiptImages, setIncludeReceiptImages] = useState(false);
+      const [showRedaction, setShowRedaction] = useState(false);
+      const [pendingRedactionImages, setPendingRedactionImages] = useState([]);
+      const [redactionMasks, setRedactionMasks] = useState([]);
+      const [redactionIndex, setRedactionIndex] = useState(0);
+      const [redactionDrag, setRedactionDrag] = useState(null);
+      const [redactionImageLoadedVersion, setRedactionImageLoadedVersion] = useState(0);
+      const [isPreparingRedacted, setIsPreparingRedacted] = useState(false);
+      const redactionImageRef = useRef(null);
+      const redactionCanvasRef = useRef(null);
+      const redactionDragRef = useRef(null);
       const [stepError, setStepError] = useState('');
       const [cameraOpen, setCameraOpen] = useState(false);
       const cameraStreamRef = useRef(null);
@@ -427,7 +544,7 @@
       const [currency, setCurrency] = useState('HKD');
 
       const [taxSplitMethod, setTaxSplitMethod] = useState('proportional');
-      const [paymentMethod, setPaymentMethod] = useState('轉數快 (FPS)');
+      const [paymentMethods, setPaymentMethods] = useState(['轉數快 (FPS)']);
       const [results, setResults] = useState(null);
       const fileInputRef = useRef(null);
       const cameraInputRef = useRef(null);
@@ -437,20 +554,20 @@
       const [showSettings, setShowSettings] = useState(false);
       const [showTutorial, setShowTutorial] = useState(false);
       const [isSaved, setIsSaved] = useState(false);
+      const [isSavingRecord, setIsSavingRecord] = useState(false);
+      const [savedReceiptFiles, setSavedReceiptFiles] = useState({});
+      const [receiptHistoryLoading, setReceiptHistoryLoading] = useState({});
 
       const [detailLang, setDetailLang] = useState('zh');
       
-      const [aiEngine, setAiEngine] = useState('openrouter');
-      const [keys, setKeys] = useState({ openrouter: '', gemini: '' });
-      const apiKey = keys[aiEngine];
-      const setApiKey = (v) => setKeys(k => ({ ...k, [aiEngine]: v }));
+      const [apiKey, setApiKey] = useState('');
 
       const [apiModel, setApiModel] = useState('openrouter/free');
       // API keys are user settings: a normal save must survive closing/reopening
       // the app. Keep sessionStorage only as a same-tab fallback.
       const [rememberKey, setRememberKey] = useState(true);
 
-      const [isEditingKey, setIsEditingKey] = useState(false);
+      const [isEditingKey, setIsEditingKey] = useState(true);
       const [showKey, setShowKey] = useState(false);
       const [keyHint, setKeyHint] = useState('');
       const [keyTesting, setKeyTesting] = useState(false);
@@ -458,6 +575,8 @@
       const editKeyRef = useRef('');
 
       const [claimInfo, setClaimInfo] = useState(null);
+      const [claimAttachments, setClaimAttachments] = useState([]);
+      const claimAttachmentInputRef = useRef(null);
       const [reconciliation, setReconciliation] = useState(null);
       const fieldRefs = useRef({});
 
@@ -488,11 +607,12 @@
           const persisted = durable || temporary;
           if (persisted) {
             const cfg = JSON.parse(persisted);
-            if (cfg.engine) setAiEngine(cfg.engine);
-            if (cfg.keys) {
-                setKeys(cfg.keys);
-            } else if (cfg.key) {
-                setKeys({ openrouter: cfg.engine === 'gemini' ? '' : cfg.key, gemini: cfg.engine === 'gemini' ? cfg.key : '' });
+            const savedOpenRouterKey = typeof cfg.keys?.openrouter === 'string'
+              ? cfg.keys.openrouter
+              : (cfg.engine === 'openrouter' && typeof cfg.key === 'string' ? cfg.key : '');
+            if (savedOpenRouterKey) {
+              setApiKey(savedOpenRouterKey);
+              setIsEditingKey(false);
             }
             setApiModel(PROVIDERS.openrouter.models.includes(cfg.model) ? cfg.model : 'openrouter/free');
             if (durable) {
@@ -514,6 +634,26 @@
       useEffect(() => {
         try { localStorage.setItem('billSplitterHistory', JSON.stringify(savedHistory)); } catch(e) {}
       }, [savedHistory]);
+
+      useEffect(() => {
+        if (!showHistory) return;
+        const pendingRecords = savedHistory.filter(record => Number(record.receiptImageCount) > 0
+          && !Object.prototype.hasOwnProperty.call(savedReceiptFiles, record.id)
+          && !receiptHistoryLoading[record.id]);
+        if (!pendingRecords.length) return;
+        setReceiptHistoryLoading(current => ({ ...current, ...Object.fromEntries(pendingRecords.map(record => [record.id, true])) }));
+        Promise.all(pendingRecords.map(async record => {
+          try { return [record.id, await loadReceiptImagesLocally(record.id)]; }
+          catch (error) { return [record.id, null]; }
+        })).then(entries => {
+          setSavedReceiptFiles(current => ({ ...current, ...Object.fromEntries(entries) }));
+          setReceiptHistoryLoading(current => {
+            const next = { ...current };
+            pendingRecords.forEach(record => { delete next[record.id]; });
+            return next;
+          });
+        });
+      }, [showHistory, savedHistory, savedReceiptFiles, receiptHistoryLoading]);
 
       useEffect(() => {
           const handleOnline = () => setIsOnline(true);
@@ -543,6 +683,35 @@
         const h = kbOpen ? 44 : 64;
         document.body.style.paddingBottom = `calc(${h}px + env(safe-area-inset-bottom))`;
       }, [kbOpen]);
+
+      useEffect(() => {
+        if (!showRedaction) return;
+        const canvas = redactionCanvasRef.current;
+        const image = redactionImageRef.current;
+        if (!canvas || !image || !image.complete || !image.naturalWidth) return;
+        const drawMasks = () => {
+          const rect = image.getBoundingClientRect();
+          if (!rect.width || !rect.height) return;
+          const ratio = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+          canvas.width = Math.round(rect.width * ratio);
+          canvas.height = Math.round(rect.height * ratio);
+          const context = canvas.getContext('2d');
+          if (!context) return;
+          context.setTransform(ratio, 0, 0, ratio, 0, 0);
+          context.fillStyle = '#000000';
+          (redactionMasks[redactionIndex] || []).forEach(mask => {
+            context.fillRect(mask.x * rect.width, mask.y * rect.height, mask.width * rect.width, mask.height * rect.height);
+          });
+          if (redactionDrag) {
+            const x = Math.min(redactionDrag.startX, redactionDrag.currentX);
+            const y = Math.min(redactionDrag.startY, redactionDrag.currentY);
+            context.fillRect(x * rect.width, y * rect.height, Math.abs(redactionDrag.currentX - redactionDrag.startX) * rect.width, Math.abs(redactionDrag.currentY - redactionDrag.startY) * rect.height);
+          }
+        };
+        drawMasks();
+        window.addEventListener('resize', drawMasks);
+        return () => window.removeEventListener('resize', drawMasks);
+      }, [showRedaction, redactionIndex, redactionMasks, redactionDrag, redactionImageLoadedVersion]);
 
       const toast = (text, type = 'success') => {
         const msg = document.createElement('div');
@@ -584,23 +753,17 @@
         setKeyTesting(true);
         setKeyTestResult(null);
         try {
-          if (aiEngine === 'openrouter') {
-            const r = await fetch('https://openrouter.ai/api/v1/models', { headers: { 'Authorization': `Bearer ${apiKey.trim()}` } });
-            if (r.status === 401) throw new Error('鎖匙被拒（401）—— 請檢查有冇漏字或黏埋舊鎖匙');
-            if (!r.ok) throw new Error(`HTTP ${r.status}`);
-            setKeyTestResult({ ok: true, msg: '✓ 鎖匙有效 (Valid API Key)' });
-          } else {
-            const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey.trim()}`);
-            if (!r.ok) throw new Error(r.status === 400 ? '鎖匙無效' : `HTTP ${r.status}`);
-            setKeyTestResult({ ok: true, msg: '✓ 鎖匙有效 (Valid API Key)' });
-          }
+          const r = await fetch('https://openrouter.ai/api/v1/models', { headers: { 'Authorization': `Bearer ${apiKey.trim()}` } });
+          if (r.status === 401) throw new Error('鎖匙被拒（401）—— 請檢查有冇漏字或黏埋舊鎖匙');
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          setKeyTestResult({ ok: true, msg: '✓ 鎖匙有效 (Valid API Key)' });
         } catch (e) {
           setKeyTestResult({ ok: false, msg: e.message });
         } finally { setKeyTesting(false); }
       };
 
       const saveApiConfig = () => {
-        const v = validateKey(apiKey, aiEngine);
+        const v = validateKey(apiKey, 'openrouter');
         if (v.severity === 'likely_duplicate') {
           setKeyHint(`鎖匙長度 ${v.actualLen} 字，正常應為 ${v.expectLen} 字 —— 似乎兩條黏埋咗。`);
           return; 
@@ -610,7 +773,7 @@
           return;
         }
         setKeyHint('');
-        const payload = JSON.stringify({ engine: aiEngine, keys, model: apiModel });
+        const payload = JSON.stringify({ engine: 'openrouter', keys: { openrouter: apiKey.trim() }, model: apiModel });
         try {
           // Write the durable copy first. The session copy is a backup for
           // browsers that temporarily reject persistent storage.
@@ -639,17 +802,88 @@
         }
       };
 
-      const saveCurrentRecord = () => {
-        if (!results) return;
-        const billTotal = items.reduce((sum, item) => sum + toNum(item.total), 0) + toNum(taxAmount);
-        const newRecord = { id: Date.now(), date: results.date, payer, totalAmount: billTotal, currency: results.currency, simplifiedText: getSimplifiedResult(), detailedText: getDetailedResult('zh'), detailedFullText: getDetailedResult('full') };
-        setSavedHistory([newRecord, ...savedHistory]);
-        setIsSaved(true);
-        toast('✅ 紀錄已成功儲存！');
+      const saveCurrentRecord = async () => {
+        if (!results || isSaved || isSavingRecord) return;
+        setIsSavingRecord(true);
+        const recordId = Date.now();
+        const receiptImageCount = lastImageData.length;
+        try {
+          const receiptFiles = receiptImageCount ? await saveReceiptImagesLocally(recordId, lastImageData) : [];
+          const billTotal = items.reduce((sum, item) => sum + toNum(item.total), 0) + toNum(taxAmount);
+          const newRecord = { id: recordId, date: results.date, payer, totalAmount: billTotal, currency: results.currency, simplifiedText: getSimplifiedResult(), detailedText: getDetailedResult('zh'), detailedFullText: getDetailedResult('full'), receiptImageCount };
+          setSavedHistory(current => [newRecord, ...current]);
+          if (receiptImageCount) setSavedReceiptFiles(current => ({ ...current, [recordId]: receiptFiles }));
+          setIsSaved(true);
+          toast(receiptImageCount ? `✅ 紀錄及 ${receiptImageCount} 張實體單副本已儲存在本機！` : '✅ 紀錄已成功儲存！');
+        } catch (error) {
+          console.error('Unable to save receipt images locally:', error);
+          toast('⚠️ 收據圖片未能儲存在本機，分帳紀錄未儲存；請檢查裝置空間後再試。', 'error');
+        } finally {
+          setIsSavingRecord(false);
+        }
       };
 
-      const deleteRecord = (id) => { 
-        if (window.confirm("確定刪除此歷史紀錄？資料將無法復原。")) { setSavedHistory(savedHistory.filter(r => r.id !== id)); }
+      const deleteRecord = async (id) => {
+        if (!window.confirm("確定刪除此歷史紀錄及本機收據副本？資料將無法復原。")) return;
+        const record = savedHistory.find(item => item.id === id);
+        try {
+          if (Number(record?.receiptImageCount) > 0) await deleteReceiptImagesLocally(id);
+          setSavedHistory(current => current.filter(item => item.id !== id));
+          setSavedReceiptFiles(current => { const next = { ...current }; delete next[id]; return next; });
+          setReceiptHistoryLoading(current => { const next = { ...current }; delete next[id]; return next; });
+        } catch (error) {
+          toast('⚠️ 未能刪除本機收據副本，歷史紀錄仍保留。', 'error');
+        }
+      };
+
+      const shareTextWithFiles = (text, files, title) => {
+        const shareFiles = files || [];
+        if (shareFiles.length) {
+          let filesSupported = false;
+          try { filesSupported = typeof navigator.canShare === 'function' && navigator.canShare({ files: shareFiles }); } catch (error) {}
+          if (!filesSupported) {
+            toast('⚠️ 此瀏覽器不支援將文件與文字一起分享；可先複製認領連結，再於 WhatsApp 手動附加檔案，或改用手機 Safari／Chrome。', 'error');
+            return;
+          }
+        }
+        if (typeof navigator.share !== 'function') {
+          if (shareFiles.length) { toast('⚠️ 此瀏覽器無法將附件與認領連結一起分享；請複製連結後於 WhatsApp 手動附加檔案。', 'error'); return; }
+          copyToClipboard(text, title);
+          return;
+        }
+        const shareData = { title, text };
+        if (shareFiles.length) shareData.files = shareFiles;
+        try {
+          navigator.share(shareData).catch(error => {
+            if (error?.name !== 'AbortError') toast('⚠️ 未能開啟手機分享選單，請再試一次。', 'error');
+          });
+        } catch (error) {
+          if (error?.name !== 'AbortError') toast('⚠️ 未能開啟手機分享選單，請再試一次。', 'error');
+        }
+      };
+
+      const shareCurrentReport = (text, title) => {
+        try {
+          const files = includeReceiptImages ? receiptEntriesToFiles(lastImageData) : [];
+          shareTextWithFiles(text, files, title);
+        } catch (error) {
+          toast('⚠️ 無法讀取本次單據圖片，請重新選擇圖片後再試。', 'error');
+        }
+      };
+
+      const shareSavedRecord = (record, reportType) => {
+        const entries = savedReceiptFiles[record.id];
+        if (!Array.isArray(entries) || entries.length === 0) {
+          toast(receiptHistoryLoading[record.id] ? '⏳ 正在讀取本機收據圖片，請稍後再按。' : '⚠️ 找不到此紀錄的本機收據副本。', 'error');
+          return;
+        }
+        try {
+          const text = reportType === 'detailed' ? (record.detailedText || record.detailedFullText) : record.simplifiedText;
+          const title = reportType === 'detailed' ? '分帳詳細明細及實體單' : '分帳追數結果及實體單';
+          shareTextWithFiles(text, receiptEntriesToFiles(entries), title);
+        } catch (error) {
+          toast('⚠️ 無法讀取本機收據圖片，請稍後再試。', 'error');
+        }
       };
 
       const exportCSV = () => {
@@ -665,13 +899,14 @@
         toast('✅ 成功匯出 CSV！');
       };
 
-      const handleGoToStep1 = () => { 
-        setStepError(''); setItems([]); setFriendsReplies(''); setResults(null); 
-        setIsSaved(false); setTaxAmount(''); setTaxNote(''); 
-        setCurrency('HKD'); setDetectedCurrency('HKD'); setPaymentMethod('轉數快 (FPS)'); setStep(1); 
+      const handleGoToStep1 = () => {
+        setStepError(''); setItems([]); setFriendsReplies(''); setResults(null);
+        setIsSaved(false); setIsSavingRecord(false); setIncludeReceiptImages(false); setLastImageData([]); setTaxAmount(''); setTaxNote('');
+        setClaimAttachments([]); if (claimAttachmentInputRef.current) claimAttachmentInputRef.current.value = '';
+        setCurrency('HKD'); setDetectedCurrency('HKD'); setPaymentMethods(['轉數快 (FPS)']); setStep(1);
       };
-      
-      const handleGoToStep2 = (manual = false) => { setStepError(''); if (manual) setItems([]); setStep(2); };
+
+      const handleGoToStep2 = (manual = false) => { setStepError(''); if (manual) { setItems([]); setClaimAttachments([]); if (claimAttachmentInputRef.current) claimAttachmentInputRef.current.value = ''; } setStep(2); };
       
       const handleGoToStep3 = () => {
         setStepError('');
@@ -779,16 +1014,135 @@
         }, 'image/jpeg', 0.92);
       };
 
-      const handleFileUpload = async (event) => {
-        const files = Array.from(event.target.files);
+      const getRedactionPoint = (event) => {
+        const canvas = redactionCanvasRef.current;
+        if (!canvas) return null;
+        const rect = canvas.getBoundingClientRect();
+        if (!rect.width || !rect.height) return null;
+        return {
+          x: Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width)),
+          y: Math.max(0, Math.min(1, (event.clientY - rect.top) / rect.height))
+        };
+      };
+
+      const handleRedactionPointerDown = (event) => {
+        const point = getRedactionPoint(event);
+        if (!point) return;
+        event.preventDefault();
+        try { event.currentTarget.setPointerCapture(event.pointerId); } catch (error) {}
+        const drag = { startX: point.x, startY: point.y, currentX: point.x, currentY: point.y };
+        redactionDragRef.current = drag;
+        setRedactionDrag(drag);
+      };
+
+      const handleRedactionPointerMove = (event) => {
+        const drag = redactionDragRef.current;
+        const point = drag && getRedactionPoint(event);
+        if (!drag || !point) return;
+        const next = { ...drag, currentX: point.x, currentY: point.y };
+        redactionDragRef.current = next;
+        setRedactionDrag(next);
+      };
+
+      const handleRedactionPointerUp = (event) => {
+        const drag = redactionDragRef.current;
+        const point = drag && getRedactionPoint(event);
+        if (!drag || !point) return;
+        redactionDragRef.current = null;
+        setRedactionDrag(null);
+        const x = Math.min(drag.startX, point.x);
+        const y = Math.min(drag.startY, point.y);
+        const width = Math.abs(point.x - drag.startX);
+        const height = Math.abs(point.y - drag.startY);
+        if (width < 0.005 || height < 0.005) return;
+        setRedactionMasks(current => {
+          const next = current.slice();
+          next[redactionIndex] = [...(next[redactionIndex] || []), { x, y, width, height }];
+          return next;
+        });
+      };
+
+      const cancelReceiptRedaction = () => {
+        setShowRedaction(false);
+        setPendingRedactionImages([]);
+        setRedactionMasks([]);
+        setRedactionIndex(0);
+        setRedactionDrag(null);
+        redactionDragRef.current = null;
+        setLastImageData([]);
+        setIncludeReceiptImages(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      };
+
+      const startOcrWithRedactedImages = async () => {
+        if (!pendingRedactionImages.length || isPreparingRedacted) return;
+        setIsPreparingRedacted(true);
+        try {
+          const makeBatch = async quality => {
+            const output = [];
+            for (let index = 0; index < pendingRedactionImages.length; index++) {
+              output.push(await createRedactedReceiptFile(pendingRedactionImages[index], redactionMasks[index] || [], index, quality));
+            }
+            return output;
+          };
+          let redactedFiles = await makeBatch(0.92);
+          if (redactedFiles.reduce((sum, file) => sum + file.size, 0) > 12 * 1024 * 1024) redactedFiles = await makeBatch(0.82);
+          if (redactedFiles.reduce((sum, file) => sum + file.size, 0) > 12 * 1024 * 1024) throw new Error('遮蓋後圖片總容量仍超過 12 MB，請減少圖片數量或分批處理。');
+          setPendingRedactionImages([]);
+          setRedactionMasks([]);
+          setRedactionIndex(0);
+          setShowRedaction(false);
+          setRedactionDrag(null);
+          redactionDragRef.current = null;
+          handleFileUpload({ target: { files: redactedFiles, value: '' } }, true);
+        } catch (error) {
+          toast(`⚠️ ${error?.message || '無法製作遮蓋版，請再試一次。'}`, 'error');
+        } finally {
+          setIsPreparingRedacted(false);
+        }
+      };
+
+      const handleFileUpload = async (event, alreadyRedacted = false) => {
+        const inputTarget = event?.target;
+        const files = Array.from(inputTarget?.files || []);
+        const clearFileSelection = () => {
+          if (fileInputRef.current) fileInputRef.current.value = '';
+          if (inputTarget) inputTarget.value = '';
+        };
         if (files.length === 0) return;
         const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
         const totalSize = files.reduce((sum, file) => sum + file.size, 0);
-        
-        if (files.length > 5) { setUploadError({ main: '一次最多可上傳 5 張圖片', sub: '', action: null }); event.target.value = ''; return; }
-        if (files.some(file => !allowedTypes.includes(file.type))) { setUploadError({ main: '只支援 JPG、PNG 或 WebP 圖片格式', sub: '', action: null }); event.target.value = ''; return; }
-        if (totalSize > 12 * 1024 * 1024) { setUploadError({ main: '圖片總容量不可超過 12 MB', sub: '請壓縮後再試', action: null }); event.target.value = ''; return; }
-        
+
+        if (files.length > 5) { setUploadError({ main: '一次最多可上載 5 張圖片', sub: '', action: null }); clearFileSelection(); return; }
+        if (files.some(file => !allowedTypes.includes(file.type))) { setUploadError({ main: '只支援 JPG、PNG 或 WebP 圖片格式', sub: '', action: null }); clearFileSelection(); return; }
+        if (totalSize > 12 * 1024 * 1024) { setUploadError({ main: '圖片總容量不可超過 12 MB', sub: '請壓縮後再試', action: null }); clearFileSelection(); return; }
+
+        if (!alreadyRedacted) {
+          setUploadError('');
+          setLastImageData([]);
+          setIncludeReceiptImages(false);
+          setIsSaved(false);
+          try {
+            const originals = await Promise.all(files.map(file => new Promise((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = () => resolve({ mimeType: file.type, data: reader.result.split(',')[1] });
+              reader.onerror = () => reject(new Error('未能讀取所選圖片'));
+              reader.readAsDataURL(file);
+            })));
+            setPendingRedactionImages(originals);
+            setRedactionMasks(originals.map(() => []));
+            setRedactionIndex(0);
+            setRedactionDrag(null);
+            redactionDragRef.current = null;
+            setShowRedaction(true);
+          } catch (error) {
+            setUploadError({ main: '圖片讀取失敗', sub: error?.message || '請再選一次圖片。', action: null });
+          } finally {
+            clearFileSelection();
+          }
+          return;
+        }
+
         setIsAnalyzing(true);
         setUploadError('');
         setProgress(5);
@@ -833,31 +1187,18 @@
           let parsedTaxNote = '';
           let parsedCurrency = 'HKD';
 
-          if (aiEngine === 'gemini') {
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey.trim()}`;
-            const imageParts = imageDataArray.map(img => ({ inlineData: { mimeType: img.mimeType, data: img.data } }));
-            const payload = { contents: [{ role: "user", parts: [{ text: promptText }, ...imageParts] }], generationConfig: { responseMimeType: "application/json" } };
-            const res = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-            if (!res.ok) throw new Error(`HTTP Error ${res.status}: 鎖匙被拒（401）。請檢查您的 API 金鑰。`);
-            const data = await res.json();
-            const jsonText = data.candidates?.[0]?.content?.parts?.[0]?.text;
-            if (!jsonText) throw new Error('AI 未能回傳有效結果。');
-            const shaped = extractPayload(jsonText);
-            parsedItems = shaped.items; parsedTax = shaped.taxTotal; parsedTaxNote = shaped.taxNote; parsedCurrency = shaped.currency?.toUpperCase() || 'HKD';
-          } else {
-            const contentArray = [{ type: "text", text: promptText }];
-            imageDataArray.forEach(img => { contentArray.push({ type: "image_url", image_url: { url: `data:${img.mimeType};base64,${img.data}` } }); });
-            const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-              method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey.trim()}` },
-              body: JSON.stringify({ model: apiModel, messages: [{ role: "user", content: contentArray }], temperature: 0.1 })
-            });
-            if (!response.ok) throw new Error(`OpenRouter HTTP ${response.status}: 鎖匙被拒。請檢查 API 金鑰。`);
-            const data = await response.json();
-            const jsonText = data.choices?.[0]?.message?.content;
-            if (!jsonText) throw new Error('OpenRouter 伺服器未回傳內容。');
-            const shaped = extractPayload(jsonText);
-            parsedItems = shaped.items; parsedTax = shaped.taxTotal; parsedTaxNote = shaped.taxNote; parsedCurrency = shaped.currency?.toUpperCase() || 'HKD';
-          }
+          const contentArray = [{ type: "text", text: promptText }];
+          imageDataArray.forEach(img => { contentArray.push({ type: "image_url", image_url: { url: `data:${img.mimeType};base64,${img.data}` } }); });
+          const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey.trim()}` },
+            body: JSON.stringify({ model: apiModel, messages: [{ role: "user", content: contentArray }], temperature: 0.1 })
+          });
+          if (!response.ok) throw new Error(`OpenRouter HTTP ${response.status}: 鎖匙被拒。請檢查 API 金鑰。`);
+          const data = await response.json();
+          const jsonText = data.choices?.[0]?.message?.content;
+          if (!jsonText) throw new Error('OpenRouter 伺服器未回傳內容。');
+          const shaped = extractPayload(jsonText);
+          parsedItems = shaped.items; parsedTax = shaped.taxTotal; parsedTaxNote = shaped.taxNote; parsedCurrency = shaped.currency?.toUpperCase() || 'HKD';
 
           if (!Array.isArray(parsedItems)) throw new Error('AI 回傳格式不符。');
           const formattedItems = parsedItems.map((item, idx) => ({
@@ -891,8 +1232,8 @@
           clearInterval(progressInterval);
           setIsAnalyzing(false);
           setUploadError({ main: '讀取失敗', sub: error?.message || '未知錯誤', action: null });
-        } finally { 
-          if(fileInputRef.current) fileInputRef.current.value = '';
+        } finally {
+          clearFileSelection();
         }
       };
 
@@ -904,7 +1245,7 @@
           const ext = img.mimeType === 'image/png' ? 'png' : img.mimeType === 'image/webp' ? 'webp' : 'jpg';
           return new File([bytes], `receipt-retry-${index + 1}.${ext}`, { type: img.mimeType });
         });
-        handleFileUpload({ target: { files, value: '' } });
+        handleFileUpload({ target: { files, value: '' } }, true);
       };
 
       const addItem = () => setItems([...items, { id: String(items.length + 1).padStart(2, '0'), name: '', original: '', ja: '', price: '', qty: 1, totalQty: null, unit: '', total: 0 }]);
@@ -941,11 +1282,62 @@
         }
       };
 
-      const generateFriendTemplate = () => {
-        let tpl = `🧾 *分帳認領表* 🧾\n\n👤 姓名：\n\n📌 *填寫方法（請先睇清楚）*\n1️⃣ 先在上面「姓名」填你的名字。\n2️⃣ 有食／有買的項目，填數量；冇食就留空或填 0。\n3️⃣ *只填數字*（例如 1、2、0.5）＝份數比例：總價按大家填的份數比例分。\n4️⃣ *數字後加單位*（例如 3 件、2 杯）＝實際單位：按單據總量計算每件／每杯價錢。\n　　• 例如 $120 共 8 件，填「3 件」即 $45。\n　　• 填「1」而不寫單位，即按份數比例，不是 1 件。\n5️⃣ 填好後，*整段複製*返給我就完成。\n━━━━━━━━━━━━━━\n\n`;
-        items.forEach(item => { tpl += `🔶 ${item.id} ${item.name}${item.unit && item.totalQty ? `（單據共 ${item.totalQty} ${item.unit}）` : ''}\n👉🏻 數量（可填：3 件；只填數字＝份數）＝ \n\n`; });
-        tpl += `━━━━━━━━━━━━━━\n✅ 系統會按你有冇填單位，自動用份數比例或實際單位計算。\n\n`;
-        return tpl;
+      const encodeClaimLinkPayload = (payload) => {
+        const bytes = new TextEncoder().encode(JSON.stringify(payload));
+        let binary = '';
+        for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+        return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+      };
+
+      const buildFriendClaimLink = () => {
+        setStepError('');
+        if (!items.length) { setStepError('⚠️ 請先新增至少一個帳單項目。'); return null; }
+        const invalidIndex = items.findIndex(item => !String(item.name || '').trim());
+        if (invalidIndex !== -1) {
+          setStepError(`⚠️ 項目 ${items[invalidIndex].id} 未填寫名稱，請先補上。`);
+          focusField(`item-name-${invalidIndex}`);
+          return null;
+        }
+        const payload = items.map(item => ({
+          id: String(item.id),
+          name: String(item.name || '').trim(),
+          totalQty: toNum(item.totalQty) > 0 ? toNum(item.totalQty) : null,
+          unit: String(item.unit || '').trim()
+        }));
+        const link = new URL('./claim.html', window.location.href);
+        link.hash = `data=${encodeClaimLinkPayload(payload)}`;
+        return link.toString();
+      };
+
+      const generateFriendClaimLink = () => {
+        const link = buildFriendClaimLink();
+        if (link) copyToClipboard(link, '手機認領連結');
+      };
+
+      const handleClaimAttachmentSelection = (event) => {
+        const input = event.target;
+        const selectedFiles = Array.from(input.files || []);
+        input.value = '';
+        if (!selectedFiles.length) return;
+        const nextFiles = [...claimAttachments, ...selectedFiles];
+        if (nextFiles.length > 10) { toast('⚠️ 一次最多可選擇 10 個附件。', 'error'); return; }
+        if (nextFiles.reduce((sum, file) => sum + file.size, 0) > 20 * 1024 * 1024) {
+          toast('⚠️ 附件總容量不可超過 20 MB，請移除部分檔案後再試。', 'error');
+          return;
+        }
+        setClaimAttachments(nextFiles);
+        toast(`✅ 已加入 ${selectedFiles.length} 個附件`);
+      };
+
+      const shareFriendClaimLinkWithAttachments = () => {
+        const link = buildFriendClaimLink();
+        if (!link) return;
+        if (claimAttachments.length && (typeof navigator.share !== 'function' || typeof navigator.canShare !== 'function')) {
+          toast('⚠️ 此瀏覽器無法將附件與網址一併分享；請用手機 Safari 或 Chrome，或先複製網址再於 WhatsApp 手動附加檔案。', 'error');
+          return;
+        }
+        const message = `請打開以下連結填寫手機認領表：\n${link}`;
+        shareTextWithFiles(message, claimAttachments, '手機認領連結及附件');
       };
 
       const copyToClipboard = (text, btnLabel) => {
@@ -1051,14 +1443,15 @@
         });
 
         setResults({ personTotals, totalItemsCost, reconciliationAllocations, date: new Date().toISOString().split('T')[0], currency });
-        setIsSaved(false); setStep(4);
+        setIsSaved(false); setIsSavingRecord(false); setIncludeReceiptImages(false); setStep(4);
       };
 
       const getSimplifiedResult = () => {
         if (!results) return "";
         const others = Object.keys(results.personTotals).filter(p => p !== payer);
         const curr = results.currency;
-        let txt = `💰 *分帳結果* 💰\n📅 ${results.date}\n💳 請過數俾：*${payer}*\n💵 付款方式：${paymentMethod}\n💴 結算貨幣：*${getCurrencyName(curr)}*\n━━━━━━━━━━━━━━\n`;
+        const paymentLabel = paymentMethods.length ? paymentMethods.join('、') : '未指定';
+        let txt = `💰 *分帳結果* 💰\n📅 ${results.date}\n💳 請過數俾：*${payer}*\n💵 付款方式：${paymentLabel}\n💴 結算貨幣：*${getCurrencyName(curr)}*\n━━━━━━━━━━━━━━\n`;
         others.forEach(person => { txt += `👤 *${person}*\n　　應付 ➡️ *${formatMoney(results.personTotals[person].total, curr)}*\n`; });
         if (others.length === 0) txt += `（只有墊支人一位，無需過數）\n`;
         txt += `━━━━━━━━━━━━━━\n`;
@@ -1073,7 +1466,8 @@
         if (!results) return "";
         const full = mode === 'full';
         const curr = results.currency;
-        let txt = `🧾 *分帳詳細明細* 🧾\n📅 ${results.date}\n💳 墊支人：${payer}\n💵 付款方式：${paymentMethod}\n💴 結算貨幣：${getCurrencyName(curr)}\n⚖️ 稅／服務費：${taxSplitMethod === 'equal' ? '全部人平均分' : '按消費比例分'}\n━━━━━━━━━━━━━━\n\n`;
+        const paymentLabel = paymentMethods.length ? paymentMethods.join('、') : '未指定';
+        let txt = `🧾 *分帳詳細明細* 🧾\n📅 ${results.date}\n💳 墊支人：${payer}\n💵 付款方式：${paymentLabel}\n💴 結算貨幣：${getCurrencyName(curr)}\n⚖️ 稅／服務費：${taxSplitMethod === 'equal' ? '全部人平均分' : '按消費比例分'}\n━━━━━━━━━━━━━━\n\n`;
         let grandTotal = 0;
         Object.keys(results.personTotals).forEach(person => {
           const p = results.personTotals[person];
@@ -1101,7 +1495,7 @@
         return txt;
       };
 
-      const paymentOptions = ['轉數快 (FPS)', 'PayMe', '現金', '銀行轉帳'];
+      const paymentOptions = ['轉數快 (FPS)', 'PayMe', '現金', '銀行轉帳', 'Alipay'];
       const displayCurrencies = Array.from(new Set([detectedCurrency, 'HKD', 'JPY', 'TWD', 'THB', 'KRW', 'USD', 'MOP', 'GBP', 'EUR'])).filter(Boolean).slice(0, 9);
 
       // ── 智能提示欄邏輯 (StatusBar) ──
@@ -1287,7 +1681,67 @@
 
           {/* Main Content Area */}
           <main className="w-full px-4 py-6 md:py-8 max-w-2xl mx-auto pb-24">
-            
+
+            {showRedaction && pendingRedactionImages[redactionIndex] && (
+              <div className="fixed inset-0 z-50 bg-slate-950/90 overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="receipt-redaction-title">
+                <div className="min-h-full w-full px-3 py-4 flex items-center justify-center">
+                  <Card className="w-full max-w-xl !p-4 sm:!p-6 shadow-2xl">
+                    <div className="flex items-start justify-between gap-3 mb-3">
+                      <div>
+                        <p className="text-xs font-bold uppercase tracking-wider text-brand-700">隱私保護</p>
+                        <h2 id="receipt-redaction-title" className="text-xl font-bold text-slate-900 mt-1">先遮蓋敏感資料</h2>
+                      </div>
+                      <button type="button" onClick={cancelReceiptRedaction} aria-label="取消此次掃描" className="w-10 h-10 shrink-0 rounded-xl border border-slate-400 text-slate-600 hover:bg-slate-100 text-2xl leading-none">×</button>
+                    </div>
+
+                    <div className="rounded-xl border border-amber-500 bg-amber-50 p-3 mb-4">
+                      <p className="text-sm font-semibold text-amber-900">手指在電話、卡號、會員號等資料上按住並拖動，畫出黑色實心遮蓋框。</p>
+                      <p className="text-xs text-amber-900 mt-1.5 leading-relaxed">請保留菜名、價格、稅費和日期。只有黑框內像素會被永久移除；框外內容仍會隨遮蓋版送到你設定的 AI 服務作 OCR。原圖不會用於 OCR、歷史儲存或分享。</p>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <button type="button" onClick={() => { setRedactionIndex(index => Math.max(0, index - 1)); setRedactionDrag(null); redactionDragRef.current = null; }} disabled={redactionIndex === 0 || isPreparingRedacted} className="px-3 py-2 rounded-lg border border-slate-400 bg-white text-sm font-semibold disabled:opacity-40">上一張</button>
+                      <div className="text-center text-sm font-bold text-slate-700">第 {redactionIndex + 1} / {pendingRedactionImages.length} 張<br/><span className="text-xs font-normal text-slate-500">已遮蓋 {(redactionMasks[redactionIndex] || []).length} 處</span></div>
+                      <button type="button" onClick={() => setRedactionMasks(current => { const next = current.slice(); next[redactionIndex] = []; return next; })} disabled={!(redactionMasks[redactionIndex] || []).length || isPreparingRedacted} className="px-3 py-2 rounded-lg border border-slate-400 bg-white text-sm font-semibold disabled:opacity-40">清除本張</button>
+                    </div>
+
+                    <div className="rounded-xl bg-slate-900 p-2 flex items-center justify-center min-h-[180px] overflow-hidden">
+                      <div className="relative inline-block max-w-full">
+                        <img
+                          key={redactionIndex}
+                          ref={redactionImageRef}
+                          src={`data:${pendingRedactionImages[redactionIndex].mimeType};base64,${pendingRedactionImages[redactionIndex].data}`}
+                          alt="待遮蓋的收據預覽"
+                          onLoad={() => setRedactionImageLoadedVersion(version => version + 1)}
+                          className="block max-w-full max-h-[52vh] w-auto object-contain select-none"
+                          draggable="false"
+                        />
+                        <canvas
+                          ref={redactionCanvasRef}
+                          aria-label="在此拖動框選要永久遮蓋的敏感資料"
+                          className="absolute inset-0 w-full h-full touch-none cursor-crosshair"
+                          onPointerDown={handleRedactionPointerDown}
+                          onPointerMove={handleRedactionPointerMove}
+                          onPointerUp={handleRedactionPointerUp}
+                          onPointerCancel={() => { redactionDragRef.current = null; setRedactionDrag(null); }}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex justify-between items-center gap-2 mt-2 mb-4">
+                      <p className="text-xs text-slate-500">用手指拖動框選；可畫多個黑框。</p>
+                      <button type="button" onClick={() => setRedactionMasks(current => { const next = current.slice(); next[redactionIndex] = (next[redactionIndex] || []).slice(0, -1); return next; })} disabled={!(redactionMasks[redactionIndex] || []).length || isPreparingRedacted} className="px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-600 border border-slate-400 disabled:opacity-40">撤銷上一框</button>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <button type="button" onClick={cancelReceiptRedaction} disabled={isPreparingRedacted} className="px-3 py-3 rounded-xl border border-slate-400 bg-white text-slate-700 font-bold text-sm disabled:opacity-50">取消此次掃描</button>
+                      <button type="button" onClick={() => redactionIndex < pendingRedactionImages.length - 1 ? setRedactionIndex(index => index + 1) : startOcrWithRedactedImages()} disabled={isPreparingRedacted} className="px-3 py-3 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-sm shadow-sm disabled:opacity-60">{isPreparingRedacted ? '正在製作遮蓋版…' : redactionIndex < pendingRedactionImages.length - 1 ? '下一張圖片' : '遮蓋完成，開始識別'}</button>
+                    </div>
+                  </Card>
+                </div>
+              </div>
+            )}
+
             {/* Step 1: Upload */}
             {step === 1 && !showSettings && !showHistory && !showTutorial && (
               <div className="space-y-6 animate-in fade-in duration-500">
@@ -1310,7 +1764,7 @@
                     </span>
                     <div className="flex-1">
                       <span className="block font-bold text-[15px] mb-0.5">
-                        {apiKey.trim() ? `✅ API 金鑰已設定 (${aiEngine === 'openrouter' ? 'OpenRouter' : 'Gemini'})` : '⚠️ 尚未設定 API 金鑰'}
+                        {apiKey.trim() ? '✅ OpenRouter API 金鑰已設定' : '⚠️ 尚未設定 API 金鑰'}
                       </span>
                       <span className={`block text-xs font-medium ${apiKey.trim() ? 'text-slate-500' : 'text-red-600'}`}>
                         {apiKey.trim() ? '系統已準備就緒，可進行高效 AI 辨識' : '點擊此處設定免費金鑰以啟用智能掃描'}
@@ -1437,19 +1891,52 @@
 
                 <div className="border-t border-slate-400 my-6 pt-6 space-y-6">
                   <div>
-                    <Label className="flex items-center justify-between mb-3"><span>1. 產生認領表發送給朋友</span></Label>
-                    <Button variant="secondary" onClick={() => copyToClipboard(generateFriendTemplate(), '認領模板')} className="w-full text-sm bg-white hover:bg-slate-50 border-slate-500">
-                      <Icon path={icons.copy} size={18} className="text-slate-600"/> 一鍵複製認領表單模板
+                    <Label className="flex items-center justify-between mb-3"><span>1. 產生手機認領連結發送給朋友</span></Label>
+                    <p className="text-xs text-slate-500 mb-3">朋友在手機瀏覽器填寫後，可自行透過 WhatsApp 分享回覆；項目名稱會包含在連結內。</p>
+                    <Button variant="secondary" onClick={generateFriendClaimLink} className="w-full text-sm bg-white hover:bg-slate-50 border-slate-500">
+                      <Icon path={icons.copy} size={18} className="text-slate-600"/> 複製手機認領連結
                     </Button>
+                    <div className="mt-4 rounded-xl border border-slate-400 bg-slate-50 p-3">
+                      <input
+                        type="file"
+                        multiple
+                        accept="image/*,.pdf,.txt,.md,.rtf,.doc,.docx,.odt,.csv,.xls,.xlsx,.ppt,.pptx"
+                        className="hidden"
+                        ref={claimAttachmentInputRef}
+                        onChange={handleClaimAttachmentSelection}
+                      />
+                      <div className="grid grid-cols-1 gap-2">
+                        <Button variant="outline" onClick={() => claimAttachmentInputRef.current?.click()} className="w-full !py-2.5 text-sm bg-white border-slate-500">＋ 選擇附件（圖片、文章或文字檔）</Button>
+                        <Button variant="primary" onClick={shareFriendClaimLinkWithAttachments} className="w-full !py-2.5 text-sm">分享認領連結{claimAttachments.length ? `＋ ${claimAttachments.length} 個附件` : ''}</Button>
+                      </div>
+                      <p className="text-xs text-slate-500 mt-2 leading-relaxed">附件會以實際檔案隨網址交給手機分享選單；不會寫入網址或朋友的認領頁。你可在分享選單選 WhatsApp 並確認傳送。最多 10 個檔案，合共 20 MB。</p>
+                      {claimAttachments.length > 0 && (
+                        <div className="mt-3 border-t border-slate-300 pt-3">
+                          <div className="flex items-center justify-between gap-2 mb-2">
+                            <p className="text-xs font-bold text-slate-700">已選 {claimAttachments.length} 個附件（{(claimAttachments.reduce((sum, file) => sum + file.size, 0) / (1024 * 1024)).toFixed(1)} MB）</p>
+                            <button type="button" onClick={() => { setClaimAttachments([]); if (claimAttachmentInputRef.current) claimAttachmentInputRef.current.value = ''; }} className="text-xs font-semibold text-red-700 hover:underline shrink-0">清除全部</button>
+                          </div>
+                          <ul className="space-y-1.5">
+                            {claimAttachments.map((file, index) => (
+                              <li key={`${file.name}-${file.size}-${file.lastModified}-${index}`} className="flex items-center gap-2 text-xs text-slate-600">
+                                <span className="min-w-0 flex-1 truncate" title={file.name}>{file.name}</span>
+                                <span className="shrink-0">{file.size < 1024 * 1024 ? `${Math.max(1, Math.round(file.size / 1024))} KB` : `${(file.size / (1024 * 1024)).toFixed(1)} MB`}</span>
+                                <button type="button" aria-label={`移除附件 ${file.name}`} onClick={() => setClaimAttachments(current => current.filter((_, itemIndex) => itemIndex !== index))} className="px-2 py-1 rounded border border-slate-400 bg-white text-slate-500 hover:text-red-700 hover:border-red-500">移除</button>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
                   </div>
                   
                   <div>
                     <Label required={friendsReplies.length === 0} className="flex items-center justify-between mb-3">
-                      <span>2. 貼上朋友們的回覆</span>
+                      <span>2. 貼上朋友透過 WhatsApp 傳回的回覆</span>
                     </Label>
                     <textarea 
                       ref={el => fieldRefs.current.replies = el} value={friendsReplies} onChange={(e) => {setFriendsReplies(e.target.value); setReconciliation(null); setStepError('');}} onPaste={handlePasteReplies} onFocus={onFocusReplies} onBlur={onBlurReplies}
-                      placeholder="在此處貼上朋友們填妥的認領表... (支援連續貼上多份回覆)" 
+                      placeholder="在此處貼上朋友透過 WhatsApp 傳回的認領內容... (支援連續貼上多份回覆)"
                       className="w-full h-48 bg-white border border-slate-500 rounded-xl p-4 text-sm font-mono text-slate-700 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none resize-y shadow-inner leading-relaxed">
                     </textarea>
                   </div>
@@ -1524,12 +2011,12 @@
                   </div>
                   
                   <div>
-                    <Label className="text-lg mb-3">收款方式 (Payment Method)</Label>
+                    <Label className="text-lg mb-3">收款方式 (Payment Method，可多選)</Label>
                     <div className="flex flex-wrap gap-2.5">
                       {paymentOptions.map(pm => (
-                        <button 
-                          key={pm} onClick={() => setPaymentMethod(pm)} 
-                          className={`px-4 py-2.5 rounded-xl border font-bold text-sm transition-all outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 ${paymentMethod === pm ? 'border-brand-600 bg-brand-50 text-brand-700 shadow-sm' : 'border-slate-500 bg-white text-slate-600 hover:bg-slate-50'}`}
+                        <button
+                          key={pm} onClick={() => setPaymentMethods(current => current.includes(pm) ? current.filter(method => method !== pm) : [...current, pm])} aria-pressed={paymentMethods.includes(pm)}
+                          className={`px-4 py-2.5 rounded-xl border font-bold text-sm transition-all outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 ${paymentMethods.includes(pm) ? 'border-brand-600 bg-brand-50 text-brand-700 shadow-sm' : 'border-slate-500 bg-white text-slate-600 hover:bg-slate-50'}`}
                         >
                           {pm}
                         </button>
@@ -1568,14 +2055,29 @@
                   <h2 className="text-2xl font-bold text-slate-800 tracking-tight">最終分帳報告</h2>
                 </div>
 
+                {lastImageData.length > 0 && (
+                  <Card className="!p-4 border-amber-500 bg-amber-50">
+                    <label className="flex items-start gap-3 cursor-pointer">
+                      <input type="checkbox" checked={includeReceiptImages} onChange={event => setIncludeReceiptImages(event.target.checked)} className="w-5 h-5 mt-0.5 text-brand-600 focus:ring-brand-500" />
+                      <div>
+                        <div className="font-bold text-slate-800">附上實體單副本（{lastImageData.length} 張）</div>
+                        <p className="text-xs text-slate-600 mt-1 leading-relaxed">勾選後，按「分享」會把報告及單據圖片交給手機分享選單；你再選 WhatsApp 和收件人並確認傳送。</p>
+                      </div>
+                    </label>
+                  </Card>
+                )}
+
                 {/* Simplified Result */}
                 <Card className="!p-0 overflow-hidden border-t-4 border-t-brand-600">
-                  <div className="p-4 bg-slate-50 flex items-center justify-between border-b border-slate-400">
+                  <div className="p-4 bg-slate-50 border-b border-slate-400">
                     <div>
                       <h3 className="font-bold text-slate-800 text-base">💰 追數版報告 (精簡)</h3>
                       <p className="text-xs text-slate-500 font-medium mt-0.5">適合直接轉發至群組追數</p>
                     </div>
-                    <Button onClick={() => copyToClipboard(getSimplifiedResult(), '追數版')} variant="outline" className="!px-3 !py-1.5 !w-auto text-sm bg-white hover:bg-brand-50 border-slate-500 text-slate-700 hover:text-brand-700 hover:border-brand-500"><Icon path={icons.copy} size={16}/> 複製文字</Button>
+                    <div className="flex gap-2 mt-3">
+                      <Button onClick={() => shareCurrentReport(getSimplifiedResult(), '分帳追數結果及實體單')} variant="primary" className="flex-1 !w-auto !px-2 !py-2 text-sm">分享報告</Button>
+                      <Button onClick={() => copyToClipboard(getSimplifiedResult(), '追數版')} variant="outline" className="flex-1 !w-auto !px-2 !py-2 text-sm bg-white hover:bg-brand-50 border-slate-500 text-slate-700 hover:text-brand-700 hover:border-brand-500"><Icon path={icons.copy} size={16}/> 複製文字</Button>
+                    </div>
                   </div>
                   <div className="p-5 bg-white font-mono text-sm text-slate-700 whitespace-pre-wrap break-words leading-relaxed selection:bg-brand-100">{getSimplifiedResult()}</div>
                 </Card>
@@ -1583,12 +2085,13 @@
                 {/* Detailed Result */}
                 <Card className="!p-0 overflow-hidden">
                   <div className="p-4 bg-slate-50 border-b border-slate-400">
-                    <div className="flex items-center justify-between mb-4">
-                      <div>
-                        <h3 className="font-bold text-slate-800 text-base">🧾 詳細明細版</h3>
-                        <p className="text-xs text-slate-500 font-medium mt-0.5">列出各人具體消費項目以供核對</p>
-                      </div>
-                      <Button onClick={() => copyToClipboard(getDetailedResult(detailLang), '詳細版')} variant="secondary" className="!px-3 !py-1.5 !w-auto text-sm bg-white border-slate-500"><Icon path={icons.copy} size={16}/> 複製</Button>
+                    <div className="mb-3">
+                      <h3 className="font-bold text-slate-800 text-base">🧾 詳細明細版</h3>
+                      <p className="text-xs text-slate-500 font-medium mt-0.5">列出各人具體消費項目以供核對</p>
+                    </div>
+                    <div className="flex gap-2 mb-4">
+                      <Button onClick={() => shareCurrentReport(getDetailedResult(detailLang), '分帳詳細明細及實體單')} variant="primary" className="flex-1 !w-auto !px-2 !py-2 text-sm">分享詳細版</Button>
+                      <Button onClick={() => copyToClipboard(getDetailedResult(detailLang), '詳細版')} variant="secondary" className="flex-1 !w-auto !px-2 !py-2 text-sm bg-white border-slate-500"><Icon path={icons.copy} size={16}/> 複製文字</Button>
                     </div>
                     
                     <div className="flex bg-slate-200/60 p-1 rounded-lg border border-slate-400">
@@ -1600,9 +2103,10 @@
                 </Card>
                 
                 <div className="pt-2">
-                  <Button onClick={saveCurrentRecord} disabled={isSaved} className={`w-full ${isSaved ? 'bg-slate-100 text-brand-700 border border-brand-500' : ''}`}>
-                    {isSaved ? <><Icon path={icons.check} size={20}/> 紀錄已儲存</> : <><Icon path={icons.save} size={20}/> 儲存此分帳紀錄</>}
+                  <Button onClick={saveCurrentRecord} disabled={isSaved || isSavingRecord} className={`w-full ${isSaved ? 'bg-slate-100 text-brand-700 border border-brand-500' : ''}`}>
+                    {isSavingRecord ? '正在儲存…' : isSaved ? <><Icon path={icons.check} size={20}/> {lastImageData.length ? `紀錄及 ${lastImageData.length} 張單據已儲存在本機` : '紀錄已儲存'}</> : <><Icon path={icons.save} size={20}/> {lastImageData.length ? `儲存分帳紀錄及 ${lastImageData.length} 張實體單` : '儲存此分帳紀錄'}</>}
                   </Button>
+                  {lastImageData.length > 0 && <p className="text-xs text-slate-500 text-center mt-2">收據圖片只保存在這部裝置；不會上傳到伺服器。儲存紀錄後，可到「歷史紀錄」再次分享。</p>}
                 </div>
                 
                 <div className="flex gap-3 pt-2">
@@ -1665,8 +2169,7 @@
                 </Accordion>
 
                 <Accordion title="🔑 6. AI 設定與鎖匙" tone="slate" icon={icons.key}>
-                  <p className="text-sm text-slate-800 leading-relaxed mb-2"><strong className="text-slate-900">OpenRouter</strong>：推薦香港人使用，免 VPN，速度快。只需去官網申請免費鎖匙。</p>
-                  <p className="text-sm text-slate-800 leading-relaxed mb-3"><strong className="text-slate-900">Gemini 模式</strong>：需要全程開啟 VPN 才能申請同埋使用鎖匙。</p>
+                  <p className="text-sm text-slate-800 leading-relaxed mb-3">目前只支援 OpenRouter 作單據分析；請先到 OpenRouter 官網申請並設定 API 金鑰。</p>
                   <div className="bg-slate-50 border border-slate-400 rounded-xl p-3 text-sm space-y-1.5">
                     <p className="font-bold text-slate-800">記住我的鎖匙（免每次重輸）</p>
                     <p className="text-slate-600 text-xs">在設定勾選「記住鎖匙」，只存本機，唔會上傳。共用電腦請勿勾選。</p>
@@ -1719,6 +2222,17 @@
                           <Button variant="secondary" className="flex-1 !py-2 !text-sm !px-2 bg-white border-slate-500" onClick={() => copyToClipboard(record.detailedText, '詳細版')}><Icon path={icons.copy} size={16}/> 詳細版</Button>
                           <button onClick={() => deleteRecord(record.id)} className="px-3 py-2 bg-white border border-slate-500 text-slate-500 rounded-xl hover:bg-red-50 hover:text-red-700 hover:border-red-500 shrink-0 transition-colors"><Icon path={icons.trash} size={18}/></button>
                         </div>
+                        {Number(record.receiptImageCount) > 0 && (
+                          <div className="px-4 pb-4">
+                            <p className="text-xs text-slate-600 mb-2">📎 本機收據副本：{record.receiptImageCount} 張</p>
+                            <div className="grid grid-cols-2 gap-2">
+                              <Button variant="outline" className="!w-auto !py-2 !px-2 !text-xs bg-white" disabled={!Array.isArray(savedReceiptFiles[record.id]) || !savedReceiptFiles[record.id].length} onClick={() => shareSavedRecord(record, 'simplified')}>{receiptHistoryLoading[record.id] ? '正在讀取…' : '分享追數版＋單據'}</Button>
+                              <Button variant="secondary" className="!w-auto !py-2 !px-2 !text-xs bg-white" disabled={!Array.isArray(savedReceiptFiles[record.id]) || !savedReceiptFiles[record.id].length} onClick={() => shareSavedRecord(record, 'detailed')}>{receiptHistoryLoading[record.id] ? '正在讀取…' : '分享詳細版＋單據'}</Button>
+                            </div>
+                            {savedReceiptFiles[record.id] === null && <p className="text-xs text-red-600 mt-2">此裝置找不到收據圖片；可能已清除網站資料。</p>}
+                            {Array.isArray(savedReceiptFiles[record.id]) && savedReceiptFiles[record.id].length === 0 && <p className="text-xs text-red-600 mt-2">本機歷史中沒有收據圖片副本。</p>}
+                          </div>
+                        )}
                       </Card>
                     ))}
                   </div>
@@ -1731,28 +2245,16 @@
                   <h2 className="text-xl font-bold flex items-center gap-2 text-slate-800"><Icon path={icons.settings} className="text-slate-600"/> 系統設定</h2>
                   <Card>
                     <Label className="text-base mb-3">API 服務供應商</Label>
-                    <div className="space-y-3 mb-6">
-                      <label className={`flex items-start gap-4 p-4 rounded-xl border cursor-pointer transition-all ${aiEngine === 'openrouter' ? 'bg-brand-50 border-brand-500 shadow-sm' : 'bg-white border-slate-500 hover:bg-slate-50'}`}>
-                        <input type="radio" checked={aiEngine === 'openrouter'} onChange={() => { setAiEngine('openrouter'); setIsEditingKey(!keys.openrouter); }} className="w-5 h-5 mt-0.5 text-brand-600 focus:ring-brand-500" />
-                        <div>
-                          <div className={`font-bold text-base ${aiEngine === 'openrouter' ? 'text-brand-900' : 'text-slate-800'}`}>OpenRouter (強烈推薦)</div>
-                          <div className="text-xs text-slate-600 font-medium mt-1">香港地區免 VPN，速度極快且穩定。</div>
-                        </div>
-                      </label>
-                      <label className={`flex items-start gap-4 p-4 rounded-xl border cursor-pointer transition-all ${aiEngine === 'gemini' ? 'bg-brand-50 border-brand-500 shadow-sm' : 'bg-white border-slate-500 hover:bg-slate-50'}`}>
-                        <input type="radio" checked={aiEngine === 'gemini'} onChange={() => { setAiEngine('gemini'); setIsEditingKey(!keys.gemini); }} className="w-5 h-5 mt-0.5 text-brand-600 focus:ring-brand-500" />
-                        <div>
-                          <div className={`font-bold text-base ${aiEngine === 'gemini' ? 'text-brand-900' : 'text-slate-800'}`}>Google Gemini API</div>
-                          <div className="text-xs font-bold text-red-700 bg-red-50 border border-red-300 inline-block px-2 py-0.5 rounded mt-1.5">⚠️ 限制：香港地區需全程開啟 VPN</div>
-                        </div>
-                      </label>
+                    <div className="mb-6 rounded-xl border border-brand-500 bg-brand-50 p-4">
+                      <div className="font-bold text-base text-brand-900">OpenRouter</div>
+                      <p className="text-xs text-slate-600 font-medium mt-1">目前本程式使用 OpenRouter 進行單據 OCR。</p>
                     </div>
 
                     <div className="border-t border-slate-400 pt-6 space-y-5">
                       <div>
                         <Label className="text-base flex justify-between items-center">
                           API 金鑰 (Key)
-                          <a href={aiEngine === 'openrouter' ? "https://openrouter.ai/settings/keys" : "https://aistudio.google.com/app/apikey"} target="_blank" className="text-sm text-brand-700 hover:text-brand-800 underline font-semibold">取得免費金鑰 ↗</a>
+                          <a href="https://openrouter.ai/settings/keys" target="_blank" rel="noreferrer" className="text-sm text-brand-700 hover:text-brand-800 underline font-semibold">取得 API 金鑰 ↗</a>
                         </Label>
                         {!isEditingKey && apiKey ? (
                           <div className="bg-slate-50 border border-slate-400 rounded-xl p-4 mt-2">
@@ -1788,7 +2290,7 @@
                           setRememberKey(shouldRemember);
                           try {
                             if (shouldRemember && apiKey.trim()) {
-                              const payload = JSON.stringify({ engine: aiEngine, keys, model: apiModel });
+                              const payload = JSON.stringify({ engine: 'openrouter', keys: { openrouter: apiKey.trim() }, model: apiModel });
                               localStorage.setItem('billSplitterApiConfig', payload);
                               sessionStorage.setItem('billSplitterApiConfig', payload);
                             } else if (!shouldRemember) {

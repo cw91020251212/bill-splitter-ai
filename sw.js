@@ -8,12 +8,12 @@
  *   - Same-origin static assets: stale-while-revalidate.
  *   - CDN scripts (React / Tailwind / Babel): cache-first, refreshed in the
  *     background. These are what make the app usable offline.
- *   - AI API calls (openrouter.ai, googleapis.com): never cached.
+ *   - AI API calls (openrouter.ai): never cached.
  *
  * Bump CACHE_VERSION whenever you edit index.html so returning users get the
  * new build instead of the cached one.
  */
-const CACHE_VERSION = 'v10';
+const CACHE_VERSION = 'v16';
 const SHELL_CACHE = `bill-splitter-shell-${CACHE_VERSION}`;
 const ASSET_CACHE = `bill-splitter-assets-${CACHE_VERSION}`;
 const CDN_CACHE = `bill-splitter-cdn-${CACHE_VERSION}`;
@@ -22,6 +22,7 @@ const KEEP = [SHELL_CACHE, ASSET_CACHE, CDN_CACHE];
 const SHELL_URLS = [
   './',
   './index.html',
+  './claim.html',
   './manifest.webmanifest',
   './icons/icon.svg',
   './icons/favicon.ico',
@@ -36,8 +37,6 @@ const SHELL_URLS = [
 // Hosts whose responses must never be stored.
 const NO_CACHE_HOSTS = [
   'openrouter.ai',
-  'generativelanguage.googleapis.com',
-  'aistudio.google.com',
   'static.cloudflareinsights.com'
 ];
 
@@ -121,7 +120,11 @@ self.addEventListener('fetch', (event) => {
           return fresh;
         } catch (e) {
           const cache = await caches.open(SHELL_CACHE);
+          const requestedPage = new URL(request.url).pathname.endsWith('/claim.html')
+            ? new URL('./claim.html', self.location).toString()
+            : new URL('./index.html', self.location).toString();
           return (
+            (await cache.match(requestedPage)) ||
             (await cache.match('./index.html')) ||
             (await cache.match('./')) ||
             new Response(

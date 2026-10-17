@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="zh-HK">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#087f5b">
+  <meta name="description" content="在手機上填寫帳單項目認領，完成後自行透過 WhatsApp 傳回。">
+  <title>帳單認領｜分帳管家 AI</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --green: #087f5b;
+      --green-dark: #066447;
+      --green-soft: #e8f5ef;
+      --ink: #17231f;
+      --muted: #61716b;
+      --line: #d5e0da;
+      --paper: #fff;
+      --page: #f3f7f4;
+      --danger: #b42318;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans HK", "PingFang HK", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { background: var(--page); }
+    body { margin: 0; color: var(--ink); background: var(--page); -webkit-font-smoothing: antialiased; }
+    button, input, textarea { font: inherit; }
+    .page { width: min(100%, 640px); margin: 0 auto; padding: 0 16px calc(28px + env(safe-area-inset-bottom)); }
+    .hero { padding: calc(22px + env(safe-area-inset-top)) 4px 18px; }
+    .brand { display: inline-flex; align-items: center; gap: 8px; color: var(--green-dark); font-size: 13px; font-weight: 800; letter-spacing: .02em; }
+    .brand-mark { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 10px; background: var(--green); color: white; font-size: 16px; }
+    h1 { margin: 14px 0 6px; font-size: clamp(25px, 7vw, 32px); line-height: 1.2; letter-spacing: -.03em; }
+    .hero p { margin: 0; color: var(--muted); font-size: 15px; line-height: 1.55; }
+    .panel { margin: 0 0 14px; padding: 18px; border: 1px solid var(--line); border-radius: 18px; background: var(--paper); box-shadow: 0 5px 18px rgba(19, 53, 38, .045); }
+    .notice { display: flex; gap: 11px; align-items: flex-start; color: #305b48; background: var(--green-soft); border-color: #c8e6d5; font-size: 13px; line-height: 1.55; }
+    .notice .icon { flex: 0 0 auto; font-size: 18px; }
+    .field-label, legend { display: block; margin: 0 0 8px; font-size: 14px; font-weight: 750; }
+    .hint { margin: 7px 0 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+    .name-input, .qty-input, .preview {
+      width: 100%; min-height: 48px; border: 1px solid #b9c9c0; border-radius: 12px; background: white; color: var(--ink);
+      outline: none; transition: border-color .15s, box-shadow .15s;
+    }
+    .name-input, .qty-input { padding: 12px 13px; font-size: 16px; }
+    .name-input:focus, .qty-input:focus, .preview:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(8,127,91,.13); }
+    .items-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 22px 2px 10px; }
+    .items-heading h2 { margin: 0; font-size: 17px; }
+    .count { flex: 0 0 auto; padding: 5px 9px; border-radius: 999px; color: var(--green-dark); background: var(--green-soft); font-size: 12px; font-weight: 750; }
+    .item-list { display: grid; gap: 11px; }
+    .item-card { padding: 15px; border: 1px solid var(--line); border-radius: 15px; background: white; }
+    .item-heading { display: flex; align-items: flex-start; gap: 11px; }
+    .item-id { flex: 0 0 auto; display: grid; place-items: center; width: 35px; height: 35px; border-radius: 11px; background: #edf4ef; color: var(--green-dark); font-size: 13px; font-weight: 850; }
+    .item-title { min-width: 0; margin: 1px 0 0; font-size: 16px; line-height: 1.4; overflow-wrap: anywhere; }
+    .item-meta { margin: 4px 0 0 46px; color: var(--muted); font-size: 12px; }
+    fieldset { min-width: 0; margin: 15px 0 12px; padding: 0; border: 0; }
+    legend { margin-bottom: 8px; font-size: 12px; color: var(--muted); }
+    .qty-row { display: flex; align-items: center; gap: 9px; }
+    .qty-input { flex: 1; min-width: 0; }
+    .form-feedback { min-height: 19px; margin: 9px 2px 0; color: var(--danger); font-size: 13px; line-height: 1.4; }
+    .preview-panel { margin-top: 18px; }
+    .preview-title { margin: 0 0 5px; font-size: 17px; }
+    .preview-subtitle { margin: 0 0 12px; color: var(--muted); font-size: 13px; line-height: 1.5; }
+    .preview { min-height: 150px; padding: 12px; resize: vertical; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 14px; line-height: 1.6; }
+    .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-top: 12px; }
+    .button { min-height: 48px; padding: 11px 10px; border: 1px solid var(--green); border-radius: 12px; color: var(--green-dark); background: white; font-size: 14px; font-weight: 750; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+    .button.primary { color: white; background: var(--green); }
+    .button:active { transform: scale(.985); }
+    .button:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+    .share-help { margin: 11px 2px 0; color: var(--muted); font-size: 12px; line-height: 1.55; }
+    .load-error { padding: 17px; color: #7a271a; border: 1px solid #f4c7c3; border-radius: 15px; background: #fff4f2; line-height: 1.6; }
+    .load-error strong { display: block; margin-bottom: 4px; }
+    .footer { padding: 8px 4px 0; color: #73817b; text-align: center; font-size: 11px; line-height: 1.5; }
+    .toast { position: fixed; z-index: 10; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom)); width: max-content; max-width: calc(100% - 32px); padding: 12px 16px; transform: translateX(-50%); border-radius: 12px; color: white; background: #173c2e; box-shadow: 0 8px 26px rgba(0,0,0,.2); font-size: 14px; font-weight: 700; }
+    [hidden] { display: none !important; }
+    @media (max-width: 380px) {
+      .panel { padding: 15px; }
+      .actions { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="hero">
+      <div class="brand"><span class="brand-mark" aria-hidden="true">✓</span><span>分帳管家 AI</span></div>
+      <h1>填寫你的認領</h1>
+      <p>在每項填入你認領的份數，填好後把回覆自行傳回發起人即可。</p>
+    </header>
+
+    <main>
+      <section id="load-error" class="load-error" role="alert" hidden>
+        <strong>打不開這份認領表</strong>
+        連結資料不完整或格式不正確。請向發起人索取最新的認領連結。
+      </section>
+
+      <div id="claim-content" hidden>
+        <section class="panel notice" aria-label="填寫說明">
+          <span class="icon" aria-hidden="true">ℹ️</span>
+          <div><strong>數字本身就是份數。</strong>例如 0.5＝半份、1＝一份、2＝兩份；留空或填 0 代表沒有認領。</div>
+        </section>
+
+        <form id="claim-form" novalidate>
+          <section class="panel">
+            <label class="field-label" for="person-name">你的姓名</label>
+            <input id="person-name" class="name-input" type="text" maxlength="60" autocomplete="name" placeholder="例如：阿明" required>
+            <p class="hint">請用發起人認得的名字，回覆會用這個名字標示。</p>
+          </section>
+
+          <div class="items-heading">
+            <h2>帳單項目</h2>
+            <span id="item-count" class="count"></span>
+          </div>
+          <section id="item-list" class="item-list" aria-label="帳單項目"></section>
+          <p id="form-feedback" class="form-feedback" role="status" aria-live="polite"></p>
+
+          <section class="panel preview-panel">
+            <h2 class="preview-title">認領回覆預覽</h2>
+            <p class="preview-subtitle">會列出項目名稱、編號和認領數量，並沿用原程式的 WhatsApp 排版，方便發起人核對。</p>
+            <textarea id="reply-preview" class="preview" readonly aria-label="認領回覆文字預覽" placeholder="先填姓名和至少一項數量，回覆文字便會顯示在這裡。"></textarea>
+            <div class="actions">
+              <button id="share-button" class="button primary" type="button" disabled>分享回覆</button>
+              <button id="copy-button" class="button" type="button" disabled>複製回覆文字</button>
+            </div>
+            <p class="share-help">按「分享回覆」後，在手機分享清單選 WhatsApp、選擇發起人，再自行按發送。亦可先複製文字，再貼到 WhatsApp。</p>
+          </section>
+        </form>
+      </div>
+    </main>
+
+    <footer class="footer">此頁不會自動發送訊息或收集回覆。認領資料只在你的瀏覽器內整理；項目名稱已包含在邀請連結中。</footer>
+  </div>
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+  <script>
+    (() => {
+      const loadError = document.getElementById('load-error');
+      const content = document.getElementById('claim-content');
+      const form = document.getElementById('claim-form');
+      const itemList = document.getElementById('item-list');
+      const itemCount = document.getElementById('item-count');
+      const nameInput = document.getElementById('person-name');
+      const feedback = document.getElementById('form-feedback');
+      const preview = document.getElementById('reply-preview');
+      const shareButton = document.getElementById('share-button');
+      const copyButton = document.getElementById('copy-button');
+      const toastElement = document.getElementById('toast');
+      let toastTimer;
+      let items = [];
+
+      function decodeBase64Url(value) {
+        const base64 = value.replace(/-/g, '+').replace(/_/g, '/');
+        const padded = base64 + '='.repeat((4 - base64.length % 4) % 4);
+        const binary = atob(padded);
+        const bytes = Uint8Array.from(binary, character => character.charCodeAt(0));
+        return new TextDecoder().decode(bytes);
+      }
+
+      function loadItems() {
+        const hash = window.location.hash.slice(1);
+        const data = new URLSearchParams(hash).get('data');
+        if (!data) throw new Error('Missing item data');
+        const parsed = JSON.parse(decodeBase64Url(data));
+        if (!Array.isArray(parsed) || parsed.length < 1 || parsed.length > 200) throw new Error('Invalid item list');
+        const cleanItems = parsed.map(item => ({
+          id: String(item?.id ?? ''),
+          name: String(item?.name ?? '').trim().slice(0, 200),
+          totalQty: Number.isFinite(Number(item?.totalQty)) && Number(item.totalQty) > 0 ? Number(item.totalQty) : null,
+          unit: String(item?.unit ?? '').replace(/[\r\n=＝]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 30)
+        }));
+        const ids = new Set();
+        for (const item of cleanItems) {
+          if (!/^\d{2}$/.test(item.id) || !item.name || ids.has(item.id)) throw new Error('Invalid item');
+          ids.add(item.id);
+        }
+        return cleanItems;
+      }
+
+      function makeElement(tag, className, text) {
+        const node = document.createElement(tag);
+        if (className) node.className = className;
+        if (text !== undefined) node.textContent = text;
+        return node;
+      }
+
+      function renderItems() {
+        itemCount.textContent = `${items.length} 項`;
+        items.forEach((item, index) => {
+          const card = makeElement('article', 'item-card');
+          const heading = makeElement('div', 'item-heading');
+          heading.append(makeElement('span', 'item-id', item.id));
+          heading.append(makeElement('h3', 'item-title', item.name));
+          card.append(heading);
+          if (item.totalQty && item.unit) {
+            card.append(makeElement('p', 'item-meta', `單據共 ${item.totalQty} ${item.unit}`));
+          }
+
+          const qtyLabel = makeElement('label', 'field-label', '認領份數');
+          qtyLabel.htmlFor = `qty-${index}`;
+          card.append(qtyLabel);
+          const qtyRow = makeElement('div', 'qty-row');
+          const qtyInput = document.createElement('input');
+          qtyInput.className = 'qty-input'; qtyInput.id = `qty-${index}`;
+          qtyInput.type = 'text'; qtyInput.inputMode = item.totalQty && item.unit ? 'text' : 'decimal'; qtyInput.autocomplete = 'off';
+          qtyInput.maxLength = 24; qtyInput.placeholder = '例如：0.5、1、2';
+          qtyInput.setAttribute('aria-label', `${item.id} ${item.name} 認領份數`);
+          qtyInput.dataset.itemIndex = String(index);
+          qtyRow.append(qtyInput);
+          card.append(qtyRow);
+          card.append(makeElement('p', 'hint', item.totalQty && item.unit
+            ? `數字直接代表份數：0.5 是半份，2 是兩份。若要按實際單位計，可在數字後加「${item.unit}」（例如 3 ${item.unit}）；只填數字仍是份數。留空或 0 代表不認領。`
+            : '數字直接代表份數：0.5 是半份，1 是一份，2 是兩份。留空或 0 代表不認領。'));
+          itemList.append(card);
+        });
+
+        itemList.addEventListener('input', updatePreview);
+      }
+
+      function getReply() {
+        const person = nameInput.value.trim().replace(/[\r\n]+/g, ' ');
+        if (!person) return { text: '', error: '請先填寫你的姓名。', complete: false };
+        if (/[:：=＝]/.test(person)) return { text: '', error: '姓名請勿包含冒號或等號。', complete: false };
+        const lines = [
+          '🧾 *分帳認領回覆* 🧾',
+          `👤 姓名：${person}`,
+          '━━━━━━━━━━━━━━',
+          '🍽️ *我認領的項目*'
+        ];
+        let claims = 0;
+        for (const card of itemList.querySelectorAll('.item-card')) {
+          const input = card.querySelector('.qty-input');
+          const raw = input.value.trim();
+          if (!raw) continue;
+          const parsedValue = raw.match(/^(\d+(?:\.\d*)?|\.\d+)\s*(.*)$/);
+          if (!parsedValue) {
+            return { text: '', error: `「${items[Number(input.dataset.itemIndex)].name}」請輸入數字，例如 0.5、1 或 2。`, complete: false };
+          }
+          const value = Number(parsedValue[1]);
+          if (!Number.isFinite(value) || value < 0) {
+            return { text: '', error: '數量不能是負數，請檢查輸入。', complete: false };
+          }
+          const index = Number(input.dataset.itemIndex);
+          const item = items[index];
+          const enteredUnit = parsedValue[2].trim();
+          if (enteredUnit && (!item.totalQty || !item.unit)) {
+            return { text: '', error: `「${item.name}」請只填數字份數。`, complete: false };
+          }
+          if (enteredUnit && enteredUnit !== item.unit) {
+            return { text: '', error: `「${item.name}」的單位請填「${item.unit}」，或只填數字代表份數。`, complete: false };
+          }
+          if (value === 0) continue;
+          const normalized = parsedValue[1].replace(/^0+(?=\d)/, '').replace(/^(?=\.)/, '0').replace(/\.$/, '');
+          const displayName = item.name.replace(/[\r\n=＝]/g, ' ').replace(/\s+/g, ' ').trim();
+          const quantity = enteredUnit
+            ? `實際數量 = ${normalized} ${item.unit}`
+            : `認領份數 = ${normalized}`;
+          lines.push(`🔶 *${item.id} ${displayName}*　👉🏻 ${quantity}`);
+          claims++;
+        }
+        if (!claims) return { text: '', error: '請至少填寫一項大於 0 的認領數量。', complete: false };
+        lines.push('━━━━━━━━━━━━━━', '✅ *已填妥，請發回給發起人。*');
+        return { text: lines.join('\n'), error: '', complete: true };
+      }
+
+      function updatePreview() {
+        const result = getReply();
+        preview.value = result.text;
+        feedback.textContent = result.error;
+        shareButton.disabled = !result.complete;
+        copyButton.disabled = !result.complete;
+      }
+
+      function showToast(message) {
+        toastElement.textContent = message;
+        toastElement.hidden = false;
+        window.clearTimeout(toastTimer);
+        toastTimer = window.setTimeout(() => { toastElement.hidden = true; }, 2600);
+      }
+
+      async function copyText(text) {
+        if (navigator.clipboard && window.isSecureContext) {
+          try { await navigator.clipboard.writeText(text); return true; } catch (_) {}
+        }
+        const temporary = document.createElement('textarea');
+        temporary.value = text; temporary.setAttribute('readonly', '');
+        temporary.style.position = 'fixed'; temporary.style.opacity = '0';
+        document.body.append(temporary); temporary.select();
+        let copied = false;
+        try { copied = document.execCommand('copy'); } catch (_) {}
+        temporary.remove();
+        return copied;
+      }
+
+      nameInput.addEventListener('input', updatePreview);
+      form.addEventListener('submit', event => event.preventDefault());
+      copyButton.addEventListener('click', async () => {
+        const result = getReply();
+        if (!result.complete) { updatePreview(); return; }
+        showToast(await copyText(result.text) ? '已複製，可貼到 WhatsApp 傳回。' : '無法自動複製，請選取預覽文字複製。');
+      });
+      shareButton.addEventListener('click', async () => {
+        const result = getReply();
+        if (!result.complete) { updatePreview(); return; }
+        if (!navigator.share) {
+          showToast(await copyText(result.text) ? '已複製，請貼到 WhatsApp 傳回。' : '此瀏覽器未支援分享，請手動複製預覽文字。');
+          return;
+        }
+        try {
+          await navigator.share({ title: '帳單認領回覆', text: result.text });
+        } catch (error) {
+          if (error?.name !== 'AbortError') showToast('分享未完成；你仍可按「複製回覆文字」。');
+        }
+      });
+
+      try {
+        items = loadItems();
+        renderItems();
+        content.hidden = false;
+        updatePreview();
+      } catch (_) {
+        loadError.hidden = false;
+      }
+    })();
+  </script>
+</body>
+</html>

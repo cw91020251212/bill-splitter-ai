@@ -11,12 +11,14 @@
 
 ```
 bill-splitter-ai/
-├── index.html                  ← 主程式（你原本個 App，邏輯 100% 無改）
+├── index.html                  ← 主程式（OCR 前遮蓋敏感資料；核對與分帳計算維持原流程）
+├── claim.html                  ← 手機認領頁（朋友填寫後自行分享回覆）
 ├── manifest.webmanifest        ← PWA 設定（App 名、顏色、圖示）
 ├── sw.js                       ← Service worker（離線快取）
 ├── pwa.js                      ← 安裝提示 + 更新提示
-├── .nojekyll                   ← 叫 GitHub Pages 唔好用 Jekyll 處理
+├── .nojekyll                  ← 叫 GitHub Pages 唔好用 Jekyll 處理
 ├── README.md
+├── MOBILE_TEST.md             ← 本機手機測試步驟
 ├── LICENSE
 └── icons/
     ├── icon.svg                ← 向量原圖（可無限放大）
@@ -83,7 +85,7 @@ bill-splitter-ai/
 | 開 App、睇介面 | ✅ 可以 |
 | 手動輸入項目、計分帳 | ✅ 可以 |
 | 睇歷史紀錄、匯出 CSV | ✅ 可以 |
-| 複製認領表／結果 | ✅ 可以 |
+| 產生認領連結／複製分帳結果 | ✅ 可以 |
 | **AI 讀單據（拍照識別）** | ❌ 需要網絡（要呼叫 AI 服務） |
 
 App 本身偵測到離線會自動提示你改用手動輸入。
@@ -92,11 +94,11 @@ App 本身偵測到離線會自動提示你改用手動輸入。
 
 ## 改完 index.html 之後（重要）
 
-Service worker 會快取舊版本。你更新完 `index.html`，請同時開 `sw.js`，
-將第一行的版本號加一：
+Service worker 會快取舊版本。你更新完 `index.html` 或 `claim.html`，請同時開 `sw.js`，
+將 `CACHE_VERSION` 的版本號加一：
 
 ```js
-const CACHE_VERSION = 'v1';   // 改成 'v2'、'v3' …
+const CACHE_VERSION = 'v16';  // 下一次改成 'v17'，之後依序遞增
 ```
 
 咁舊用戶下次開就會收到「🔄 有新版本可用」提示，按「更新」即可。
@@ -108,9 +110,11 @@ const CACHE_VERSION = 'v1';   // 改成 'v2'、'v3' …
 
 - 冇後端、冇伺服器，你嘅單據同金額**唔會**傳去我哋任何地方。
 - 歷史紀錄存在瀏覽器 `localStorage`，只在你部機。
+- 認領連結會在網址片段中帶有項目編號、名稱及可用單位資料；瀏覽器不會將網址片段傳送給網站伺服器，但任何收到連結的人都能看見這些項目。
+- 朋友填寫的認領內容只在其瀏覽器內整理；不會自動上傳或回傳，朋友須自行透過 WhatsApp 分享或複製文字傳回。
 - 你嘅 AI API key 只存在你部機；`sw.js` 已明確設定**永不快取**
-  `openrouter.ai` 同 `googleapis.com` 嘅請求。
-- 上傳嘅單據圖片只會直接傳去你自己揀嘅 AI 供應商（OpenRouter／Google）。
+  `openrouter.ai` 嘅請求。
+- 上傳嘅單據圖片只會直接傳到 OpenRouter 作 OCR 分析。
 
 ⚠️ 提醒：如果你 fork 或公開個 repo，記住**唔好**將 API key 寫死在 code 入面。
 呢個 App 設計上係要用戶自己輸入 key，key 只留在瀏覽器。
