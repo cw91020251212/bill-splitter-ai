@@ -98,7 +98,7 @@ Service worker 會快取舊版本。你更新完 `index.html` 或 `claim.html`�
 將 `CACHE_VERSION` 的版本號加一：
 
 ```js
-const CACHE_VERSION = 'v16';  // 下一次改成 'v17'，之後依序遞增
+const CACHE_VERSION = 'v21';  // 下一次改成 'v22'，之後依序遞增
 ```
 
 咁舊用戶下次開就會收到「🔄 有新版本可用」提示，按「更新」即可。

@@ -69,8 +69,9 @@
       trash: '<path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/>',
       plus: '<line x1="12" x2="12" y1="5" y2="19"/><line x1="5" x2="19" y1="12" y2="12"/>',
       copy: '<rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>',
+      share: '<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>',
       arrowRight: '<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',
-      settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>',
+      settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2h.09a1.65 1.65 0 0 0 1.51-1z"/>',
       calculator: '<rect width="16" height="20" x="4" y="2" rx="2"/><line x1="8" x2="16" y1="6" y2="6"/><line x1="16" x2="16" y1="14" y2="18"/><path d="M16 10h.01"/><path d="M12 10h.01"/><path d="M8 10h.01"/><path d="M12 14h.01"/><path d="M8 14h.01"/><path d="M12 18h.01"/><path d="M8 18h.01"/>',
       loader: '<path d="M21 12a9 9 0 1 1-6.219-8.56"/>',
       check: '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>',
@@ -406,16 +407,25 @@
 
     const RECEIPT_DB_NAME = 'billSplitterLocalData';
     const RECEIPT_STORE_NAME = 'receipts';
-    const openReceiptDatabase = () => new Promise((resolve, reject) => {
+    const openReceiptDatabase = (timeoutMs = 0) => new Promise((resolve, reject) => {
       if (!window.indexedDB) { reject(new Error('此瀏覽器不支援本機單據儲存')); return; }
       const request = window.indexedDB.open(RECEIPT_DB_NAME, 1);
+      let settled = false;
+      let timer;
+      const fail = (error) => { if (!settled) { settled = true; clearTimeout(timer); reject(error); } };
+      if (timeoutMs) timer = setTimeout(() => fail(new Error('開啟本機儲存逾時')), timeoutMs);
       request.onupgradeneeded = () => {
+        if (settled) { request.transaction.abort(); return; }
         if (!request.result.objectStoreNames.contains(RECEIPT_STORE_NAME)) {
           request.result.createObjectStore(RECEIPT_STORE_NAME, { keyPath: 'recordId' });
         }
       };
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error || new Error('無法開啟本機單據儲存'));
+      request.onsuccess = () => {
+        if (settled) { request.result.close(); return; }
+        settled = true; clearTimeout(timer); resolve(request.result);
+      };
+      request.onerror = () => fail(request.error || new Error('無法開啟本機單據儲存'));
+      request.onblocked = () => { if (timeoutMs) fail(new Error('本機儲存被其他分頁阻塞')); };
     });
     const receiptExtension = (mimeType) => mimeType === 'image/png' ? 'png' : mimeType === 'image/webp' ? 'webp' : 'jpg';
     const receiptBase64ToBlob = (image) => {
@@ -479,6 +489,35 @@
       } finally {
         db.close();
       }
+    };
+
+    const ACTIVE_DRAFT_KEY = 'billSplitterActiveDraftV1';
+    const ACTIVE_DRAFT_ASSETS_ID = 'active-bill-draft-assets-v1';
+    const accessActiveDraftAssets = async (operation, snapshot) => {
+      const db = await openReceiptDatabase(5000);
+      try {
+        return await new Promise((resolve, reject) => {
+          const transaction = db.transaction(RECEIPT_STORE_NAME, operation === 'read' ? 'readonly' : 'readwrite');
+          const store = transaction.objectStore(RECEIPT_STORE_NAME);
+          let result = null;
+          if (operation === 'read') {
+            const request = store.get(ACTIVE_DRAFT_ASSETS_ID);
+            request.onsuccess = () => { result = request.result || null; };
+          } else if (operation === 'delete') {
+            store.delete(ACTIVE_DRAFT_ASSETS_ID);
+          } else {
+            store.put({
+              recordId: ACTIVE_DRAFT_ASSETS_ID,
+              revision: snapshot.revision,
+              images: snapshot.images.map(image => ({ data: image.data, mimeType: image.mimeType })),
+              attachments: snapshot.attachments.map(file => ({ name: file.name, type: file.type, lastModified: file.lastModified, blob: file }))
+            });
+          }
+          transaction.oncomplete = () => resolve(result);
+          transaction.onerror = () => reject(transaction.error || new Error('無法存取帳單草稿附件'));
+          transaction.onabort = () => reject(transaction.error || new Error('帳單草稿附件存取中止'));
+        });
+      } finally { db.close(); }
     };
 
     const createRedactedReceiptFile = (imageData, masks, index, quality = 0.92) => new Promise((resolve, reject) => {
@@ -577,12 +616,173 @@
       const [claimInfo, setClaimInfo] = useState(null);
       const [claimAttachments, setClaimAttachments] = useState([]);
       const claimAttachmentInputRef = useRef(null);
+      const [showClaimShareDialog, setShowClaimShareDialog] = useState(false);
+      const claimShareDialogRef = useRef(null);
+      useEffect(() => {
+        if (!showClaimShareDialog) return;
+        const dialog = claimShareDialogRef.current;
+        if (!dialog) return;
+        const previousOverflow = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        dialog.showModal();
+        return () => {
+          if (dialog.open) dialog.close();
+          document.body.style.overflow = previousOverflow;
+        };
+      }, [showClaimShareDialog]);
       const [reconciliation, setReconciliation] = useState(null);
       const fieldRefs = useRef({});
 
       const [kbOpen, setKbOpen] = useState(false);
       const [statusExpanded, setStatusExpanded] = useState(false);
       const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+      const [draftReady, setDraftReady] = useState(false);
+      const [draftNotice, setDraftNotice] = useState('');
+      const [draftSaveError, setDraftSaveError] = useState('');
+      const [draftAssetStatus, setDraftAssetStatus] = useState('saved');
+      const restoredDraftAssetsRef = useRef(null);
+      const persistedDraftAssetRevisionRef = useRef(null);
+      const draftAssetQueueRef = useRef(Promise.resolve());
+      const draftSnapshotRef = useRef(null);
+      const draftAssets = useMemo(() => {
+        const restored = restoredDraftAssetsRef.current;
+        const matchesRestored = restored && restored.images === lastImageData && restored.attachments === claimAttachments;
+        return {
+          revision: matchesRestored ? restored.revision : `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+          unavailable: Boolean(matchesRestored && restored.unavailable),
+          images: lastImageData,
+          attachments: claimAttachments
+        };
+      }, [lastImageData, claimAttachments]);
+      const hasDraftWork = Boolean(items.length || friendsReplies.trim() || results || lastImageData.length || claimAttachments.length || draftAssets.unavailable);
+      const hasDraftAssets = Boolean(lastImageData.length || claimAttachments.length);
+      draftSnapshotRef.current = {
+        ready: draftReady, hasWork: hasDraftWork, schema: 1,
+        assetRevision: draftAssets.revision, hasAssets: hasDraftAssets || draftAssets.unavailable,
+        data: { step, items, taxAmount, taxNote, friendsReplies, payer, detectedCurrency, currency,
+          taxSplitMethod, paymentMethods, results, reconciliation, isSaved, includeReceiptImages, detailLang }
+      };
+      const persistActiveDraft = () => {
+        const snapshot = draftSnapshotRef.current;
+        if (!snapshot?.ready) return false;
+        try {
+          if (snapshot.hasWork) {
+            const { ready, hasWork, ...record } = snapshot;
+            localStorage.setItem(ACTIVE_DRAFT_KEY, JSON.stringify({ ...record, updatedAt: new Date().toISOString() }));
+          } else localStorage.removeItem(ACTIVE_DRAFT_KEY);
+          setDraftSaveError('');
+          return true;
+        } catch (error) {
+          setDraftSaveError('本機草稿未能保存。請勿關閉頁面或切換 App；請允許網站儲存資料、釋放空間或先複製報告備份。');
+          return false;
+        }
+      };
+
+      useEffect(() => {
+        let cancelled = false;
+        const restore = async () => {
+          try {
+            const raw = localStorage.getItem(ACTIVE_DRAFT_KEY);
+            if (!raw) return;
+            const record = JSON.parse(raw);
+            if (record.schema !== 1 || !record.data || !Array.isArray(record.data.items)) throw new Error('不支援的草稿格式');
+            const data = record.data;
+            const restoredItems = data.items.filter(item => item && typeof item.id === 'string' && typeof item.name === 'string');
+            let images = [], attachments = [], assetsMissing = false;
+            if (record.hasAssets) {
+              let timer;
+              try {
+                const assets = await Promise.race([
+                  accessActiveDraftAssets('read'),
+                  new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('讀取附件逾時')), 5000); })
+                ]);
+                if (!assets || assets.revision !== record.assetRevision) throw new Error('附件版本不符');
+                images = (assets.images || []).filter(image => typeof image.data === 'string' && typeof image.mimeType === 'string');
+                attachments = (assets.attachments || []).filter(file => file.blob instanceof Blob).map(file =>
+                  new File([file.blob], file.name || 'attachment', { type: file.type || file.blob.type, lastModified: file.lastModified || Date.now() }));
+                persistedDraftAssetRevisionRef.current = record.assetRevision;
+                restoredDraftAssetsRef.current = { revision: record.assetRevision, images, attachments };
+              } catch (error) {
+                assetsMissing = true;
+                restoredDraftAssetsRef.current = { revision: record.assetRevision, images, attachments, unavailable: true };
+              }
+              finally { clearTimeout(timer); }
+            }
+            if (cancelled) return;
+            setItems(restoredItems);
+            [[setTaxAmount, 'taxAmount'], [setTaxNote, 'taxNote'], [setFriendsReplies, 'friendsReplies'], [setPayer, 'payer']]
+              .forEach(([setter, key]) => setter(typeof data[key] === 'string' || typeof data[key] === 'number' ? String(data[key]) : ''));
+            setCurrency(typeof data.currency === 'string' ? data.currency : 'HKD');
+            setDetectedCurrency(typeof data.detectedCurrency === 'string' ? data.detectedCurrency : 'HKD');
+            setTaxSplitMethod(['equal', 'proportional'].includes(data.taxSplitMethod) ? data.taxSplitMethod : 'proportional');
+            setPaymentMethods(Array.isArray(data.paymentMethods) ? data.paymentMethods.filter(method => ['轉數快 (FPS)', 'PayMe', '現金', '銀行轉帳', 'Alipay'].includes(method)) : ['轉數快 (FPS)']);
+            const restoredResults = data.results && typeof data.results.personTotals === 'object' && data.results.personTotals ? data.results : null;
+            setResults(restoredResults);
+            setReconciliation(data.reconciliation && Array.isArray(data.reconciliation.issues) ? data.reconciliation : null);
+            setIsSaved(Boolean(data.isSaved));
+            setDetailLang(data.detailLang === 'full' ? 'full' : 'zh');
+            setLastImageData(images); setClaimAttachments(attachments);
+            setIncludeReceiptImages(Boolean(data.includeReceiptImages && images.length));
+            let restoredStep = [1, 2, 3, 4].includes(data.step) ? data.step : 2;
+            if (!restoredItems.length && restoredStep > 1) restoredStep = 1;
+            if (restoredStep === 4 && !restoredResults) restoredStep = 3;
+            if (restoredStep >= 3 && !String(data.friendsReplies || '').trim()) restoredStep = 2;
+            setStep(restoredStep);
+            if (restoredStep === 1 && images.length) setUploadError('已恢復遮蓋後的單據圖片；可按重試識別，毋須重新上傳。');
+            setDraftNotice(assetsMissing
+              ? '已恢復帳單文字及結果，但本機附件未能讀取，請重新選擇圖片／附件。'
+              : '已自動恢復上次帳單，可繼續認領、計算或分享。');
+          } catch (error) {
+            if (!cancelled) setDraftNotice('未能讀取本機草稿；請檢查是否使用同一瀏覽器及網址。');
+          } finally { if (!cancelled) setDraftReady(true); }
+        };
+        restore();
+        return () => { cancelled = true; };
+      }, []);
+
+      useEffect(() => {
+        if (!draftReady) return;
+        persistActiveDraft();
+      }, [draftReady, step, items, taxAmount, taxNote, friendsReplies, payer, detectedCurrency, currency,
+        taxSplitMethod, paymentMethods, results, reconciliation, isSaved, includeReceiptImages, detailLang, draftAssets]);
+
+      useEffect(() => {
+        if (!draftReady) return;
+        const onHidden = () => { if (document.visibilityState === 'hidden') persistActiveDraft(); };
+        const onPageHide = () => persistActiveDraft();
+        document.addEventListener('visibilitychange', onHidden);
+        window.addEventListener('pagehide', onPageHide);
+        return () => {
+          document.removeEventListener('visibilitychange', onHidden);
+          window.removeEventListener('pagehide', onPageHide);
+        };
+      }, [draftReady]);
+
+      useEffect(() => {
+        if (!draftReady) return;
+        const snapshot = draftAssets;
+        if (snapshot.unavailable) { setDraftAssetStatus('error'); return; }
+        const containsAssets = Boolean(snapshot.images.length || snapshot.attachments.length);
+        if (containsAssets && persistedDraftAssetRevisionRef.current === snapshot.revision) { setDraftAssetStatus('saved'); return; }
+        setDraftAssetStatus(containsAssets ? 'saving' : 'saved');
+        draftAssetQueueRef.current = draftAssetQueueRef.current.catch(() => {}).then(async () => {
+          await accessActiveDraftAssets(containsAssets ? 'write' : 'delete', snapshot);
+          persistedDraftAssetRevisionRef.current = containsAssets ? snapshot.revision : null;
+          if (draftSnapshotRef.current.assetRevision === snapshot.revision) setDraftAssetStatus('saved');
+        }).catch(() => {
+          if (draftSnapshotRef.current.assetRevision === snapshot.revision && containsAssets) setDraftAssetStatus('error');
+        });
+      }, [draftReady, draftAssets]);
+
+      const ensureDraftSavedForSharing = () => {
+        if (!persistActiveDraft()) { toast('⚠️ 本機草稿未能保存，暫不切換 App；請先備份帳單或檢查網站儲存權限。', 'error'); return false; }
+        if (hasDraftAssets && persistedDraftAssetRevisionRef.current !== draftAssets.revision) {
+          toast(draftAssetStatus === 'error' ? '⚠️ 附件草稿未能保存，暫不切換 App；請檢查網站儲存權限及剩餘空間。' : '⏳ 正在保存本機附件，完成後請再按分享。', 'error');
+          return false;
+        }
+        return true;
+      };
 
       useEffect(() => {
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -842,16 +1042,17 @@
           let filesSupported = false;
           try { filesSupported = typeof navigator.canShare === 'function' && navigator.canShare({ files: shareFiles }); } catch (error) {}
           if (!filesSupported) {
-            toast('⚠️ 此瀏覽器不支援將文件與文字一起分享；可先複製認領連結，再於 WhatsApp 手動附加檔案，或改用手機 Safari／Chrome。', 'error');
+            toast('⚠️ 此瀏覽器不支援分享附件；請改用手機 Safari／Chrome，或於 WhatsApp 手動附加檔案。', 'error');
             return;
           }
         }
         if (typeof navigator.share !== 'function') {
-          if (shareFiles.length) { toast('⚠️ 此瀏覽器無法將附件與認領連結一起分享；請複製連結後於 WhatsApp 手動附加檔案。', 'error'); return; }
+          if (shareFiles.length) { toast('⚠️ 此瀏覽器無法分享附件；請於 WhatsApp 手動附加圖片或檔案。', 'error'); return; }
           copyToClipboard(text, title);
           return;
         }
-        const shareData = { title, text };
+        const shareData = {};
+        if (text) { shareData.title = title; shareData.text = text; }
         if (shareFiles.length) shareData.files = shareFiles;
         try {
           navigator.share(shareData).catch(error => {
@@ -863,24 +1064,34 @@
       };
 
       const shareCurrentReport = (text, title) => {
+        if (!ensureDraftSavedForSharing()) return;
+        shareTextWithFiles(text, [], title);
+      };
+
+      const shareCurrentReceipts = () => {
+        if (!includeReceiptImages || !lastImageData.length) return;
+        if (!ensureDraftSavedForSharing()) return;
         try {
-          const files = includeReceiptImages ? receiptEntriesToFiles(lastImageData) : [];
-          shareTextWithFiles(text, files, title);
+          shareTextWithFiles('', receiptEntriesToFiles(lastImageData), '');
         } catch (error) {
           toast('⚠️ 無法讀取本次單據圖片，請重新選擇圖片後再試。', 'error');
         }
       };
 
       const shareSavedRecord = (record, reportType) => {
+        if (reportType !== 'receipts') {
+          const text = reportType === 'detailed' ? (record.detailedText || record.detailedFullText) : record.simplifiedText;
+          const title = reportType === 'detailed' ? '分帳詳細明細' : '分帳追數結果';
+          shareTextWithFiles(text, [], title);
+          return;
+        }
         const entries = savedReceiptFiles[record.id];
         if (!Array.isArray(entries) || entries.length === 0) {
           toast(receiptHistoryLoading[record.id] ? '⏳ 正在讀取本機收據圖片，請稍後再按。' : '⚠️ 找不到此紀錄的本機收據副本。', 'error');
           return;
         }
         try {
-          const text = reportType === 'detailed' ? (record.detailedText || record.detailedFullText) : record.simplifiedText;
-          const title = reportType === 'detailed' ? '分帳詳細明細及實體單' : '分帳追數結果及實體單';
-          shareTextWithFiles(text, receiptEntriesToFiles(entries), title);
+          shareTextWithFiles('', receiptEntriesToFiles(entries), '');
         } catch (error) {
           toast('⚠️ 無法讀取本機收據圖片，請稍後再試。', 'error');
         }
@@ -903,10 +1114,11 @@
         setStepError(''); setItems([]); setFriendsReplies(''); setResults(null);
         setIsSaved(false); setIsSavingRecord(false); setIncludeReceiptImages(false); setLastImageData([]); setTaxAmount(''); setTaxNote('');
         setClaimAttachments([]); if (claimAttachmentInputRef.current) claimAttachmentInputRef.current.value = '';
+        setPayer(''); setTaxSplitMethod('proportional'); setReconciliation(null); setDetailLang('zh'); setDraftNotice('');
         setCurrency('HKD'); setDetectedCurrency('HKD'); setPaymentMethods(['轉數快 (FPS)']); setStep(1);
       };
 
-      const handleGoToStep2 = (manual = false) => { setStepError(''); if (manual) { setItems([]); setClaimAttachments([]); if (claimAttachmentInputRef.current) claimAttachmentInputRef.current.value = ''; } setStep(2); };
+      const handleGoToStep2 = () => { setStepError(''); setStep(2); };
       
       const handleGoToStep3 = () => {
         setStepError('');
@@ -1329,9 +1541,14 @@
         toast(`✅ 已加入 ${selectedFiles.length} 個附件`);
       };
 
+      const openClaimShareDialog = () => {
+        if (buildFriendClaimLink()) setShowClaimShareDialog(true);
+      };
+
       const shareFriendClaimLinkWithAttachments = () => {
         const link = buildFriendClaimLink();
         if (!link) return;
+        if (!ensureDraftSavedForSharing()) return;
         if (claimAttachments.length && (typeof navigator.share !== 'function' || typeof navigator.canShare !== 'function')) {
           toast('⚠️ 此瀏覽器無法將附件與網址一併分享；請用手機 Safari 或 Chrome，或先複製網址再於 WhatsApp 手動附加檔案。', 'error');
           return;
@@ -1451,10 +1668,10 @@
         const others = Object.keys(results.personTotals).filter(p => p !== payer);
         const curr = results.currency;
         const paymentLabel = paymentMethods.length ? paymentMethods.join('、') : '未指定';
-        let txt = `💰 *分帳結果* 💰\n📅 ${results.date}\n💳 請過數俾：*${payer}*\n💵 付款方式：${paymentLabel}\n💴 結算貨幣：*${getCurrencyName(curr)}*\n━━━━━━━━━━━━━━\n`;
-        others.forEach(person => { txt += `👤 *${person}*\n　　應付 ➡️ *${formatMoney(results.personTotals[person].total, curr)}*\n`; });
+        let txt = `💰 *分帳結果｜各人應付金額與收款資料* 💰\n📅 ${results.date} · 💴 結算貨幣：*${getCurrencyName(curr)}*\n💳 請過數俾：*${payer}*\n💵 付款方式：${paymentLabel}\n────────\n`;
+        others.forEach(person => { txt += `👤 *${person}* — 應付 ➡️ *${formatMoney(results.personTotals[person].total, curr)}*\n\n`; });
         if (others.length === 0) txt += `（只有墊支人一位，無需過數）\n`;
-        txt += `━━━━━━━━━━━━━━\n`;
+        txt += `────────\n`;
         const owed = others.reduce((s, p) => s + results.personTotals[p].total, 0);
         txt += `📊 應收合計：*${formatMoney(owed, curr)}*\n`;
         if (results.personTotals[payer]) txt += `🙋 ${payer} 自己一份：${formatMoney(results.personTotals[payer].total, curr)}\n`;
@@ -1467,30 +1684,31 @@
         const full = mode === 'full';
         const curr = results.currency;
         const paymentLabel = paymentMethods.length ? paymentMethods.join('、') : '未指定';
-        let txt = `🧾 *分帳詳細明細* 🧾\n📅 ${results.date}\n💳 墊支人：${payer}\n💵 付款方式：${paymentLabel}\n💴 結算貨幣：${getCurrencyName(curr)}\n⚖️ 稅／服務費：${taxSplitMethod === 'equal' ? '全部人平均分' : '按消費比例分'}\n━━━━━━━━━━━━━━\n\n`;
+        const oneLineName = value => String(value || '').replace(/\s+/g, ' ').trim();
+        let txt = `🧾 *分帳詳細明細｜各人認領項目與應付金額* 🧾\n📅 ${results.date} · 💴 結算貨幣：${getCurrencyName(curr)}\n💳 墊支人：${payer}\n💵 付款方式：${paymentLabel}\n⚖️ 稅／服務費：${taxSplitMethod === 'equal' ? '全部人平均分' : '按消費比例分'}\n────────\n\n`;
         let grandTotal = 0;
         Object.keys(results.personTotals).forEach(person => {
           const p = results.personTotals[person];
           txt += `👤 *${person}*\n`;
           p.items.forEach(i => {
-            txt += `　▫️ ${i.id} ${i.name}\n`;
-            if (full && i.original && i.original !== i.name) txt += `　　　🌐 原文：${i.original}\n`;
-            if (full && i.ja && i.ja !== i.original) txt += `　　　🇯🇵 日文：${i.ja}\n`;
+            txt += `*${i.id}* ${oneLineName(i.name)}\n`;
+            if (full && i.original && i.original !== i.name) txt += `🌐 原文：${oneLineName(i.original)}\n`;
+            if (full && i.ja && i.ja !== i.original) txt += `🇯🇵 日文：${oneLineName(i.ja)}\n`;
             const share = i.isActualUnit ? `（${i.qty} ${i.unit || i.unitName || '單位'}，按實際單位）` : `（${i.qty}/${i.totalClaimed} 份比例）`;
-            txt += `　　　💲 ${formatMoney(i.amount, curr)}${share}\n`;
+            txt += `💲 ${formatMoney(i.amount, curr)} ${share}\n\n`;
           });
           (p.adjustments || []).forEach(a => {
-            txt += `　▫️ ${a.name} 未認領數量由此人承擔\n`;
-            txt += `　　　💲 ${formatMoney(a.amount, curr)}（${a.qty} ${a.unit}，${a.reason}）\n`;
+            txt += `${oneLineName(a.name)}\n未認領數量由此人承擔\n`;
+            txt += `💲 ${formatMoney(a.amount, curr)}（${a.qty} ${a.unit}，${a.reason}）\n\n`;
           });
-          if (p.tax > 0) txt += `　▫️ 稅／服務費分攤　💲 ${formatMoney(p.tax, curr)}\n`;
-          txt += `　▶️ *應付：${formatMoney(p.total, curr)}*\n━━━━━━━━━━━━━━\n`;
+          if (p.tax > 0) txt += `▫️ 稅／服務費分攤 💲 ${formatMoney(p.tax, curr)}\n`;
+          txt += `▶️ *應付：${formatMoney(p.total, curr)}*\n────────\n`;
           grandTotal += p.total;
         });
         const itemsSum = items.reduce((sum, item) => sum + toNum(item.total), 0);
         const billTotal = itemsSum + toNum(taxAmount);
         const diff = Math.abs(grandTotal - billTotal);
-        txt += `\n📊 *總核對*\n　項目小計：${formatMoney(itemsSum, curr)}\n　稅／服務費：${formatMoney(taxAmount, curr)}\n　單據總計：${formatMoney(billTotal, curr)}\n　各人合計：${formatMoney(grandTotal, curr)}\n　差額：${formatMoney(diff, curr)} ${diff < 0.05 ? '✅' : '⚠️ 請檢查認領數量'}\n`;
+        txt += `\n📊 *總核對*\n項目小計：${formatMoney(itemsSum, curr)}\n稅／服務費：${formatMoney(taxAmount, curr)}\n單據總計：${formatMoney(billTotal, curr)}\n各人合計：${formatMoney(grandTotal, curr)}\n差額：${formatMoney(diff, curr)} ${diff < 0.05 ? '✅' : '⚠️ 請檢查認領數量'}\n`;
         if (full && taxNote) txt += `\n📝 稅費來源：${taxNote}\n`;
         return txt;
       };
@@ -1681,6 +1899,15 @@
 
           {/* Main Content Area */}
           <main className="w-full px-4 py-6 md:py-8 max-w-2xl mx-auto pb-24">
+            {!draftReady && <div className="fixed inset-0 z-[70] flex items-center justify-center bg-white/95 text-slate-700" role="status">正在檢查本機帳單草稿…</div>}
+            {draftReady && (hasDraftWork || draftNotice || draftSaveError) && (
+              <div data-testid="draft-status" className="mb-4 rounded-xl border border-slate-300 bg-slate-50 p-3 text-xs leading-relaxed text-slate-700" role="status" aria-live="polite">
+                {draftNotice && <p className="font-semibold mb-1">{draftNotice}</p>}
+                {draftSaveError || ((hasDraftAssets || draftAssets.unavailable) && draftAssetStatus === 'error') ? (
+                  <p role="alert" className="font-semibold text-red-700">{draftSaveError || '本機附件草稿未能保存，暫不切換 App；請檢查網站儲存權限及剩餘空間。'}</p>
+                ) : <p>{hasDraftAssets && draftAssetStatus === 'saving' ? '正在保存本機圖片／附件，完成後才可分享…' : '草稿已自動保存於本機。切換 App 後請回到同一瀏覽器、同一網址繼續；清除網站資料會刪除草稿。'}</p>}
+              </div>
+            )}
 
             {showRedaction && pendingRedactionImages[redactionIndex] && (
               <div className="fixed inset-0 z-50 bg-slate-950/90 overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="receipt-redaction-title">
@@ -1893,23 +2120,32 @@
                   <div>
                     <Label className="flex items-center justify-between mb-3"><span>1. 產生手機認領連結發送給朋友</span></Label>
                     <p className="text-xs text-slate-500 mb-3">朋友在手機瀏覽器填寫後，可自行透過 WhatsApp 分享回覆；項目名稱會包含在連結內。</p>
-                    <Button variant="secondary" onClick={generateFriendClaimLink} className="w-full text-sm bg-white hover:bg-slate-50 border-slate-500">
-                      <Icon path={icons.copy} size={18} className="text-slate-600"/> 複製手機認領連結
-                    </Button>
-                    <div className="mt-4 rounded-xl border border-slate-400 bg-slate-50 p-3">
+                    <div data-testid="claim-link-actions" className="flex flex-col gap-3">
+                      <Button variant="secondary" onClick={generateFriendClaimLink} className="!w-full text-sm bg-white hover:bg-slate-50 border-slate-500">
+                        <Icon path={icons.copy} size={18} className="text-slate-600"/> 複製認領連結
+                      </Button>
+                      <Button variant="primary" onClick={openClaimShareDialog} className="!w-full text-sm">
+                        <Icon path={icons.share} size={18}/> 分享認領連結＋（單據圖片）
+                      </Button>
+                    </div>
+                    <p className="text-xs text-slate-500 mt-2 leading-relaxed">只需網址請按複製；按分享後可選單據圖片，再於手機分享選單選 WhatsApp 傳送。</p>
+                    {showClaimShareDialog && (
+                    <dialog ref={claimShareDialogRef} onCancel={() => setShowClaimShareDialog(false)} aria-labelledby="claim-share-title" className="m-auto max-w-lg rounded-2xl border border-slate-400 bg-white p-4 text-slate-800 shadow-xl overflow-y-auto backdrop:bg-slate-950/60" style={{ width: 'calc(100% - 2rem)', maxHeight: '85dvh' }}>
+                      <div className="flex items-center justify-between gap-2 mb-3">
+                        <h2 id="claim-share-title" className="font-bold text-base">分享認領連結＋（單據圖片）</h2>
+                        <button type="button" aria-label="關閉分享視窗" onClick={() => setShowClaimShareDialog(false)} className="shrink-0 rounded-lg p-2 hover:bg-slate-100"><Icon path={icons.x} size={20}/></button>
+                      </div>
+                      <label htmlFor="claim-share-files" className="block text-sm font-semibold mb-2">單據圖片／其他附件（可選）</label>
                       <input
+                        id="claim-share-files"
                         type="file"
                         multiple
                         accept="image/*,.pdf,.txt,.md,.rtf,.doc,.docx,.odt,.csv,.xls,.xlsx,.ppt,.pptx"
-                        className="hidden"
+                        className="block w-full min-w-0 rounded-lg border border-slate-400 bg-slate-50 p-2 text-sm file:mr-2 file:rounded-lg file:border-0 file:bg-slate-200 file:px-3 file:py-2 file:text-slate-800"
                         ref={claimAttachmentInputRef}
                         onChange={handleClaimAttachmentSelection}
                       />
-                      <div className="grid grid-cols-1 gap-2">
-                        <Button variant="outline" onClick={() => claimAttachmentInputRef.current?.click()} className="w-full !py-2.5 text-sm bg-white border-slate-500">＋ 選擇附件（圖片、文章或文字檔）</Button>
-                        <Button variant="primary" onClick={shareFriendClaimLinkWithAttachments} className="w-full !py-2.5 text-sm">分享認領連結{claimAttachments.length ? `＋ ${claimAttachments.length} 個附件` : ''}</Button>
-                      </div>
-                      <p className="text-xs text-slate-500 mt-2 leading-relaxed">附件會以實際檔案隨網址交給手機分享選單；不會寫入網址或朋友的認領頁。你可在分享選單選 WhatsApp 並確認傳送。最多 10 個檔案，合共 20 MB。</p>
+                      <p className="text-xs text-slate-500 mt-2 leading-relaxed">選好後按下方按鈕，再選 WhatsApp。未選圖片時只分享連結。附件不會寫入網址或朋友的認領頁；最多 10 個檔案，合共 20 MB。</p>
                       {claimAttachments.length > 0 && (
                         <div className="mt-3 border-t border-slate-300 pt-3">
                           <div className="flex items-center justify-between gap-2 mb-2">
@@ -1927,9 +2163,12 @@
                           </ul>
                         </div>
                       )}
-                    </div>
+                      <p className="mt-3 text-xs text-slate-600">{draftAssetStatus === 'saving' && hasDraftAssets ? '正在保存草稿附件，請稍候…' : '開啟分享選單前會確認本機草稿已保存。'}</p>
+                      <Button variant="primary" onClick={shareFriendClaimLinkWithAttachments} disabled={hasDraftAssets && draftAssetStatus === 'saving'} className="!w-full mt-4 text-sm"><Icon path={icons.share} size={18}/> 開啟手機分享選單</Button>
+                    </dialog>
+                    )}
                   </div>
-                  
+
                   <div>
                     <Label required={friendsReplies.length === 0} className="flex items-center justify-between mb-3">
                       <span>2. 貼上朋友透過 WhatsApp 傳回的回覆</span>
@@ -1943,7 +2182,7 @@
                 </div>
                 
                 <div className="flex gap-3 pt-2">
-                  <Button variant="secondary" className="w-1/3 !px-2 border-slate-500" onClick={handleGoToStep1}>上一步</Button>
+                  <Button variant="secondary" className="w-1/3 !px-2 border-slate-500" onClick={() => { setStepError(''); setStep(1); }}>上一步</Button>
                   <Button variant="primary" className="w-2/3" onClick={handleGoToStep3}>進行分帳運算 <Icon path={icons.arrowRight} size={18}/></Button>
                 </div>
               </div>
@@ -2060,8 +2299,8 @@
                     <label className="flex items-start gap-3 cursor-pointer">
                       <input type="checkbox" checked={includeReceiptImages} onChange={event => setIncludeReceiptImages(event.target.checked)} className="w-5 h-5 mt-0.5 text-brand-600 focus:ring-brand-500" />
                       <div>
-                        <div className="font-bold text-slate-800">附上實體單副本（{lastImageData.length} 張）</div>
-                        <p className="text-xs text-slate-600 mt-1 leading-relaxed">勾選後，按「分享」會把報告及單據圖片交給手機分享選單；你再選 WhatsApp 和收件人並確認傳送。</p>
+                        <div className="font-bold text-slate-800">需要另外分享實體單副本（{lastImageData.length} 張）</div>
+                        <p className="text-xs text-slate-600 mt-1 leading-relaxed">報告一律先以純文字分享，不夾帶圖片。勾選後，下面會出現第 2 步的單據圖片分享按鈕；是否勾選都不影響本機儲存收據。</p>
                       </div>
                     </label>
                   </Card>
@@ -2072,14 +2311,14 @@
                   <div className="p-4 bg-slate-50 border-b border-slate-400">
                     <div>
                       <h3 className="font-bold text-slate-800 text-base">💰 追數版報告 (精簡)</h3>
-                      <p className="text-xs text-slate-500 font-medium mt-0.5">適合直接轉發至群組追數</p>
+                      <p className="text-xs text-slate-500 font-medium mt-0.5">第 1 步：分享純文字報告，不附圖片</p>
                     </div>
                     <div className="flex gap-2 mt-3">
-                      <Button onClick={() => shareCurrentReport(getSimplifiedResult(), '分帳追數結果及實體單')} variant="primary" className="flex-1 !w-auto !px-2 !py-2 text-sm">分享報告</Button>
+                      <Button onClick={() => shareCurrentReport(getSimplifiedResult(), '分帳追數結果')} variant="primary" className="flex-1 !w-auto !px-2 !py-2 text-sm">分享報告</Button>
                       <Button onClick={() => copyToClipboard(getSimplifiedResult(), '追數版')} variant="outline" className="flex-1 !w-auto !px-2 !py-2 text-sm bg-white hover:bg-brand-50 border-slate-500 text-slate-700 hover:text-brand-700 hover:border-brand-500"><Icon path={icons.copy} size={16}/> 複製文字</Button>
                     </div>
                   </div>
-                  <div className="p-5 bg-white font-mono text-sm text-slate-700 whitespace-pre-wrap break-words leading-relaxed selection:bg-brand-100">{getSimplifiedResult()}</div>
+                  <div data-testid="final-summary-preview" className="p-4 bg-white font-sans text-sm text-slate-700 whitespace-pre-wrap break-words leading-relaxed selection:bg-brand-100">{getSimplifiedResult()}</div>
                 </Card>
 
                 {/* Detailed Result */}
@@ -2087,10 +2326,10 @@
                   <div className="p-4 bg-slate-50 border-b border-slate-400">
                     <div className="mb-3">
                       <h3 className="font-bold text-slate-800 text-base">🧾 詳細明細版</h3>
-                      <p className="text-xs text-slate-500 font-medium mt-0.5">列出各人具體消費項目以供核對</p>
+                      <p className="text-xs text-slate-500 font-medium mt-0.5">第 1 步也可改分享詳細版；同樣只發文字</p>
                     </div>
                     <div className="flex gap-2 mb-4">
-                      <Button onClick={() => shareCurrentReport(getDetailedResult(detailLang), '分帳詳細明細及實體單')} variant="primary" className="flex-1 !w-auto !px-2 !py-2 text-sm">分享詳細版</Button>
+                      <Button onClick={() => shareCurrentReport(getDetailedResult(detailLang), '分帳詳細明細')} variant="primary" className="flex-1 !w-auto !px-2 !py-2 text-sm">分享詳細版</Button>
                       <Button onClick={() => copyToClipboard(getDetailedResult(detailLang), '詳細版')} variant="secondary" className="flex-1 !w-auto !px-2 !py-2 text-sm bg-white border-slate-500"><Icon path={icons.copy} size={16}/> 複製文字</Button>
                     </div>
                     
@@ -2099,9 +2338,17 @@
                       <button onClick={() => setDetailLang('full')} className={`flex-1 py-1.5 rounded-md text-xs font-bold transition-all ${detailLang === 'full' ? 'bg-white text-slate-800 shadow border border-slate-300' : 'text-slate-600 hover:text-slate-800'}`}>包含原文 (供核對)</button>
                     </div>
                   </div>
-                  <div className="p-5 bg-white font-mono text-xs text-slate-600 whitespace-pre-wrap break-words leading-relaxed overflow-x-auto selection:bg-slate-200">{getDetailedResult(detailLang)}</div>
+                  <div data-testid="final-detail-preview" className="p-4 bg-white font-sans text-sm text-slate-600 whitespace-pre-wrap break-words leading-relaxed selection:bg-slate-200">{getDetailedResult(detailLang)}</div>
                 </Card>
-                
+
+                {includeReceiptImages && lastImageData.length > 0 && (
+                  <Card className="!p-4 border-brand-500 bg-brand-50">
+                    <h3 className="font-bold text-slate-800">第 2 步：另外分享單據圖片</h3>
+                    <p className="text-xs text-slate-600 mt-1 mb-3 leading-relaxed">送出文字報告後返回此頁，再按下方按鈕。這次只有 {lastImageData.length} 張已遮蓋的單據圖片，不會帶報告文字；請在 WhatsApp 再選同一位朋友或群組並確認。兩次分享都由你手動操作，不會自動接續傳送。</p>
+                    <Button onClick={shareCurrentReceipts} variant="outline" className="!w-full bg-white"><Icon path={icons.share} size={18}/> 另分享單據圖片（{lastImageData.length} 張）</Button>
+                  </Card>
+                )}
+
                 <div className="pt-2">
                   <Button onClick={saveCurrentRecord} disabled={isSaved || isSavingRecord} className={`w-full ${isSaved ? 'bg-slate-100 text-brand-700 border border-brand-500' : ''}`}>
                     {isSavingRecord ? '正在儲存…' : isSaved ? <><Icon path={icons.check} size={20}/> {lastImageData.length ? `紀錄及 ${lastImageData.length} 張單據已儲存在本機` : '紀錄已儲存'}</> : <><Icon path={icons.save} size={20}/> {lastImageData.length ? `儲存分帳紀錄及 ${lastImageData.length} 張實體單` : '儲存此分帳紀錄'}</>}
@@ -2225,9 +2472,11 @@
                         {Number(record.receiptImageCount) > 0 && (
                           <div className="px-4 pb-4">
                             <p className="text-xs text-slate-600 mb-2">📎 本機收據副本：{record.receiptImageCount} 張</p>
+                            <p className="text-xs text-slate-600 mb-2">先分享一款純文字報告，再另分享圖片；每次自行在 WhatsApp 選同一收件人並確認。</p>
                             <div className="grid grid-cols-2 gap-2">
-                              <Button variant="outline" className="!w-auto !py-2 !px-2 !text-xs bg-white" disabled={!Array.isArray(savedReceiptFiles[record.id]) || !savedReceiptFiles[record.id].length} onClick={() => shareSavedRecord(record, 'simplified')}>{receiptHistoryLoading[record.id] ? '正在讀取…' : '分享追數版＋單據'}</Button>
-                              <Button variant="secondary" className="!w-auto !py-2 !px-2 !text-xs bg-white" disabled={!Array.isArray(savedReceiptFiles[record.id]) || !savedReceiptFiles[record.id].length} onClick={() => shareSavedRecord(record, 'detailed')}>{receiptHistoryLoading[record.id] ? '正在讀取…' : '分享詳細版＋單據'}</Button>
+                              <Button variant="outline" className="!w-auto !py-2 !px-2 !text-xs bg-white" onClick={() => shareSavedRecord(record, 'simplified')}>分享追數版（純文字）</Button>
+                              <Button variant="secondary" className="!w-auto !py-2 !px-2 !text-xs bg-white" onClick={() => shareSavedRecord(record, 'detailed')}>分享詳細版（純文字）</Button>
+                              <Button variant="outline" className="col-span-2 !w-auto !py-2 !px-2 !text-xs bg-white" disabled={!Array.isArray(savedReceiptFiles[record.id]) || !savedReceiptFiles[record.id].length} onClick={() => shareSavedRecord(record, 'receipts')}>{receiptHistoryLoading[record.id] ? '正在讀取…' : '另分享歷史單據圖片'}</Button>
                             </div>
                             {savedReceiptFiles[record.id] === null && <p className="text-xs text-red-600 mt-2">此裝置找不到收據圖片；可能已清除網站資料。</p>}
                             {Array.isArray(savedReceiptFiles[record.id]) && savedReceiptFiles[record.id].length === 0 && <p className="text-xs text-red-600 mt-2">本機歷史中沒有收據圖片副本。</p>}
