@@ -1513,6 +1513,7 @@
         const payload = items.map(item => ({
           id: String(item.id),
           name: String(item.name || '').trim(),
+          ...(typeof item.original === 'string' && item.original.trim() ? { original: item.original.trim() } : {}),
           totalQty: toNum(item.totalQty) > 0 ? toNum(item.totalQty) : null,
           unit: String(item.unit || '').trim()
         }));
@@ -1545,16 +1546,18 @@
         if (buildFriendClaimLink()) setShowClaimShareDialog(true);
       };
 
-      const shareFriendClaimLinkWithAttachments = () => {
+      const shareFriendClaimLink = () => {
         const link = buildFriendClaimLink();
         if (!link) return;
         if (!ensureDraftSavedForSharing()) return;
-        if (claimAttachments.length && (typeof navigator.share !== 'function' || typeof navigator.canShare !== 'function')) {
-          toast('⚠️ 此瀏覽器無法將附件與網址一併分享；請用手機 Safari 或 Chrome，或先複製網址再於 WhatsApp 手動附加檔案。', 'error');
-          return;
-        }
         const message = `請打開以下連結填寫手機認領表：\n${link}`;
-        shareTextWithFiles(message, claimAttachments, '手機認領連結及附件');
+        shareTextWithFiles(message, [], '手機認領連結');
+      };
+
+      const shareClaimAttachments = () => {
+        if (!claimAttachments.length) return;
+        if (!ensureDraftSavedForSharing()) return;
+        shareTextWithFiles('', claimAttachments, '');
       };
 
       const copyToClipboard = (text, btnLabel) => {
@@ -2122,7 +2125,7 @@
                 <div className="border-t border-slate-400 my-6 pt-6 space-y-6">
                   <div>
                     <Label className="flex items-center justify-between mb-3"><span>1. 產生手機認領連結發送給朋友</span></Label>
-                    <p className="text-xs text-slate-500 mb-3">朋友在手機瀏覽器填寫後，可自行透過 WhatsApp 分享回覆；項目名稱會包含在連結內。</p>
+                    <p className="text-xs text-slate-500 mb-3">朋友在手機瀏覽器填寫後，可自行透過 WhatsApp 分享回覆；中文名稱及有提供的單據原文會包含在連結內，方便核對。</p>
                     <div data-testid="claim-link-actions" className="flex flex-col gap-3">
                       <Button variant="secondary" onClick={generateFriendClaimLink} className="!w-full text-sm bg-white hover:bg-slate-50 border-slate-500">
                         <Icon path={icons.copy} size={18} className="text-slate-600"/> 複製認領連結
@@ -2131,7 +2134,7 @@
                         <Icon path={icons.share} size={18}/> 分享認領連結＋（單據圖片）
                       </Button>
                     </div>
-                    <p className="text-xs text-slate-500 mt-2 leading-relaxed">只需網址請按複製；按分享後可選單據圖片，再於手機分享選單選 WhatsApp 傳送。</p>
+                    <p className="text-xs text-slate-500 mt-2 leading-relaxed">只需網址請按複製；按分享後先發一個認領連結。如有多張單據，再另外分享整批附件，不會把相同連結附到每張圖片。</p>
                     {showClaimShareDialog && (
                     <dialog ref={claimShareDialogRef} onCancel={() => setShowClaimShareDialog(false)} aria-labelledby="claim-share-title" className="m-auto max-w-lg rounded-2xl border border-slate-400 bg-white p-4 text-slate-800 shadow-xl overflow-y-auto backdrop:bg-slate-950/60" style={{ width: 'calc(100% - 2rem)', maxHeight: '85dvh' }}>
                       <div className="flex items-center justify-between gap-2 mb-3">
@@ -2148,7 +2151,7 @@
                         ref={claimAttachmentInputRef}
                         onChange={handleClaimAttachmentSelection}
                       />
-                      <p className="text-xs text-slate-500 mt-2 leading-relaxed">選好後按下方按鈕，再選 WhatsApp。未選圖片時只分享連結。附件不會寫入網址或朋友的認領頁；最多 10 個檔案，合共 20 MB。</p>
+                      <p className="text-xs text-slate-500 mt-2 leading-relaxed">合併的所有項目共用一個認領連結。為免 WhatsApp 在每張圖片重複顯示連結，請先完成第 1 步，再返回此視窗完成第 2 步；每次都自行選同一位朋友或群組並確認，不會自動接續發送。附件不會寫入網址或朋友的認領頁；最多 10 個檔案，合共 20 MB。</p>
                       {claimAttachments.length > 0 && (
                         <div className="mt-3 border-t border-slate-300 pt-3">
                           <div className="flex items-center justify-between gap-2 mb-2">
@@ -2167,7 +2170,10 @@
                         </div>
                       )}
                       <p className="mt-3 text-xs text-slate-600">{draftAssetStatus === 'saving' && hasDraftAssets ? '正在保存草稿附件，請稍候…' : '開啟分享選單前會確認本機草稿已保存。'}</p>
-                      <Button variant="primary" onClick={shareFriendClaimLinkWithAttachments} disabled={hasDraftAssets && draftAssetStatus === 'saving'} className="!w-full mt-4 text-sm"><Icon path={icons.share} size={18}/> 開啟手機分享選單</Button>
+                      <Button variant="primary" onClick={shareFriendClaimLink} disabled={hasDraftAssets && draftAssetStatus === 'saving'} className="!w-full mt-4 text-sm"><Icon path={icons.share} size={18}/> 第 1 步：分享一個認領連結</Button>
+                      {claimAttachments.length > 0 && (
+                        <Button variant="outline" onClick={shareClaimAttachments} disabled={hasDraftAssets && draftAssetStatus === 'saving'} className="!w-full mt-3 text-sm"><Icon path={icons.share} size={18}/> 第 2 步：另分享附件（{claimAttachments.length} 個）</Button>
+                      )}
                     </dialog>
                     )}
                   </div>

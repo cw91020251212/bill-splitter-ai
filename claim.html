@@ -49,6 +49,7 @@
     .item-heading { display: flex; align-items: flex-start; gap: 11px; }
     .item-id { flex: 0 0 auto; display: grid; place-items: center; width: 35px; height: 35px; border-radius: 11px; background: #edf4ef; color: var(--green-dark); font-size: 13px; font-weight: 850; }
     .item-title { min-width: 0; margin: 1px 0 0; font-size: 16px; line-height: 1.4; overflow-wrap: anywhere; }
+    .item-original { margin: 5px 0 0 46px; color: var(--muted); font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
     .item-meta { margin: 4px 0 0 46px; color: var(--muted); font-size: 12px; }
     fieldset { min-width: 0; margin: 15px 0 12px; padding: 0; border: 0; }
     legend { margin-bottom: 8px; font-size: 12px; color: var(--muted); }
@@ -161,6 +162,7 @@
         const cleanItems = parsed.map(item => ({
           id: String(item?.id ?? ''),
           name: String(item?.name ?? '').trim().slice(0, 200),
+          original: typeof item?.original === 'string' ? item.original.trim().slice(0, 500) : '',
           totalQty: Number.isFinite(Number(item?.totalQty)) && Number(item.totalQty) > 0 ? Number(item.totalQty) : null,
           unit: String(item?.unit ?? '').replace(/[\r\n=＝]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 30)
         }));
@@ -187,6 +189,9 @@
           heading.append(makeElement('span', 'item-id', item.id));
           heading.append(makeElement('h3', 'item-title', item.name));
           card.append(heading);
+          if (item.original) {
+            card.append(makeElement('p', 'item-original', `單據原文：${item.original}`));
+          }
           if (item.totalQty && item.unit) {
             card.append(makeElement('p', 'item-meta', `單據共 ${item.totalQty} ${item.unit}`));
           }
