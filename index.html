@@ -550,6 +550,39 @@
       image.src = `data:${imageData.mimeType};base64,${imageData.data}`;
     });
 
+    const createComparisonReceipt = (entry, index) => new Promise((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => {
+        let canvas;
+        try {
+          const width = image.naturalWidth, height = image.naturalHeight;
+          if (!width || !height) throw new Error('對照圖片尺寸無效');
+          const longest = Math.max(width, height);
+          const requested = Math.min(6144, Math.max(2400, longest * 1.5)) / longest;
+          const scale = Math.max(1, Math.min(requested, Math.sqrt(24000000 / (width * height))));
+          canvas = document.createElement('canvas');
+          canvas.width = Math.max(1, Math.round(width * scale));
+          canvas.height = Math.max(1, Math.round(height * scale));
+          const context = canvas.getContext('2d');
+          if (!context) throw new Error('手機無法建立對照圖片');
+          context.imageSmoothingEnabled = true;
+          context.imageSmoothingQuality = 'high';
+          context.drawImage(image, 0, 0, canvas.width, canvas.height);
+          const outputWidth = canvas.width, outputHeight = canvas.height;
+          canvas.toBlob(blob => {
+            canvas.width = 1; canvas.height = 1;
+            if (!blob) { reject(new Error('無法輸出對照圖片')); return; }
+            resolve({ file: new File([blob], `comparison-receipt-${String(index + 1).padStart(2, '0')}.jpg`, { type: 'image/jpeg' }), width: outputWidth, height: outputHeight, originalWidth: width, originalHeight: height });
+          }, 'image/jpeg', 0.96);
+        } catch (error) {
+          if (canvas) { canvas.width = 1; canvas.height = 1; }
+          reject(error);
+        }
+      };
+      image.onerror = () => reject(new Error('無法讀取已遮蓋的對照來源'));
+      image.src = `data:${entry.mimeType};base64,${entry.data}`;
+    });
+
     function App() {
       const [step, setStep] = useState(1);
       const [items, setItems] = useState([]);
@@ -563,6 +596,15 @@
       const [uploadError, setUploadError] = useState('');
       const [lastImageData, setLastImageData] = useState([]);
       const [includeReceiptImages, setIncludeReceiptImages] = useState(false);
+      const [comparisonReceipts, setComparisonReceipts] = useState(null);
+      const [comparisonPreparing, setComparisonPreparing] = useState(false);
+      const [comparisonError, setComparisonError] = useState('');
+      const [comparisonReportType, setComparisonReportType] = useState('simplified');
+      const comparisonGenerationRef = useRef(0);
+      useEffect(() => {
+        comparisonGenerationRef.current += 1;
+        setComparisonReceipts(null); setComparisonPreparing(false); setComparisonError('');
+      }, [lastImageData]);
       const [showRedaction, setShowRedaction] = useState(false);
       const [pendingRedactionImages, setPendingRedactionImages] = useState([]);
       const [redactionMasks, setRedactionMasks] = useState([]);
@@ -641,6 +683,10 @@
       const [draftNotice, setDraftNotice] = useState('');
       const [draftSaveError, setDraftSaveError] = useState('');
       const [draftAssetStatus, setDraftAssetStatus] = useState('saved');
+      const [pendingReceiptShare, setPendingReceiptShare] = useState(false);
+      const [receiptShareNudge, setReceiptShareNudge] = useState(0);
+      const pendingReceiptShareRef = useRef(false);
+      const receiptReturnArmedRef = useRef(false);
       const restoredDraftAssetsRef = useRef(null);
       const persistedDraftAssetRevisionRef = useRef(null);
       const draftAssetQueueRef = useRef(Promise.resolve());
@@ -661,7 +707,7 @@
         ready: draftReady, hasWork: hasDraftWork, schema: 1,
         assetRevision: draftAssets.revision, hasAssets: hasDraftAssets || draftAssets.unavailable,
         data: { step, items, taxAmount, taxNote, friendsReplies, payer, detectedCurrency, currency,
-          taxSplitMethod, paymentMethods, results, reconciliation, isSaved, includeReceiptImages, detailLang }
+          taxSplitMethod, paymentMethods, results, reconciliation, isSaved, includeReceiptImages, detailLang, pendingReceiptShare }
       };
       const persistActiveDraft = () => {
         const snapshot = draftSnapshotRef.current;
@@ -676,6 +722,23 @@
         } catch (error) {
           setDraftSaveError('本機草稿未能保存。請勿關閉頁面或切換 App；請允許網站儲存資料、釋放空間或先複製報告備份。');
           return false;
+        }
+      };
+
+      const updatePendingReceiptShare = pending => {
+        const next = Boolean(pending);
+        pendingReceiptShareRef.current = next;
+        setPendingReceiptShare(next);
+        if (!next) receiptReturnArmedRef.current = false;
+        if (draftSnapshotRef.current?.data) {
+          draftSnapshotRef.current.data = { ...draftSnapshotRef.current.data, pendingReceiptShare: next };
+        }
+        return persistActiveDraft();
+      };
+      const requestReceiptShareNudge = () => {
+        if (pendingReceiptShareRef.current && receiptReturnArmedRef.current && document.visibilityState === 'visible') {
+          receiptReturnArmedRef.current = false;
+          setReceiptShareNudge(current => current + 1);
         }
       };
 
@@ -723,7 +786,11 @@
             setIsSaved(Boolean(data.isSaved));
             setDetailLang(data.detailLang === 'full' ? 'full' : 'zh');
             setLastImageData(images); setClaimAttachments(attachments);
-            setIncludeReceiptImages(Boolean(data.includeReceiptImages && images.length));
+            setIncludeReceiptImages(Boolean((data.includeReceiptImages || data.pendingReceiptShare) && images.length));
+            const pending = Boolean(data.pendingReceiptShare && restoredResults);
+            pendingReceiptShareRef.current = pending;
+            setPendingReceiptShare(pending);
+            if (pending) setReceiptShareNudge(current => current + 1);
             let restoredStep = [1, 2, 3, 4].includes(data.step) ? data.step : 2;
             if (!restoredItems.length && restoredStep > 1) restoredStep = 1;
             if (restoredStep === 4 && !restoredResults) restoredStep = 3;
@@ -745,17 +812,30 @@
         if (!draftReady) return;
         persistActiveDraft();
       }, [draftReady, step, items, taxAmount, taxNote, friendsReplies, payer, detectedCurrency, currency,
-        taxSplitMethod, paymentMethods, results, reconciliation, isSaved, includeReceiptImages, detailLang, draftAssets]);
+        taxSplitMethod, paymentMethods, results, reconciliation, isSaved, includeReceiptImages, detailLang, pendingReceiptShare, draftAssets]);
 
       useEffect(() => {
         if (!draftReady) return;
-        const onHidden = () => { if (document.visibilityState === 'hidden') persistActiveDraft(); };
-        const onPageHide = () => persistActiveDraft();
+        const onHidden = () => {
+          if (document.visibilityState === 'hidden') {
+            if (pendingReceiptShareRef.current) receiptReturnArmedRef.current = true;
+            persistActiveDraft();
+          }
+          else requestReceiptShareNudge();
+        };
+        const onPageHide = () => {
+          if (pendingReceiptShareRef.current) receiptReturnArmedRef.current = true;
+          persistActiveDraft();
+        };
         document.addEventListener('visibilitychange', onHidden);
         window.addEventListener('pagehide', onPageHide);
+        window.addEventListener('pageshow', requestReceiptShareNudge);
+        window.addEventListener('focus', requestReceiptShareNudge);
         return () => {
           document.removeEventListener('visibilitychange', onHidden);
           window.removeEventListener('pagehide', onPageHide);
+          window.removeEventListener('pageshow', requestReceiptShareNudge);
+          window.removeEventListener('focus', requestReceiptShareNudge);
         };
       }, [draftReady]);
 
@@ -787,6 +867,19 @@
       useEffect(() => {
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }, [step, showHistory, showSettings, showTutorial]);
+
+      useEffect(() => {
+        if (!draftReady || !pendingReceiptShare || !receiptShareNudge || step !== 4 || showHistory || showSettings || showTutorial) return;
+        const timer = setTimeout(() => {
+          if (document.visibilityState !== 'visible' || !pendingReceiptShareRef.current) return;
+          const target = document.getElementById('receipt-share-step');
+          if (!target) return;
+          const headerBottom = Math.max(0, document.querySelector('header')?.getBoundingClientRect().bottom || 0);
+          window.scrollTo({ top: Math.max(0, window.scrollY + target.getBoundingClientRect().top - headerBottom - 16), behavior: 'instant' });
+          target.focus({ preventScroll: true });
+        }, 120);
+        return () => clearTimeout(timer);
+      }, [draftReady, pendingReceiptShare, receiptShareNudge, step, showHistory, showSettings, showTutorial, includeReceiptImages, lastImageData.length]);
 
       useEffect(() => () => {
         if (cameraStreamRef.current) {
@@ -1036,7 +1129,7 @@
         }
       };
 
-      const shareTextWithFiles = (text, files, title) => {
+      const shareTextWithFiles = (text, files, title, onSettled) => {
         const shareFiles = files || [];
         if (shareFiles.length) {
           let filesSupported = false;
@@ -1049,33 +1142,78 @@
         if (typeof navigator.share !== 'function') {
           if (shareFiles.length) { toast('⚠️ 此瀏覽器無法分享附件；請於 WhatsApp 手動附加圖片或檔案。', 'error'); return; }
           copyToClipboard(text, title);
+          if (onSettled) onSettled();
           return;
         }
         const shareData = {};
         if (text) { shareData.title = title; shareData.text = text; }
         if (shareFiles.length) shareData.files = shareFiles;
         try {
-          navigator.share(shareData).catch(error => {
+          navigator.share(shareData).then(() => {
+            if (onSettled) onSettled();
+          }, error => {
             if (error?.name !== 'AbortError') toast('⚠️ 未能開啟手機分享選單，請再試一次。', 'error');
+            if (onSettled) onSettled();
           });
         } catch (error) {
           if (error?.name !== 'AbortError') toast('⚠️ 未能開啟手機分享選單，請再試一次。', 'error');
+          if (onSettled) onSettled();
         }
       };
 
       const shareCurrentReport = (text, title) => {
         if (!ensureDraftSavedForSharing()) return;
-        shareTextWithFiles(text, [], title);
+        setReceiptShareNudge(0);
+        if (includeReceiptImages && lastImageData.length) {
+          if (!updatePendingReceiptShare(true)) {
+            toast('⚠️ 下一步提示未能存入本機草稿，暫不切換 App；請先檢查儲存權限。', 'error');
+            return;
+          }
+        }
+        receiptReturnArmedRef.current = Boolean(includeReceiptImages && lastImageData.length);
+        shareTextWithFiles(text, [], title, requestReceiptShareNudge);
       };
 
       const shareCurrentReceipts = () => {
-        if (!includeReceiptImages || !lastImageData.length) return;
+        if ((!includeReceiptImages && !pendingReceiptShareRef.current) || !lastImageData.length) return;
         if (!ensureDraftSavedForSharing()) return;
+        receiptReturnArmedRef.current = pendingReceiptShareRef.current;
         try {
-          shareTextWithFiles('', receiptEntriesToFiles(lastImageData), '');
+          shareTextWithFiles('', receiptEntriesToFiles(lastImageData), '', requestReceiptShareNudge);
         } catch (error) {
           toast('⚠️ 無法讀取本次單據圖片，請重新選擇圖片後再試。', 'error');
         }
+      };
+
+      const prepareComparisonReceipts = async () => {
+        if (!lastImageData.length || comparisonPreparing || !ensureDraftSavedForSharing()) return;
+        const source = lastImageData;
+        const generation = ++comparisonGenerationRef.current;
+        setComparisonPreparing(true); setComparisonReceipts(null); setComparisonError('');
+        try {
+          const entries = [];
+          let bytes = 0;
+          for (let index = 0; index < source.length; index += 1) {
+            const entry = await createComparisonReceipt(source[index], index);
+            if (comparisonGenerationRef.current !== generation) return;
+            bytes += entry.file.size;
+            if (bytes > 20 * 1024 * 1024) throw new Error('對照圖片合計超過 20 MB；請使用預設分開分享。');
+            entries.push(entry);
+          }
+          setComparisonReceipts({ source, entries, bytes });
+        } catch (error) {
+          if (comparisonGenerationRef.current === generation) setComparisonError(error.message || '手機未能準備對照圖片；預設分享及本機收據不受影響。');
+        } finally {
+          if (comparisonGenerationRef.current === generation) setComparisonPreparing(false);
+        }
+      };
+      const shareComparisonReport = () => {
+        if (!ensureDraftSavedForSharing()) return;
+        if (comparisonPreparing || !comparisonReceipts || comparisonReceipts.source !== lastImageData || comparisonReceipts.entries.length !== lastImageData.length) {
+          setComparisonError('請先準備本次帳單的對照圖片，再按實驗分享。'); return;
+        }
+        const text = comparisonReportType === 'detailed' ? getDetailedResult(detailLang) : getSimplifiedResult();
+        shareTextWithFiles(text, comparisonReceipts.entries.map(entry => entry.file), '分帳報告（高像素分享對照）');
       };
 
       const shareSavedRecord = (record, reportType) => {
@@ -1112,6 +1250,7 @@
 
       const handleGoToStep1 = () => {
         setStepError(''); setItems([]); setFriendsReplies(''); setResults(null);
+        updatePendingReceiptShare(false); setReceiptShareNudge(0);
         setIsSaved(false); setIsSavingRecord(false); setIncludeReceiptImages(false); setLastImageData([]); setTaxAmount(''); setTaxNote('');
         setClaimAttachments([]); if (claimAttachmentInputRef.current) claimAttachmentInputRef.current.value = '';
         setPayer(''); setTaxSplitMethod('proportional'); setReconciliation(null); setDetailLang('zh'); setDraftNotice('');
@@ -1663,6 +1802,7 @@
         });
 
         setResults({ personTotals, totalItemsCost, reconciliationAllocations, date: new Date().toISOString().split('T')[0], currency });
+        updatePendingReceiptShare(false); setReceiptShareNudge(0);
         setIsSaved(false); setIsSavingRecord(false); setIncludeReceiptImages(false); setStep(4);
       };
 
@@ -2303,45 +2443,49 @@
                   <h2 className="text-2xl font-bold text-slate-800 tracking-tight">最終分帳報告</h2>
                 </div>
 
+                {lastImageData.length > 0 && <div className="rounded-xl border-2 border-indigo-500 bg-indigo-50 p-4">
+                  <Button variant="primary" className="!w-full !bg-indigo-800 !text-white" onClick={() => { const panel = document.getElementById('comparison-experiment'); if (panel) { panel.open = true; panel.scrollIntoView({ behavior: 'smooth', block: 'start' }); panel.querySelector('summary')?.focus({ preventScroll: true }); } }}><Icon path={icons.share} size={18}/> 測試 B：圖片放大＋報告一次分享</Button>
+                  <p className="mt-2 text-sm font-semibold leading-relaxed text-indigo-950">要測「圖片與報告一起發」，請按這個入口。下方一般的「分享報告」仍是 A：先發純文字，再另外發圖片。</p>
+                </div>}
+
                 {lastImageData.length > 0 && (
                   <Card className="!p-4 border-amber-500 bg-amber-50">
                     <label className="flex items-start gap-3 cursor-pointer">
-                      <input type="checkbox" checked={includeReceiptImages} onChange={event => setIncludeReceiptImages(event.target.checked)} className="w-5 h-5 mt-0.5 text-brand-600 focus:ring-brand-500" />
+                      <input type="checkbox" checked={includeReceiptImages} onChange={event => { const checked = event.target.checked; setIncludeReceiptImages(checked); if (!checked) { updatePendingReceiptShare(false); setReceiptShareNudge(0); } }} className="w-5 h-5 mt-0.5 text-brand-600 focus:ring-brand-500" />
                       <div>
                         <div className="font-bold text-slate-800">需要另外分享實體單副本（{lastImageData.length} 張）</div>
-                        <p className="text-xs text-slate-600 mt-1 leading-relaxed">報告一律先以純文字分享，不夾帶圖片。勾選後，下面會出現第 2 步的單據圖片分享按鈕；是否勾選都不影響本機儲存收據。</p>
+                        <p className="text-sm text-slate-700 mt-1 leading-relaxed">預設 A：先發純文字報告，返回程式後會主動帶你到圖片分享按鈕；重載也會恢復提示。圖片仍需你親手分享及確認，不會自動發出。</p>
                       </div>
                     </label>
                   </Card>
                 )}
 
-                {/* Simplified Result */}
-                <Card className="!p-0 overflow-hidden border-t-4 border-t-brand-600">
-                  <div className="p-4 bg-slate-50 border-b border-slate-400">
-                    <div>
+                <div id="report-share-step" className="scroll-mt-56">
+                  <Card className="!p-0 overflow-hidden border-t-4 border-t-brand-600">
+                    <div className="p-4 bg-slate-50 border-b border-slate-400">
                       <h3 className="font-bold text-slate-800 text-base">💰 追數版報告 (精簡)</h3>
                       <p className="text-xs text-slate-500 font-medium mt-0.5">第 1 步：分享純文字報告，不附圖片</p>
+                      <div className="flex gap-2 mt-3">
+                        <Button onClick={() => shareCurrentReport(getSimplifiedResult(), '分帳追數結果')} variant="primary" className="flex-1 !w-auto !px-2 !py-2 text-sm">分享報告</Button>
+                        <Button onClick={() => copyToClipboard(getSimplifiedResult(), '追數版')} variant="outline" className="flex-1 !w-auto !px-2 !py-2 text-sm bg-white hover:bg-brand-50 border-slate-500 text-slate-700 hover:text-brand-700 hover:border-brand-500"><Icon path={icons.copy} size={16}/> 複製文字</Button>
+                      </div>
+                      {includeReceiptImages && lastImageData.length > 0 && <p className="mt-3 rounded-lg border-l-4 border-amber-600 bg-amber-50 p-3 text-sm leading-relaxed text-amber-950"><strong>這一步只有文字，不附圖片。</strong>返回後會自動帶你到<a href="#receipt-share-step" className="font-bold underline underline-offset-2">第 2 步分享 {lastImageData.length} 張單據圖片</a>，毋須自行尋找。</p>}
                     </div>
-                    <div className="flex gap-2 mt-3">
-                      <Button onClick={() => shareCurrentReport(getSimplifiedResult(), '分帳追數結果')} variant="primary" className="flex-1 !w-auto !px-2 !py-2 text-sm">分享報告</Button>
-                      <Button onClick={() => copyToClipboard(getSimplifiedResult(), '追數版')} variant="outline" className="flex-1 !w-auto !px-2 !py-2 text-sm bg-white hover:bg-brand-50 border-slate-500 text-slate-700 hover:text-brand-700 hover:border-brand-500"><Icon path={icons.copy} size={16}/> 複製文字</Button>
-                    </div>
-                  </div>
-                  <div data-testid="final-summary-preview" className="p-4 bg-white font-sans text-sm text-slate-700 whitespace-pre-wrap break-words leading-relaxed selection:bg-brand-100">{getSimplifiedResult()}</div>
-                </Card>
+                    <div data-testid="final-summary-preview" className="p-4 bg-white font-sans text-sm text-slate-700 whitespace-pre-wrap break-words leading-relaxed selection:bg-brand-100">{getSimplifiedResult()}</div>
+                  </Card>
+                </div>
 
-                {/* Detailed Result */}
                 <Card className="!p-0 overflow-hidden">
                   <div className="p-4 bg-slate-50 border-b border-slate-400">
                     <div className="mb-3">
                       <h3 className="font-bold text-slate-800 text-base">🧾 詳細明細版</h3>
-                      <p className="text-xs text-slate-500 font-medium mt-0.5">第 1 步也可改分享詳細版；同樣只發文字</p>
+                      <p className="text-xs text-slate-500 font-medium mt-0.5">第 1 步也可選詳細版；同樣只分享文字</p>
                     </div>
                     <div className="flex gap-2 mb-4">
                       <Button onClick={() => shareCurrentReport(getDetailedResult(detailLang), '分帳詳細明細')} variant="primary" className="flex-1 !w-auto !px-2 !py-2 text-sm">分享詳細版</Button>
                       <Button onClick={() => copyToClipboard(getDetailedResult(detailLang), '詳細版')} variant="secondary" className="flex-1 !w-auto !px-2 !py-2 text-sm bg-white border-slate-500"><Icon path={icons.copy} size={16}/> 複製文字</Button>
                     </div>
-                    
+                    {includeReceiptImages && lastImageData.length > 0 && <p className="mb-4 rounded-lg border-l-4 border-amber-600 bg-amber-50 p-3 text-sm leading-relaxed text-amber-950"><strong>這一步只有文字，不附圖片。</strong>返回後會自動帶你到<a href="#receipt-share-step" className="font-bold underline underline-offset-2">第 2 步分享 {lastImageData.length} 張單據圖片</a>，毋須自行尋找。</p>}
                     <div className="flex bg-slate-200/60 p-1 rounded-lg border border-slate-400">
                       <button onClick={() => setDetailLang('zh')} className={`flex-1 py-1.5 rounded-md text-xs font-bold transition-all ${detailLang === 'zh' ? 'bg-white text-slate-800 shadow border border-slate-300' : 'text-slate-600 hover:text-slate-800'}`}>香港繁體版</button>
                       <button onClick={() => setDetailLang('full')} className={`flex-1 py-1.5 rounded-md text-xs font-bold transition-all ${detailLang === 'full' ? 'bg-white text-slate-800 shadow border border-slate-300' : 'text-slate-600 hover:text-slate-800'}`}>包含原文 (供核對)</button>
@@ -2350,12 +2494,40 @@
                   <div data-testid="final-detail-preview" className="p-4 bg-white font-sans text-sm text-slate-600 whitespace-pre-wrap break-words leading-relaxed selection:bg-slate-200">{getDetailedResult(detailLang)}</div>
                 </Card>
 
-                {includeReceiptImages && lastImageData.length > 0 && (
-                  <Card className="!p-4 border-brand-500 bg-brand-50">
-                    <h3 className="font-bold text-slate-800">第 2 步：另外分享單據圖片</h3>
-                    <p className="text-xs text-slate-600 mt-1 mb-3 leading-relaxed">送出文字報告後返回此頁，再按下方按鈕。這次只有 {lastImageData.length} 張已遮蓋的單據圖片，不會帶報告文字；請在 WhatsApp 再選同一位朋友或群組並確認。兩次分享都由你手動操作，不會自動接續傳送。</p>
-                    <Button onClick={shareCurrentReceipts} variant="outline" className="!w-full bg-white"><Icon path={icons.share} size={18}/> 另分享單據圖片（{lastImageData.length} 張）</Button>
-                  </Card>
+                {(pendingReceiptShare || (includeReceiptImages && lastImageData.length > 0)) && (
+                  <section id="receipt-share-step" data-testid="receipt-next-step" tabIndex={-1} aria-labelledby="receipt-share-heading" className="scroll-mt-56 rounded-2xl border-2 border-amber-600 bg-amber-50 p-4 shadow-md focus:outline-none focus:ring-2 focus:ring-amber-700 focus:ring-offset-2">
+                    <div className="flex items-start gap-3">
+                      <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-800 text-xl font-bold text-white">2</span>
+                      <div className="min-w-0">
+                        <h3 id="receipt-share-heading" className="text-lg font-bold leading-snug text-amber-950">{pendingReceiptShare ? '下一步：分享單據圖片' : '第 2 步：分享單據圖片'}</h3>
+                        <p className="mt-1 text-sm font-bold text-amber-950">文字與圖片分開，不會自動發圖</p>
+                      </div>
+                    </div>
+                    {pendingReceiptShare && <p role="status" className="mt-3 rounded-lg border border-amber-700 bg-white p-3 text-base font-bold leading-relaxed text-amber-950">還有單據圖片要分享。請先在 WhatsApp 確認文字報告已發出；若剛取消或只複製了文字，請先<a href="#report-share-step" className="underline underline-offset-2">重試第 1 步</a>。</p>}
+                    <p className="mt-3 mb-4 text-sm leading-relaxed text-amber-950">按下面按鈕，只分享 {lastImageData.length} 張已遮蓋圖片。請在 WhatsApp 選同一位朋友或群組並親手確認；網站不能確認是否送達。</p>
+                    {!lastImageData.length && <p role="alert" className="mb-4 font-bold text-amber-950">本機圖片暫未能載入。請重新開啟同一網址重試讀取草稿，勿重設帳單；也可自行選用已遮蓋的收據副本。文字報告仍可保留。</p>}
+                    <Button onClick={shareCurrentReceipts} disabled={!lastImageData.length} variant="secondary" className="!w-full !bg-amber-800 hover:!bg-amber-900 !text-white !border-amber-900 !py-4 !font-bold disabled:!opacity-100"><Icon path={icons.share} size={20}/> 分享單據圖片（{lastImageData.length} 張）</Button>
+                    {pendingReceiptShare && <Button onClick={() => { updatePendingReceiptShare(false); setReceiptShareNudge(0); }} variant="outline" className="mt-3 !w-full !bg-white !text-amber-950 !border-amber-800 !text-sm">{lastImageData.length ? '我已在 WhatsApp 確認，結束提示' : '暫不分享，結束提示'}</Button>}
+                    <p className="mt-3 text-sm font-semibold leading-relaxed text-amber-950">未親手結束提示前，返回或重載會繼續提醒。開啟分享選單不代表已送達；程式不會自動再發一次。</p>
+                  </section>
+                )}
+
+                {lastImageData.length > 0 && (
+                  <details id="comparison-experiment" data-testid="comparison-share" className="scroll-mt-56 rounded-2xl border-2 border-indigo-400 bg-indigo-50 p-4 text-slate-800">
+                    <summary className="cursor-pointer font-bold text-indigo-950">實驗 B：高像素圖片＋報告一次分享（對照測試）</summary>
+                    <p className="mt-3 text-sm leading-relaxed">預設 A 不變。此實驗只在本機放大已遮蓋圖片的像素尺寸、保持原比例，不裁切、不補造文字，也不提高原始細節。增加像素不保證 WhatsApp 氣泡變寬；文字仍可能變成圖片說明或由接收 App 另作處理。</p>
+                    <label className="mt-3 block text-sm font-bold" htmlFor="comparison-report-type">實驗分享的報告</label>
+                    <select id="comparison-report-type" value={comparisonReportType} onChange={event => setComparisonReportType(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-500 bg-white p-3 text-base text-slate-900">
+                      <option value="simplified">追數版（完整文字）</option>
+                      <option value="detailed">詳細版（跟隨上方語言選擇）</option>
+                    </select>
+                    <p className="mt-3 text-sm leading-relaxed">先準備對照圖片，再親手按實驗分享；準備不是傳送，分享只開一次手機選單。新檔長邊目標至少 2400 像素或原圖 1.5 倍，上限 6144 像素及約 2400 萬像素，合計最多 20 MB。本機歷史保留的圖片不會被取代。</p>
+                    <Button onClick={prepareComparisonReceipts} disabled={comparisonPreparing} variant="secondary" className="mt-3 !w-full !bg-white !text-indigo-950 !border-indigo-700">{comparisonPreparing ? '正在本機準備對照圖片…' : '準備高像素對照圖片'}</Button>
+                    {comparisonError && <p role="alert" className="mt-3 font-bold text-red-800">{comparisonError}</p>}
+                    {comparisonReceipts && comparisonReceipts.source === lastImageData && <div role="status" className="mt-3 rounded-lg border border-indigo-300 bg-white p-3 text-sm"><p className="font-bold">已準備 {comparisonReceipts.entries.length} 張，合計 {(comparisonReceipts.bytes / 1024 / 1024).toFixed(2)} MB</p><ul className="mt-1 space-y-1">{comparisonReceipts.entries.map((entry, index) => <li key={entry.file.name}>圖片 {index + 1}：{entry.originalWidth}×{entry.originalHeight} → {entry.width}×{entry.height} 像素</li>)}</ul></div>}
+                    <Button onClick={shareComparisonReport} disabled={comparisonPreparing || !comparisonReceipts || comparisonReceipts.source !== lastImageData} variant="primary" className="mt-3 !w-full !bg-indigo-800 !text-white disabled:!bg-slate-200 disabled:!text-slate-800 disabled:!opacity-100"><Icon path={icons.share} size={18}/> 實驗分享：報告＋高像素圖片</Button>
+                    <p className="mt-3 text-sm leading-relaxed">送出前請核對完整報告及圖片張數，再比較 WhatsApp 實際接收的寬度、完整性和重複說明。網頁不能確認送達。重開後帳單及處理版收據可恢復；實驗檔不另存，需重新準備。</p>
+                  </details>
                 )}
 
                 <div className="pt-2">
