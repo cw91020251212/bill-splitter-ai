@@ -23,7 +23,7 @@
     * { box-sizing: border-box; }
     html { background: var(--page); }
     body { margin: 0; color: var(--ink); background: var(--page); -webkit-font-smoothing: antialiased; }
-    button, input, textarea { font: inherit; }
+    button, input, textarea, select { font: inherit; }
     .page { width: min(100%, 640px); margin: 0 auto; padding: 0 16px calc(28px + env(safe-area-inset-bottom)); }
     .hero { padding: calc(22px + env(safe-area-inset-top)) 4px 18px; }
     .hero-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
@@ -77,6 +77,119 @@
       .panel { padding: 15px; }
       .actions { grid-template-columns: 1fr; }
     }
+
+    /* Mobile-first, high-contrast neutral surfaces with the brand green retained. */
+    :root {
+      --green: #087f5b;
+      --green-dark: #066447;
+      --green-soft: #e4ece7;
+      --ink: #1f2e26;
+      --muted: #4d5a53;
+      --line: #5a9271;
+      --paper: #f5f6f3;
+      --page: #e5e8e5;
+    }
+    html, body { background: var(--page); }
+    body { color: var(--ink); }
+    .page { padding-right: 16px; padding-left: 16px; }
+    .hero { padding-top: calc(26px + env(safe-area-inset-top)); padding-bottom: 22px; }
+    .hero-top { min-width: 0; }
+    .language-toggle {
+      min-height: 44px; padding: 9px 13px; border: 1px solid var(--line);
+      color: var(--green-dark); background: var(--paper); font-size: 14px;
+    }
+    .brand { color: var(--green-dark); }
+    h1 { color: var(--ink); font-weight: 800; }
+    .hero p { color: var(--muted); }
+    .panel {
+      margin-bottom: 16px; padding: 19px; border: 1px solid var(--line);
+      border-radius: 17px; background: var(--paper);
+      box-shadow: 0 3px 0 rgba(47, 109, 73, .07), 0 8px 20px rgba(47, 109, 73, .04);
+    }
+    .notice {
+      color: #254b3a; background: #e7eee9; border-color: #5a9271;
+      font-size: 14px; line-height: 1.6;
+    }
+    .field-label, legend { color: var(--ink); font-size: 15px; font-weight: 750; }
+    .hint { color: var(--muted); font-size: 13px; }
+    .name-input, .qty-input, .preview {
+      border: 1px solid #4b8f68; border-radius: 11px;
+      background: #fff; color: var(--ink);
+    }
+    .name-input, .qty-input { min-height: 52px; padding: 13px 14px; font-size: 16px; }
+    .name-input::placeholder, .qty-input::placeholder { color: #58645d; opacity: 1; }
+    .name-input:focus, .qty-input:focus, .preview:focus {
+      border-color: var(--green); box-shadow: 0 0 0 3px rgba(8,127,91,.2);
+    }
+    .items-heading { margin-top: 25px; margin-bottom: 12px; }
+    .items-heading h2, .preview-title { color: var(--ink); font-size: 18px; font-weight: 800; }
+    .count { color: var(--green-dark); background: #dce8e0; font-size: 13px; }
+    .item-list { gap: 13px; }
+    .item-card {
+      padding: 16px; border: 1px solid #5a9271; border-radius: 14px;
+      background: #f5f6f3; box-shadow: 0 2px 0 rgba(47, 109, 73, .06);
+    }
+    .item-heading { gap: 12px; }
+    .item-id {
+      width: 38px; height: 38px; border: 1px solid var(--green-dark);
+      border-radius: 10px; background: #dce8e0; color: var(--green-dark);
+      font-size: 14px; font-weight: 850;
+    }
+    .item-title { color: var(--ink); font-weight: 700; overflow-wrap: anywhere; word-break: normal; }
+    .item-original, .item-meta { color: var(--muted); overflow-wrap: anywhere; word-break: normal; }
+    legend { color: var(--muted); }
+    .qty-row { gap: 10px; }
+    .form-feedback { font-size: 14px; }
+    .preview-panel { margin-top: 20px; }
+    .preview-subtitle { color: var(--muted); font-size: 14px; }
+    .preview { min-height: 160px; padding: 13px; font-size: 16px; overflow-wrap: anywhere; }
+    .actions { gap: 10px; margin-top: 14px; }
+    .button {
+      min-height: 50px; padding: 12px 11px; border: 1px solid var(--green-dark);
+      border-radius: 11px; color: var(--green-dark); background: #fff;
+      font-size: 15px; font-weight: 800; overflow-wrap: anywhere;
+    }
+    .button.primary { border-color: var(--green); color: #fff; background: var(--green); }
+    .button:focus-visible, .language-toggle:focus-visible {
+      outline: 3px solid rgba(8,127,91,.35); outline-offset: 2px;
+    }
+    .share-help { color: var(--muted); font-size: 13px; }
+    .load-error { border-color: #8b5a53; background: #f3e9e7; }
+    .footer { color: #4d5a53; }
+    @media (max-width: 380px) {
+      .page { padding-right: 12px; padding-left: 12px; }
+      .panel { padding: 15px; }
+      .actions { grid-template-columns: 1fr; }
+      .item-original, .item-meta { margin-left: 0; }
+    }
+    /* Only the main action and brand use a directional green gradient. */
+    .button.primary:not(:disabled), .brand-mark {
+      background-image: linear-gradient(to top right, #07513b 0%, #0c6c4c 55%, #12805c 100%);
+      background-color: #0c6c4c;
+      border-color: #388b62;
+    }
+    @supports ((-webkit-background-clip: text) or (background-clip: text)) {
+      #brand-name {
+        background-image: linear-gradient(to top right, #07513b 0%, #0b6345 55%, #117453 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        -webkit-text-fill-color: transparent;
+      }
+    }
+    .unit-select {
+      flex: 0 0 auto; width: 44px; max-width: 44%; min-height: 52px;
+      padding: 12px 23px 12px 10px; border: 1px solid #4b8f68; border-radius: 11px;
+      background-color: #edf4ee; color: var(--green-dark); font-size: 16px; font-weight: 650;
+      appearance: none; -webkit-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='m3 4.5 3 3 3-3' fill='none' stroke='%23066447' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 10px center; cursor: pointer;
+    }
+    .unit-select:not(.has-unit) { color: transparent; }
+    .unit-select.has-unit { width: auto; min-width: 64px; }
+    .unit-select:focus-visible { outline: 3px solid rgba(8,127,91,.2); outline-offset: 1px; }
+    .unit-select option { color: var(--ink); background: #fff; }
+    .unit-select option:disabled { color: #6f7f73; }
   </style>
 </head>
 <body>
@@ -150,6 +263,22 @@
       const languageButton = document.getElementById('language-toggle');
       let toastTimer;
       let items = [];
+      const unitOptions = [
+        { id: 'portion', zh: '份', en: 'portions', aliases: ['份', 'portion', 'portions', 'share', 'shares', 'serving', 'servings', 'serving(s)'] },
+        { id: 'cup', zh: '杯', en: 'cups', aliases: ['杯', 'cup', 'cups', 'cup(s)'] },
+        { id: 'bowl', zh: '碗', en: 'bowls', aliases: ['碗', 'bowl', 'bowls', 'bowl(s)'] },
+        { id: 'piece', zh: '件', en: 'pieces', aliases: ['件', '個', '隻', '支', '條', 'piece', 'pieces', 'piece(s)', 'pc', 'pcs'] },
+        { id: 'plate', zh: '碟', en: 'plates', aliases: ['碟', '盤', 'plate', 'plates', 'plate(s)', 'dish', 'dishes'] },
+        { id: 'bottle', zh: '瓶', en: 'bottles', aliases: ['瓶', 'bottle', 'bottles', 'bottle(s)'] },
+        { id: 'can', zh: '罐', en: 'cans', aliases: ['罐', 'can', 'cans', 'can(s)'] },
+        { id: 'pack', zh: '包', en: 'packs', aliases: ['包', 'pack', 'packs', 'pack(s)'] },
+        { id: 'skewer', zh: '串', en: 'skewers', aliases: ['串', 'skewer', 'skewers', 'skewer(s)'] }
+      ];
+      const unitDefinition = unit => unitOptions.find(option => option.aliases.includes(String(unit || '').trim().toLowerCase()));
+      const unitLabel = (unit, lang = language) => {
+        const definition = unitDefinition(unit);
+        return definition ? definition[lang === 'en' ? 'en' : 'zh'] : String(unit || '');
+      };
       const messages = {
         'zh-HK': {
           title: '填寫你的認領', intro: '在每項填入你認領的份數，填好後把回覆自行傳回發起人即可。',
@@ -161,10 +290,10 @@
           share: '分享回覆', copy: '複製回覆文字', shareHelp: '按「分享回覆」後，在手機分享清單選 WhatsApp、選擇發起人，再自行按發送。亦可先複製文字，再貼到 WhatsApp。',
           footer: '此頁不會自動發送訊息或收集回覆。認領資料只在你的瀏覽器內整理；項目名稱已包含在邀請連結中。',
           itemCount: n => `${n} 項`, original: text => `單據原文：${text}`, total: (n, unit) => `單據共 ${n} ${unit}`,
-          qtyLabel: '認領份數', qtyPlaceholder: '例如：0.5、1、2', qtyAria: (id, name) => `${id} ${name} 認領份數`,
+          unitLabel: '可選單位', noUnit: '不選單位', qtyLabel: '認領份數', qtyPlaceholder: '例如：0.5、1、2', qtyAria: (id, name) => `${id} ${name} 認領份數`,
           qtyHint: (item) => item.totalQty && item.unit
-            ? `數字直接代表份數：0.5 是半份，2 是兩份。若要按實際單位計，可在數字後加「${item.unit}」（例如 3 ${item.unit}）；只填數字仍是份數。留空或 0 代表不認領。`
-            : '數字直接代表份數：0.5 是半份，1 是一份，2 是兩份。留空或 0 代表不認領。',
+            ? `數字直接代表份數：0.5 是半份，2 是兩份。單位可不選；如要按實際數量計，可用右邊箭頭選「${unitLabel(item.unit)}」。留空或 0 代表不認領。`
+            : '數字直接代表份數：0.5 是半份，1 是一份，2 是兩份。右邊單位可不選；單據未列總量時仍按份數分攤。留空或 0 代表不認領。',
           needName: '請先填寫你的姓名。', badName: '姓名請勿包含冒號或等號。',
           invalidNumber: name => `「${name}」請輸入數字，例如 0.5、1 或 2。`, negative: '數量不能是負數，請檢查輸入。',
           digitsOnly: name => `「${name}」請只填數字份數。`, wrongUnit: (name, unit) => `「${name}」的單位請填「${unit}」，或只填數字代表份數。`,
@@ -183,10 +312,10 @@
           share: 'Share reply', copy: 'Copy reply text', shareHelp: 'Tap “Share reply”, choose WhatsApp and the organizer from your phone’s share menu, then send it yourself. Or copy the text and paste it into WhatsApp.',
           footer: 'This page does not send messages or collect replies automatically. Your claims are prepared only in your browser; item names are included in the invitation link.',
           itemCount: n => `${n} ${n === 1 ? 'item' : 'items'}`, original: text => `Receipt text: ${text}`, total: (n, unit) => `Receipt total ${n} ${unit}`,
-          qtyLabel: 'Quantity to claim', qtyPlaceholder: 'For example: 0.5, 1, 2', qtyAria: (id, name) => `${id} ${name} quantity to claim`,
+          unitLabel: 'Optional unit', noUnit: 'No unit', qtyLabel: 'Quantity to claim', qtyPlaceholder: 'For example: 0.5, 1, 2', qtyAria: (id, name) => `${id} ${name} quantity to claim`,
           qtyHint: item => item.totalQty && item.unit
-            ? `Numbers mean portions: 0.5 is half a portion and 2 is two portions. To enter an actual unit amount, add “${item.unit}” after the number (for example, 3 ${item.unit}); a number alone still means portions. Leave blank or enter 0 for no claim.`
-            : 'Numbers mean portions: 0.5 is half a portion, 1 is one portion, and 2 is two portions. Leave blank or enter 0 for no claim.',
+            ? `Numbers mean portions: 0.5 is half a portion and 2 is two portions. The unit is optional; use the arrow to choose ${unitLabel(item.unit)} for an actual quantity. Leave blank or enter 0 for no claim.`
+            : 'Numbers mean portions: 0.5 is half a portion, 1 is one portion, and 2 is two portions. Units are optional; without a receipt total, the same portion split applies. Leave blank or enter 0 for no claim.',
           needName: 'Please enter your name first.', badName: 'Your name cannot contain a colon or equals sign.',
           invalidNumber: name => `Enter a number for “${name}”, such as 0.5, 1, or 2.`, negative: 'Quantity cannot be negative. Please check your entry.',
           digitsOnly: name => `Enter a number of portions only for “${name}”.`, wrongUnit: (name, unit) => `For “${name}”, enter “${unit}” as the unit or enter a number of portions only.`,
@@ -277,6 +406,7 @@
 
       function renderItems() {
         const savedValues = Array.from(itemList.querySelectorAll('.qty-input'), input => input.value);
+        const savedUnits = Array.from(itemList.querySelectorAll('.unit-select'), select => select.value);
         itemList.replaceChildren();
         const text = messages[language];
         itemCount.textContent = text.itemCount(items.length);
@@ -291,7 +421,7 @@
             card.append(makeElement('p', 'item-original', text.original(item.original)));
           }
           if (item.totalQty && item.unit) {
-            card.append(makeElement('p', 'item-meta', text.total(item.totalQty, item.unit)));
+            card.append(makeElement('p', 'item-meta', text.total(item.totalQty, unitLabel(item.unit))));
           }
 
           const qtyLabel = makeElement('label', 'field-label', text.qtyLabel);
@@ -300,12 +430,35 @@
           const qtyRow = makeElement('div', 'qty-row');
           const qtyInput = document.createElement('input');
           qtyInput.className = 'qty-input'; qtyInput.id = `qty-${index}`;
-          qtyInput.type = 'text'; qtyInput.inputMode = item.totalQty && item.unit ? 'text' : 'decimal'; qtyInput.autocomplete = 'off';
+          qtyInput.type = 'text'; qtyInput.inputMode = 'decimal'; qtyInput.autocomplete = 'off';
           qtyInput.maxLength = 24; qtyInput.placeholder = text.qtyPlaceholder;
           qtyInput.setAttribute('aria-label', text.qtyAria(item.id, displayName));
           qtyInput.dataset.itemIndex = String(index);
           qtyInput.value = savedValues[index] ?? '';
           qtyRow.append(qtyInput);
+          const unitSelect = makeElement('select', 'unit-select');
+          unitSelect.id = `unit-${index}`;
+          unitSelect.setAttribute('aria-label', `${item.id} ${displayName} — ${text.unitLabel}`);
+          unitSelect.title = text.unitLabel;
+          const blankOption = makeElement('option', '', '');
+          blankOption.value = ''; blankOption.label = text.noUnit;
+          unitSelect.append(blankOption);
+          const receiptDefinition = unitDefinition(item.unit);
+          unitOptions.forEach(definition => {
+            const option = makeElement('option', '', definition[language === 'en' ? 'en' : 'zh']);
+            option.value = definition.id;
+            // Never offer a mismatched physical unit for a known receipt total.
+            option.disabled = Boolean(item.totalQty && item.unit && definition.id !== 'portion' && definition.id !== receiptDefinition?.id);
+            unitSelect.append(option);
+          });
+          if (item.unit && !receiptDefinition) {
+            const option = makeElement('option', '', item.unit);
+            option.value = 'receipt'; unitSelect.append(option);
+          }
+          unitSelect.value = savedUnits[index] || '';
+          unitSelect.classList.toggle('has-unit', Boolean(unitSelect.value));
+          unitSelect.addEventListener('change', () => { unitSelect.classList.toggle('has-unit', Boolean(unitSelect.value)); });
+          qtyRow.append(unitSelect);
           card.append(qtyRow);
           card.append(makeElement('p', 'hint', text.qtyHint(item)));
           itemList.append(card);
@@ -338,21 +491,36 @@
           const index = Number(input.dataset.itemIndex);
           const item = items[index];
           const displayName = language === 'en' && item.nameEn ? item.nameEn : item.name;
-          const enteredUnit = parsedValue[2].trim();
-          if (enteredUnit && (!item.totalQty || !item.unit)) {
+          const typedUnit = parsedValue[2].trim();
+          const selectedId = card.querySelector('.unit-select').value;
+          const selectedDefinition = unitOptions.find(option => option.id === selectedId);
+          const selectedUnit = selectedId === 'receipt' ? item.unit : (selectedDefinition?.zh || '');
+          const receiptDefinition = unitDefinition(item.unit);
+          const typedDefinition = unitDefinition(typedUnit);
+          if (typedUnit && (!item.totalQty || !item.unit)) {
             return { text: '', error: text.digitsOnly(displayName), complete: false };
           }
-          if (enteredUnit && enteredUnit !== item.unit) {
-            return { text: '', error: text.wrongUnit(displayName, item.unit), complete: false };
+          if (typedUnit && typedUnit !== item.unit && (!typedDefinition || typedDefinition.id !== receiptDefinition?.id)) {
+            return { text: '', error: text.wrongUnit(displayName, unitLabel(item.unit)), complete: false };
           }
+          if (typedUnit && selectedId && (selectedId === 'portion' || (selectedId !== 'receipt' && selectedId !== typedDefinition?.id))) {
+            return { text: '', error: text.wrongUnit(displayName, unitLabel(item.unit)), complete: false };
+          }
+          const selectedActualUnit = selectedId && selectedId !== 'portion' && item.totalQty && item.unit;
+          const enteredUnit = typedUnit || (selectedActualUnit ? selectedUnit : '');
+          if (selectedActualUnit && selectedId !== 'receipt' && selectedId !== receiptDefinition?.id) {
+            return { text: '', error: text.wrongUnit(displayName, unitLabel(item.unit)), complete: false };
+          }
+          // Cosmetic units without a receipt total, and portions, keep the original share arithmetic.
+          const displayOnlyUnit = !enteredUnit && selectedUnit ? unitLabel(selectedUnit) : '';
           if (value === 0) continue;
           const normalized = parsedValue[1].replace(/^0+(?=\d)/, '').replace(/^(?=\.)/, '0').replace(/\.$/, '');
           const safeDisplayName = displayName.replace(/[\r\n=＝]/g, ' ').replace(/\s+/g, ' ').trim();
           const quantity = language === 'en'
-            ? `Quantity=${normalized}${enteredUnit ? ` ${item.unit}` : ''}`
+            ? `Quantity${displayOnlyUnit ? ` (${displayOnlyUnit})` : ''}=${normalized}${enteredUnit ? ` ${unitLabel(item.unit)}` : ''}`
             : enteredUnit
               ? `實際數量 = ${normalized} ${item.unit}`
-              : `認領份數 = ${normalized}`;
+              : `認領份數${displayOnlyUnit ? `（${displayOnlyUnit}）` : ''} = ${normalized}`;
           lines.push(language === 'en'
             ? `🔶 *${item.id} ${safeDisplayName}*　👉🏻 ${quantity}`
             : `🔶 *${item.id} ${safeDisplayName}*　👉🏻 ${quantity}`);
@@ -396,6 +564,7 @@
 
       nameInput.addEventListener('input', updatePreview);
       itemList.addEventListener('input', updatePreview);
+      itemList.addEventListener('change', updatePreview);
       languageButton.addEventListener('click', () => {
         const nextLanguage = language === 'en' ? 'zh-HK' : 'en';
         try { localStorage.setItem('billSplitterLanguage', nextLanguage); } catch (_) {}
@@ -433,6 +602,124 @@
       } catch (_) {
         loadError.hidden = false;
       }
+    })();
+  </script>
+  <script>
+    (() => {
+      const itemList = document.getElementById('item-list');
+      const viewport = window.visualViewport;
+      let baselineWidth = window.innerWidth;
+      let baselineHeight = Math.min(
+        window.innerHeight || Infinity,
+        viewport?.height || Infinity
+      );
+      const keyboardShrinkThreshold = 120;
+      const debounceMs = 750;
+      const pendingLifetimeMs = 2200;
+      let debounceTimer = 0;
+      let expiryTimer = 0;
+      let pendingInput = null;
+      let debounceReady = false;
+
+      function visibleViewport() {
+        const vv = window.visualViewport;
+        return {
+          top: vv ? vv.offsetTop : 0,
+          height: Math.min(window.innerHeight || Infinity, vv?.height || Infinity)
+        };
+      }
+
+      function keyboardIsOpen() {
+        if (window.visualViewport && window.visualViewport.scale > 1.05) return false;
+        const current = visibleViewport();
+        return baselineHeight - current.height >= keyboardShrinkThreshold;
+      }
+
+      function clearPending() {
+        window.clearTimeout(debounceTimer);
+        window.clearTimeout(expiryTimer);
+        pendingInput = null;
+        debounceReady = false;
+      }
+
+      function followNextQuestion(input) {
+        if (!keyboardIsOpen() || document.activeElement !== input || !input.isConnected) return;
+        const currentIndex = Number(input.dataset.itemIndex);
+        if (!Number.isInteger(currentIndex)) return;
+        const nextCard = itemList.querySelector(`.item-card .qty-input[data-item-index="${currentIndex + 1}"]`)?.closest('.item-card');
+        if (!nextCard) return;
+        const nextHeading = nextCard.querySelector('.item-heading');
+        const nextInput = nextCard.querySelector('.qty-input');
+        if (!nextHeading || !nextInput) return;
+
+        const view = visibleViewport();
+        const viewBottom = view.top + view.height;
+        const currentRect = input.getBoundingClientRect();
+        const nextBottom = nextInput.getBoundingClientRect().bottom;
+        const needed = Math.max(0, nextBottom - (viewBottom - 12));
+        // Keep the currently focused field fully visible while moving only as far as needed.
+        const allowed = Math.max(0, currentRect.top - view.top - 2);
+        const distance = Math.min(needed, allowed);
+        if (distance > 1 && document.activeElement === input) window.scrollBy(0, distance);
+      }
+
+      function handleViewportChange() {
+        if (Math.abs(window.innerWidth - baselineWidth) > 64) {
+          baselineWidth = window.innerWidth;
+          baselineHeight = visibleViewport().height;
+          clearPending();
+          return;
+        }
+        baselineHeight = Math.max(baselineHeight, visibleViewport().height);
+        if (pendingInput && debounceReady) followNextQuestion(pendingInput);
+      }
+
+      function scheduleFollow(input, immediate) {
+        clearPending();
+        pendingInput = input;
+        debounceReady = Boolean(immediate);
+        if (immediate) {
+          followNextQuestion(input);
+        } else {
+          debounceTimer = window.setTimeout(() => {
+            debounceReady = true;
+            followNextQuestion(input);
+          }, debounceMs);
+        }
+        expiryTimer = window.setTimeout(clearPending, pendingLifetimeMs);
+      }
+
+      function isCompleteNumber(value) {
+        return /^(?:\d+(?:\.\d+)?|\.\d+)$/.test(value.trim());
+      }
+
+      itemList.addEventListener('input', event => {
+        const input = event.target;
+        if (!input.matches('.qty-input')) return;
+        if (!isCompleteNumber(input.value)) {
+          clearPending();
+          return;
+        }
+        scheduleFollow(input, false);
+      });
+
+      itemList.addEventListener('keydown', event => {
+        if (event.key !== 'Enter' || !event.target.matches('.qty-input')) return;
+        event.preventDefault();
+        const input = event.target;
+        if (!isCompleteNumber(input.value)) {
+          clearPending();
+          return;
+        }
+        scheduleFollow(input, true);
+      });
+
+      itemList.addEventListener('focusout', event => {
+        if (event.target === pendingInput) clearPending();
+      });
+
+      window.addEventListener('resize', handleViewportChange, { passive: true });
+      if (viewport) viewport.addEventListener('resize', handleViewportChange, { passive: true });
     })();
   </script>
 </body>
