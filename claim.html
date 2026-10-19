@@ -86,8 +86,8 @@
       --ink: #1f2e26;
       --muted: #4d5a53;
       --line: #5a9271;
-      --paper: #f5f6f3;
-      --page: #e5e8e5;
+      --paper: #fff;
+      --page: #f8f8f8;
     }
     html, body { background: var(--page); }
     body { color: var(--ink); }
@@ -127,7 +127,7 @@
     .item-list { gap: 13px; }
     .item-card {
       padding: 16px; border: 1px solid #5a9271; border-radius: 14px;
-      background: #f5f6f3; box-shadow: 0 2px 0 rgba(47, 109, 73, .06);
+      background: #fff; box-shadow: 0 2px 0 rgba(47, 109, 73, .06);
     }
     .item-heading { gap: 12px; }
     .item-id {
@@ -192,6 +192,19 @@
     .unit-select option:disabled { color: #6f7f73; }
     .notice:not(.error) { color: #294f73; background: #edf5fc; border-color: #a9c7e2; }
     .notice:not(.error) .icon, .notice:not(.error) strong { color: #23486b; }
+    /* Claim flow: blue identifies item information and supporting/copy actions. */
+    .count {
+      color: #294e7a; background: #e5eef8; border: 1px solid #7896b9;
+    }
+    .item-card { border-color: #7896b9; }
+    .item-id {
+      border-color: #678bb6; background: #e5eef8; color: #294e7a;
+    }
+    .preview-panel { background: #fff; border-color: #7896b9; }
+    #copy-button:not(:disabled) {
+      color: #294e7a; background: #f6f9fd; border-color: #678bb6;
+    }
+    #copy-button:not(:disabled):hover { background: #e5eef8; }
   </style>
 </head>
 <body>

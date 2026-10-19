@@ -605,6 +605,8 @@
       const [redactionMasks, setRedactionMasks] = useState([]);
       const [redactionIndex, setRedactionIndex] = useState(0);
       const [redactionDrag, setRedactionDrag] = useState(null);
+      const [redactionDrawEnabled, setRedactionDrawEnabled] = useState(false);
+      const redactionDrawEnabledRef = useRef(false);
       const [redactionImageLoadedVersion, setRedactionImageLoadedVersion] = useState(0);
       const [isPreparingRedacted, setIsPreparingRedacted] = useState(false);
       const redactionImageRef = useRef(null);
@@ -980,6 +982,10 @@
         const drawMasks = () => {
           const rect = image.getBoundingClientRect();
           if (!rect.width || !rect.height) return;
+          canvas.style.left = `${image.offsetLeft}px`;
+          canvas.style.top = `${image.offsetTop}px`;
+          canvas.style.width = `${rect.width}px`;
+          canvas.style.height = `${rect.height}px`;
           const ratio = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
           canvas.width = Math.round(rect.width * ratio);
           canvas.height = Math.round(rect.height * ratio);
@@ -1000,6 +1006,9 @@
         window.addEventListener('resize', drawMasks);
         return () => window.removeEventListener('resize', drawMasks);
       }, [showRedaction, redactionIndex, redactionMasks, redactionDrag, redactionImageLoadedVersion]);
+
+      // Every image opens in view mode; never resume drawing after a page change.
+      useEffect(() => { setRedactionDrawingMode(false); }, [showRedaction, redactionIndex]);
 
       const toast = (text, type = 'success') => {
         const msg = document.createElement('div');
@@ -1337,6 +1346,22 @@
         }, 'image/jpeg', 0.92);
       };
 
+      const cancelRedactionStroke = () => {
+        const drag = redactionDragRef.current;
+        redactionDragRef.current = null;
+        setRedactionDrag(null);
+        const canvas = redactionCanvasRef.current;
+        if (drag && canvas) {
+          try { if (canvas.hasPointerCapture(drag.pointerId)) canvas.releasePointerCapture(drag.pointerId); } catch (error) {}
+        }
+      };
+
+      const setRedactionDrawingMode = (enabled) => {
+        redactionDrawEnabledRef.current = Boolean(enabled);
+        setRedactionDrawEnabled(Boolean(enabled));
+        cancelRedactionStroke();
+      };
+
       const getRedactionPoint = (event) => {
         const canvas = redactionCanvasRef.current;
         if (!canvas) return null;
@@ -1349,17 +1374,20 @@
       };
 
       const handleRedactionPointerDown = (event) => {
+        if (!redactionDrawEnabledRef.current || isPreparingRedacted || redactionDragRef.current || event.isPrimary === false || (event.pointerType === 'mouse' && event.button !== 0)) return;
         const point = getRedactionPoint(event);
         if (!point) return;
         event.preventDefault();
         try { event.currentTarget.setPointerCapture(event.pointerId); } catch (error) {}
-        const drag = { startX: point.x, startY: point.y, currentX: point.x, currentY: point.y };
+        const drag = { pointerId: event.pointerId, imageIndex: redactionIndex, startX: point.x, startY: point.y, currentX: point.x, currentY: point.y };
         redactionDragRef.current = drag;
         setRedactionDrag(drag);
       };
 
       const handleRedactionPointerMove = (event) => {
+        if (!redactionDrawEnabledRef.current || isPreparingRedacted) return;
         const drag = redactionDragRef.current;
+        if (drag && (drag.pointerId !== event.pointerId || drag.imageIndex !== redactionIndex)) return;
         const point = drag && getRedactionPoint(event);
         if (!drag || !point) return;
         const next = { ...drag, currentX: point.x, currentY: point.y };
@@ -1368,11 +1396,12 @@
       };
 
       const handleRedactionPointerUp = (event) => {
+        if (!redactionDrawEnabledRef.current || isPreparingRedacted) { cancelRedactionStroke(); return; }
         const drag = redactionDragRef.current;
+        if (drag && (drag.pointerId !== event.pointerId || drag.imageIndex !== redactionIndex)) return;
         const point = drag && getRedactionPoint(event);
         if (!drag || !point) return;
-        redactionDragRef.current = null;
-        setRedactionDrag(null);
+        cancelRedactionStroke();
         const x = Math.min(drag.startX, point.x);
         const y = Math.min(drag.startY, point.y);
         const width = Math.abs(point.x - drag.startX);
@@ -1386,6 +1415,8 @@
       };
 
       const cancelReceiptRedaction = () => {
+        if (isPreparingRedacted) return;
+        setRedactionDrawingMode(false);
         setShowRedaction(false);
         setPendingRedactionImages([]);
         setRedactionMasks([]);
@@ -1399,6 +1430,7 @@
 
       const startOcrWithRedactedImages = async () => {
         if (!pendingRedactionImages.length || isPreparingRedacted) return;
+        setRedactionDrawingMode(false);
         setIsPreparingRedacted(true);
         try {
           const makeBatch = async quality => {
@@ -1452,6 +1484,7 @@
               reader.onerror = () => reject(new Error('未能讀取所選圖片'));
               reader.readAsDataURL(file);
             })));
+            setRedactionDrawingMode(false);
             setPendingRedactionImages(originals);
             setRedactionMasks(originals.map(() => []));
             setRedactionIndex(0);
@@ -2024,7 +2057,7 @@
               </div>
               <div className="header-actions flex items-center gap-1.5 sm:gap-2">
                 <button type="button" data-testid="header-language-toggle" data-ui-language={uiLang === 'en' ? 'zh-HK' : 'en'} onClick={() => changeUiLanguage(uiLang === 'en' ? 'zh-HK' : 'en')} title={uiLang === 'en' ? 'Switch to Traditional Chinese' : '切換至 English'} aria-label={uiLang === 'en' ? 'Switch to Traditional Chinese' : '切換至 English'} className="header-language-button flex items-center justify-center px-2.5 py-2 bg-slate-100 text-slate-700 border border-slate-400 rounded-lg text-xs font-bold transition-colors">
-                  <span className="language-zh" lang="zh-HK">中</span><span className="language-en" lang="en">Eng</span>
+                  <span className="language-divider" aria-hidden="true"></span><span className="language-zh" lang="zh-HK">中</span><span className="language-en" lang="en">Eng</span>
                 </button>
                 {(showHistory || showSettings || showTutorial) ? (
                   <button onClick={() => {setShowHistory(false); setShowSettings(false); setShowTutorial(false);}} className="header-back-button flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-semibold transition-colors border border-slate-400">
@@ -2073,7 +2106,7 @@
           <StatusBar statuses={statuses} expanded={statusExpanded} setExpanded={setStatusExpanded} kbOpen={kbOpen} />
 
           {/* Main Content Area */}
-          <main className="w-full px-4 py-6 md:py-8 max-w-2xl mx-auto pb-24">
+          <main data-current-step={step} className="w-full px-4 py-6 md:py-8 max-w-2xl mx-auto pb-24">
             {!draftReady && <div className="fixed inset-0 z-[70] flex items-center justify-center bg-white/95 text-slate-700" role="status">{tr("正在檢查本機帳單草稿…")}</div>}
             {draftReady && (hasDraftWork || draftNotice || draftSaveError) && (
               <div data-testid="draft-status" className="mb-4 rounded-xl border border-slate-300 bg-slate-50 p-3 text-xs leading-relaxed text-slate-700" role="status" aria-live="polite">
@@ -2093,12 +2126,22 @@
                         <p className="text-xs font-bold uppercase tracking-wider text-brand-700">{tr("隱私保護")}</p>
                         <h2 id="receipt-redaction-title" className="text-xl font-bold text-slate-900 mt-1">{tr("先遮蓋敏感資料")}</h2>
                       </div>
-                      <button type="button" onClick={cancelReceiptRedaction} aria-label={tr("取消此次掃描")} className="w-10 h-10 shrink-0 rounded-xl border border-slate-400 text-slate-600 hover:bg-slate-100 text-2xl leading-none">×</button>
+                      <button type="button" onClick={cancelReceiptRedaction} disabled={isPreparingRedacted} aria-label={tr("取消此次掃描")} className="w-10 h-10 shrink-0 rounded-xl border border-slate-400 text-slate-600 hover:bg-slate-100 text-2xl leading-none">×</button>
                     </div>
 
                     <div className="rounded-xl border border-amber-500 bg-amber-50 p-3 mb-4">
-                      <p className="text-sm font-semibold text-amber-900">{tr("手指在電話、卡號、會員號等資料上按住並拖動，畫出黑色實心遮蓋框。")}</p>
+                      <p className="text-sm font-semibold text-amber-900">{bi('如需遮蓋電話、卡號或會員號，先按下方筆鍵，再拖動框選。未啟用時，滑動只會瀏覽圖片。', 'To hide a phone, card or membership number, enable the pen below, then drag a box. With the pen off, swiping only scrolls.')}</p>
                       <p className="text-xs text-amber-900 mt-1.5 leading-relaxed">{tr("請保留菜名、價格、稅費和日期。只有黑框內像素會被永久移除；框外內容仍會隨遮蓋版送到你設定的 AI 服務作 OCR。原圖不會用於 OCR、歷史儲存或分享。")}</p>
+                    </div>
+
+                    <div className="flex items-start gap-3 mb-4">
+                      <button type="button" data-testid="redaction-pen-toggle" aria-pressed={redactionDrawEnabled} onClick={() => setRedactionDrawingMode(!redactionDrawEnabledRef.current)} disabled={isPreparingRedacted} className={`shrink-0 min-h-[44px] px-3 py-2 rounded-xl border-2 font-bold text-sm flex items-center gap-2 disabled:opacity-50 ${redactionDrawEnabled ? 'bg-brand-600 text-white border-brand-700 shadow-md' : 'bg-white text-brand-900 border-brand-600 hover:bg-brand-50'}`}>
+                        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><g transform="rotate(-45 12 12)"><path d="M6 9H5l-3 3 3 3h1M18 9h1l3 3-3 3h-1"/><rect x="6" y="8" width="12" height="8" rx="1.5"/><path d="M9 8v8M15 8v8"/></g></svg>
+                        <span>{redactionDrawEnabled ? bi('關閉遮蓋筆', 'Disable pen') : bi('啟用遮蓋筆', 'Enable pen')}</span>
+                      </button>
+                      <p data-testid="redaction-mode-status" role="status" className={`min-w-0 text-sm leading-relaxed ${redactionDrawEnabled ? 'font-semibold text-brand-900' : 'text-slate-700'}`}>
+                        {redactionDrawEnabled ? bi('遮蓋已啟用：拖動可畫黑框；再按筆鍵退出。', 'Pen on: drag to draw black boxes. Tap the pen again to stop.') : bi('瀏覽模式：可上下滑動，不會畫黑框。', 'View mode: swipe to scroll. No marks will be drawn.')}
+                      </p>
                     </div>
 
                     <div className="flex items-center justify-between gap-2 mb-2">
@@ -2121,17 +2164,21 @@
                         <canvas
                           ref={redactionCanvasRef}
                           aria-label={tr("在此拖動框選要永久遮蓋的敏感資料")}
-                          className="absolute inset-0 w-full h-full touch-none cursor-crosshair"
+                          data-testid="redaction-canvas"
+                          data-drawing-enabled={redactionDrawEnabled ? 'true' : 'false'}
+                          className={`absolute inset-0 w-full h-full ${redactionDrawEnabled ? 'cursor-crosshair' : 'cursor-default'}`}
+                          style={{ touchAction: redactionDrawEnabled ? 'none' : 'pan-y pinch-zoom', pointerEvents: redactionDrawEnabled ? 'auto' : 'none' }}
                           onPointerDown={handleRedactionPointerDown}
                           onPointerMove={handleRedactionPointerMove}
                           onPointerUp={handleRedactionPointerUp}
-                          onPointerCancel={() => { redactionDragRef.current = null; setRedactionDrag(null); }}
+                          onPointerCancel={cancelRedactionStroke}
+                          onLostPointerCapture={event => { if (redactionDragRef.current?.pointerId === event.pointerId) cancelRedactionStroke(); }}
                         />
                       </div>
                     </div>
 
                     <div className="flex justify-between items-center gap-2 mt-2 mb-4">
-                      <p className="text-xs text-slate-500">{tr("用手指拖動框選；可畫多個黑框。")}</p>
+                      <p className="text-xs text-slate-500">{redactionDrawEnabled ? bi('可畫多個黑框；不想遮蓋的位置可撤銷。', 'Draw multiple boxes; undo a box if needed.') : bi('需要遮蓋時才啟用筆鍵。', 'Enable the pen only when you want to redact.')}</p>
                       <button type="button" onClick={() => setRedactionMasks(current => { const next = current.slice(); next[redactionIndex] = (next[redactionIndex] || []).slice(0, -1); return next; })} disabled={!(redactionMasks[redactionIndex] || []).length || isPreparingRedacted} className="px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-600 border border-slate-400 disabled:opacity-40">{tr("撤銷上一框")}</button>
                     </div>
 

@@ -1,7 +1,7 @@
 /* Local visual preview: warm grey layers, clear outlines, restrained brand green. */
 :root {
-  --page-grey: #e4e5e2;
-  --surface-grey: #f3f3ef;
+  --page-grey: #f8f8f8;
+  --surface-grey: #ffffff;
   --inset-grey: #e8ebe6;
   --outline: #5a9271;
   --outline-strong: #418260;
@@ -13,7 +13,7 @@ html { color-scheme: light; background: var(--page-grey); }
 body.bg-slate-50 { background: var(--page-grey); color: var(--ink); }
 #root { min-height: 100vh; }
 #root .app-header {
-  background: #f4f6f0;
+  background: #ffffff;
   border-bottom: 1px solid var(--outline-strong);
   box-shadow: 0 3px 12px #263b2d12;
   backdrop-filter: none;
@@ -31,10 +31,10 @@ body.bg-slate-50 { background: var(--page-grey); color: var(--ink); }
 }
 #root button[data-ui-language] { min-height: 34px; border-radius: 7px; color: #425747; }
 #root button[data-ui-language][aria-pressed="true"] { background: #116344; color: #fff; box-shadow: 0 1px 3px #173c2e30; }
-#root .stepper-panel { background: #dce4d9; border-color: #89998a; padding-top: 12px; padding-bottom: 12px; }
+#root .stepper-panel { background: #fdfdfd; border-color: #89998a; padding-top: 12px; padding-bottom: 12px; }
 #root .stepper-panel .bg-slate-300 { background: #aebaae; }
 #root .step-nav { gap: 5px; padding: 0; }
-#root .step-nav button { min-height: 52px; padding: 6px 3px; border: 1px solid #68a17e; background: #eaf0e7; color: #526452; }
+#root .step-nav button { min-height: 52px; padding: 6px 3px; border: 1px solid #68a17e; background: #ffffff; color: #526452; }
 #root .step-nav button[class*="bg-brand-50"] { background: #cce3d1; border-color: #428d62; color: #174b30; box-shadow: inset 0 0 0 .5px #428d62; }
 #root .step-nav button > span:first-child { border-color: #4f946a; }
 #root .step-nav button[class*="bg-brand-50"] > span:first-child { border-color: #075d40; background: #08764f; color: #fff; }
@@ -46,7 +46,7 @@ body.bg-slate-50 { background: var(--page-grey); color: var(--ink); }
   background-color: var(--surface-grey);
   border: 1px solid var(--outline);
   border-radius: 19px;
-  box-shadow: 0 3px 0 #c6d0c3, 0 8px 18px #263c2d09;
+  box-shadow: 0 3px 0 #e8e8e8, 0 8px 18px #263c2d08;
 }
 #root .app-card[class*="bg-gradient"] { background-image: none; }
 #root .api-settings-card { background: #dde7db; border-color: #6ea080; padding: 14px; }
@@ -56,11 +56,11 @@ body.bg-slate-50 { background: var(--page-grey); color: var(--ink); }
 #root .upload-dropzone {
   padding: 28px 22px;
   border: 1px dashed #52926e;
-  background: #f2f5ed;
+  background: #ffffff;
   border-radius: 20px;
-  box-shadow: inset 0 0 0 5px #e7ede1, 0 3px 0 #c6d0c3;
+  box-shadow: inset 0 0 0 5px #ffffff, 0 3px 0 #e8e8e8;
 }
-#root .upload-dropzone:hover { background: #ebf2e6; border-color: #247047; }
+#root .upload-dropzone:hover { background: #ffffff; border-color: #247047; }
 #root .upload-dropzone .w-20.h-20 { width: 64px; height: 64px; background: #e0e8db; border-color: #8ab39a; }
 #root .upload-dropzone h3 { color: #283b2c; }
 #root .upload-dropzone button { min-height: 48px; }
@@ -68,25 +68,25 @@ body.bg-slate-50 { background: var(--page-grey); color: var(--ink); }
   border: 1.5px solid #4b8f68 !important;
   background-color: #fff !important;
   color: #213128;
-  box-shadow: inset 0 1px 2px #273b2c08;
+  box-shadow: none;
 }
 #root input::placeholder, #root textarea::placeholder { color: #6a776e; opacity: 1; }
 #root input:focus, #root textarea:focus, #root select:focus { border-color: #08764f !important; outline: 3px solid #08764f25; outline-offset: 1px; }
 #root button { line-height: 1.45; }
 #root button.bg-brand-600 { background-color: #08704e; border-color: #07543b; box-shadow: 0 3px 0 #064b3522; }
 #root button.bg-brand-600:hover:not(:disabled) { background-color: #075c41; }
-#root button.bg-white[class*="border-slate-"] { background-color: #e8eee3; }
+#root button.bg-white[class*="border-slate-"] { background-color: #ffffff; }
 #root :is(.border-slate-200,.border-slate-300,.border-slate-400,.border-slate-500) { border-color: #5a9271; }
 #root :is(.border-b,.border-t)[class*="border-slate-"] { border-color: #9ab9a2; }
-#root .bg-slate-50 { background-color: #eaf0e5; }
-#root .bg-slate-100 { background-color: #e0e8db; }
+#root .bg-slate-50 { background-color: #ffffff; }
+#root .bg-slate-100 { background-color: #f6f6f6; }
 #root .text-slate-400 { color: #5f705f; }
 #root .text-slate-500 { color: #536653; }
 #root .text-slate-600 { color: #465a49; }
 #root .text-slate-700 { color: #354d3c; }
 #root .text-slate-800 { color: var(--ink); }
 #root [data-testid="final-summary-preview"], #root [data-testid="final-detail-preview"] {
-  background: #eaf0e5;
+  background: #ffffff;
   border-top: 1px solid #81aa8e;
   color: #2d4433;
   padding: 18px;
@@ -115,11 +115,23 @@ body.bg-slate-50 { background: var(--page-grey); color: var(--ink); }
 #root .header-language-button { font-size: 12px; letter-spacing: .01em; }
 #root .header-actions button { min-height: 40px; }
 #root .app-header-row .header-actions > button.header-language-button {
-  width: 40px; height: 40px; flex-shrink: 0; flex-direction: column; gap: 0; padding: 3px 2px;
+  width: 40px; height: 40px; position: relative; display: block; flex-shrink: 0; gap: 0; padding: 0;
   white-space: nowrap; line-height: 1; letter-spacing: 0;
 }
-#root .header-language-button .language-zh { font-size: 12px; line-height: 14px; }
-#root .header-language-button .language-en { font-size: 10px; line-height: 12px; }
+#root .header-language-button .language-divider {
+  position: absolute; inset: 3px; pointer-events: none;
+  background: linear-gradient(to bottom right,
+    transparent calc(50% - .55px), #789582 calc(50% - .55px),
+    #789582 calc(50% + .55px), transparent calc(50% + .55px));
+}
+#root .header-language-button :is(.language-zh, .language-en) {
+  position: absolute; z-index: 1;
+  text-shadow: -1px -1px 0 #e5ebe2, 1px -1px 0 #e5ebe2,
+    -1px 1px 0 #e5ebe2, 1px 1px 0 #e5ebe2,
+    0 -1px 0 #e5ebe2, 0 1px 0 #e5ebe2, -1px 0 0 #e5ebe2, 1px 0 0 #e5ebe2;
+}
+#root .header-language-button .language-zh { top: 3px; left: 4px; font-size: 12px; line-height: 14px; }
+#root .header-language-button .language-en { bottom: 3px; right: 3px; font-size: 10px; line-height: 11px; }
 @media (max-width: 359px) {
   #root .app-header-row .header-actions > button.header-language-button { width: 36px; }
 }
@@ -143,7 +155,7 @@ html[lang="en"] #root .header-actions .guide-label { display: none; }
 
 /* Primary actions and the brand: dark lower-left to light upper-right. */
 :root {
-  --brand-action-gradient: linear-gradient(to top right, #07513b 0%, #0c6c4c 55%, #12805c 100%);
+  --brand-action-gradient: linear-gradient(to top right, #07513b 0%, #0c6c4c 55%, #26865e 100%);
   --brand-wordmark-gradient: linear-gradient(to top right, #07513b 0%, #0b6345 55%, #117453 100%);
 }
 #root button.bg-brand-600:not(:disabled), #root .app-brand-icon {
@@ -152,6 +164,8 @@ html[lang="en"] #root .header-actions .guide-label { display: none; }
   border-color: #388b62 !important;
 }
 #root button.bg-brand-600:not(:disabled):hover { background-image: var(--brand-action-gradient); }
+/* Keep the brand icon unchanged; this lighter endpoint is for action buttons only. */
+#root .app-brand-icon { background-image: linear-gradient(to top right, #07513b 0%, #0c6c4c 55%, #12805c 100%); }
 #root .app-brand-name, #root [data-testid="app-pro-label"] { color: #0b6345; }
 @supports ((-webkit-background-clip: text) or (background-clip: text)) {
   #root .app-brand-name, #root [data-testid="app-pro-label"] {
@@ -191,5 +205,78 @@ html[lang="en"] #root .header-actions .guide-label { display: none; }
 }
 #root .report-detail-card h3 { color: #294e7a; }
 #root [data-testid="final-detail-preview"] {
-  background: #f0f4f9; border-top-color: #8ea7c5; color: #30465e;
+  background: #ffffff; border-top-color: #8ea7c5; color: #30465e;
+}
+
+/* Step-aware accents: keep green for primary actions and the brand; tint only
+   the active step marker, section heading, information surfaces and secondary actions. */
+#root main[data-current-step="1"] .page-section-heading { border-bottom-color: #9bb4cf; }
+#root main[data-current-step="1"] .page-section-heading > span {
+  background: #e5eef8; border-color: #678bb6; color: #294e7a;
+}
+#root main[data-current-step="1"] .page-section-heading h2 { color: #294e7a; }
+#root main[data-current-step="1"] .app-card.bg-blue-50 { background: #edf3fa; border-color: #7896b9; }
+
+#root main[data-current-step="2"] .page-section-heading { border-bottom-color: #9bb4cf; }
+#root main[data-current-step="2"] .page-section-heading > span {
+  background: #e5eef8; border-color: #678bb6; color: #294e7a;
+}
+#root main[data-current-step="2"] .page-section-heading h2 { color: #294e7a; }
+#root main[data-current-step="2"] .app-card.relative.overflow-visible { border-color: #7896b9; }
+#root main[data-current-step="2"] .app-card.relative.overflow-visible .grid > div:first-child > label {
+  color: #294e7a;
+}
+#root main[data-current-step="2"] [data-testid="claim-link-actions"] {
+  background: #edf3fa; border-color: #7896b9;
+}
+#root main[data-current-step="2"] [data-testid="claim-link-actions"] button:not(.bg-brand-600) {
+  background: #f6f9fd; border-color: #678bb6; color: #294e7a;
+}
+#root main[data-current-step="2"] .flex.gap-3.pt-2 > button.bg-white[class*="border-slate-"] {
+  background: #f3f6fb; border-color: #678bb6; color: #294e7a;
+}
+
+#root main[data-current-step="3"] .page-section-heading { border-bottom-color: #c9ae77; }
+#root main[data-current-step="3"] .page-section-heading > span {
+  background: #fff1cf; border-color: #a97922; color: #704a08;
+}
+#root main[data-current-step="3"] .page-section-heading h2 { color: #684609; }
+#root main[data-current-step="3"] .app-card.bg-amber-50 {
+  background: #fff2d9; border-color: #ad7f3c;
+}
+#root main[data-current-step="3"] .flex.gap-3.pt-2 > button.bg-white[class*="border-slate-"] {
+  background: #fff8e9; border-color: #a97922; color: #704a08;
+}
+
+#root main[data-current-step="4"] .page-section-heading { border-bottom-color: #9bb4cf; }
+#root main[data-current-step="4"] .page-section-heading > span {
+  background: #e6f1e9; border-color: #5f9873; color: #1d603c;
+}
+#root main[data-current-step="4"] .page-section-heading h2 { color: #294e7a; }
+#root main[data-current-step="4"] [data-testid="final-summary-preview"] {
+  background: #ffffff; border-top-color: #7896b9; color: #30465e;
+}
+
+/* The stepper mirrors the same restrained semantic palette without recoloring
+   the brand logo or primary green buttons. */
+#root:has(main[data-current-step="1"]) .step-nav button:nth-child(1),
+#root:has(main[data-current-step="2"]) .step-nav button:nth-child(2),
+#root:has(main[data-current-step="3"]) .step-nav button:nth-child(3),
+#root:has(main[data-current-step="4"]) .step-nav button:nth-child(4) {
+  border-width: 1.5px;
+}
+#root:has(main[data-current-step="1"]) .step-nav button:nth-child(1) { background: #e5eef8; border-color: #678bb6; color: #294e7a; }
+#root:has(main[data-current-step="1"]) .step-nav button:nth-child(1) > span:first-child { background: #355f8e; border-color: #294e7a; color: #fff; }
+#root:has(main[data-current-step="2"]) .step-nav button:nth-child(2) { background: #e5eef8; border-color: #678bb6; color: #294e7a; }
+#root:has(main[data-current-step="2"]) .step-nav button:nth-child(2) > span:first-child { background: #355f8e; border-color: #294e7a; color: #fff; }
+#root:has(main[data-current-step="3"]) .step-nav button:nth-child(3) { background: #fff1cf; border-color: #a97922; color: #704a08; }
+#root:has(main[data-current-step="3"]) .step-nav button:nth-child(3) > span:first-child { background: #80550d; border-color: #704a08; color: #fff; }
+#root:has(main[data-current-step="4"]) .step-nav button:nth-child(4) { background: #e6f1e9; border-color: #5f9873; color: #1d603c; }
+#root:has(main[data-current-step="4"]) .step-nav button:nth-child(4) > span:first-child { background: #246c45; border-color: #1d603c; color: #fff; }
+
+/* Receipt inspection uses a bright paper-like surface; camera and modal
+   backdrops remain unchanged. Do not alter the uploaded image pixels. */
+#root [role="dialog"][aria-labelledby="receipt-redaction-title"] .bg-slate-900 {
+  background-color: #ffffff;
+  border: 1px solid #89a692;
 }
