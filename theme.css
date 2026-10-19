@@ -114,6 +114,15 @@ body.bg-slate-50 { background: var(--page-grey); color: var(--ink); }
 #root .header-actions { flex-shrink: 0; gap: 6px; }
 #root .header-language-button { font-size: 12px; letter-spacing: .01em; }
 #root .header-actions button { min-height: 40px; }
+#root .app-header-row .header-actions > button.header-language-button {
+  width: 40px; height: 40px; flex-shrink: 0; flex-direction: column; gap: 0; padding: 3px 2px;
+  white-space: nowrap; line-height: 1; letter-spacing: 0;
+}
+#root .header-language-button .language-zh { font-size: 12px; line-height: 14px; }
+#root .header-language-button .language-en { font-size: 10px; line-height: 12px; }
+@media (max-width: 359px) {
+  #root .app-header-row .header-actions > button.header-language-button { width: 36px; }
+}
 @media (max-width: 479px) {
   #root .header-actions { gap: 5px; }
   #root .header-actions > button:not(.header-back-button), #root .header-actions > .guide-button { width: 40px; padding: 8px; }
@@ -152,4 +161,35 @@ html[lang="en"] #root .header-actions .guide-label { display: none; }
     color: transparent;
     -webkit-text-fill-color: transparent;
   }
+}
+
+/* Restrained semantic accents: information blue, pending actions amber. */
+#root .api-settings-card {
+  background: #e8eff7; border-color: #6384ac;
+}
+#root .api-settings-card > button:not(.bg-red-50) {
+  background: #f4f8fc; border-color: #708fb4;
+}
+#root .api-settings-card > button:not(.bg-red-50) > span.bg-brand-500 {
+  background: #3f6d9a;
+}
+/* A missing key is a setup task, not a failed operation. */
+#root .api-settings-card > button.bg-red-50 {
+  background: #fff3d8; border-color: #ad7a32; color: #654211;
+}
+#root .api-settings-card > button.bg-red-50 > span.bg-red-500 { background: #9b5e16; }
+#root .api-settings-card > button.bg-red-50 .text-red-600 { color: #80521c; }
+#root .app-card.bg-amber-50 {
+  background: #fff2d9; border-color: #ad7f3c;
+}
+#root .app-card.bg-blue-50 {
+  background: #edf3fa; border-color: #6384ac;
+}
+#root .report-detail-card { border-color: #6384ac; }
+#root .report-detail-card > div:first-child {
+  background: #e6eef8; border-bottom-color: #8ea7c5;
+}
+#root .report-detail-card h3 { color: #294e7a; }
+#root [data-testid="final-detail-preview"] {
+  background: #f0f4f9; border-top-color: #8ea7c5; color: #30465e;
 }

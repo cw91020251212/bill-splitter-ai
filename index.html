@@ -106,6 +106,7 @@
       save: '<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>',
       fileImage: '<path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><circle cx="10" cy="13" r="2"/><path d="m20 17-1.09-1.09a2 2 0 0 0-2.82 0L10 22"/>',
       book: '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>',
+      bookOpen: '<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>',
       help: '<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" x2="12.01" y1="17" y2="17"/>',
       chevronDown: '<path d="m6 9 6 6 6-6"/>',
       chevronUp: '<path d="m18 15-6-6-6 6"/>',
@@ -1946,7 +1947,7 @@
               2: { bg: 'bg-orange-50', border: 'border-orange-500', text: 'text-orange-700', dot: '🟠' },
               3: { bg: 'bg-amber-50', border: 'border-amber-500', text: 'text-amber-800', dot: '🟡' },
               4: { bg: 'bg-blue-50', border: 'border-blue-500', text: 'text-blue-700', dot: '🔵' },
-              5: { bg: 'bg-brand-50', border: 'border-brand-500', text: 'text-brand-700', dot: '🟢' },
+              5: { bg: 'bg-blue-50', border: 'border-blue-500', text: 'text-blue-700', dot: '🔵' },
               6: { bg: 'bg-slate-50', border: 'border-slate-500', text: 'text-slate-600', dot: '⚪' }
           }[top.level] || { bg: 'bg-slate-50', border: 'border-slate-500', text: 'text-slate-600', dot: '⚪' };
 
@@ -1980,7 +1981,7 @@
                               </div>
                               <div className="max-h-[60vh] overflow-y-auto p-3 space-y-3 bg-slate-50/50">
                                   {statuses.map(s => {
-                                      const ST = { 1: { dot: '🔴', bg: 'bg-red-50', text: 'text-red-800', border: 'border-red-500' }, 2: { dot: '🟠', bg: 'bg-orange-50', text: 'text-orange-800', border: 'border-orange-500' }, 3: { dot: '🟡', bg: 'bg-amber-50', text: 'text-amber-900', border: 'border-amber-500' }, 4: { dot: '🔵', bg: 'bg-blue-50', text: 'text-blue-800', border: 'border-blue-500' }, 5: { dot: '🟢', bg: 'bg-brand-50', text: 'text-brand-800', border: 'border-brand-500' }, 6: { dot: '⚪', bg: 'bg-white', text: 'text-slate-700', border: 'border-slate-500' } }[s.level] || { dot: '⚪', bg: 'bg-white', text: 'text-slate-700', border: 'border-slate-500' };
+                                      const ST = { 1: { dot: '🔴', bg: 'bg-red-50', text: 'text-red-800', border: 'border-red-500' }, 2: { dot: '🟠', bg: 'bg-orange-50', text: 'text-orange-800', border: 'border-orange-500' }, 3: { dot: '🟡', bg: 'bg-amber-50', text: 'text-amber-900', border: 'border-amber-500' }, 4: { dot: '🔵', bg: 'bg-blue-50', text: 'text-blue-800', border: 'border-blue-500' }, 5: { dot: '🔵', bg: 'bg-blue-50', text: 'text-blue-800', border: 'border-blue-500' }, 6: { dot: '⚪', bg: 'bg-white', text: 'text-slate-700', border: 'border-slate-500' } }[s.level] || { dot: '⚪', bg: 'bg-white', text: 'text-slate-700', border: 'border-slate-500' };
                                       return (
                                           <div key={s.id} className={`flex flex-col gap-2 p-3.5 rounded-xl border ${ST.border} shadow-sm ${ST.bg}`}>
                                               <div className="flex items-start gap-2.5">
@@ -2023,7 +2024,7 @@
               </div>
               <div className="header-actions flex items-center gap-1.5 sm:gap-2">
                 <button type="button" data-testid="header-language-toggle" data-ui-language={uiLang === 'en' ? 'zh-HK' : 'en'} onClick={() => changeUiLanguage(uiLang === 'en' ? 'zh-HK' : 'en')} title={uiLang === 'en' ? 'Switch to Traditional Chinese' : '切換至 English'} aria-label={uiLang === 'en' ? 'Switch to Traditional Chinese' : '切換至 English'} className="header-language-button flex items-center justify-center px-2.5 py-2 bg-slate-100 text-slate-700 border border-slate-400 rounded-lg text-xs font-bold transition-colors">
-                  <Icon path={icons.language} size={18}/>
+                  <span className="language-zh" lang="zh-HK">中</span><span className="language-en" lang="en">Eng</span>
                 </button>
                 {(showHistory || showSettings || showTutorial) ? (
                   <button onClick={() => {setShowHistory(false); setShowSettings(false); setShowTutorial(false);}} className="header-back-button flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-semibold transition-colors border border-slate-400">
@@ -2031,7 +2032,7 @@
                 ) : (
                   <React.Fragment>
                     <button onClick={() => setShowTutorial(true)} title={tr("新手教學")} className="guide-button flex items-center gap-1.5 px-3 py-2 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-500 rounded-lg text-sm font-semibold transition-colors">
-                      <Icon path={icons.book} size={16}/> <span className="guide-label">{tr("教學")}</span>
+                      <Icon path={icons.bookOpen} size={16}/> <span className="guide-label">{tr("教學")}</span>
                     </button>
                     <button onClick={() => setShowSettings(true)} title={tr("設定")} className="flex items-center gap-1.5 px-2.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-400 rounded-lg text-sm font-semibold transition-colors">
                       <Icon path={icons.settings} size={16}/>
@@ -2495,7 +2496,7 @@
                   </Card>
                 </div>
 
-                <Card className="!p-0 overflow-hidden">
+                <Card className="report-detail-card !p-0 overflow-hidden">
                   <div className="p-4 bg-slate-50 border-b border-slate-400">
                     <div className="mb-3">
                       <h3 className="font-bold text-slate-800 text-base">{tr("🧾 詳細明細版")}</h3>
