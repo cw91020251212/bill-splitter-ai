@@ -1907,7 +1907,9 @@
               : `💲 ${formatMoney(a.amount, curr)}（${a.qty} ${unitDisplay(a.unit, language)}，${a.reason}）\n\n`;
           });
           if (p.tax > 0) txt += english ? `▫️ Tax / service charge share 💲 ${formatMoney(p.tax, curr)}\n` : `▫️ 稅／服務費分攤 💲 ${formatMoney(p.tax, curr)}\n`;
-          txt += english ? `▶️ *Amount due: ${formatMoney(p.total, curr)}*\n────────\n` : `▶️ *應付：${formatMoney(p.total, curr)}*\n────────\n`;
+          txt += english
+            ? `\n━━━━━━━━━━\n💰 *TOTAL DUE*\n\n*${formatMoney(p.total, curr)}*\n━━━━━━━━━━\n`
+            : `\n━━━━━━━━━━\n💰 *應付總額*\n\n*${formatMoney(p.total, curr)}*\n━━━━━━━━━━\n`;
           grandTotal += p.total;
         });
         const itemsSum = items.reduce((sum, item) => sum + toNum(item.total), 0);
