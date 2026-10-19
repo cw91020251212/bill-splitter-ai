@@ -2359,7 +2359,7 @@
                 )}
 
                 <div className="pt-2">
-                  <Button onClick={saveCurrentRecord} disabled={isSaved || isSavingRecord} className={`w-full ${isSaved ? 'bg-slate-100 text-brand-700 border border-brand-500' : ''}`}>
+                  <Button onClick={saveCurrentRecord} disabled={isSaved || isSavingRecord} variant={isSaved ? 'secondary' : 'primary'} className={`w-full ${isSaved ? '!bg-emerald-50 !text-emerald-900 !border-emerald-700 disabled:!opacity-100 disabled:!cursor-default !shadow-none !transition-none' : ''}`}>
                     {isSavingRecord ? '正在儲存…' : isSaved ? <><Icon path={icons.check} size={20}/> {lastImageData.length ? `紀錄及 ${lastImageData.length} 張單據已儲存在本機` : '紀錄已儲存'}</> : <><Icon path={icons.save} size={20}/> {lastImageData.length ? `儲存分帳紀錄及 ${lastImageData.length} 張實體單` : '儲存此分帳紀錄'}</>}
                   </Button>
                   {lastImageData.length > 0 && <p className="text-xs text-slate-500 text-center mt-2">收據圖片只保存在這部裝置；不會上傳到伺服器。儲存紀錄後，可到「歷史紀錄」再次分享。</p>}
