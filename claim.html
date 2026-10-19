@@ -26,6 +26,8 @@
     button, input, textarea { font: inherit; }
     .page { width: min(100%, 640px); margin: 0 auto; padding: 0 16px calc(28px + env(safe-area-inset-bottom)); }
     .hero { padding: calc(22px + env(safe-area-inset-top)) 4px 18px; }
+    .hero-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .language-toggle { min-height: 40px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 999px; color: var(--green-dark); background: white; font-size: 13px; font-weight: 750; cursor: pointer; }
     .brand { display: inline-flex; align-items: center; gap: 8px; color: var(--green-dark); font-size: 13px; font-weight: 800; letter-spacing: .02em; }
     .brand-mark { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 10px; background: var(--green); color: white; font-size: 16px; }
     h1 { margin: 14px 0 6px; font-size: clamp(25px, 7vw, 32px); line-height: 1.2; letter-spacing: -.03em; }
@@ -80,52 +82,55 @@
 <body>
   <div class="page">
     <header class="hero">
-      <div class="brand"><span class="brand-mark" aria-hidden="true">✓</span><span>分帳管家 AI</span></div>
-      <h1>填寫你的認領</h1>
-      <p>在每項填入你認領的份數，填好後把回覆自行傳回發起人即可。</p>
+      <div class="hero-top">
+        <div class="brand"><span class="brand-mark" aria-hidden="true">✓</span><span id="brand-name">分帳管家 AI</span></div>
+        <button id="language-toggle" class="language-toggle" type="button" aria-label="Switch language">English</button>
+      </div>
+      <h1 id="page-title">填寫你的認領</h1>
+      <p id="page-intro">在每項填入你認領的份數，填好後把回覆自行傳回發起人即可。</p>
     </header>
 
     <main>
       <section id="load-error" class="load-error" role="alert" hidden>
-        <strong>打不開這份認領表</strong>
-        連結資料不完整或格式不正確。請向發起人索取最新的認領連結。
+        <strong id="error-title">打不開這份認領表</strong>
+        <span id="error-description">連結資料不完整或格式不正確。請向發起人索取最新的認領連結。</span>
       </section>
 
       <div id="claim-content" hidden>
-        <section class="panel notice" aria-label="填寫說明">
+        <section id="notice" class="panel notice" aria-label="填寫說明">
           <span class="icon" aria-hidden="true">ℹ️</span>
-          <div><strong>數字本身就是份數。</strong>例如 0.5＝半份、1＝一份、2＝兩份；留空或填 0 代表沒有認領。</div>
+          <div><strong id="notice-title">數字本身就是份數。</strong><span id="notice-copy">例如 0.5＝半份、1＝一份、2＝兩份；留空或填 0 代表沒有認領。</span></div>
         </section>
 
         <form id="claim-form" novalidate>
           <section class="panel">
-            <label class="field-label" for="person-name">你的姓名</label>
+            <label id="person-label" class="field-label" for="person-name">你的姓名</label>
             <input id="person-name" class="name-input" type="text" maxlength="60" autocomplete="name" placeholder="例如：阿明" required>
-            <p class="hint">請用發起人認得的名字，回覆會用這個名字標示。</p>
+            <p id="person-hint" class="hint">請用發起人認得的名字，回覆會用這個名字標示。</p>
           </section>
 
           <div class="items-heading">
-            <h2>帳單項目</h2>
+            <h2 id="items-title">帳單項目</h2>
             <span id="item-count" class="count"></span>
           </div>
           <section id="item-list" class="item-list" aria-label="帳單項目"></section>
           <p id="form-feedback" class="form-feedback" role="status" aria-live="polite"></p>
 
           <section class="panel preview-panel">
-            <h2 class="preview-title">認領回覆預覽</h2>
-            <p class="preview-subtitle">會列出項目名稱、編號和認領數量，並沿用原程式的 WhatsApp 排版，方便發起人核對。</p>
+            <h2 id="preview-title" class="preview-title">認領回覆預覽</h2>
+            <p id="preview-subtitle" class="preview-subtitle">會列出項目名稱、編號和認領數量，並沿用原程式的 WhatsApp 排版，方便發起人核對。</p>
             <textarea id="reply-preview" class="preview" readonly aria-label="認領回覆文字預覽" placeholder="先填姓名和至少一項數量，回覆文字便會顯示在這裡。"></textarea>
             <div class="actions">
               <button id="share-button" class="button primary" type="button" disabled>分享回覆</button>
               <button id="copy-button" class="button" type="button" disabled>複製回覆文字</button>
             </div>
-            <p class="share-help">按「分享回覆」後，在手機分享清單選 WhatsApp、選擇發起人，再自行按發送。亦可先複製文字，再貼到 WhatsApp。</p>
+            <p id="share-help" class="share-help">按「分享回覆」後，在手機分享清單選 WhatsApp、選擇發起人，再自行按發送。亦可先複製文字，再貼到 WhatsApp。</p>
           </section>
         </form>
       </div>
     </main>
 
-    <footer class="footer">此頁不會自動發送訊息或收集回覆。認領資料只在你的瀏覽器內整理；項目名稱已包含在邀請連結中。</footer>
+    <footer id="footer" class="footer">此頁不會自動發送訊息或收集回覆。認領資料只在你的瀏覽器內整理；項目名稱已包含在邀請連結中。</footer>
   </div>
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
@@ -142,8 +147,61 @@
       const shareButton = document.getElementById('share-button');
       const copyButton = document.getElementById('copy-button');
       const toastElement = document.getElementById('toast');
+      const languageButton = document.getElementById('language-toggle');
       let toastTimer;
       let items = [];
+      const messages = {
+        'zh-HK': {
+          title: '填寫你的認領', intro: '在每項填入你認領的份數，填好後把回覆自行傳回發起人即可。',
+          errorTitle: '打不開這份認領表', errorDescription: '連結資料不完整或格式不正確。請向發起人索取最新的認領連結。',
+          noticeLabel: '填寫說明', noticeTitle: '數字本身就是份數。', noticeCopy: '例如 0.5＝半份、1＝一份、2＝兩份；留空或填 0 代表沒有認領。',
+          personLabel: '你的姓名', namePlaceholder: '例如：阿明', nameHint: '請用發起人認得的名字，回覆會用這個名字標示。',
+          items: '帳單項目', preview: '認領回覆預覽', previewSubtitle: '會列出項目名稱、編號和認領數量，並沿用原程式的 WhatsApp 排版，方便發起人核對。',
+          previewPlaceholder: '先填姓名和至少一項數量，回覆文字便會顯示在這裡。', previewLabel: '認領回覆文字預覽',
+          share: '分享回覆', copy: '複製回覆文字', shareHelp: '按「分享回覆」後，在手機分享清單選 WhatsApp、選擇發起人，再自行按發送。亦可先複製文字，再貼到 WhatsApp。',
+          footer: '此頁不會自動發送訊息或收集回覆。認領資料只在你的瀏覽器內整理；項目名稱已包含在邀請連結中。',
+          itemCount: n => `${n} 項`, original: text => `單據原文：${text}`, total: (n, unit) => `單據共 ${n} ${unit}`,
+          qtyLabel: '認領份數', qtyPlaceholder: '例如：0.5、1、2', qtyAria: (id, name) => `${id} ${name} 認領份數`,
+          qtyHint: (item) => item.totalQty && item.unit
+            ? `數字直接代表份數：0.5 是半份，2 是兩份。若要按實際單位計，可在數字後加「${item.unit}」（例如 3 ${item.unit}）；只填數字仍是份數。留空或 0 代表不認領。`
+            : '數字直接代表份數：0.5 是半份，1 是一份，2 是兩份。留空或 0 代表不認領。',
+          needName: '請先填寫你的姓名。', badName: '姓名請勿包含冒號或等號。',
+          invalidNumber: name => `「${name}」請輸入數字，例如 0.5、1 或 2。`, negative: '數量不能是負數，請檢查輸入。',
+          digitsOnly: name => `「${name}」請只填數字份數。`, wrongUnit: (name, unit) => `「${name}」的單位請填「${unit}」，或只填數字代表份數。`,
+          needClaim: '請至少填寫一項大於 0 的認領數量。', copied: '已複製，可貼到 WhatsApp 傳回。', copyFail: '無法自動複製，請選取預覽文字複製。',
+          copyToWhatsapp: '已複製，請貼到 WhatsApp 傳回。', noShare: '此瀏覽器未支援分享，請手動複製預覽文字。', shareCancelled: '分享未完成；你仍可按「複製回覆文字」。',
+          replyTitle: '分帳認領回覆', name: '姓名', claimed: '我認領的項目', quantity: '認領份數', actual: '實際數量', done: '已填妥，請發回給發起人。',
+          quantityCount: n => `數量：${n}`
+        },
+        en: {
+          title: 'Claim your items', intro: 'Enter how much you are claiming for each item, then send the reply back to the organizer.',
+          errorTitle: 'This claim form could not be opened', errorDescription: 'The link is incomplete or invalid. Please ask the organizer for a new claim link.',
+          noticeLabel: 'Instructions', noticeTitle: 'The number is the number of portions.', noticeCopy: 'For example, 0.5 = half a portion, 1 = one portion, and 2 = two portions. Leave blank or enter 0 for no claim.',
+          personLabel: 'Your name', namePlaceholder: 'For example: Alex', nameHint: 'Use a name the organizer will recognize; it will identify your reply.',
+          items: 'Bill items', preview: 'Claim reply preview', previewSubtitle: 'The reply includes item names, IDs, and quantities in a WhatsApp-friendly format for the organizer to check.',
+          previewPlaceholder: 'Enter your name and at least one quantity to see the reply here.', previewLabel: 'Claim reply text preview',
+          share: 'Share reply', copy: 'Copy reply text', shareHelp: 'Tap “Share reply”, choose WhatsApp and the organizer from your phone’s share menu, then send it yourself. Or copy the text and paste it into WhatsApp.',
+          footer: 'This page does not send messages or collect replies automatically. Your claims are prepared only in your browser; item names are included in the invitation link.',
+          itemCount: n => `${n} ${n === 1 ? 'item' : 'items'}`, original: text => `Receipt text: ${text}`, total: (n, unit) => `Receipt total ${n} ${unit}`,
+          qtyLabel: 'Quantity to claim', qtyPlaceholder: 'For example: 0.5, 1, 2', qtyAria: (id, name) => `${id} ${name} quantity to claim`,
+          qtyHint: item => item.totalQty && item.unit
+            ? `Numbers mean portions: 0.5 is half a portion and 2 is two portions. To enter an actual unit amount, add “${item.unit}” after the number (for example, 3 ${item.unit}); a number alone still means portions. Leave blank or enter 0 for no claim.`
+            : 'Numbers mean portions: 0.5 is half a portion, 1 is one portion, and 2 is two portions. Leave blank or enter 0 for no claim.',
+          needName: 'Please enter your name first.', badName: 'Your name cannot contain a colon or equals sign.',
+          invalidNumber: name => `Enter a number for “${name}”, such as 0.5, 1, or 2.`, negative: 'Quantity cannot be negative. Please check your entry.',
+          digitsOnly: name => `Enter a number of portions only for “${name}”.`, wrongUnit: (name, unit) => `For “${name}”, enter “${unit}” as the unit or enter a number of portions only.`,
+          needClaim: 'Enter a claim quantity greater than 0 for at least one item.', copied: 'Copied. Paste it into WhatsApp to send it back.', copyFail: 'Could not copy automatically. Select and copy the preview text.',
+          copyToWhatsapp: 'Copied. Paste it into WhatsApp to send it back.', noShare: 'Sharing is not supported in this browser. Please copy the preview text manually.', shareCancelled: 'Sharing was not completed; you can still copy the reply text.',
+          replyTitle: 'Bill Split Claim Reply', name: 'Name', claimed: 'My claimed items', quantity: 'Quantity', actual: 'Actual quantity', done: 'Complete — please send this back to the organizer.',
+          quantityCount: n => `Quantity: ${n}`
+        }
+      };
+      const queryLanguage = new URLSearchParams(window.location.search).get('lang');
+      let savedLanguage = '';
+      try { savedLanguage = localStorage.getItem('billSplitterLanguage') || ''; } catch (_) {}
+      let language = queryLanguage === 'en' || queryLanguage === 'zh-HK'
+        ? queryLanguage
+        : (savedLanguage === 'en' ? 'en' : 'zh-HK');
 
       function decodeBase64Url(value) {
         const base64 = value.replace(/-/g, '+').replace(/_/g, '/');
@@ -162,6 +220,7 @@
         const cleanItems = parsed.map(item => ({
           id: String(item?.id ?? ''),
           name: String(item?.name ?? '').trim().slice(0, 200),
+          nameEn: typeof item?.nameEn === 'string' ? item.nameEn.trim().slice(0, 200) : '',
           original: typeof item?.original === 'string' ? item.original.trim().slice(0, 500) : '',
           totalQty: Number.isFinite(Number(item?.totalQty)) && Number(item.totalQty) > 0 ? Number(item.totalQty) : null,
           unit: String(item?.unit ?? '').replace(/[\r\n=＝]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 30)
@@ -181,52 +240,86 @@
         return node;
       }
 
+      function applyLanguage(nextLanguage) {
+        language = nextLanguage;
+        const text = messages[language];
+        document.documentElement.lang = language;
+        document.title = language === 'en' ? 'Claim items | Bill Splitter AI' : '帳單認領｜分帳管家 AI';
+        document.querySelector('meta[name="description"]').content = language === 'en'
+          ? 'Claim bill items on your phone, then send your reply to the organizer.'
+          : '在手機上填寫帳單項目認領，完成後自行透過 WhatsApp 傳回。';
+        document.getElementById('language-toggle').textContent = language === 'en' ? '繁體中文' : 'English';
+        languageButton.setAttribute('aria-label', language === 'en' ? 'Switch to Traditional Chinese' : '切換至 English');
+        document.getElementById('brand-name').textContent = language === 'en' ? 'Bill Splitter AI' : '分帳管家 AI';
+        document.getElementById('page-title').textContent = text.title;
+        document.getElementById('page-intro').textContent = text.intro;
+        document.getElementById('error-title').textContent = text.errorTitle;
+        document.getElementById('error-description').textContent = text.errorDescription;
+        document.getElementById('notice').setAttribute('aria-label', text.noticeLabel);
+        document.getElementById('notice-title').textContent = text.noticeTitle + (language === 'en' ? ' ' : '');
+        document.getElementById('notice-copy').textContent = text.noticeCopy;
+        document.getElementById('person-label').textContent = text.personLabel;
+        nameInput.placeholder = text.namePlaceholder;
+        document.getElementById('person-hint').textContent = text.nameHint;
+        document.getElementById('items-title').textContent = text.items;
+        document.getElementById('item-list').setAttribute('aria-label', text.items);
+        document.getElementById('preview-title').textContent = text.preview;
+        document.getElementById('preview-subtitle').textContent = text.previewSubtitle;
+        preview.placeholder = text.previewPlaceholder;
+        preview.setAttribute('aria-label', text.previewLabel);
+        shareButton.textContent = text.share;
+        copyButton.textContent = text.copy;
+        document.getElementById('share-help').textContent = text.shareHelp;
+        document.getElementById('footer').textContent = text.footer;
+        renderItems();
+        updatePreview();
+      }
+
       function renderItems() {
-        itemCount.textContent = `${items.length} 項`;
+        const savedValues = Array.from(itemList.querySelectorAll('.qty-input'), input => input.value);
+        itemList.replaceChildren();
+        const text = messages[language];
+        itemCount.textContent = text.itemCount(items.length);
         items.forEach((item, index) => {
+          const displayName = language === 'en' && item.nameEn ? item.nameEn : item.name;
           const card = makeElement('article', 'item-card');
           const heading = makeElement('div', 'item-heading');
           heading.append(makeElement('span', 'item-id', item.id));
-          heading.append(makeElement('h3', 'item-title', item.name));
+          heading.append(makeElement('h3', 'item-title', displayName));
           card.append(heading);
           if (item.original) {
-            card.append(makeElement('p', 'item-original', `單據原文：${item.original}`));
+            card.append(makeElement('p', 'item-original', text.original(item.original)));
           }
           if (item.totalQty && item.unit) {
-            card.append(makeElement('p', 'item-meta', `單據共 ${item.totalQty} ${item.unit}`));
+            card.append(makeElement('p', 'item-meta', text.total(item.totalQty, item.unit)));
           }
 
-          const qtyLabel = makeElement('label', 'field-label', '認領份數');
+          const qtyLabel = makeElement('label', 'field-label', text.qtyLabel);
           qtyLabel.htmlFor = `qty-${index}`;
           card.append(qtyLabel);
           const qtyRow = makeElement('div', 'qty-row');
           const qtyInput = document.createElement('input');
           qtyInput.className = 'qty-input'; qtyInput.id = `qty-${index}`;
           qtyInput.type = 'text'; qtyInput.inputMode = item.totalQty && item.unit ? 'text' : 'decimal'; qtyInput.autocomplete = 'off';
-          qtyInput.maxLength = 24; qtyInput.placeholder = '例如：0.5、1、2';
-          qtyInput.setAttribute('aria-label', `${item.id} ${item.name} 認領份數`);
+          qtyInput.maxLength = 24; qtyInput.placeholder = text.qtyPlaceholder;
+          qtyInput.setAttribute('aria-label', text.qtyAria(item.id, displayName));
           qtyInput.dataset.itemIndex = String(index);
+          qtyInput.value = savedValues[index] ?? '';
           qtyRow.append(qtyInput);
           card.append(qtyRow);
-          card.append(makeElement('p', 'hint', item.totalQty && item.unit
-            ? `數字直接代表份數：0.5 是半份，2 是兩份。若要按實際單位計，可在數字後加「${item.unit}」（例如 3 ${item.unit}）；只填數字仍是份數。留空或 0 代表不認領。`
-            : '數字直接代表份數：0.5 是半份，1 是一份，2 是兩份。留空或 0 代表不認領。'));
+          card.append(makeElement('p', 'hint', text.qtyHint(item)));
           itemList.append(card);
         });
-
-        itemList.addEventListener('input', updatePreview);
       }
 
       function getReply() {
+        const text = messages[language];
         const person = nameInput.value.trim().replace(/[\r\n]+/g, ' ');
-        if (!person) return { text: '', error: '請先填寫你的姓名。', complete: false };
-        if (/[:：=＝]/.test(person)) return { text: '', error: '姓名請勿包含冒號或等號。', complete: false };
-        const lines = [
-          '🧾 *分帳認領回覆* 🧾',
-          `👤 姓名：${person}`,
-          '━━━━━━━━━━━━━━',
-          '🍽️ *我認領的項目*'
-        ];
+        if (!person) return { text: '', error: text.needName, complete: false };
+        if (/[:：=＝]/.test(person)) return { text: '', error: text.badName, complete: false };
+        const lines = language === 'en'
+          ? ['🧾 *Bill Split Claim Reply* 🧾', `👤 Name: ${person}`, '━━━━━━━━━━━━━━', '🍽️ *My claimed items*']
+          : ['🧾 *分帳認領回覆* 🧾', `👤 姓名：${person}`, '━━━━━━━━━━━━━━', '🍽️ *我認領的項目*'];
         let claims = 0;
         for (const card of itemList.querySelectorAll('.item-card')) {
           const input = card.querySelector('.qty-input');
@@ -234,32 +327,41 @@
           if (!raw) continue;
           const parsedValue = raw.match(/^(\d+(?:\.\d*)?|\.\d+)\s*(.*)$/);
           if (!parsedValue) {
-            return { text: '', error: `「${items[Number(input.dataset.itemIndex)].name}」請輸入數字，例如 0.5、1 或 2。`, complete: false };
+            const item = items[Number(input.dataset.itemIndex)];
+            const itemName = language === 'en' && item.nameEn ? item.nameEn : item.name;
+            return { text: '', error: text.invalidNumber(itemName), complete: false };
           }
           const value = Number(parsedValue[1]);
           if (!Number.isFinite(value) || value < 0) {
-            return { text: '', error: '數量不能是負數，請檢查輸入。', complete: false };
+            return { text: '', error: text.negative, complete: false };
           }
           const index = Number(input.dataset.itemIndex);
           const item = items[index];
+          const displayName = language === 'en' && item.nameEn ? item.nameEn : item.name;
           const enteredUnit = parsedValue[2].trim();
           if (enteredUnit && (!item.totalQty || !item.unit)) {
-            return { text: '', error: `「${item.name}」請只填數字份數。`, complete: false };
+            return { text: '', error: text.digitsOnly(displayName), complete: false };
           }
           if (enteredUnit && enteredUnit !== item.unit) {
-            return { text: '', error: `「${item.name}」的單位請填「${item.unit}」，或只填數字代表份數。`, complete: false };
+            return { text: '', error: text.wrongUnit(displayName, item.unit), complete: false };
           }
           if (value === 0) continue;
           const normalized = parsedValue[1].replace(/^0+(?=\d)/, '').replace(/^(?=\.)/, '0').replace(/\.$/, '');
-          const displayName = item.name.replace(/[\r\n=＝]/g, ' ').replace(/\s+/g, ' ').trim();
-          const quantity = enteredUnit
-            ? `實際數量 = ${normalized} ${item.unit}`
-            : `認領份數 = ${normalized}`;
-          lines.push(`🔶 *${item.id} ${displayName}*　👉🏻 ${quantity}`);
+          const safeDisplayName = displayName.replace(/[\r\n=＝]/g, ' ').replace(/\s+/g, ' ').trim();
+          const quantity = language === 'en'
+            ? `Quantity=${normalized}${enteredUnit ? ` ${item.unit}` : ''}`
+            : enteredUnit
+              ? `實際數量 = ${normalized} ${item.unit}`
+              : `認領份數 = ${normalized}`;
+          lines.push(language === 'en'
+            ? `🔶 *${item.id} ${safeDisplayName}*　👉🏻 ${quantity}`
+            : `🔶 *${item.id} ${safeDisplayName}*　👉🏻 ${quantity}`);
           claims++;
         }
-        if (!claims) return { text: '', error: '請至少填寫一項大於 0 的認領數量。', complete: false };
-        lines.push('━━━━━━━━━━━━━━', '✅ *已填妥，請發回給發起人。*');
+        if (!claims) return { text: '', error: text.needClaim, complete: false };
+        lines.push('━━━━━━━━━━━━━━', language === 'en'
+          ? '✅ *Complete — please send this back to the organizer.*'
+          : '✅ *已填妥，請發回給發起人。*');
         return { text: lines.join('\n'), error: '', complete: true };
       }
 
@@ -293,26 +395,36 @@
       }
 
       nameInput.addEventListener('input', updatePreview);
+      itemList.addEventListener('input', updatePreview);
+      languageButton.addEventListener('click', () => {
+        const nextLanguage = language === 'en' ? 'zh-HK' : 'en';
+        try { localStorage.setItem('billSplitterLanguage', nextLanguage); } catch (_) {}
+        try { const url = new URL(location.href); url.searchParams.set('lang', nextLanguage); history.replaceState(null, '', url); } catch (_) {}
+        applyLanguage(nextLanguage);
+      });
       form.addEventListener('submit', event => event.preventDefault());
       copyButton.addEventListener('click', async () => {
         const result = getReply();
         if (!result.complete) { updatePreview(); return; }
-        showToast(await copyText(result.text) ? '已複製，可貼到 WhatsApp 傳回。' : '無法自動複製，請選取預覽文字複製。');
+        const text = messages[language];
+        showToast(await copyText(result.text) ? text.copied : text.copyFail);
       });
       shareButton.addEventListener('click', async () => {
         const result = getReply();
         if (!result.complete) { updatePreview(); return; }
+        const text = messages[language];
         if (!navigator.share) {
-          showToast(await copyText(result.text) ? '已複製，請貼到 WhatsApp 傳回。' : '此瀏覽器未支援分享，請手動複製預覽文字。');
+          showToast(await copyText(result.text) ? text.copyToWhatsapp : text.noShare);
           return;
         }
         try {
-          await navigator.share({ title: '帳單認領回覆', text: result.text });
+          await navigator.share({ title: text.replyTitle, text: result.text });
         } catch (error) {
-          if (error?.name !== 'AbortError') showToast('分享未完成；你仍可按「複製回覆文字」。');
+          if (error?.name !== 'AbortError') showToast(text.shareCancelled);
         }
       });
 
+      applyLanguage(language);
       try {
         items = loadItems();
         renderItems();

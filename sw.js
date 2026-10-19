@@ -13,7 +13,7 @@
  * Bump CACHE_VERSION whenever you edit index.html so returning users get the
  * new build instead of the cached one.
  */
-const CACHE_VERSION = 'v32';
+const CACHE_VERSION = 'v33';
 const SHELL_CACHE = `bill-splitter-shell-${CACHE_VERSION}`;
 const ASSET_CACHE = `bill-splitter-assets-${CACHE_VERSION}`;
 const CDN_CACHE = `bill-splitter-cdn-${CACHE_VERSION}`;
@@ -23,6 +23,7 @@ const SHELL_URLS = [
   './',
   './index.html',
   './claim.html',
+  './i18n.js',
   './manifest.webmanifest',
   './icons/icon.svg',
   './icons/favicon.ico',

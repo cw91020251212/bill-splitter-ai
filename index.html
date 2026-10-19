@@ -23,8 +23,15 @@
     }
   </script>
   <style>
+    html[lang="en"] .app-header-row h1 { font-size: 18px; line-height: 1.3; }
+    html[lang="en"] button { overflow-wrap: break-word; }
+    html[lang="en"] .step-nav button span:last-child { max-width: 100%; }
+    @media (max-width: 379px) {
+      html[lang="en"] .guide-label { display: none; }
+      html[lang="en"] .guide-button { padding-left: 10px; padding-right: 10px; }
+    }
     body { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
-    
+
     /* --- 增強視覺對比：全局輪廓線最幼 (1px) 且加深為深灰色 --- */
     input[type="text"], input[type="number"], input[type="password"], textarea {
       border-width: 1px !important;
@@ -35,17 +42,17 @@
     input:focus, textarea:focus {
       border-color: #059669 !important; /* 聚焦時變為品牌深綠 */
     }
-    
+
     .animate-spin { animation: spin 1s linear infinite; }
     @keyframes spin { 100% { transform: rotate(360deg); } }
     input, textarea { font-size: 16px !important; }
-    
+
     @keyframes flashTarget {
       0%, 100% { background-color: transparent; box-shadow: none; }
       25%, 75% { background-color: #fef08a; box-shadow: 0 0 0 2px rgba(253, 224, 71, 0.8); }
     }
     .flash-target { animation: flashTarget 1.5s ease-in-out; border-radius: 8px; }
-    
+
     /* 自訂卷軸 */
     ::-webkit-scrollbar { width: 8px; }
     ::-webkit-scrollbar-track { background: transparent; }
@@ -56,8 +63,22 @@
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
 
+  <script src="./i18n.js"></script>
   <script type="text/babel">
     const { useState, useRef, useEffect, useMemo } = React;
+    const tr = value => window.BillI18n.t(value);
+    const tf = (key, values) => window.BillI18n.format(key, values);
+    const bi = (zh, en) => window.BillI18n.language === 'en' ? en : zh;
+    const LanguageSwitch = ({ value, onChange, compact = false }) => (
+      <div className={`flex gap-3 ${compact ? 'w-full items-center justify-between' : 'flex-col items-start sm:flex-row sm:items-center sm:justify-between'}`}>
+        <span className="text-xs font-semibold text-slate-500">{bi('介面語言', 'App language')}</span>
+        <div role="group" aria-label={tr("Language / 語言")} className="inline-flex shrink-0 rounded-lg border border-slate-300 bg-slate-100 p-0.5">
+          {[['zh-HK', tr("繁體中文")], ['en', 'English']].map(([code, label]) => (
+            <button key={code} type="button" data-ui-language={code} aria-pressed={value === code} onClick={() => onChange(code)} className={`min-h-[32px] rounded-md px-3 py-1 text-xs font-semibold transition-colors ${value === code ? 'bg-white text-brand-900 shadow-sm' : 'text-slate-600 hover:bg-white/60'}`}>{tr(label)}</button>
+          ))}
+        </div>
+      </div>
+    );
 
     const Icon = ({ path, size=24, className="" }) => (
       <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} dangerouslySetInnerHTML={{__html: path}} />
@@ -111,17 +132,17 @@
 
     const Label = ({ children, required, className = '' }) => (
       <label className={`font-bold text-slate-800 block mb-1.5 ${className}`}>
-        {children} 
-        {required && <span className="ml-2 inline-block px-2 py-0.5 rounded bg-red-50 text-red-700 text-xs tracking-wide border border-red-500">必填</span>}
+        {children}
+        {required && <span className="ml-2 inline-block px-2 py-0.5 rounded bg-red-50 text-red-700 text-xs tracking-wide border border-red-500">{tr("必填")}</span>}
       </label>
     );
 
     const Accordion = ({ title, icon, children, defaultOpen = false, tone = 'slate' }) => {
       const [open, setOpen] = useState(defaultOpen);
       const tones = {
-        slate: 'bg-white border border-slate-500', 
+        slate: 'bg-white border border-slate-500',
         amber: 'bg-amber-50 border border-amber-500',
-        emerald: 'bg-emerald-50 border border-brand-500', 
+        emerald: 'bg-emerald-50 border border-brand-500',
         blue: 'bg-blue-50 border border-blue-500',
       };
       return (
@@ -185,7 +206,7 @@
 
     const STEP_LABELS = ['上載睇單', '朋友認領', '分帳運算', '最終結果'];
     const SEP  = '\n\n➖➖➖➖➖➖➖➖➖➖\n\n';
-    const TAIL = '\n\n';                 
+    const TAIL = '\n\n';
 
     const appendReply = (existing, incoming) => {
       const clean = String(incoming || '').trim();
@@ -205,14 +226,14 @@
 
     const ensureTail = (t) => {
       const s = String(t || '');
-      if (!s.trim()) return s;                      
+      if (!s.trim()) return s;
       return s.replace(/\s+$/, '') + TAIL;
     };
 
     const normalizeReplies = (raw) => {
       const lines = String(raw || '').split('\n');
       const out = [];
-      const isNameLine = (s) => /(?:👤|姓名)\s*[:：=＝]/.test(s);
+      const isNameLine = (s) => /(?:👤(?:\s*Name)?|姓名|Name)\s*[:：=＝]/i.test(s);
       const isSepLine  = (s) => /➖{3,}/.test(s);
 
       lines.forEach((line, i) => {
@@ -253,14 +274,14 @@
         const lineNo = index + 1;
         let cleanLine = line.replace(/\u3000/g, ' ').replace(/[\u200B-\u200D\uFEFF]/g, '').trim();
         cleanLine = cleanLine.replace(/[\uff01-\uff5e]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xfee0));
-        
+
         if (!cleanLine) return;
 
-        if (cleanLine.includes('👤') || cleanLine.includes('姓名')) {
+        if (cleanLine.includes('👤') || cleanLine.includes('姓名') || /^Name\s*[:=]/i.test(cleanLine)) {
           const nameMatch = cleanLine.split(/[:=]/);
           if (nameMatch.length > 1) {
             currentPerson = nameMatch[1].trim();
-            lastSeenId = null; 
+            lastSeenId = null;
             if (currentPerson) {
               if (people.includes(currentPerson)) {
                 if (!duplicatePeople.includes(currentPerson)) duplicatePeople.push(currentPerson);
@@ -279,7 +300,7 @@
             const parts = cleanLine.split(/=/);
             const parsedValue = parseClaimValue(parts.slice(1).join('='));
             const qty = parsedValue.qty;
-            
+
             if (idMatch) {
                 const id = idMatch[0];
                 if (!itemIds.has(id)) {
@@ -314,7 +335,7 @@
             const qtyStr = parts.length >= 2 ? parts.slice(1).join('=') : cleanLine;
             const parsedValue = parseClaimValue(qtyStr);
             const qty = parsedValue.qty;
-            
+
             if (!isNaN(qty)) {
                 if (qty > 0) {
                     claims[currentPerson][lastSeenId] = qty;
@@ -350,7 +371,7 @@
       const notes = [];
       s = s.replace(/[\uff01-\uff5e]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xfee0));
       const before = s;
-      s = s.replace(/[\u200B-\u200D\uFEFF\u00A0\s]/g, ''); 
+      s = s.replace(/[\u200B-\u200D\uFEFF\u00A0\s]/g, '');
       if (s !== before) notes.push('removed_invisible');
       s = s.replace(/^["'「『]+|["'」』]+$/g, '');
       s = s.replace(/^Bearer/i, '');
@@ -393,7 +414,7 @@
 
     const getCurrencyName = (curr) => {
       const map = { 'HKD': '港幣 (HKD)', 'JPY': '日元 (JPY)', 'KRW': '韓圜 (KRW)', 'TWD': '台幣 (TWD)', 'THB': '泰銖 (THB)', 'USD': '美金 (USD)', 'EUR': '歐元 (EUR)', 'GBP': '英鎊 (GBP)', 'CNY': '人民幣 (CNY)' };
-      return map[curr?.toUpperCase()] || curr;
+      return tr(map[curr?.toUpperCase()] || curr);
     };
 
     const formatMoney = (amount, curr) => {
@@ -551,12 +572,25 @@
     });
 
     function App() {
+      const [uiLang, setUiLang] = useState(() => window.BillI18n.language);
+      const changeUiLanguage = language => {
+        window.BillI18n.setLanguage(language);
+        setUiLang(window.BillI18n.language);
+      };
+      useEffect(() => {
+        const onLanguageStorage = event => {
+          if (event.key === 'billSplitterLanguage') changeUiLanguage(event.newValue === 'en' ? 'en' : 'zh-HK');
+        };
+        window.addEventListener('storage', onLanguageStorage);
+        return () => window.removeEventListener('storage', onLanguageStorage);
+      }, []);
       const [step, setStep] = useState(1);
       const [items, setItems] = useState([]);
+      const displayItemName = item => uiLang === 'en' && (item?.nameEn || item?.nameEnEdited) ? item.nameEn : item?.name || '';
       const [taxAmount, setTaxAmount] = useState('');
       const [taxNote, setTaxNote] = useState('');
       const [friendsReplies, setFriendsReplies] = useState('');
-      
+
       const [isAnalyzing, setIsAnalyzing] = useState(false);
       const [progress, setProgress] = useState(0);
       const [progressText, setProgressText] = useState('');
@@ -577,7 +611,7 @@
       const [cameraOpen, setCameraOpen] = useState(false);
       const cameraStreamRef = useRef(null);
       const cameraVideoRef = useRef(null);
-      
+
       const [payer, setPayer] = useState('');
       const [detectedCurrency, setDetectedCurrency] = useState('HKD');
       const [currency, setCurrency] = useState('HKD');
@@ -598,7 +632,7 @@
       const [receiptHistoryLoading, setReceiptHistoryLoading] = useState({});
 
       const [detailLang, setDetailLang] = useState('zh');
-      
+
       const [apiKey, setApiKey] = useState('');
 
       const [apiModel, setApiModel] = useState('openrouter/free');
@@ -968,10 +1002,10 @@
         const msg = document.createElement('div');
         const color = type === 'error' ? '#dc2626' : '#059669';
         msg.style.cssText = `position:fixed;top:24px;left:50%;transform:translateX(-50%);background:${color};color:white;padding:12px 24px;border-radius:12px;z-index:9999;font-weight:600;font-size:14px;box-shadow:0 10px 25px -5px rgba(0,0,0,0.15);max-width:90vw;text-align:center;animation:fade-in-down 0.3s ease-out;`;
-        msg.textContent = text;
+        msg.textContent = tr(text);
         document.body.appendChild(msg);
-        setTimeout(() => { 
-            msg.style.opacity = '0'; 
+        setTimeout(() => {
+            msg.style.opacity = '0';
             msg.style.transition = 'opacity 0.3s ease-out';
             setTimeout(() => { if (msg.parentNode) document.body.removeChild(msg); }, 300);
         }, 2500);
@@ -1017,7 +1051,7 @@
         const v = validateKey(apiKey, 'openrouter');
         if (v.severity === 'likely_duplicate') {
           setKeyHint(`鎖匙長度 ${v.actualLen} 字，正常應為 ${v.expectLen} 字 —— 似乎兩條黏埋咗。`);
-          return; 
+          return;
         }
         if (v.severity !== 'ok' && v.severity !== 'empty') {
           setKeyHint('鎖匙格式似乎唔對，請核對頭尾同長度。');
@@ -1046,7 +1080,7 @@
       };
 
       const forgetApiKey = () => {
-        if(window.confirm("確定要清除鎖匙嗎？這將會刪除您本機上的設定。")) {
+        if(window.confirm(tr("確定要清除鎖匙嗎？這將會刪除您本機上的設定。"))) {
           try { localStorage.removeItem('billSplitterApiConfig'); sessionStorage.removeItem('billSplitterApiConfig'); } catch(e) {}
           setApiKey(''); setIsEditingKey(true); setRememberKey(false);
           toast('🗑️ 已清除鎖匙', 'error');
@@ -1061,7 +1095,7 @@
         try {
           const receiptFiles = receiptImageCount ? await saveReceiptImagesLocally(recordId, lastImageData) : [];
           const billTotal = items.reduce((sum, item) => sum + toNum(item.total), 0) + toNum(taxAmount);
-          const newRecord = { id: recordId, date: results.date, payer, totalAmount: billTotal, currency: results.currency, simplifiedText: getSimplifiedResult(), detailedText: getDetailedResult('zh'), detailedFullText: getDetailedResult('full'), receiptImageCount };
+          const newRecord = { id: recordId, date: results.date, payer, totalAmount: billTotal, currency: results.currency, simplifiedText: getSimplifiedResult('zh-HK'), detailedText: getDetailedResult('zh', 'zh-HK'), detailedFullText: getDetailedResult('full', 'zh-HK'), reportLanguage: uiLang, reportData: { simplified: { zh: getSimplifiedResult('zh-HK'), en: getSimplifiedResult('en') }, detailed: { zh: getDetailedResult('zh', 'zh-HK'), en: getDetailedResult('zh', 'en'), fullZh: getDetailedResult('full', 'zh-HK'), fullEn: getDetailedResult('full', 'en') } }, receiptImageCount };
           setSavedHistory(current => [newRecord, ...current]);
           if (receiptImageCount) setSavedReceiptFiles(current => ({ ...current, [recordId]: receiptFiles }));
           setIsSaved(true);
@@ -1075,7 +1109,7 @@
       };
 
       const deleteRecord = async (id) => {
-        if (!window.confirm("確定刪除此歷史紀錄及本機收據副本？資料將無法復原。")) return;
+        if (!window.confirm(tr("確定刪除此歷史紀錄及本機收據副本？資料將無法復原。"))) return;
         const record = savedHistory.find(item => item.id === id);
         try {
           if (Number(record?.receiptImageCount) > 0) await deleteReceiptImagesLocally(id);
@@ -1153,8 +1187,8 @@
 
       const shareSavedRecord = (record, reportType) => {
         if (reportType !== 'receipts') {
-          const text = reportType === 'detailed' ? (record.detailedText || record.detailedFullText) : record.simplifiedText;
-          const title = reportType === 'detailed' ? '分帳詳細明細' : '分帳追數結果';
+          const text = getSavedReportText(record, reportType);
+          const title = reportType === 'detailed' ? bi('分帳詳細明細', 'Detailed bill split') : bi('分帳追數結果', 'Bill split summary');
           shareTextWithFiles(text, [], title);
           return;
         }
@@ -1172,13 +1206,13 @@
 
       const exportCSV = () => {
         if (savedHistory.length === 0) return;
-        const headers = ['日期', '墊支人', '總金額', '貨幣', '追數版內容', '詳細版內容'];
+        const headers = ['日期', '墊支人', '總金額', '貨幣', '追數版內容', '詳細版內容'].map(tr);
         const escapeCSV = (str) => { if (str === null || str === undefined) return '""'; return `"${String(str).replace(/"/g, '""')}"`; };
-        const rows = savedHistory.map(record => [ escapeCSV(record.date), escapeCSV(record.payer), escapeCSV(record.totalAmount?.toFixed(2)), escapeCSV(record.currency), escapeCSV(record.simplifiedText), escapeCSV(record.detailedText) ].join(','));
+        const rows = savedHistory.map(record => [ escapeCSV(record.date), escapeCSV(record.payer), escapeCSV(record.totalAmount?.toFixed(2)), escapeCSV(record.currency), escapeCSV(getSavedReportText(record, 'simplified')), escapeCSV(getSavedReportText(record, 'detailed')) ].join(','));
         const csvContent = '\uFEFF' + [headers.join(','), ...rows].join('\n');
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
-        const link = document.createElement('a'); link.href = url; link.setAttribute('download', `分帳紀錄_${new Date().toISOString().split('T')[0]}.csv`);
+        const link = document.createElement('a'); link.href = url; link.setAttribute('download', `${uiLang === 'en' ? 'bill-split-history' : '分帳紀錄'}_${new Date().toISOString().split('T')[0]}.csv`);
         document.body.appendChild(link); link.click(); document.body.removeChild(link); URL.revokeObjectURL(url);
         toast('✅ 成功匯出 CSV！');
       };
@@ -1193,12 +1227,12 @@
       };
 
       const handleGoToStep2 = () => { setStepError(''); setStep(2); };
-      
+
       const handleGoToStep3 = () => {
         setStepError('');
         if (items.length === 0) { setStepError("⚠️ 請至少新增一個項目！"); return; }
-        for (let i = 0; i < items.length; i++) { 
-            if (!items[i].name.trim()) { setStepError(`⚠️ 項目 ${items[i].id} 未填寫名稱！`); focusField(`item-name-${i}`); return; } 
+        for (let i = 0; i < items.length; i++) {
+            if (!items[i].name.trim()) { setStepError(`⚠️ 項目 ${items[i].id} 未填寫名稱！`); focusField(`item-name-${i}`); return; }
         }
         if (!friendsReplies.trim()) { setStepError("⚠️ 尚未貼上朋友的認領回覆！"); focusField('replies'); return; }
         setStep(3);
@@ -1210,8 +1244,8 @@
         if (target < step) { setStep(target); return; }
         if (target >= 2 && items.length === 0) { setStepError('⚠️ 請先上傳單據或手動輸入項目。'); return; }
         if (target >= 3) {
-          for (let i = 0; i < items.length; i++) { 
-              if (!String(items[i].name || '').trim()) { setStepError(`⚠️ 項目 ${items[i].id} 未填寫名稱！`); focusField(`item-name-${i}`); return; } 
+          for (let i = 0; i < items.length; i++) {
+              if (!String(items[i].name || '').trim()) { setStepError(`⚠️ 項目 ${items[i].id} 未填寫名稱！`); focusField(`item-name-${i}`); return; }
           }
           if (!friendsReplies.trim()) { setStepError('⚠️ 尚未貼上朋友的回覆！'); focusField('replies'); return; }
         }
@@ -1433,7 +1467,7 @@
         setUploadError('');
         setProgress(5);
         setProgressText('正在讀取圖片...');
-        
+
         let progressInterval = setInterval(() => {
           setProgress(prev => {
             if (prev < 30) { setProgressText('傳送至 AI 伺服器分析...'); return prev + 15; }
@@ -1461,7 +1495,7 @@
           const promptText = `你是一個專門分析單據的 OCR 分帳助手。任務：讀取單據文字，抽取消費項目、稅費，並判斷貨幣，輸出 JSON。不要做任何運算解釋、不要加註解、不要輸出 Markdown。
 【語言硬性要求】所有翻譯後的中文（尤其是 items[].name）必須使用「繁體中文-香港（zh-HK）」；禁止輸出簡體字、簡體中文或中國大陸用語。請將單據上的簡體中文、日文或其他語言轉換成香港繁體字，例如「饮料」必須寫成「飲品」、「账单」必須寫成「帳單」、「发票」必須寫成「發票」。不可只複製原文中的簡體字。items[].original 必須保留單據原文，但 items[].name 必須是香港繁體中文。
 這裡有 ${files.length} 張單據。請合併成一份清單。
-【A. 消費項目 items】"name":繁體中文名稱, "original":單據原文字樣, "ja":日文名稱(如有), "price":單價(數字), "qty":單據數量(數字), "totalQty":可分配總數量(數字，單據冇寫總量就填 null), "unit":單位（件/杯/碟/罐/份等，未知留空）, "total":該項總額(數字)。不可含稅金服務費折扣。
+【A. 消費項目 items】"name":繁體中文名稱, "nameEn":忠於原菜名的英文譯名（原文已有英文則沿用；無法可靠翻譯則留空，不可加造食品或配料；original 始終保留真實單據原文）, "original":單據原文字樣, "ja":日文名稱(如有), "price":單價(數字), "qty":單據數量(數字), "totalQty":可分配總數量(數字，單據冇寫總量就填 null), "unit":單位（件/杯/碟/罐/份等，未知留空）, "total":該項總額(數字)。不可含稅金服務費折扣。
 【B. 稅費 taxTotal】附加費用（消費税/服務料/加一/VAT）總和。若已內含填0。"taxNote"：簡短說明。
 【C. 結算貨幣 currency】標準3字母代碼(HKD, JPY, TWD等)。無法確定填 HKD。
 【D. 單據日期 date】YYYY-MM-DD。無則 null。切勿用今日日期。
@@ -1488,14 +1522,14 @@
 
           if (!Array.isArray(parsedItems)) throw new Error('AI 回傳格式不符。');
           const formattedItems = parsedItems.map((item, idx) => ({
-            id: String(idx + 1).padStart(2, '0'), name: item.name || '項目', original: item.original || '', ja: item.ja || '',
+            id: String(idx + 1).padStart(2, '0'), name: item.name || '項目', nameEn: typeof item.nameEn === 'string' ? item.nameEn.trim() : '', original: item.original || '', ja: item.ja || '',
             price: toNum(item.price), qty: toNum(item.qty) || 1, totalQty: item.totalQty === null ? null : (toNum(item.totalQty) || toNum(item.qty) || null), unit: String(item.unit || '').trim(), total: toNum(item.total) || (toNum(item.price) * (toNum(item.qty) || 1)) || 0
           }));
 
           clearInterval(progressInterval);
           setProgress(100);
           setProgressText('處理完成！');
-          
+
           setTimeout(() => {
             setItems(formattedItems);
             setCurrency(parsedCurrency);
@@ -1509,7 +1543,7 @@
               setTaxAmount('');
               setTaxNote(parsedTaxNote || '');
             }
-            
+
             setStep(2);
             setIsAnalyzing(false);
           }, 600);
@@ -1536,7 +1570,8 @@
 
       const addItem = () => setItems([...items, { id: String(items.length + 1).padStart(2, '0'), name: '', original: '', ja: '', price: '', qty: 1, totalQty: null, unit: '', total: 0 }]);
       const updateItem = (index, field, value) => {
-        const newItems = [...items]; newItems[index][field] = value;
+        const newItems = [...items]; newItems[index] = { ...newItems[index], [field]: value };
+        if (field === 'nameEn') newItems[index].nameEnEdited = true;
         if (field === 'price' || field === 'qty') {
           const price = parseFloat(newItems[index].price) || 0; const qty = parseFloat(newItems[index].qty) || 0;
           if (field === 'qty') newItems[index].totalQty = qty || 1;
@@ -1562,7 +1597,7 @@
               focusField(`item-name-${idx + 1}`);
             } else {
               addItem();
-              setTimeout(() => focusField(`item-name-${idx + 1}`), 100); 
+              setTimeout(() => focusField(`item-name-${idx + 1}`), 100);
             }
           }
         }
@@ -1575,8 +1610,7 @@
         return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
       };
 
-      const buildFriendClaimLink = () => {
-        setStepError('');
+      const buildFriendClaimLink = (lang = uiLang) => {
         if (!items.length) { setStepError('⚠️ 請先新增至少一個帳單項目。'); return null; }
         const invalidIndex = items.findIndex(item => !String(item.name || '').trim());
         if (invalidIndex !== -1) {
@@ -1587,11 +1621,13 @@
         const payload = items.map(item => ({
           id: String(item.id),
           name: String(item.name || '').trim(),
+          ...(typeof item.nameEn === 'string' && item.nameEn.trim() ? { nameEn: item.nameEn.trim() } : {}),
           ...(typeof item.original === 'string' && item.original.trim() ? { original: item.original.trim() } : {}),
           totalQty: toNum(item.totalQty) > 0 ? toNum(item.totalQty) : null,
           unit: String(item.unit || '').trim()
         }));
         const link = new URL('./claim.html', window.location.href);
+        link.searchParams.set('lang', lang === 'en' ? 'en' : 'zh-HK');
         link.hash = `data=${encodeClaimLinkPayload(payload)}`;
         return link.toString();
       };
@@ -1624,7 +1660,7 @@
         const link = buildFriendClaimLink();
         if (!link) return;
         if (!ensureDraftSavedForSharing()) return;
-        const message = `請打開以下連結填寫手機認領表：\n${link}`;
+        const message = uiLang === 'en' ? `Please open this link to fill in the mobile claim form:\n${link}` : `請打開以下連結填寫手機認領表：\n${link}`;
         shareTextWithFiles(message, [], '手機認領連結');
       };
 
@@ -1636,7 +1672,7 @@
 
       const copyToClipboard = (text, btnLabel) => {
         const textArea = document.createElement("textarea"); textArea.value = text; document.body.appendChild(textArea);
-        textArea.select(); 
+        textArea.select();
         try { document.execCommand('copy'); toast(`✅ ${btnLabel} 已成功複製`); } catch (err) {}
         document.body.removeChild(textArea);
       };
@@ -1699,7 +1735,7 @@
             const cost = isActualUnit
               ? claimedQty * unitValue
               : (actualTotal > 0 ? (shareTotal > 0 ? claimedQty / shareTotal * remainingCost : 0) : claimedQty / totalClaimed * toNum(item.total));
-            personTotals[person].items.push({ name: item.name, original: item.original || '', ja: item.ja || '', id: item.id, amount: cost, qty: claimedQty, totalClaimed, unit: enteredUnit, unitName: item.unit || '', isActualUnit });
+            personTotals[person].items.push({ name: item.name, nameEn: item.nameEn || '', original: item.original || '', ja: item.ja || '', id: item.id, amount: cost, qty: claimedQty, totalClaimed, unit: enteredUnit, unitName: item.unit || '', isActualUnit });
             personTotals[person].subtotal += cost; totalItemsCost += cost;
           });
         });
@@ -1710,19 +1746,19 @@
           const amount = issue.amount;
           if (policy === 'payer') {
             if (!personTotals[payer]) personTotals[payer] = { items: [], adjustments: [], subtotal: 0, tax: 0, total: 0 };
-            personTotals[payer].adjustments.push({ name: item.name, qty: issue.difference, unit: issue.unit, amount, reason: '墊支人承擔未認領數量' });
+            personTotals[payer].adjustments.push({ name: item.name, nameEn: item.nameEn || '', qty: issue.difference, unit: issue.unit, amount, reason: '墊支人承擔未認領數量' });
             personTotals[payer].subtotal += amount; totalItemsCost += amount;
           } else if (policy === 'equal') {
             const claimants = Object.keys(personClaims).filter(person => personClaims[person][item.id] > 0);
             claimants.forEach(person => {
               const share = amount / claimants.length;
-              personTotals[person].adjustments.push({ name: item.name, qty: issue.difference / claimants.length, unit: issue.unit, amount: share, reason: '已認領人士平均承擔未認領數量' });
+              personTotals[person].adjustments.push({ name: item.name, nameEn: item.nameEn || '', qty: issue.difference / claimants.length, unit: issue.unit, amount: share, reason: '已認領人士平均承擔未認領數量' });
               personTotals[person].subtotal += share; totalItemsCost += share;
             });
           } else if (policy && policy.startsWith('person:')) {
             const person = policy.slice(7);
             if (!personTotals[person]) personTotals[person] = { items: [], adjustments: [], subtotal: 0, tax: 0, total: 0 };
-            personTotals[person].adjustments.push({ name: item.name, qty: issue.difference, unit: issue.unit, amount, reason: '指定承擔未認領數量' });
+            personTotals[person].adjustments.push({ name: item.name, nameEn: item.nameEn || '', qty: issue.difference, unit: issue.unit, amount, reason: '指定承擔未認領數量' });
             personTotals[person].subtotal += amount; totalItemsCost += amount;
           }
         });
@@ -1741,56 +1777,112 @@
         setIsSaved(false); setIsSavingRecord(false); setIncludeReceiptImages(false); setStep(4);
       };
 
-      const getSimplifiedResult = () => {
-        if (!results) return "";
+      const paymentDisplay = (value, language = uiLang) => {
+        const map = {
+          '轉數快 (FPS)': 'FPS (Faster Payment System)',
+          'PayMe': 'PayMe',
+          '現金': 'Cash',
+          '銀行轉帳': 'Bank transfer',
+          'Alipay': 'Alipay',
+          '未指定': 'Not specified'
+        };
+        if (language !== 'en') return value || '未指定';
+        return map[value] || value || 'Not specified';
+      };
+      const unitDisplay = (value, language = uiLang, quantity = null) => {
+        if (language !== 'en') return value || '單位';
+        const map = { '件': 'piece(s)', '杯': 'cup(s)', '碟': 'plate(s)', '罐': 'can(s)', '份': 'serving(s)', '個': 'piece(s)', '支': 'piece(s)', '串': 'skewer(s)', '碗': 'bowl(s)', '瓶': 'bottle(s)', '包': 'pack(s)', '條': 'piece(s)', '隻': 'piece(s)', '單位': 'unit(s)' };
+        return map[value] || value || 'unit(s)';
+      };
+      const reportCurrencyName = (currency, language) => {
+        if (language !== 'en') { const names = { HKD: '港幣 (HKD)', JPY: '日元 (JPY)', KRW: '韓圜 (KRW)', TWD: '台幣 (TWD)', THB: '泰銖 (THB)', USD: '美金 (USD)', EUR: '歐元 (EUR)', GBP: '英鎊 (GBP)', MOP: '澳門幣 (MOP)', CNY: '人民幣 (CNY)' }; return names[String(currency || '').toUpperCase()] || currency; }
+        const code = String(currency || '').toUpperCase();
+        const names = { HKD: 'Hong Kong dollars (HKD)', JPY: 'Japanese yen (JPY)', KRW: 'South Korean won (KRW)', TWD: 'New Taiwan dollars (TWD)', THB: 'Thai baht (THB)', USD: 'US dollars (USD)', EUR: 'euros (EUR)', GBP: 'British pounds (GBP)', MOP: 'Macanese patacas (MOP)', CNY: 'Chinese yuan (CNY)', MOP: 'Macanese patacas (MOP)', AUD: 'Australian dollars (AUD)', CAD: 'Canadian dollars (CAD)', SGD: 'Singapore dollars (SGD)' };
+        return names[code] || code;
+      };
+      const getSavedReportText = (record, reportType) => {
+        const language = uiLang === 'en' ? 'en' : 'zh';
+        if (reportType === 'detailed') return record.reportData?.detailed?.[language] || record.detailedText || record.detailedFullText || '';
+        return record.reportData?.simplified?.[language] || record.simplifiedText || '';
+      };
+
+      const getSimplifiedResult = (language = uiLang) => {
+        if (!results) return '';
+        const english = language === 'en';
         const others = Object.keys(results.personTotals).filter(p => p !== payer);
         const curr = results.currency;
-        const paymentLabel = paymentMethods.length ? paymentMethods.join('、') : '未指定';
-        let txt = `💰 *分帳結果｜各人應付金額與收款資料* 💰\n📅 ${results.date} · 💴 結算貨幣：*${getCurrencyName(curr)}*\n💳 請過數俾：*${payer}*\n💵 付款方式：${paymentLabel}\n────────\n`;
-        others.forEach(person => { txt += `👤 *${person}* — 應付 ➡️ *${formatMoney(results.personTotals[person].total, curr)}*\n\n`; });
-        if (others.length === 0) txt += `（只有墊支人一位，無需過數）\n`;
+        const paymentLabel = paymentMethods.length ? paymentMethods.map(method => paymentDisplay(method, language)).join(english ? ', ' : '、') : (english ? 'Not specified' : '未指定');
+        if (!english) {
+          let txt = `💰 *分帳結果｜各人應付金額與收款資料* 💰\n📅 ${results.date} · 💴 結算貨幣：*${reportCurrencyName(curr, language)}*\n💳 請過數俾：*${payer}*\n💵 付款方式：${paymentLabel}\n────────\n`;
+          others.forEach(person => { txt += `👤 *${person}* — 應付 ➡️ *${formatMoney(results.personTotals[person].total, curr)}*\n\n`; });
+          if (others.length === 0) txt += `（只有墊支人一位，無需過數）\n`;
+          txt += `────────\n`;
+          const owed = others.reduce((s, p) => s + results.personTotals[p].total, 0);
+          txt += `📊 應收合計：*${formatMoney(owed, curr)}*\n`;
+          if (results.personTotals[payer]) txt += `🙋 ${payer} 自己一份：${formatMoney(results.personTotals[payer].total, curr)}\n`;
+          txt += `\n🙏 收到請覆「已轉」，多謝合作！`;
+          return txt;
+        }
+        let txt = `💰 *Bill Split | Amounts Due & Payment Details* 💰\n📅 ${results.date} · 💴 Settlement currency: *${reportCurrencyName(curr, language)}*\n💳 Pay to: *${payer}*\n💵 Payment methods: ${paymentLabel}\n────────\n`;
+        others.forEach(person => { txt += `👤 *${person}* — Amount due ➡️ *${formatMoney(results.personTotals[person].total, curr)}*\n\n`; });
+        if (others.length === 0) txt += `(Only the payer is included; no transfer is needed.)\n`;
         txt += `────────\n`;
         const owed = others.reduce((s, p) => s + results.personTotals[p].total, 0);
-        txt += `📊 應收合計：*${formatMoney(owed, curr)}*\n`;
-        if (results.personTotals[payer]) txt += `🙋 ${payer} 自己一份：${formatMoney(results.personTotals[payer].total, curr)}\n`;
-        txt += `\n🙏 收到請覆「已轉」，多謝合作！`;
+        txt += `📊 Total to collect: *${formatMoney(owed, curr)}*\n`;
+        if (results.personTotals[payer]) txt += `🙋 Payer's own share: ${formatMoney(results.personTotals[payer].total, curr)}\n`;
+        txt += `\n🙏 Please reply “Paid” once transferred. Thank you!`;
         return txt;
       };
 
-      const getDetailedResult = (mode = 'zh') => {
-        if (!results) return "";
+      const getDetailedResult = (mode = 'zh', language = uiLang) => {
+        if (!results) return '';
         const full = mode === 'full';
+        const english = language === 'en';
         const curr = results.currency;
-        const paymentLabel = paymentMethods.length ? paymentMethods.join('、') : '未指定';
+        const paymentLabel = paymentMethods.length ? paymentMethods.map(method => paymentDisplay(method, language)).join(english ? ', ' : '、') : (english ? 'Not specified' : '未指定');
         const oneLineName = value => String(value || '').replace(/\s+/g, ' ').trim();
-        let txt = `🧾 *分帳詳細明細｜各人認領項目與應付金額* 🧾\n📅 ${results.date} · 💴 結算貨幣：${getCurrencyName(curr)}\n💳 墊支人：${payer}\n💵 付款方式：${paymentLabel}\n⚖️ 稅／服務費：${taxSplitMethod === 'equal' ? '全部人平均分' : '按消費比例分'}\n────────\n\n`;
+        const splitLabel = taxSplitMethod === 'equal'
+          ? (english ? 'Split equally among everyone' : '全部人平均分')
+          : (english ? 'Split in proportion to spending' : '按消費比例分');
+        let txt = english
+          ? `🧾 *Detailed Bill Split | Claimed Items & Amount Due* 🧾\n📅 ${results.date} · 💴 Settlement currency: ${reportCurrencyName(curr, language)}\n💳 Payer: ${payer}\n💵 Payment methods: ${paymentLabel}\n⚖️ Tax / service charge: ${splitLabel}\n────────\n\n`
+          : `🧾 *分帳詳細明細｜各人認領項目與應付金額* 🧾\n📅 ${results.date} · 💴 結算貨幣：${reportCurrencyName(curr, language)}\n💳 墊支人：${payer}\n💵 付款方式：${paymentLabel}\n⚖️ 稅／服務費：${splitLabel}\n────────\n\n`;
         let grandTotal = 0;
         Object.keys(results.personTotals).forEach(person => {
           const p = results.personTotals[person];
           txt += `👤 *${person}*\n`;
           p.items.forEach(i => {
-            txt += `*${i.id}* ${oneLineName(i.name)}\n`;
-            if (full && i.original && i.original !== i.name) txt += `🌐 原文：${oneLineName(i.original)}\n`;
-            if (full && i.ja && i.ja !== i.original) txt += `🇯🇵 日文：${oneLineName(i.ja)}\n`;
-            const share = i.isActualUnit ? `（${i.qty} ${i.unit || i.unitName || '單位'}，按實際單位）` : `（${i.qty}/${i.totalClaimed} 份比例）`;
+            const itemName = english ? (i.nameEn || i.name) : i.name;
+            txt += `*${i.id}* ${oneLineName(itemName)}\n`;
+            if (full && i.original && i.original !== i.name) txt += english ? `🌐 Original: ${oneLineName(i.original)}\n` : `🌐 原文：${oneLineName(i.original)}\n`;
+            if (full && i.ja && i.ja !== i.original) txt += english ? `🇯🇵 Japanese: ${oneLineName(i.ja)}\n` : `🇯🇵 日文：${oneLineName(i.ja)}\n`;
+            const shownUnit = unitDisplay(i.unit || i.unitName || (english ? 'unit(s)' : '單位'), language, i.qty);
+            const share = i.isActualUnit
+              ? (english ? `(${i.qty} ${shownUnit}, actual quantity)` : `（${i.qty} ${shownUnit}，按實際單位）`)
+              : (english ? `(${i.qty}/${i.totalClaimed} shares)` : `（${i.qty}/${i.totalClaimed} 份比例）`);
             txt += `💲 ${formatMoney(i.amount, curr)} ${share}\n\n`;
           });
           (p.adjustments || []).forEach(a => {
-            txt += `${oneLineName(a.name)}\n未認領數量由此人承擔\n`;
-            txt += `💲 ${formatMoney(a.amount, curr)}（${a.qty} ${a.unit}，${a.reason}）\n\n`;
+            const adjustmentName = english ? (a.nameEn || a.name) : a.name;
+            const reasonMap = { '墊支人承擔未認領數量': 'Unclaimed quantity covered by the payer', '已認領人士平均承擔未認領數量': 'Unclaimed quantity shared equally by claimants', '指定承擔未認領數量': 'Unclaimed quantity assigned to this person' };
+            txt += `${oneLineName(adjustmentName)}\n${english ? 'Unclaimed quantity covered by this person' : '未認領數量由此人承擔'}\n`;
+            txt += english
+              ? `💲 ${formatMoney(a.amount, curr)} (${a.qty} ${unitDisplay(a.unit, language)}, ${reasonMap[a.reason] || a.reason})\n\n`
+              : `💲 ${formatMoney(a.amount, curr)}（${a.qty} ${unitDisplay(a.unit, language)}，${a.reason}）\n\n`;
           });
-          if (p.tax > 0) txt += `▫️ 稅／服務費分攤 💲 ${formatMoney(p.tax, curr)}\n`;
-          txt += `▶️ *應付：${formatMoney(p.total, curr)}*\n────────\n`;
+          if (p.tax > 0) txt += english ? `▫️ Tax / service charge share 💲 ${formatMoney(p.tax, curr)}\n` : `▫️ 稅／服務費分攤 💲 ${formatMoney(p.tax, curr)}\n`;
+          txt += english ? `▶️ *Amount due: ${formatMoney(p.total, curr)}*\n────────\n` : `▶️ *應付：${formatMoney(p.total, curr)}*\n────────\n`;
           grandTotal += p.total;
         });
         const itemsSum = items.reduce((sum, item) => sum + toNum(item.total), 0);
         const billTotal = itemsSum + toNum(taxAmount);
         const diff = Math.abs(grandTotal - billTotal);
-        txt += `\n📊 *總核對*\n項目小計：${formatMoney(itemsSum, curr)}\n稅／服務費：${formatMoney(taxAmount, curr)}\n單據總計：${formatMoney(billTotal, curr)}\n各人合計：${formatMoney(grandTotal, curr)}\n差額：${formatMoney(diff, curr)} ${diff < 0.05 ? '✅' : '⚠️ 請檢查認領數量'}\n`;
-        if (full && taxNote) txt += `\n📝 稅費來源：${taxNote}\n`;
+        txt += english
+          ? `\n📊 *Totals check*\nItems subtotal: ${formatMoney(itemsSum, curr)}\nTax / service charge: ${formatMoney(taxAmount, curr)}\nReceipt total: ${formatMoney(billTotal, curr)}\nSum of individual amounts: ${formatMoney(grandTotal, curr)}\nDifference: ${formatMoney(diff, curr)} ${diff < 0.05 ? '✅' : '⚠️ Check claimed quantities'}\n`
+          : `\n📊 *總核對*\n項目小計：${formatMoney(itemsSum, curr)}\n稅／服務費：${formatMoney(taxAmount, curr)}\n單據總計：${formatMoney(billTotal, curr)}\n各人合計：${formatMoney(grandTotal, curr)}\n差額：${formatMoney(diff, curr)} ${diff < 0.05 ? '✅' : '⚠️ 請檢查認領數量'}\n`;
+        if (full && taxNote) txt += english ? `\n📝 Tax note: ${taxNote}\n` : `\n📝 稅費來源：${taxNote}\n`;
         return txt;
       };
-
       const paymentOptions = ['轉數快 (FPS)', 'PayMe', '現金', '銀行轉帳', 'Alipay'];
       const displayCurrencies = Array.from(new Set([detectedCurrency, 'HKD', 'JPY', 'TWD', 'THB', 'KRW', 'USD', 'MOP', 'GBP', 'EUR'])).filter(Boolean).slice(0, 9);
 
@@ -1840,20 +1932,20 @@
         if (list.length === 0) push(6, 'I1', '貼上回覆時可以連續貼幾份，系統會自動加分隔線。', '', null);
 
         return list.sort((a, b) => a.level - b.level);
-      }, [isOnline, uploadError, lastImageData, apiKey, step, showSettings, showTutorial, showHistory, payer, items, friendsReplies, claimInfo, isAnalyzing, progressText, progress, currency]);
+      }, [isOnline, uploadError, lastImageData, apiKey, step, showSettings, showTutorial, showHistory, payer, items, friendsReplies, claimInfo, isAnalyzing, progressText, progress, currency, uiLang]);
 
       const StatusBar = ({ statuses, expanded, setExpanded, kbOpen }) => {
           if (!statuses.length) return null;
           const top = statuses[0];
-          
+
           /* 將所有邊框提升至 500 深色系 */
-          const TONE = { 
-              1: { bg: 'bg-red-50', border: 'border-red-500', text: 'text-red-700', dot: '🔴' }, 
-              2: { bg: 'bg-orange-50', border: 'border-orange-500', text: 'text-orange-700', dot: '🟠' }, 
-              3: { bg: 'bg-amber-50', border: 'border-amber-500', text: 'text-amber-800', dot: '🟡' }, 
-              4: { bg: 'bg-blue-50', border: 'border-blue-500', text: 'text-blue-700', dot: '🔵' }, 
-              5: { bg: 'bg-brand-50', border: 'border-brand-500', text: 'text-brand-700', dot: '🟢' }, 
-              6: { bg: 'bg-slate-50', border: 'border-slate-500', text: 'text-slate-600', dot: '⚪' } 
+          const TONE = {
+              1: { bg: 'bg-red-50', border: 'border-red-500', text: 'text-red-700', dot: '🔴' },
+              2: { bg: 'bg-orange-50', border: 'border-orange-500', text: 'text-orange-700', dot: '🟠' },
+              3: { bg: 'bg-amber-50', border: 'border-amber-500', text: 'text-amber-800', dot: '🟡' },
+              4: { bg: 'bg-blue-50', border: 'border-blue-500', text: 'text-blue-700', dot: '🔵' },
+              5: { bg: 'bg-brand-50', border: 'border-brand-500', text: 'text-brand-700', dot: '🟢' },
+              6: { bg: 'bg-slate-50', border: 'border-slate-500', text: 'text-slate-600', dot: '⚪' }
           }[top.level] || { bg: 'bg-slate-50', border: 'border-slate-500', text: 'text-slate-600', dot: '⚪' };
 
           return (
@@ -1864,14 +1956,12 @@
                           <span className="shrink-0 text-sm leading-none">{TONE.dot}</span>
                           <div className="flex-1 min-w-0">
                               <div className={`font-bold text-xs leading-tight line-clamp-1 ${TONE.text}`}>
-                                  {top.main} {statuses.length > 1 && <span className="opacity-70 ml-1">(+{statuses.length - 1})</span>}
+                                  {tr(top.main)} {statuses.length > 1 && <span className="opacity-70 ml-1">(+{statuses.length - 1})</span>}
                               </div>
-                              {!kbOpen && top.sub && (<div className="text-[10px] text-slate-500 font-medium mt-0.5 leading-tight line-clamp-1">{top.sub}</div>)}
+                              {!kbOpen && top.sub && (<div className="text-[10px] text-slate-500 font-medium mt-0.5 leading-tight line-clamp-1">{tr(top.sub)}</div>)}
                           </div>
                           {!kbOpen && (
-                              <div className="shrink-0 text-[10px] font-bold text-slate-500 bg-white/80 px-2 py-1 rounded-md border border-slate-500 shadow-sm">
-                                  點擊展開 ⤴
-                              </div>
+                              <div className="shrink-0 text-[10px] font-bold text-slate-500 bg-white/80 px-2 py-1 rounded-md border border-slate-500 shadow-sm">{tr("點擊展開 ⤴")}</div>
                           )}
                       </div>
                   </div>
@@ -1881,7 +1971,7 @@
                       <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200" onClick={() => setExpanded(false)}>
                           <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden mb-4 sm:mb-0 animate-in slide-in-from-bottom-4 duration-300 border border-slate-400" onClick={e => e.stopPropagation()}>
                               <div className="p-4 border-b border-slate-400 flex justify-between items-center bg-slate-50">
-                                  <h3 className="font-bold text-slate-800 text-base">系統提示與建議 ({statuses.length})</h3>
+                                  <h3 className="font-bold text-slate-800 text-base">{tr("系統提示與建議 (")}{statuses.length})</h3>
                                   <button onClick={() => setExpanded(false)} className="w-8 h-8 flex items-center justify-center rounded-full bg-white border border-slate-400 text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition-colors">
                                       <Icon path={icons.x} size={16}/>
                                   </button>
@@ -1894,14 +1984,14 @@
                                               <div className="flex items-start gap-2.5">
                                                   <span className="shrink-0 text-base mt-0.5">{ST.dot}</span>
                                                   <div className="flex-1">
-                                                      <div className={`font-bold text-sm leading-relaxed ${ST.text}`}>{s.main}</div>
-                                                      {s.sub && <div className="text-xs text-slate-600 font-medium mt-1 leading-relaxed">{s.sub}</div>}
+                                                      <div className={`font-bold text-sm leading-relaxed ${ST.text}`}>{tr(s.main)}</div>
+                                                      {s.sub && <div className="text-xs text-slate-600 font-medium mt-1 leading-relaxed">{tr(s.sub)}</div>}
                                                   </div>
                                               </div>
                                               {s.action && (
                                                   <div className="flex justify-end mt-2">
                                                       <button onClick={() => { s.action.run(); setExpanded(false); }} className="px-4 py-2 bg-white border border-slate-500 rounded-lg text-xs font-bold shadow-sm text-slate-800 hover:bg-slate-50 active:scale-[0.98] transition-all">
-                                                          {s.action.label} →
+                                                          {tr(s.action.label)} →
                                                       </button>
                                                   </div>
                                               )}
@@ -1920,36 +2010,36 @@
         <React.Fragment>
           {/* Header */}
           <header className="bg-white border-b border-slate-400 sticky top-0 z-20 shadow-sm backdrop-blur-md bg-white/90">
-            <div className="w-full px-3 sm:px-4 py-3.5 flex items-center justify-between max-w-2xl mx-auto">
+            <div className="app-header-row w-full px-3 sm:px-4 py-3.5 flex items-center justify-between max-w-2xl mx-auto">
               <div className="flex items-center gap-2 sm:gap-3 shrink-0">
                 <div className="w-10 h-10 bg-brand-600 text-white rounded-xl flex items-center justify-center shadow-inner shrink-0">
                   <Icon path={icons.calculator} size={22} />
                 </div>
                 <div>
-                  <h1 className="text-xl font-extrabold text-slate-800 tracking-tight"><span className="block sm:inline whitespace-nowrap">分帳管家</span><span className="inline-flex items-baseline gap-1 sm:ml-1 whitespace-nowrap"><span data-testid="app-pro-label" className="text-brand-600 font-black">Pro</span><span data-testid="app-version-label" className="text-[10px] leading-3 font-semibold tracking-normal text-brand-700">V1.0.1</span></span></h1>
+                  <h1 className="text-xl font-extrabold text-slate-800 tracking-tight"><span className="block sm:inline whitespace-nowrap">{tr("分帳管家")}</span><span className="inline-flex items-baseline gap-1 sm:ml-1 whitespace-nowrap"><span data-testid="app-pro-label" className="text-brand-600 font-black">Pro</span><span data-testid="app-version-label" className="text-[10px] leading-3 font-semibold tracking-normal text-brand-700">V1.0.1</span></span></h1>
                 </div>
               </div>
               <div className="flex items-center gap-1.5 sm:gap-2">
                 {(showHistory || showSettings || showTutorial) ? (
                   <button onClick={() => {setShowHistory(false); setShowSettings(false); setShowTutorial(false);}} className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-semibold transition-colors border border-slate-400">
-                    <Icon path={icons.arrowLeft} size={16}/> 返回
-                  </button>
+                    <Icon path={icons.arrowLeft} size={16}/>{tr(" 返回")}</button>
                 ) : (
                   <React.Fragment>
-                    <button onClick={() => setShowTutorial(true)} title="新手教學" className="flex items-center gap-1.5 px-3 py-2 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-500 rounded-lg text-sm font-semibold transition-colors">
-                      <Icon path={icons.book} size={16}/> 教學
+                    <button onClick={() => setShowTutorial(true)} title={tr("新手教學")} className="guide-button flex items-center gap-1.5 px-3 py-2 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-500 rounded-lg text-sm font-semibold transition-colors">
+                      <Icon path={icons.book} size={16}/> <span className="guide-label">{tr("教學")}</span>
                     </button>
-                    <button onClick={() => setShowSettings(true)} title="設定" className="flex items-center gap-1.5 px-2.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-400 rounded-lg text-sm font-semibold transition-colors">
+                    <button onClick={() => setShowSettings(true)} title={tr("設定")} className="flex items-center gap-1.5 px-2.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-400 rounded-lg text-sm font-semibold transition-colors">
                       <Icon path={icons.settings} size={16}/>
                     </button>
-                    <button onClick={() => setShowHistory(true)} title="紀錄" className="flex items-center gap-1.5 px-2.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-400 rounded-lg text-sm font-semibold transition-colors">
+                    <button onClick={() => setShowHistory(true)} title={tr("紀錄")} className="flex items-center gap-1.5 px-2.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-400 rounded-lg text-sm font-semibold transition-colors">
                       <Icon path={icons.history} size={16}/>
                     </button>
                   </React.Fragment>
                 )}
               </div>
             </div>
-            
+
+            <div className="max-w-2xl mx-auto px-4 pb-3"><LanguageSwitch value={uiLang} onChange={changeUiLanguage} compact /></div>
             {/* Steps Indicator */}
             {(!showHistory && !showSettings && !showTutorial) && (
               <div className="bg-slate-50/80 px-4 py-3 border-t border-slate-400 max-w-2xl mx-auto">
@@ -1958,15 +2048,15 @@
                     <div key={num} className={`flex-1 h-1.5 rounded-full transition-colors duration-300 ${step > num ? 'bg-brand-500' : step === num ? 'bg-brand-400' : 'bg-slate-300'}`}></div>
                   ))}
                 </div>
-                <div className="flex items-center justify-between px-1">
+                <div className="step-nav grid grid-cols-4 gap-1 px-1">
                   {STEP_LABELS.map((label, i) => {
                     const num = i + 1;
                     const done = step > num;
                     const active = step === num;
                     return (
-                      <button key={num} onClick={() => jumpToStep(num)} className={`flex items-center gap-2 rounded-lg px-2 py-1 -mx-2 transition-all active:scale-[0.98] outline-none ${active ? 'text-brand-700 bg-brand-50' : done ? 'text-slate-600 hover:bg-slate-100' : 'text-slate-400'}`}>
+                      <button key={num} onClick={() => jumpToStep(num)} className={`flex min-w-0 flex-col sm:flex-row justify-center items-center gap-1 sm:gap-2 rounded-lg px-1 py-1 text-center transition-all active:scale-[0.98] outline-none ${active ? 'text-brand-700 bg-brand-50' : done ? 'text-slate-600 hover:bg-slate-100' : 'text-slate-400'}`}>
                         <span className={`w-5 h-5 shrink-0 rounded-full flex items-center justify-center text-[11px] font-bold border ${active ? 'bg-brand-600 border-brand-600 text-white shadow-sm' : done ? 'bg-white border-brand-500 text-brand-600' : 'bg-white border-slate-400 text-slate-500'}`}>{done ? '✓' : num}</span>
-                        <span className="text-xs font-semibold">{label}</span>
+                        <span className="text-xs font-semibold leading-tight">{tr(label)}</span>
                       </button>
                     );
                   })}
@@ -1979,13 +2069,13 @@
 
           {/* Main Content Area */}
           <main className="w-full px-4 py-6 md:py-8 max-w-2xl mx-auto pb-24">
-            {!draftReady && <div className="fixed inset-0 z-[70] flex items-center justify-center bg-white/95 text-slate-700" role="status">正在檢查本機帳單草稿…</div>}
+            {!draftReady && <div className="fixed inset-0 z-[70] flex items-center justify-center bg-white/95 text-slate-700" role="status">{tr("正在檢查本機帳單草稿…")}</div>}
             {draftReady && (hasDraftWork || draftNotice || draftSaveError) && (
               <div data-testid="draft-status" className="mb-4 rounded-xl border border-slate-300 bg-slate-50 p-3 text-xs leading-relaxed text-slate-700" role="status" aria-live="polite">
-                {draftNotice && <p className="font-semibold mb-1">{draftNotice}</p>}
+                {draftNotice && <p className="font-semibold mb-1">{tr(draftNotice)}</p>}
                 {draftSaveError || ((hasDraftAssets || draftAssets.unavailable) && draftAssetStatus === 'error') ? (
-                  <p role="alert" className="font-semibold text-red-700">{draftSaveError || '本機附件草稿未能保存，暫不切換 App；請檢查網站儲存權限及剩餘空間。'}</p>
-                ) : <p>{hasDraftAssets && draftAssetStatus === 'saving' ? '正在保存本機圖片／附件，完成後才可分享…' : '草稿已自動保存於本機。切換 App 後請回到同一瀏覽器、同一網址繼續；清除網站資料會刪除草稿。'}</p>}
+                  <p role="alert" className="font-semibold text-red-700">{draftSaveError || tr("本機附件草稿未能保存，暫不切換 App；請檢查網站儲存權限及剩餘空間。")}</p>
+                ) : <p>{hasDraftAssets && draftAssetStatus === 'saving' ? tr("正在保存本機圖片／附件，完成後才可分享…") : tr("草稿已自動保存於本機。切換 App 後請回到同一瀏覽器、同一網址繼續；清除網站資料會刪除草稿。")}</p>}
               </div>
             )}
 
@@ -1995,21 +2085,21 @@
                   <Card className="w-full max-w-xl !p-4 sm:!p-6 shadow-2xl">
                     <div className="flex items-start justify-between gap-3 mb-3">
                       <div>
-                        <p className="text-xs font-bold uppercase tracking-wider text-brand-700">隱私保護</p>
-                        <h2 id="receipt-redaction-title" className="text-xl font-bold text-slate-900 mt-1">先遮蓋敏感資料</h2>
+                        <p className="text-xs font-bold uppercase tracking-wider text-brand-700">{tr("隱私保護")}</p>
+                        <h2 id="receipt-redaction-title" className="text-xl font-bold text-slate-900 mt-1">{tr("先遮蓋敏感資料")}</h2>
                       </div>
-                      <button type="button" onClick={cancelReceiptRedaction} aria-label="取消此次掃描" className="w-10 h-10 shrink-0 rounded-xl border border-slate-400 text-slate-600 hover:bg-slate-100 text-2xl leading-none">×</button>
+                      <button type="button" onClick={cancelReceiptRedaction} aria-label={tr("取消此次掃描")} className="w-10 h-10 shrink-0 rounded-xl border border-slate-400 text-slate-600 hover:bg-slate-100 text-2xl leading-none">×</button>
                     </div>
 
                     <div className="rounded-xl border border-amber-500 bg-amber-50 p-3 mb-4">
-                      <p className="text-sm font-semibold text-amber-900">手指在電話、卡號、會員號等資料上按住並拖動，畫出黑色實心遮蓋框。</p>
-                      <p className="text-xs text-amber-900 mt-1.5 leading-relaxed">請保留菜名、價格、稅費和日期。只有黑框內像素會被永久移除；框外內容仍會隨遮蓋版送到你設定的 AI 服務作 OCR。原圖不會用於 OCR、歷史儲存或分享。</p>
+                      <p className="text-sm font-semibold text-amber-900">{tr("手指在電話、卡號、會員號等資料上按住並拖動，畫出黑色實心遮蓋框。")}</p>
+                      <p className="text-xs text-amber-900 mt-1.5 leading-relaxed">{tr("請保留菜名、價格、稅費和日期。只有黑框內像素會被永久移除；框外內容仍會隨遮蓋版送到你設定的 AI 服務作 OCR。原圖不會用於 OCR、歷史儲存或分享。")}</p>
                     </div>
 
                     <div className="flex items-center justify-between gap-2 mb-2">
-                      <button type="button" onClick={() => { setRedactionIndex(index => Math.max(0, index - 1)); setRedactionDrag(null); redactionDragRef.current = null; }} disabled={redactionIndex === 0 || isPreparingRedacted} className="px-3 py-2 rounded-lg border border-slate-400 bg-white text-sm font-semibold disabled:opacity-40">上一張</button>
-                      <div className="text-center text-sm font-bold text-slate-700">第 {redactionIndex + 1} / {pendingRedactionImages.length} 張<br/><span className="text-xs font-normal text-slate-500">已遮蓋 {(redactionMasks[redactionIndex] || []).length} 處</span></div>
-                      <button type="button" onClick={() => setRedactionMasks(current => { const next = current.slice(); next[redactionIndex] = []; return next; })} disabled={!(redactionMasks[redactionIndex] || []).length || isPreparingRedacted} className="px-3 py-2 rounded-lg border border-slate-400 bg-white text-sm font-semibold disabled:opacity-40">清除本張</button>
+                      <button type="button" onClick={() => { setRedactionIndex(index => Math.max(0, index - 1)); setRedactionDrag(null); redactionDragRef.current = null; }} disabled={redactionIndex === 0 || isPreparingRedacted} className="px-3 py-2 rounded-lg border border-slate-400 bg-white text-sm font-semibold disabled:opacity-40">{tr("上一張")}</button>
+                      <div className="text-center text-sm font-bold text-slate-700">{bi(`第 ${redactionIndex + 1} / ${pendingRedactionImages.length} 張`, `Image ${redactionIndex + 1} of ${pendingRedactionImages.length}`)}<br/><span className="text-xs font-normal text-slate-500">{bi(`已遮蓋 ${(redactionMasks[redactionIndex] || []).length} 處`, `${(redactionMasks[redactionIndex] || []).length} redacted area${(redactionMasks[redactionIndex] || []).length === 1 ? '' : 's'}`)}</span></div>
+                      <button type="button" onClick={() => setRedactionMasks(current => { const next = current.slice(); next[redactionIndex] = []; return next; })} disabled={!(redactionMasks[redactionIndex] || []).length || isPreparingRedacted} className="px-3 py-2 rounded-lg border border-slate-400 bg-white text-sm font-semibold disabled:opacity-40">{tr("清除本張")}</button>
                     </div>
 
                     <div className="rounded-xl bg-slate-900 p-2 flex items-center justify-center min-h-[180px] overflow-hidden">
@@ -2018,14 +2108,14 @@
                           key={redactionIndex}
                           ref={redactionImageRef}
                           src={`data:${pendingRedactionImages[redactionIndex].mimeType};base64,${pendingRedactionImages[redactionIndex].data}`}
-                          alt="待遮蓋的收據預覽"
+                          alt={tr("待遮蓋的收據預覽")}
                           onLoad={() => setRedactionImageLoadedVersion(version => version + 1)}
                           className="block max-w-full max-h-[52vh] w-auto object-contain select-none"
                           draggable="false"
                         />
                         <canvas
                           ref={redactionCanvasRef}
-                          aria-label="在此拖動框選要永久遮蓋的敏感資料"
+                          aria-label={tr("在此拖動框選要永久遮蓋的敏感資料")}
                           className="absolute inset-0 w-full h-full touch-none cursor-crosshair"
                           onPointerDown={handleRedactionPointerDown}
                           onPointerMove={handleRedactionPointerMove}
@@ -2036,13 +2126,13 @@
                     </div>
 
                     <div className="flex justify-between items-center gap-2 mt-2 mb-4">
-                      <p className="text-xs text-slate-500">用手指拖動框選；可畫多個黑框。</p>
-                      <button type="button" onClick={() => setRedactionMasks(current => { const next = current.slice(); next[redactionIndex] = (next[redactionIndex] || []).slice(0, -1); return next; })} disabled={!(redactionMasks[redactionIndex] || []).length || isPreparingRedacted} className="px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-600 border border-slate-400 disabled:opacity-40">撤銷上一框</button>
+                      <p className="text-xs text-slate-500">{tr("用手指拖動框選；可畫多個黑框。")}</p>
+                      <button type="button" onClick={() => setRedactionMasks(current => { const next = current.slice(); next[redactionIndex] = (next[redactionIndex] || []).slice(0, -1); return next; })} disabled={!(redactionMasks[redactionIndex] || []).length || isPreparingRedacted} className="px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-600 border border-slate-400 disabled:opacity-40">{tr("撤銷上一框")}</button>
                     </div>
 
                     <div className="grid grid-cols-2 gap-2">
-                      <button type="button" onClick={cancelReceiptRedaction} disabled={isPreparingRedacted} className="px-3 py-3 rounded-xl border border-slate-400 bg-white text-slate-700 font-bold text-sm disabled:opacity-50">取消此次掃描</button>
-                      <button type="button" onClick={() => redactionIndex < pendingRedactionImages.length - 1 ? setRedactionIndex(index => index + 1) : startOcrWithRedactedImages()} disabled={isPreparingRedacted} className="px-3 py-3 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-sm shadow-sm disabled:opacity-60">{isPreparingRedacted ? '正在製作遮蓋版…' : redactionIndex < pendingRedactionImages.length - 1 ? '下一張圖片' : '遮蓋完成，開始識別'}</button>
+                      <button type="button" onClick={cancelReceiptRedaction} disabled={isPreparingRedacted} className="px-3 py-3 rounded-xl border border-slate-400 bg-white text-slate-700 font-bold text-sm disabled:opacity-50">{tr("取消此次掃描")}</button>
+                      <button type="button" onClick={() => redactionIndex < pendingRedactionImages.length - 1 ? setRedactionIndex(index => index + 1) : startOcrWithRedactedImages()} disabled={isPreparingRedacted} className="px-3 py-3 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-sm shadow-sm disabled:opacity-60">{isPreparingRedacted ? tr("正在製作遮蓋版…") : redactionIndex < pendingRedactionImages.length - 1 ? tr("下一張圖片") : tr("遮蓋完成，開始識別")}</button>
                     </div>
                   </Card>
                 </div>
@@ -2054,15 +2144,15 @@
               <div className="space-y-6 animate-in fade-in duration-500">
                 <div className="flex items-center gap-2 mb-2">
                   <span className="w-8 h-8 rounded-full bg-brand-100 border border-brand-500 text-brand-700 flex items-center justify-center font-bold">1</span>
-                  <h2 className="text-2xl font-bold text-slate-800 tracking-tight">上載並分析單據</h2>
+                  <h2 className="text-2xl font-bold text-slate-800 tracking-tight">{tr("上載並分析單據")}</h2>
                 </div>
 
                 <Card className="bg-gradient-to-br from-brand-50 to-white border-brand-500">
-                  <button 
+                  <button
                     onClick={() => setShowSettings(true)}
                     className={`w-full flex items-center gap-4 p-4 rounded-xl border transition-all active:scale-[0.99] text-left shadow-sm ${
-                      apiKey.trim() 
-                        ? 'bg-white border-brand-500 hover:border-brand-600 text-slate-700' 
+                      apiKey.trim()
+                        ? 'bg-white border-brand-500 hover:border-brand-600 text-slate-700'
                         : 'bg-red-50 border-red-500 hover:bg-red-100 text-red-800'
                     }`}
                   >
@@ -2071,53 +2161,53 @@
                     </span>
                     <div className="flex-1">
                       <span className="block font-bold text-[15px] mb-0.5">
-                        {apiKey.trim() ? '✅ OpenRouter API 金鑰已設定' : '⚠️ 尚未設定 API 金鑰'}
+                        {apiKey.trim() ? tr("✅ OpenRouter API 金鑰已設定") : tr("⚠️ 尚未設定 API 金鑰")}
                       </span>
                       <span className={`block text-xs font-medium ${apiKey.trim() ? 'text-slate-500' : 'text-red-600'}`}>
-                        {apiKey.trim() ? '系統已準備就緒，可進行高效 AI 辨識' : '點擊此處設定免費金鑰以啟用智能掃描'}
+                        {apiKey.trim() ? tr("系統已準備就緒，可進行高效 AI 辨識") : tr("點擊此處設定免費金鑰以啟用智能掃描")}
                       </span>
                     </div>
                     <Icon path={icons.settings} size={20} className="shrink-0 text-slate-500"/>
                   </button>
                 </Card>
 
-                <div 
-                  onClick={!isAnalyzing ? triggerUpload : undefined} 
+                <div
+                  onClick={!isAnalyzing ? triggerUpload : undefined}
                   className={`w-full rounded-2xl border border-dashed p-10 flex flex-col items-center justify-center text-center transition-all cursor-pointer ${isAnalyzing ? 'border-brand-500 bg-brand-50 shadow-inner' : 'border-slate-500 bg-white hover:border-brand-500 hover:bg-slate-50 shadow-sm'}`}
                 >
                   <input type="file" accept="image/jpeg,image/png,image/webp" multiple className="hidden" ref={fileInputRef} onChange={handleFileUpload} />
                   <input type="file" accept="image/jpeg,image/png,image/webp" capture="environment" className="hidden" ref={cameraInputRef} onChange={handleFileUpload} />
-                  
+
                   {isAnalyzing ? (
                     <div className="w-full max-w-xs mx-auto">
-                      <div className="flex justify-between text-sm font-bold text-brand-700 mb-2"><span>{progressText}</span><span>{progress}%</span></div>
+                      <div className="flex justify-between text-sm font-bold text-brand-700 mb-2"><span>{tr(progressText)}</span><span>{progress}%</span></div>
                       <div className="w-full bg-brand-100 border border-brand-300 rounded-full h-3 overflow-hidden shadow-inner">
                         <div className="bg-brand-500 h-3 rounded-full transition-all duration-300 ease-out relative overflow-hidden" style={{width: `${progress}%`}}>
                           <div className="absolute inset-0 bg-white/20 animate-pulse"></div>
                         </div>
                       </div>
-                      <p className="text-xs text-brand-600/80 mt-4 font-medium">請稍候，AI 正在進行深度解析 (約 10-20 秒)</p>
+                      <p className="text-xs text-brand-600/80 mt-4 font-medium">{tr("請稍候，AI 正在進行深度解析 (約 10-20 秒)")}</p>
                     </div>
                   ) : uploadError ? (
                     <div className="flex flex-col items-center max-w-md mx-auto" onClick={(e) => e.stopPropagation()}>
                       <div className="w-20 h-20 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center mb-4 shadow-sm border border-amber-300"><Icon path={icons.alert} size={36} /></div>
-                      <h3 className="text-lg font-bold text-slate-800">今次未能完整讀取單據</h3>
-                      <p className="text-sm font-medium text-slate-600 mt-2">AI 偶爾第一次未能成功辨識，未必係張相有問題；可以用同一張圖片即時再試一次。</p>
-                      {uploadError.sub && <p className="text-xs text-slate-500 mt-2 break-words">{uploadError.sub}</p>}
+                      <h3 className="text-lg font-bold text-slate-800">{tr("今次未能完整讀取單據")}</h3>
+                      <p className="text-sm font-medium text-slate-600 mt-2">{tr("AI 偶爾第一次未能成功辨識，未必係張相有問題；可以用同一張圖片即時再試一次。")}</p>
+                      {uploadError.sub && <p className="text-xs text-slate-500 mt-2 break-words">{tr(uploadError.sub)}</p>}
                       {lastImageData.length ? (
-                        <Button variant="primary" className="mt-4 w-full sm:w-auto" onClick={retryLastUpload}>↻ 用剛才圖片再試一次</Button>
+                        <Button variant="primary" className="mt-4 w-full sm:w-auto" onClick={retryLastUpload}>{tr("↻ 用剛才圖片再試一次")}</Button>
                       ) : (
-                        <Button variant="secondary" className="mt-4 w-full sm:w-auto" onClick={() => { setUploadError(''); triggerUpload(); }}>重新選擇圖片</Button>
+                        <Button variant="secondary" className="mt-4 w-full sm:w-auto" onClick={() => { setUploadError(''); triggerUpload(); }}>{tr("重新選擇圖片")}</Button>
                       )}
                     </div>
                   ) : (
                     <div className="flex flex-col items-center">
                       <div className="w-20 h-20 bg-slate-100 text-slate-500 rounded-full flex items-center justify-center mb-4 shadow-sm border border-slate-400 transition-transform group-hover:scale-105"><Icon path={icons.fileImage} size={36} /></div>
-                      <h3 className="text-lg font-bold text-slate-800">選擇單據圖片</h3>
-                      <p className="text-sm font-medium text-slate-500 mt-2">可以直接影相，或者從手機選擇圖片（最多 5 張）</p>
+                      <h3 className="text-lg font-bold text-slate-800">{tr("選擇單據圖片")}</h3>
+                      <p className="text-sm font-medium text-slate-500 mt-2">{tr("可以直接影相，或者從手機選擇圖片（最多 5 張）")}</p>
                       <div className="flex flex-col sm:flex-row gap-3 mt-5 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
-                        <Button variant="primary" className="flex-1 !py-3" onClick={triggerCamera}>📷 直接影相</Button>
-                        <Button variant="secondary" className="flex-1 !py-3" onClick={triggerUpload}><Icon path={icons.fileImage} size={18}/> 選擇圖片</Button>
+                        <Button variant="primary" className="flex-1 !py-3" onClick={triggerCamera}>{tr("📷 直接影相")}</Button>
+                        <Button variant="secondary" className="flex-1 !py-3" onClick={triggerUpload}><Icon path={icons.fileImage} size={18}/>{tr(" 選擇圖片")}</Button>
                       </div>
                     </div>
                   )}
@@ -2129,8 +2219,7 @@
                   <div className="h-px bg-slate-400 flex-1"></div>
                 </div>
 
-                <Button variant="secondary" className="w-full border-slate-500" onClick={() => handleGoToStep2(true)}>
-                  手動輸入項目 <Icon path={icons.arrowRight} size={18}/>
+                <Button variant="secondary" className="w-full border-slate-500" onClick={() => handleGoToStep2(true)}>{tr("手動輸入項目 ")}<Icon path={icons.arrowRight} size={18}/>
                 </Button>
               </div>
             )}
@@ -2140,15 +2229,15 @@
               <div className="space-y-6 animate-in fade-in duration-500">
                 <div className="flex items-center gap-2 mb-2">
                   <span className="w-8 h-8 rounded-full bg-brand-100 border border-brand-500 text-brand-700 flex items-center justify-center font-bold">2</span>
-                  <h2 className="text-2xl font-bold text-slate-800 tracking-tight">核對項目與朋友認領</h2>
+                  <h2 className="text-2xl font-bold text-slate-800 tracking-tight">{tr("核對項目與朋友認領")}</h2>
                 </div>
-                
+
                 <div className="space-y-4">
                   <div className="flex justify-between items-end mb-1">
-                    <Label className="!mb-0 text-lg">消費明細清單</Label>
-                    <span className="text-sm font-semibold text-brand-700 bg-brand-50 px-2.5 py-1 rounded-md border border-brand-500">共 {items.length} 項</span>
+                    <Label className="!mb-0 text-lg">{tr("消費明細清單")}</Label>
+                    <span className="text-sm font-semibold text-brand-700 bg-brand-50 px-2.5 py-1 rounded-md border border-brand-500">{tr("共 ")}{items.length}{tr(" 項")}</span>
                   </div>
-                  
+
                   {items.map((item, idx) => (
                     <Card key={idx} className="relative overflow-visible !p-4 group">
                       <button onClick={() => removeItem(idx)} className="absolute -top-3 -right-3 w-8 h-8 bg-white border border-slate-400 text-slate-500 hover:text-red-700 hover:border-red-500 hover:bg-red-50 rounded-full flex items-center justify-center shadow-sm transition-colors z-10 opacity-0 group-hover:opacity-100 md:opacity-100">
@@ -2156,38 +2245,38 @@
                       </button>
                       <div className="grid gap-4">
                         <div>
-                          <label className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5 block">編號 {item.id} - 名稱</label>
-                          <input type="text" ref={el => fieldRefs.current[`item-name-${idx}`] = el} value={item.name} onChange={(e) => updateItem(idx, 'name', e.target.value)} onKeyDown={(e) => handleItemKeyDown(e, 'name', idx)} className="w-full text-base font-semibold text-slate-800 border-b border-slate-500 focus:border-brand-500 bg-transparent outline-none pb-1" placeholder="輸入項目名稱..." />
-                          {(item.original || item.ja) && <div className="mt-1 text-xs font-normal text-slate-500 italic truncate" title={item.original || item.ja}>原文：{item.original || item.ja}</div>}
+                          <label className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5 block">{tr("編號 ")}{item.id}{tr(" - 名稱")}</label>
+                          <input type="text" ref={el => fieldRefs.current[`item-name-${idx}`] = el} value={displayItemName(item)} onChange={(e) => updateItem(idx, uiLang === 'en' && (item.nameEn || item.nameEnEdited) ? 'nameEn' : 'name', e.target.value)} onKeyDown={(e) => handleItemKeyDown(e, 'name', idx)} className="w-full text-base font-semibold text-slate-800 border-b border-slate-500 focus:border-brand-500 bg-transparent outline-none pb-1" placeholder={tr("輸入項目名稱...")} />
+                          {(item.original || item.ja) && <div className="mt-1 text-xs font-normal text-slate-500 italic truncate" title={item.original || item.ja}>{tr("原文：")}{item.original || item.ja}</div>}
                         </div>
                         <div className="flex gap-4">
                           <div className="flex-1">
-                            <label className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5 block">單價</label>
+                            <label className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5 block">{tr("單價")}</label>
                             <div className="flex items-center border-b border-slate-500 focus-within:border-brand-500 transition-colors">
                               <span className="text-slate-600 font-bold mr-1.5">{getCurrencySymbol(currency)}</span>
                               <input type="number" ref={el => fieldRefs.current[`item-price-${idx}`] = el} value={item.price} onChange={(e) => updateItem(idx, 'price', e.target.value)} onKeyDown={(e) => handleItemKeyDown(e, 'price', idx)} className="w-full text-base font-semibold text-slate-800 bg-transparent outline-none pb-1 border-none shadow-none focus:ring-0" placeholder="0" />
                             </div>
                           </div>
                           <div className="w-24">
-                            <label className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5 block">單據總量</label>
-                            <input type="number" ref={el => fieldRefs.current[`item-qty-${idx}`] = el} value={item.totalQty ?? ''} onChange={(e) => updateItem(idx, 'totalQty', e.target.value === '' ? null : e.target.value)} onKeyDown={(e) => handleItemKeyDown(e, 'qty', idx)} className="w-full text-base font-semibold text-slate-800 border-b border-slate-500 focus:border-brand-500 bg-transparent outline-none pb-1 text-center" placeholder="未知可留空" />
+                            <label className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5 block">{tr("單據總量")}</label>
+                            <input type="number" ref={el => fieldRefs.current[`item-qty-${idx}`] = el} value={item.totalQty ?? ''} onChange={(e) => updateItem(idx, 'totalQty', e.target.value === '' ? null : e.target.value)} onKeyDown={(e) => handleItemKeyDown(e, 'qty', idx)} className="w-full text-base font-semibold text-slate-800 border-b border-slate-500 focus:border-brand-500 bg-transparent outline-none pb-1 text-center" placeholder={tr("未知可留空")} />
                           </div>
                         </div>
                         <div>
-                          <label className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5 block">單位（留空＝按份數比例）</label>
-                          <input type="text" value={item.unit || ''} onChange={(e) => updateItem(idx, 'unit', e.target.value)} className="w-full text-base font-semibold text-slate-800 border-b border-slate-500 focus:border-brand-500 bg-transparent outline-none pb-1" placeholder="例如：件、杯、碟、罐（可留空）" />
+                          <label className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5 block">{tr("單位（留空＝按份數比例）")}</label>
+                          <input type="text" value={item.unit || ''} onChange={(e) => updateItem(idx, 'unit', e.target.value)} className="w-full text-base font-semibold text-slate-800 border-b border-slate-500 focus:border-brand-500 bg-transparent outline-none pb-1" placeholder={tr("例如：件、杯、碟、罐（可留空）")} />
                         </div>
                       </div>
                     </Card>
                   ))}
-                  <Button variant="outline" onClick={addItem} className="w-full border-dashed border-brand-500 bg-white/50 hover:bg-brand-50 text-brand-700"><Icon path={icons.plus} size={18}/> 新增一筆項目</Button>
+                  <Button variant="outline" onClick={addItem} className="w-full border-dashed border-brand-500 bg-white/50 hover:bg-brand-50 text-brand-700"><Icon path={icons.plus} size={18}/>{tr(" 新增一筆項目")}</Button>
                 </div>
 
                 <Card className="bg-slate-50">
                   <div className="flex justify-between items-center gap-4">
                     <div className="flex-1">
-                      <Label className="!mb-0.5">附加稅金／服務費</Label>
-                      <p className="text-xs text-slate-500 font-medium">如有額外費用請在此填寫</p>
+                      <Label className="!mb-0.5">{tr("附加稅金／服務費")}</Label>
+                      <p className="text-xs text-slate-500 font-medium">{tr("如有額外費用請在此填寫")}</p>
                     </div>
                     <div className="flex items-center w-32 shrink-0 bg-white border border-slate-500 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-brand-500 focus-within:border-brand-500 transition-all shadow-sm">
                       <span className="pl-3 pr-1 text-slate-600 font-bold bg-slate-50 border-r border-slate-500 py-2">{getCurrencySymbol(currency)}</span>
@@ -2198,24 +2287,22 @@
 
                 <div className="border-t border-slate-400 my-6 pt-6 space-y-6">
                   <div>
-                    <Label className="flex items-center justify-between mb-3"><span>1. 產生手機認領連結發送給朋友</span></Label>
-                    <p className="text-xs text-slate-500 mb-3">朋友在手機瀏覽器填寫後，可自行透過 WhatsApp 分享回覆；中文名稱及有提供的單據原文會包含在連結內，方便核對。</p>
+                    <Label className="flex items-center justify-between mb-3"><span>{tr("1. 產生手機認領連結發送給朋友")}</span></Label>
+                    <p className="text-xs text-slate-500 mb-3">{tr("朋友在手機瀏覽器填寫後，可自行透過 WhatsApp 分享回覆；中文名稱及有提供的單據原文會包含在連結內，方便核對。")}</p>
                     <div data-testid="claim-link-actions" className="flex flex-col gap-3">
                       <Button variant="secondary" onClick={generateFriendClaimLink} className="!w-full text-sm bg-white hover:bg-slate-50 border-slate-500">
-                        <Icon path={icons.copy} size={18} className="text-slate-600"/> 複製認領連結
-                      </Button>
+                        <Icon path={icons.copy} size={18} className="text-slate-600"/>{tr(" 複製認領連結")}</Button>
                       <Button variant="primary" onClick={openClaimShareDialog} className="!w-full text-sm">
-                        <Icon path={icons.share} size={18}/> 分享認領連結＋（單據圖片）
-                      </Button>
+                        <Icon path={icons.share} size={18}/>{tr(" 分享認領連結＋（單據圖片）")}</Button>
                     </div>
-                    <p className="text-xs text-slate-500 mt-2 leading-relaxed">只需網址請按複製；按分享後先發一個認領連結。如有多張單據，再另外分享整批附件，不會把相同連結附到每張圖片。</p>
+                    <p className="text-xs text-slate-500 mt-2 leading-relaxed">{tr("只需網址請按複製；按分享後先發一個認領連結。如有多張單據，再另外分享整批附件，不會把相同連結附到每張圖片。")}</p>
                     {showClaimShareDialog && (
                     <dialog ref={claimShareDialogRef} onCancel={() => setShowClaimShareDialog(false)} aria-labelledby="claim-share-title" className="m-auto max-w-lg rounded-2xl border border-slate-400 bg-white p-4 text-slate-800 shadow-xl overflow-y-auto backdrop:bg-slate-950/60" style={{ width: 'calc(100% - 2rem)', maxHeight: '85dvh' }}>
                       <div className="flex items-center justify-between gap-2 mb-3">
-                        <h2 id="claim-share-title" className="font-bold text-base">分享認領連結＋（單據圖片）</h2>
-                        <button type="button" aria-label="關閉分享視窗" onClick={() => setShowClaimShareDialog(false)} className="shrink-0 rounded-lg p-2 hover:bg-slate-100"><Icon path={icons.x} size={20}/></button>
+                        <h2 id="claim-share-title" className="font-bold text-base">{tr("分享認領連結＋（單據圖片）")}</h2>
+                        <button type="button" aria-label={tr("關閉分享視窗")} onClick={() => setShowClaimShareDialog(false)} className="shrink-0 rounded-lg p-2 hover:bg-slate-100"><Icon path={icons.x} size={20}/></button>
                       </div>
-                      <label htmlFor="claim-share-files" className="block text-sm font-semibold mb-2">單據圖片／其他附件（可選）</label>
+                      <label htmlFor="claim-share-files" className="block text-sm font-semibold mb-2">{tr("單據圖片／其他附件（可選）")}</label>
                       <input
                         id="claim-share-files"
                         type="file"
@@ -2225,28 +2312,28 @@
                         ref={claimAttachmentInputRef}
                         onChange={handleClaimAttachmentSelection}
                       />
-                      <p className="text-xs text-slate-500 mt-2 leading-relaxed">合併的所有項目共用一個認領連結。為免 WhatsApp 在每張圖片重複顯示連結，請先完成第 1 步，再返回此視窗完成第 2 步；每次都自行選同一位朋友或群組並確認，不會自動接續發送。附件不會寫入網址或朋友的認領頁；最多 10 個檔案，合共 20 MB。</p>
+                      <p className="text-xs text-slate-500 mt-2 leading-relaxed">{tr("合併的所有項目共用一個認領連結。為免 WhatsApp 在每張圖片重複顯示連結，請先完成第 1 步，再返回此視窗完成第 2 步；每次都自行選同一位朋友或群組並確認，不會自動接續發送。附件不會寫入網址或朋友的認領頁；最多 10 個檔案，合共 20 MB。")}</p>
                       {claimAttachments.length > 0 && (
                         <div className="mt-3 border-t border-slate-300 pt-3">
                           <div className="flex items-center justify-between gap-2 mb-2">
-                            <p className="text-xs font-bold text-slate-700">已選 {claimAttachments.length} 個附件（{(claimAttachments.reduce((sum, file) => sum + file.size, 0) / (1024 * 1024)).toFixed(1)} MB）</p>
-                            <button type="button" onClick={() => { setClaimAttachments([]); if (claimAttachmentInputRef.current) claimAttachmentInputRef.current.value = ''; }} className="text-xs font-semibold text-red-700 hover:underline shrink-0">清除全部</button>
+                            <p className="text-xs font-bold text-slate-700">{tr("已選 ")}{claimAttachments.length}{tr(" 個附件（")}{(claimAttachments.reduce((sum, file) => sum + file.size, 0) / (1024 * 1024)).toFixed(1)} MB）</p>
+                            <button type="button" onClick={() => { setClaimAttachments([]); if (claimAttachmentInputRef.current) claimAttachmentInputRef.current.value = ''; }} className="text-xs font-semibold text-red-700 hover:underline shrink-0">{tr("清除全部")}</button>
                           </div>
                           <ul className="space-y-1.5">
                             {claimAttachments.map((file, index) => (
                               <li key={`${file.name}-${file.size}-${file.lastModified}-${index}`} className="flex items-center gap-2 text-xs text-slate-600">
                                 <span className="min-w-0 flex-1 truncate" title={file.name}>{file.name}</span>
                                 <span className="shrink-0">{file.size < 1024 * 1024 ? `${Math.max(1, Math.round(file.size / 1024))} KB` : `${(file.size / (1024 * 1024)).toFixed(1)} MB`}</span>
-                                <button type="button" aria-label={`移除附件 ${file.name}`} onClick={() => setClaimAttachments(current => current.filter((_, itemIndex) => itemIndex !== index))} className="px-2 py-1 rounded border border-slate-400 bg-white text-slate-500 hover:text-red-700 hover:border-red-500">移除</button>
+                                <button type="button" aria-label={tf("移除附件 {0}", [file.name])} onClick={() => setClaimAttachments(current => current.filter((_, itemIndex) => itemIndex !== index))} className="px-2 py-1 rounded border border-slate-400 bg-white text-slate-500 hover:text-red-700 hover:border-red-500">{tr("移除")}</button>
                               </li>
                             ))}
                           </ul>
                         </div>
                       )}
-                      <p className="mt-3 text-xs text-slate-600">{draftAssetStatus === 'saving' && hasDraftAssets ? '正在保存草稿附件，請稍候…' : '開啟分享選單前會確認本機草稿已保存。'}</p>
-                      <Button variant="primary" onClick={shareFriendClaimLink} disabled={hasDraftAssets && draftAssetStatus === 'saving'} className="!w-full mt-4 text-sm"><Icon path={icons.share} size={18}/> 第 1 步：分享一個認領連結</Button>
+                      <p className="mt-3 text-xs text-slate-600">{draftAssetStatus === 'saving' && hasDraftAssets ? tr("正在保存草稿附件，請稍候…") : tr("開啟分享選單前會確認本機草稿已保存。")}</p>
+                      <Button variant="primary" onClick={shareFriendClaimLink} disabled={hasDraftAssets && draftAssetStatus === 'saving'} className="!w-full mt-4 text-sm"><Icon path={icons.share} size={18}/>{tr(" 第 1 步：分享一個認領連結")}</Button>
                       {claimAttachments.length > 0 && (
-                        <Button variant="outline" onClick={shareClaimAttachments} disabled={hasDraftAssets && draftAssetStatus === 'saving'} className="!w-full mt-3 text-sm"><Icon path={icons.share} size={18}/> 第 2 步：另分享附件（{claimAttachments.length} 個）</Button>
+                        <Button variant="outline" onClick={shareClaimAttachments} disabled={hasDraftAssets && draftAssetStatus === 'saving'} className="!w-full mt-3 text-sm"><Icon path={icons.share} size={18}/>{tr(" 第 2 步：另分享附件（")}{claimAttachments.length}{tr(" 個）")}</Button>
                       )}
                     </dialog>
                     )}
@@ -2254,19 +2341,19 @@
 
                   <div>
                     <Label required={friendsReplies.length === 0} className="flex items-center justify-between mb-3">
-                      <span>2. 貼上朋友透過 WhatsApp 傳回的回覆</span>
+                      <span>{tr("2. 貼上朋友透過 WhatsApp 傳回的回覆")}</span>
                     </Label>
-                    <textarea 
+                    <textarea
                       ref={el => fieldRefs.current.replies = el} value={friendsReplies} onChange={(e) => {setFriendsReplies(e.target.value); setReconciliation(null); setStepError('');}} onPaste={handlePasteReplies} onFocus={onFocusReplies} onBlur={onBlurReplies}
-                      placeholder="在此處貼上朋友透過 WhatsApp 傳回的認領內容... (支援連續貼上多份回覆)"
+                      placeholder={tr("在此處貼上朋友透過 WhatsApp 傳回的認領內容... (支援連續貼上多份回覆)")}
                       className="w-full h-48 bg-white border border-slate-500 rounded-xl p-4 text-sm font-mono text-slate-700 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none resize-y shadow-inner leading-relaxed">
                     </textarea>
                   </div>
                 </div>
-                
+
                 <div className="flex gap-3 pt-2">
-                  <Button variant="secondary" className="w-1/3 !px-2 border-slate-500" onClick={() => { setStepError(''); setStep(1); }}>上一步</Button>
-                  <Button variant="primary" className="w-2/3" onClick={handleGoToStep3}>進行分帳運算 <Icon path={icons.arrowRight} size={18}/></Button>
+                  <Button variant="secondary" className="w-1/3 !px-2 border-slate-500" onClick={() => { setStepError(''); setStep(1); }}>{tr("上一步")}</Button>
+                  <Button variant="primary" className="w-2/3" onClick={handleGoToStep3}>{tr("進行分帳運算 ")}<Icon path={icons.arrowRight} size={18}/></Button>
                 </div>
               </div>
             )}
@@ -2276,37 +2363,37 @@
               <div className="space-y-6 animate-in fade-in duration-500">
                 <div className="flex items-center gap-2 mb-2">
                   <span className="w-8 h-8 rounded-full bg-brand-100 border border-brand-500 text-brand-700 flex items-center justify-center font-bold">3</span>
-                  <h2 className="text-2xl font-bold text-slate-800 tracking-tight">結算細節設定</h2>
+                  <h2 className="text-2xl font-bold text-slate-800 tracking-tight">{tr("結算細節設定")}</h2>
                 </div>
 
                 {reconciliation?.issues?.length > 0 && (
                   <Card className="border-amber-500 bg-amber-50 space-y-4">
                     <div>
-                      <h3 className="font-bold text-amber-900 text-lg">⚠️ 實際數量未完全核對</h3>
-                      <p className="text-sm text-amber-800 mt-1">只填單位嘅項目必須同單據總量對得上；未認領數量唔會無故消失。</p>
+                      <h3 className="font-bold text-amber-900 text-lg">{tr("⚠️ 實際數量未完全核對")}</h3>
+                      <p className="text-sm text-amber-800 mt-1">{tr("只填單位嘅項目必須同單據總量對得上；未認領數量唔會無故消失。")}</p>
                     </div>
                     <div className="space-y-2">
                       {reconciliation.issues.map(issue => (
                         <div key={issue.itemId} className="bg-white border border-amber-300 rounded-lg p-3 text-sm text-slate-700">
-                          <strong>{issue.itemId} {issue.name}</strong>：單據 {issue.totalQty} {issue.unit}，已認領 {issue.claimedQty} {issue.unit}{' '}
-                          {issue.difference > 0 ? <span className="font-bold text-amber-700">（尚欠 {issue.difference} {issue.unit}，約 {formatMoney(issue.amount, currency)}）</span> : <span className="font-bold text-red-700">（超出 {-issue.difference} {issue.unit}）</span>}
+                          <strong>{issue.itemId} {displayItemName(items.find(item => item.id === issue.itemId) || issue)}</strong>{tr("：單據 ")}{issue.totalQty} {unitDisplay(issue.unit)}{tr("，已認領 ")}{issue.claimedQty} {unitDisplay(issue.unit)}{' '}
+                          {issue.difference > 0 ? <span className="font-bold text-amber-700">{tr("（尚欠 ")}{issue.difference} {unitDisplay(issue.unit)}{tr("，約 ")}{formatMoney(issue.amount, currency)}）</span> : <span className="font-bold text-red-700">{tr("（超出 ")}{-issue.difference} {unitDisplay(issue.unit)}）</span>}
                         </div>
                       ))}
                     </div>
                     {reconciliation.issues.some(issue => issue.difference < 0) ? (
-                      <Button variant="secondary" className="w-full border-red-500 text-red-700" onClick={() => { setReconciliation(null); setStep(2); }}>返回修改認領數量</Button>
+                      <Button variant="secondary" className="w-full border-red-500 text-red-700" onClick={() => { setReconciliation(null); setStep(2); }}>{tr("返回修改認領數量")}</Button>
                     ) : (
                       <div>
-                        <Label required={!reconciliation.policy} className="text-base">剩餘數量由誰承擔？</Label>
+                        <Label required={!reconciliation.policy} className="text-base">{tr("剩餘數量由誰承擔？")}</Label>
                         <div className="grid gap-2 mt-2">
-                          {[{ id: 'payer', label: `由墊支人（${payer || '我'}）承擔` }, { id: 'equal', label: '由已認領人士平均承擔' }, ...Object.keys(claimInfo?.claims || {}).map(person => ({ id: `person:${person}`, label: `指定由 ${person} 承擔` }))].map(option => (
+                          {[{ id: 'payer', label: tf("由墊支人（{0}）承擔", [payer || '我']) }, { id: 'equal', label: tr("由已認領人士平均承擔") }, ...Object.keys(claimInfo?.claims || {}).map(person => ({ id: `person:${person}`, label: tf("指定由 {0} 承擔", [person]) }))].map(option => (
                             <label key={option.id} className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer ${reconciliation.policy === option.id ? 'bg-white border-brand-500' : 'bg-white border-amber-300'}`}>
                               <input type="radio" name="reconciliationPolicy" checked={reconciliation.policy === option.id} onChange={() => setReconciliation(prev => ({ ...prev, policy: option.id }))} className="w-4 h-4 text-brand-600" />
-                              <span className="font-semibold text-slate-800 text-sm">{option.label}</span>
+                              <span className="font-semibold text-slate-800 text-sm">{tr(option.label)}</span>
                             </label>
                           ))}
                         </div>
-                        <p className="text-xs text-amber-800 mt-2">你亦可以按「上一步」返回認領表，補返未認領數量。</p>
+                        <p className="text-xs text-amber-800 mt-2">{tr("你亦可以按「上一步」返回認領表，補返未認領數量。")}</p>
                       </div>
                     )}
                   </Card>
@@ -2314,16 +2401,16 @@
 
                 <Card className="space-y-8">
                   <div>
-                    <Label required={!payer} className="text-lg">墊支人姓名 (Payee)</Label>
-                    <input type="text" ref={el => fieldRefs.current.payer = el} value={payer} onChange={(e) => {setPayer(e.target.value); setStepError('');}} placeholder="請輸入先付款人的姓名..." className="w-full rounded-xl p-3.5 text-base font-semibold text-slate-800 outline-none transition-all bg-slate-50 focus:bg-white" />
+                    <Label required={!payer} className="text-lg">{tr("墊支人姓名 (Payee)")}</Label>
+                    <input type="text" ref={el => fieldRefs.current.payer = el} value={payer} onChange={(e) => {setPayer(e.target.value); setStepError('');}} placeholder={tr("請輸入先付款人的姓名...")} className="w-full rounded-xl p-3.5 text-base font-semibold text-slate-800 outline-none transition-all bg-slate-50 focus:bg-white" />
                   </div>
-                  
+
                   <div>
-                    <Label className="text-lg mb-3">結算貨幣 (Currency)</Label>
+                    <Label className="text-lg mb-3">{tr("結算貨幣 (Currency)")}</Label>
                     <div className="flex flex-wrap gap-2.5">
                       {displayCurrencies.map(c => (
-                          <button 
-                              key={c} onClick={() => setCurrency(c)} 
+                          <button
+                              key={c} onClick={() => setCurrency(c)}
                               className={`px-4 py-2.5 rounded-xl border font-bold text-sm transition-all outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 ${currency === c ? 'border-brand-600 bg-brand-50 text-brand-700 shadow-sm' : 'border-slate-500 bg-white text-slate-600 hover:bg-slate-50'}`}
                           >
                               {getCurrencyName(c)}
@@ -2331,40 +2418,40 @@
                       ))}
                     </div>
                   </div>
-                  
+
                   <div>
-                    <Label className="text-lg mb-3">收款方式 (Payment Method，可多選)</Label>
+                    <Label className="text-lg mb-3">{tr("收款方式 (Payment Method，可多選)")}</Label>
                     <div className="flex flex-wrap gap-2.5">
                       {paymentOptions.map(pm => (
                         <button
-                          key={pm} onClick={() => setPaymentMethods(current => current.includes(pm) ? current.filter(method => method !== pm) : [...current, pm])} aria-pressed={paymentMethods.includes(pm)}
+                          key={tr(pm)} onClick={() => setPaymentMethods(current => current.includes(pm) ? current.filter(method => method !== pm) : [...current, pm])} aria-pressed={paymentMethods.includes(pm)}
                           className={`px-4 py-2.5 rounded-xl border font-bold text-sm transition-all outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 ${paymentMethods.includes(pm) ? 'border-brand-600 bg-brand-50 text-brand-700 shadow-sm' : 'border-slate-500 bg-white text-slate-600 hover:bg-slate-50'}`}
                         >
-                          {pm}
+                          {tr(pm)}
                         </button>
                       ))}
                     </div>
                   </div>
 
                   <div className="border-t border-slate-400 pt-6">
-                    <Label className="text-lg mb-3">附加費用分攤邏輯 (Tax/Fee Split)</Label>
+                    <Label className="text-lg mb-3">{tr("附加費用分攤邏輯 (Tax/Fee Split)")}</Label>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {[{ id: 'proportional', label: '按消費比例分攤', desc: '食得多出得多' }, { id: 'equal', label: '所有人平均分攤', desc: '人頭均分' }].map(opt => (
+                      {[{ id: 'proportional', label: tr("按消費比例分攤"), desc: tr("食得多出得多") }, { id: 'equal', label: tr("所有人平均分攤"), desc: tr("人頭均分") }].map(opt => (
                         <label key={opt.id} className={`flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-all ${taxSplitMethod === opt.id ? 'bg-brand-50 border-brand-500 shadow-sm' : 'bg-white border-slate-500 hover:bg-slate-50'}`}>
                           <input type="radio" name="taxSplit" checked={taxSplitMethod === opt.id} onChange={() => setTaxSplitMethod(opt.id)} className="w-5 h-5 mt-0.5 text-brand-600 focus:ring-brand-500" />
                           <div>
-                            <div className={`font-bold text-base ${taxSplitMethod === opt.id ? 'text-brand-900' : 'text-slate-800'}`}>{opt.label}</div>
-                            <div className="text-xs text-slate-500 mt-1">{opt.desc}</div>
+                            <div className={`font-bold text-base ${taxSplitMethod === opt.id ? 'text-brand-900' : 'text-slate-800'}`}>{tr(opt.label)}</div>
+                            <div className="text-xs text-slate-500 mt-1">{tr(opt.desc)}</div>
                           </div>
                         </label>
                       ))}
                     </div>
                   </div>
                 </Card>
-                
+
                 <div className="flex gap-3 pt-2">
-                  <Button variant="secondary" className="w-1/3 !px-2 border-slate-500" onClick={() => setStep(2)}>上一步</Button>
-                  <Button variant="primary" className="w-2/3" onClick={calculateSplit}>產生分帳報告 <Icon path={icons.check} size={18}/></Button>
+                  <Button variant="secondary" className="w-1/3 !px-2 border-slate-500" onClick={() => setStep(2)}>{tr("上一步")}</Button>
+                  <Button variant="primary" className="w-2/3" onClick={calculateSplit}>{tr("產生分帳報告 ")}<Icon path={icons.check} size={18}/></Button>
                 </div>
               </div>
             )}
@@ -2374,7 +2461,7 @@
               <div className="space-y-6 animate-in fade-in duration-500">
                 <div className="flex items-center gap-2 mb-2">
                   <span className="w-8 h-8 rounded-full bg-brand-600 text-white flex items-center justify-center font-bold"><Icon path={icons.check} size={18}/></span>
-                  <h2 className="text-2xl font-bold text-slate-800 tracking-tight">最終分帳報告</h2>
+                  <h2 className="text-2xl font-bold text-slate-800 tracking-tight">{tr("最終分帳報告")}</h2>
                 </div>
 
                 {lastImageData.length > 0 && (
@@ -2382,8 +2469,8 @@
                     <label className="flex items-start gap-3 cursor-pointer">
                       <input type="checkbox" checked={includeReceiptImages} onChange={event => { const checked = event.target.checked; setIncludeReceiptImages(checked); if (!checked) { updatePendingReceiptShare(false); setReceiptShareNudge(0); } }} className="w-5 h-5 mt-0.5 text-brand-600 focus:ring-brand-500" />
                       <div>
-                        <div className="font-bold text-slate-800">需要另外分享實體單副本（{lastImageData.length} 張）</div>
-                        <p className="text-sm text-slate-700 mt-1 leading-relaxed">先發純文字報告，返回後按「分享單據圖片」，一次分享全部圖片，不需複製或貼上。</p>
+                        <div className="font-bold text-slate-800">{tr("需要另外分享實體單副本（")}{lastImageData.length}{tr(" 張）")}</div>
+                        <p className="text-sm text-slate-700 mt-1 leading-relaxed">{tr("先發純文字報告，返回後按「分享單據圖片」，一次分享全部圖片，不需複製或貼上。")}</p>
                       </div>
                     </label>
                   </Card>
@@ -2392,13 +2479,13 @@
                 <div id="report-share-step" className="scroll-mt-56">
                   <Card className="!p-0 overflow-hidden border-t-4 border-t-brand-600">
                     <div className="p-4 bg-slate-50 border-b border-slate-400">
-                      <h3 className="font-bold text-slate-800 text-base">💰 追數版報告 (精簡)</h3>
-                      <p className="text-xs text-slate-500 font-medium mt-0.5">第 1 步：分享純文字報告，不附圖片</p>
+                      <h3 className="font-bold text-slate-800 text-base">{tr("💰 追數版報告 (精簡)")}</h3>
+                      <p className="text-xs text-slate-500 font-medium mt-0.5">{tr("第 1 步：分享純文字報告，不附圖片")}</p>
                       <div className="flex gap-2 mt-3">
-                        <Button onClick={() => shareCurrentReport(getSimplifiedResult(), '分帳追數結果')} variant="primary" className="flex-1 !w-auto !px-2 !py-2 text-sm">分享報告</Button>
-                        <Button onClick={() => copyCurrentReport(getSimplifiedResult(), '追數版')} variant="outline" className="flex-1 !w-auto !px-2 !py-2 text-sm bg-white hover:bg-brand-50 border-slate-500 text-slate-700 hover:text-brand-700 hover:border-brand-500"><Icon path={icons.copy} size={16}/> 複製文字</Button>
+                        <Button onClick={() => shareCurrentReport(getSimplifiedResult(), tr("分帳追數結果"))} variant="primary" className="flex-1 !w-auto !px-2 !py-2 text-sm">{tr("分享報告")}</Button>
+                        <Button onClick={() => copyCurrentReport(getSimplifiedResult(), tr("追數版"))} variant="outline" className="flex-1 !w-auto !px-2 !py-2 text-sm bg-white hover:bg-brand-50 border-slate-500 text-slate-700 hover:text-brand-700 hover:border-brand-500"><Icon path={icons.copy} size={16}/>{tr(" 複製文字")}</Button>
                       </div>
-                      {includeReceiptImages && lastImageData.length > 0 && <p className="mt-3 rounded-lg border-l-4 border-amber-600 bg-amber-50 p-3 text-sm leading-relaxed text-amber-950"><strong>這一步只有文字，不附圖片。</strong>返回後會自動帶你到<a href="#receipt-share-step" className="font-bold underline underline-offset-2">第 2 步分享單據圖片（{lastImageData.length} 張）</a>，毋須自行尋找。</p>}
+                      {includeReceiptImages && lastImageData.length > 0 && <p className="mt-3 rounded-lg border-l-4 border-amber-600 bg-amber-50 p-3 text-sm leading-relaxed text-amber-950"><strong>{tr("這一步只有文字，不附圖片。")}</strong>{tr("返回後會自動帶你到")}<a href="#receipt-share-step" className="font-bold underline underline-offset-2">{tr("第 2 步分享單據圖片（")}{lastImageData.length}{tr(" 張）")}</a>{tr("，毋須自行尋找。")}</p>}
                     </div>
                     <div data-testid="final-summary-preview" className="p-4 bg-white font-sans text-sm text-slate-700 whitespace-pre-wrap break-words leading-relaxed selection:bg-brand-100">{getSimplifiedResult()}</div>
                   </Card>
@@ -2407,17 +2494,17 @@
                 <Card className="!p-0 overflow-hidden">
                   <div className="p-4 bg-slate-50 border-b border-slate-400">
                     <div className="mb-3">
-                      <h3 className="font-bold text-slate-800 text-base">🧾 詳細明細版</h3>
-                      <p className="text-xs text-slate-500 font-medium mt-0.5">第 1 步也可選詳細版；同樣只分享文字</p>
+                      <h3 className="font-bold text-slate-800 text-base">{tr("🧾 詳細明細版")}</h3>
+                      <p className="text-xs text-slate-500 font-medium mt-0.5">{tr("第 1 步也可選詳細版；同樣只分享文字")}</p>
                     </div>
                     <div className="flex gap-2 mb-4">
-                      <Button onClick={() => shareCurrentReport(getDetailedResult(detailLang), '分帳詳細明細')} variant="primary" className="flex-1 !w-auto !px-2 !py-2 text-sm">分享詳細版</Button>
-                      <Button onClick={() => copyCurrentReport(getDetailedResult(detailLang), '詳細版')} variant="secondary" className="flex-1 !w-auto !px-2 !py-2 text-sm bg-white border-slate-500"><Icon path={icons.copy} size={16}/> 複製文字</Button>
+                      <Button onClick={() => shareCurrentReport(getDetailedResult(detailLang), tr("分帳詳細明細"))} variant="primary" className="flex-1 !w-auto !px-2 !py-2 text-sm">{tr("分享詳細版")}</Button>
+                      <Button onClick={() => copyCurrentReport(getDetailedResult(detailLang), tr("詳細版"))} variant="secondary" className="flex-1 !w-auto !px-2 !py-2 text-sm bg-white border-slate-500"><Icon path={icons.copy} size={16}/>{tr(" 複製文字")}</Button>
                     </div>
-                    {includeReceiptImages && lastImageData.length > 0 && <p className="mb-4 rounded-lg border-l-4 border-amber-600 bg-amber-50 p-3 text-sm leading-relaxed text-amber-950"><strong>這一步只有文字，不附圖片。</strong>返回後會自動帶你到<a href="#receipt-share-step" className="font-bold underline underline-offset-2">第 2 步分享單據圖片（{lastImageData.length} 張）</a>，毋須自行尋找。</p>}
+                    {includeReceiptImages && lastImageData.length > 0 && <p className="mb-4 rounded-lg border-l-4 border-amber-600 bg-amber-50 p-3 text-sm leading-relaxed text-amber-950"><strong>{tr("這一步只有文字，不附圖片。")}</strong>{tr("返回後會自動帶你到")}<a href="#receipt-share-step" className="font-bold underline underline-offset-2">{tr("第 2 步分享單據圖片（")}{lastImageData.length}{tr(" 張）")}</a>{tr("，毋須自行尋找。")}</p>}
                     <div className="flex bg-slate-200/60 p-1 rounded-lg border border-slate-400">
-                      <button onClick={() => setDetailLang('zh')} className={`flex-1 py-1.5 rounded-md text-xs font-bold transition-all ${detailLang === 'zh' ? 'bg-white text-slate-800 shadow border border-slate-300' : 'text-slate-600 hover:text-slate-800'}`}>香港繁體版</button>
-                      <button onClick={() => setDetailLang('full')} className={`flex-1 py-1.5 rounded-md text-xs font-bold transition-all ${detailLang === 'full' ? 'bg-white text-slate-800 shadow border border-slate-300' : 'text-slate-600 hover:text-slate-800'}`}>包含原文 (供核對)</button>
+                      <button onClick={() => setDetailLang('zh')} className={`flex-1 py-1.5 rounded-md text-xs font-bold transition-all ${detailLang === 'zh' ? 'bg-white text-slate-800 shadow border border-slate-300' : 'text-slate-600 hover:text-slate-800'}`}>{bi('中文菜名版', 'Item names only')}</button>
+                      <button onClick={() => setDetailLang('full')} className={`flex-1 py-1.5 rounded-md text-xs font-bold transition-all ${detailLang === 'full' ? 'bg-white text-slate-800 shadow border border-slate-300' : 'text-slate-600 hover:text-slate-800'}`}>{tr("包含原文 (供核對)")}</button>
                     </div>
                   </div>
                   <div data-testid="final-detail-preview" className="p-4 bg-white font-sans text-sm text-slate-600 whitespace-pre-wrap break-words leading-relaxed selection:bg-slate-200">{getDetailedResult(detailLang)}</div>
@@ -2428,27 +2515,27 @@
                     <div className="flex items-start gap-3">
                       <span aria-hidden="true" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-amber-900 text-2xl font-bold text-white">2</span>
                       <div className="min-w-0">
-                        <h3 id="receipt-share-heading" className="text-2xl font-extrabold leading-snug text-amber-950">第 2 步：分享單據圖片</h3>
-                        <p className="mt-2 text-base font-semibold leading-relaxed text-amber-950">按一下，選 WhatsApp 和收件人，再手動發送全部 {lastImageData.length} 張圖片。</p>
+                        <h3 id="receipt-share-heading" className="text-2xl font-extrabold leading-snug text-amber-950">{tr("第 2 步：分享單據圖片")}</h3>
+                        <p className="mt-2 text-base font-semibold leading-relaxed text-amber-950">{tr("按一下，選 WhatsApp 和收件人，再手動發送全部 ")}{lastImageData.length}{tr(" 張圖片。")}</p>
                       </div>
                     </div>
-                    {pendingReceiptShare && <p role="status" className="mt-4 rounded-xl border-2 border-amber-800 bg-white p-3 text-base font-bold leading-relaxed text-amber-950">文字報告不會自動附圖。請先確認文字已發出，再分享單據。</p>}
-                    {!lastImageData.length && <p role="alert" className="mt-4 font-bold text-amber-950">本機圖片暫未能載入。請重新開啟同一網址重試讀取草稿，勿重設帳單。</p>}
-                    <Button onClick={shareCurrentReceipts} disabled={!lastImageData.length} variant="primary" className="mt-4 !w-full !bg-amber-900 hover:!bg-amber-950 !text-white !border-amber-950 !py-4 !font-bold disabled:!opacity-100 disabled:!bg-slate-700"><Icon path={icons.share} size={20}/> 分享單據圖片（{lastImageData.length} 張）</Button>
-                    <p className="mt-3 text-sm leading-relaxed text-amber-950">只分享圖片，不會重發文字報告；是否送出請在 WhatsApp 確認。</p>
+                    {pendingReceiptShare && <p role="status" className="mt-4 rounded-xl border-2 border-amber-800 bg-white p-3 text-base font-bold leading-relaxed text-amber-950">{tr("文字報告不會自動附圖。請先確認文字已發出，再分享單據。")}</p>}
+                    {!lastImageData.length && <p role="alert" className="mt-4 font-bold text-amber-950">{tr("本機圖片暫未能載入。請重新開啟同一網址重試讀取草稿，勿重設帳單。")}</p>}
+                    <Button onClick={shareCurrentReceipts} disabled={!lastImageData.length} variant="primary" className="mt-4 !w-full !bg-amber-900 hover:!bg-amber-950 !text-white !border-amber-950 !py-4 !font-bold disabled:!opacity-100 disabled:!bg-slate-700"><Icon path={icons.share} size={20}/>{tr(" 分享單據圖片（")}{lastImageData.length}{tr(" 張）")}</Button>
+                    <p className="mt-3 text-sm leading-relaxed text-amber-950">{tr("只分享圖片，不會重發文字報告；是否送出請在 WhatsApp 確認。")}</p>
                   </section>
                 )}
 
                 <div className="pt-2">
                   <Button onClick={saveCurrentRecord} disabled={isSaved || isSavingRecord} variant={isSaved ? 'secondary' : 'primary'} className={`w-full ${isSaved ? '!bg-emerald-50 !text-emerald-900 !border-emerald-700 disabled:!opacity-100 disabled:!cursor-default !shadow-none !transition-none' : ''}`}>
-                    {isSavingRecord ? '正在儲存…' : isSaved ? <><Icon path={icons.check} size={20}/> {lastImageData.length ? `紀錄及 ${lastImageData.length} 張單據已儲存在本機` : '紀錄已儲存'}</> : <><Icon path={icons.save} size={20}/> {lastImageData.length ? `儲存分帳紀錄及 ${lastImageData.length} 張實體單` : '儲存此分帳紀錄'}</>}
+                    {isSavingRecord ? tr("正在儲存…") : isSaved ? <><Icon path={icons.check} size={20}/> {lastImageData.length ? tf("紀錄及 {0} 張單據已儲存在本機", [lastImageData.length]) : tr("紀錄已儲存")}</> : <><Icon path={icons.save} size={20}/> {lastImageData.length ? tf("儲存分帳紀錄及 {0} 張實體單", [lastImageData.length]) : tr("儲存此分帳紀錄")}</>}
                   </Button>
-                  {lastImageData.length > 0 && <p className="text-xs text-slate-500 text-center mt-2">收據圖片只保存在這部裝置；不會上傳到伺服器。儲存紀錄後，可到「歷史紀錄」再次分享。</p>}
+                  {lastImageData.length > 0 && <p className="text-xs text-slate-500 text-center mt-2">{tr("收據圖片只保存在這部裝置；不會上傳到伺服器。儲存紀錄後，可到「歷史紀錄」再次分享。")}</p>}
                 </div>
-                
+
                 <div className="flex gap-3 pt-2">
-                  <Button variant="secondary" className="w-1/3 !px-2 border-slate-500" onClick={() => { setStepError(''); setStep(3); }}><Icon path={icons.arrowLeft} size={16}/> 返回修改</Button>
-                  <Button onClick={handleGoToStep1} className="w-2/3 bg-slate-800 hover:bg-slate-900 text-white shadow-lg border border-slate-900">處理新一張單據</Button>
+                  <Button variant="secondary" className="w-1/3 !px-2 border-slate-500" onClick={() => { setStepError(''); setStep(3); }}><Icon path={icons.arrowLeft} size={16}/>{tr(" 返回修改")}</Button>
+                  <Button onClick={handleGoToStep1} className="w-2/3 bg-slate-800 hover:bg-slate-900 text-white shadow-lg border border-slate-900">{tr("處理新一張單據")}</Button>
                 </div>
               </div>
             )}
@@ -2460,21 +2547,21 @@
                     <div className="w-10 h-10 bg-amber-500 text-white rounded-xl flex items-center justify-center shadow-sm shrink-0">
                       <Icon path={icons.book} size={22}/>
                     </div>
-                    <h2 className="text-xl font-bold text-slate-800 tracking-tight">新手教學</h2>
+                    <h2 className="text-xl font-bold text-slate-800 tracking-tight">{tr("新手教學")}</h2>
                   </div>
-                  <p className="text-sm mt-1 leading-relaxed text-slate-700">第一次用？睇完以下幾點就上手。<br/>最重要的是第 2 節「份數定實際單位」——填法會直接影響分攤結果。</p>
+                  <p className="text-sm mt-1 leading-relaxed text-slate-700">{tr("第一次用？睇完以下幾點就上手。")}<br/>{tr("最重要的是第 2 節「份數定實際單位」——填法會直接影響分攤結果。")}</p>
                 </Card>
 
                 <Card className="p-0 overflow-hidden border-slate-500">
                   <div className="bg-slate-50 px-5 py-4 border-b border-slate-400">
-                    <h3 className="font-bold text-slate-800 text-base flex items-center gap-2">🗺️ 整個流程（4 步）</h3>
+                    <h3 className="font-bold text-slate-800 text-base flex items-center gap-2">{tr("🗺️ 整個流程（4 步）")}</h3>
                   </div>
                   <div className="p-5 space-y-4">
                     {[
-                      ['1', '睇單', '拍／揀單據照片，AI 自動讀出項目、價錢同稅費。亦可手動輸入。'],
-                      ['2', '認領', '複製「認領表」發到 WhatsApp 群組；只填數字係份數比例，數字加單位就係實際食用數量。'],
-                      ['3', '運算', '填墊支人姓名、確認自動偵測的貨幣、付款方式。'],
-                      ['4', '結果', '得出「追數版」同「詳細版」，複製後發返群組。'],
+                      ['1', tr("睇單"), tr("拍／揀單據照片，AI 自動讀出項目、價錢同稅費。亦可手動輸入。")],
+                      ['2', tr("認領"), tr("複製「認領表」發到 WhatsApp 群組；只填數字係份數比例，數字加單位就係實際食用數量。")],
+                      ['3', tr("運算"), tr("填墊支人姓名、確認自動偵測的貨幣、付款方式。")],
+                      ['4', tr("結果"), tr("得出「追數版」同「詳細版」，複製後發返群組。")],
                     ].map(([n, t, d]) => (
                       <div key={n} className="flex gap-4 items-start">
                         <span className="w-6 h-6 shrink-0 bg-brand-100 text-brand-700 border border-brand-500 rounded-full flex items-center justify-center text-xs font-bold mt-0.5">{n}</span>
@@ -2484,38 +2571,35 @@
                   </div>
                 </Card>
 
-                <Accordion title="⭐ 2. 填「份數」定「實際單位」？（最重要）" tone="amber" defaultOpen={true} icon={icons.help}>
+                <Accordion title={tr("⭐ 2. 填「份數」定「實際單位」？（最重要）")} tone="amber" defaultOpen={true} icon={icons.help}>
                   <div className="bg-amber-50/50 border border-amber-500 rounded-xl p-4 mb-3">
-                    <p className="font-bold text-amber-900 text-sm mb-1.5">一句話核心：</p>
-                    <p className="text-amber-800 text-sm leading-relaxed"><strong className="font-extrabold underline decoration-amber-500 underline-offset-2">只填數字＝份數比例</strong>；數字後面加單位＝實際單位數量。系統會按填法自動選擇計算方式。</p>
+                    <p className="font-bold text-amber-900 text-sm mb-1.5">{tr("一句話核心：")}</p>
+                    <p className="text-amber-800 text-sm leading-relaxed"><strong className="font-extrabold underline decoration-amber-500 underline-offset-2">{tr("只填數字＝份數比例")}</strong>{tr("；數字後面加單位＝實際單位數量。系統會按填法自動選擇計算方式。")}</p>
                   </div>
-                  <p className="font-bold text-slate-800 pt-1 mb-2">例子一：按份數比例分一項 $120 食物</p>
+                  <p className="font-bold text-slate-800 pt-1 mb-2">{tr("例子一：按份數比例分一項 $120 食物")}</p>
                   <div className="bg-slate-50 border border-slate-400 rounded-xl p-4 text-sm space-y-3">
-                    <p className="text-slate-800">阿明填 <strong className="text-brand-700 bg-brand-100 border border-brand-500 px-1.5 py-0.5 rounded">2</strong>，Cathy 填 <strong className="text-brand-700 bg-brand-100 border border-brand-500 px-1.5 py-0.5 rounded">1</strong>，即合共 3 份。</p>
-                    <div className="bg-white border border-slate-400 rounded-lg p-3 text-xs text-slate-600 font-mono shadow-sm">
-                      系統自動計：每份 $40。<br/>阿明 $80，Cathy $40。
-                    </div>
-                    <p className="text-brand-700 font-bold flex items-center gap-1.5 mt-2"><Icon path={icons.check} size={16}/> 唔需要知道實際有幾件，填幾多份就按比例分。</p>
+                    <p className="text-slate-800">{tr("阿明填 ")}<strong className="text-brand-700 bg-brand-100 border border-brand-500 px-1.5 py-0.5 rounded">2</strong>{tr("，Cathy 填 ")}<strong className="text-brand-700 bg-brand-100 border border-brand-500 px-1.5 py-0.5 rounded">1</strong>{tr("，即合共 3 份。")}</p>
+                    <div className="bg-white border border-slate-400 rounded-lg p-3 text-xs text-slate-600 font-mono shadow-sm">{tr("系統自動計：每份 $40。")}<br/>{tr("阿明 $80，Cathy $40。")}</div>
+                    <p className="text-brand-700 font-bold flex items-center gap-1.5 mt-2"><Icon path={icons.check} size={16}/>{tr(" 唔需要知道實際有幾件，填幾多份就按比例分。")}</p>
                   </div>
-                  <p className="font-bold text-slate-800 pt-1 mb-2">例子二：按實際單位分一項 $120 食物</p>
+                  <p className="font-bold text-slate-800 pt-1 mb-2">{tr("例子二：按實際單位分一項 $120 食物")}</p>
                   <div className="bg-slate-50 border border-slate-400 rounded-xl p-4 text-sm space-y-3">
-                    <p className="text-slate-800">單據寫明共 8 件。阿明填 <strong className="text-brand-700 bg-brand-100 border border-brand-500 px-1.5 py-0.5 rounded">3 件</strong>，即係食咗 3 件。</p>
-                    <div className="bg-white border border-slate-400 rounded-lg p-3 text-xs text-slate-600 font-mono shadow-sm">每件 $120 ÷ 8 = $15<br/>阿明應付 3 × $15 = $45。</div>
-                    <p className="text-slate-600 text-xs font-medium">如果同一項目有人填「1」而冇寫單位，嗰個人會以剩餘金額按份數比例分攤。</p>
+                    <p className="text-slate-800">{tr("單據寫明共 8 件。阿明填 ")}<strong className="text-brand-700 bg-brand-100 border border-brand-500 px-1.5 py-0.5 rounded">{tr("3 件")}</strong>{tr("，即係食咗 3 件。")}</p>
+                    <div className="bg-white border border-slate-400 rounded-lg p-3 text-xs text-slate-600 font-mono shadow-sm">{tr("每件 $120 ÷ 8 = $15")}<br/>{tr("阿明應付 3 × $15 = $45。")}</div>
+                    <p className="text-slate-600 text-xs font-medium">{tr("如果同一項目有人填「1」而冇寫單位，嗰個人會以剩餘金額按份數比例分攤。")}</p>
                   </div>
                 </Accordion>
 
-                <Accordion title="🔑 6. AI 設定與鎖匙" tone="slate" icon={icons.key}>
-                  <p className="text-sm text-slate-800 leading-relaxed mb-3">目前只支援 OpenRouter 作單據分析；請先到 OpenRouter 官網申請並設定 API 金鑰。</p>
+                <Accordion title={tr("🔑 6. AI 設定與鎖匙")} tone="slate" icon={icons.key}>
+                  <p className="text-sm text-slate-800 leading-relaxed mb-3">{tr("目前只支援 OpenRouter 作單據分析；請先到 OpenRouter 官網申請並設定 API 金鑰。")}</p>
                   <div className="bg-slate-50 border border-slate-400 rounded-xl p-3 text-sm space-y-1.5">
-                    <p className="font-bold text-slate-800">記住我的鎖匙（免每次重輸）</p>
-                    <p className="text-slate-600 text-xs">在設定勾選「記住鎖匙」，只存本機，唔會上傳。共用電腦請勿勾選。</p>
+                    <p className="font-bold text-slate-800">{tr("記住我的鎖匙（免每次重輸）")}</p>
+                    <p className="text-slate-600 text-xs">{tr("在設定勾選「記住鎖匙」，只存本機，唔會上傳。共用電腦請勿勾選。")}</p>
                   </div>
                 </Accordion>
 
                 <Button className="w-full mt-2" onClick={() => setShowTutorial(false)}>
-                  <Icon path={icons.check} size={18}/> 我明白了，開始分帳
-                </Button>
+                  <Icon path={icons.check} size={18}/>{tr(" 我明白了，開始分帳")}</Button>
               </div>
             )}
 
@@ -2526,19 +2610,18 @@
                     <div className="w-10 h-10 bg-slate-200 text-slate-700 border border-slate-400 rounded-xl flex items-center justify-center shadow-sm shrink-0">
                       <Icon path={icons.history} size={22}/>
                     </div>
-                    <h2 className="text-2xl font-bold text-slate-800 tracking-tight">歷史紀錄</h2>
+                    <h2 className="text-2xl font-bold text-slate-800 tracking-tight">{tr("歷史紀錄")}</h2>
                   </div>
                   {savedHistory.length > 0 && (
                     <button onClick={exportCSV} className="flex items-center gap-1.5 px-3 py-2 bg-white text-slate-800 hover:bg-slate-50 border border-slate-500 rounded-lg text-sm font-bold shadow-sm transition-all active:scale-[0.98]">
-                      <Icon path={icons.download} size={16}/> 匯出 CSV
-                    </button>
+                      <Icon path={icons.download} size={16}/>{tr(" 匯出 CSV")}</button>
                   )}
                 </div>
-                
+
                 {savedHistory.length === 0 ? (
                   <Card className="flex flex-col items-center justify-center py-16 text-slate-500">
                     <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mb-4 border border-slate-400"><Icon path={icons.receipt} size={40} className="opacity-60"/></div>
-                    <p className="font-bold text-slate-600">暫無儲存的紀錄</p>
+                    <p className="font-bold text-slate-600">{tr("暫無儲存的紀錄")}</p>
                   </Card>
                 ) : (
                   <div className="space-y-4">
@@ -2547,29 +2630,30 @@
                         <div className="bg-slate-50 p-4 flex justify-between items-start border-b border-slate-400">
                           <div>
                             <h3 className="font-bold text-slate-800 text-lg">{record.date}</h3>
-                            <p className="text-sm text-slate-600 mt-0.5 font-medium">墊支人: <span className="font-bold text-slate-800">{record.payer}</span></p>
+                            <p className="text-sm text-slate-600 mt-0.5 font-medium">{tr("墊支人: ")}<span className="font-bold text-slate-800">{record.payer}</span></p>
                           </div>
                           <div className="text-right">
                             <div className="font-bold text-brand-700 text-xl tracking-tight">{formatMoney(record.totalAmount, record.currency)}</div>
                             <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mt-0.5">{record.currency}</div>
                           </div>
                         </div>
-                        <div className="p-4 bg-white flex gap-2.5">
-                          <Button variant="outline" className="flex-1 !py-2 !text-sm !px-2 bg-white hover:bg-brand-50 border-slate-400 text-slate-700 hover:text-brand-700 hover:border-brand-500" onClick={() => copyToClipboard(record.simplifiedText, '追數版')}><Icon path={icons.copy} size={16}/> 追數版</Button>
-                          <Button variant="secondary" className="flex-1 !py-2 !text-sm !px-2 bg-white border-slate-500" onClick={() => copyToClipboard(record.detailedText, '詳細版')}><Icon path={icons.copy} size={16}/> 詳細版</Button>
+                        {!record.reportData && uiLang === 'en' && <p className="px-4 pt-3 text-xs text-amber-800">{bi('已儲存報告：原文語言（舊紀錄不會翻譯）。', 'Saved report: original language (legacy records are not translated).')}</p>}
+                        <div className="p-4 bg-white flex flex-wrap gap-2.5">
+                          <Button variant="outline" className="flex-1 !py-2 !text-sm !px-2 bg-white hover:bg-brand-50 border-slate-400 text-slate-700 hover:text-brand-700 hover:border-brand-500" onClick={() => copyToClipboard(getSavedReportText(record, 'simplified'), bi('追數版', 'Summary'))}><Icon path={icons.copy} size={16}/> {bi('追數版', 'Summary')}</Button>
+                          <Button variant="secondary" className="flex-1 !py-2 !text-sm !px-2 bg-white border-slate-500" onClick={() => copyToClipboard(getSavedReportText(record, 'detailed'), bi('詳細版', 'Detailed'))}><Icon path={icons.copy} size={16}/> {bi('詳細版', 'Detailed')}</Button>
                           <button onClick={() => deleteRecord(record.id)} className="px-3 py-2 bg-white border border-slate-500 text-slate-500 rounded-xl hover:bg-red-50 hover:text-red-700 hover:border-red-500 shrink-0 transition-colors"><Icon path={icons.trash} size={18}/></button>
                         </div>
                         {Number(record.receiptImageCount) > 0 && (
                           <div className="px-4 pb-4">
-                            <p className="text-xs text-slate-600 mb-2">📎 本機收據副本：{record.receiptImageCount} 張</p>
-                            <p className="text-xs text-slate-600 mb-2">先分享一款純文字報告，再另分享圖片；每次自行在 WhatsApp 選同一收件人並確認。</p>
+                            <p className="text-xs text-slate-600 mb-2">{tr("📎 本機收據副本：")}{record.receiptImageCount}{tr(" 張")}</p>
+                            <p className="text-xs text-slate-600 mb-2">{tr("先分享一款純文字報告，再另分享圖片；每次自行在 WhatsApp 選同一收件人並確認。")}</p>
                             <div className="grid grid-cols-2 gap-2">
-                              <Button variant="outline" className="!w-auto !py-2 !px-2 !text-xs bg-white" onClick={() => shareSavedRecord(record, 'simplified')}>分享追數版（純文字）</Button>
-                              <Button variant="secondary" className="!w-auto !py-2 !px-2 !text-xs bg-white" onClick={() => shareSavedRecord(record, 'detailed')}>分享詳細版（純文字）</Button>
-                              <Button variant="outline" className="col-span-2 !w-auto !py-2 !px-2 !text-xs bg-white" disabled={!Array.isArray(savedReceiptFiles[record.id]) || !savedReceiptFiles[record.id].length} onClick={() => shareSavedRecord(record, 'receipts')}>{receiptHistoryLoading[record.id] ? '正在讀取…' : '另分享歷史單據圖片'}</Button>
+                              <Button variant="outline" className="!w-auto !py-2 !px-2 !text-xs bg-white" onClick={() => shareSavedRecord(record, 'simplified')}>{tr("分享追數版（純文字）")}</Button>
+                              <Button variant="secondary" className="!w-auto !py-2 !px-2 !text-xs bg-white" onClick={() => shareSavedRecord(record, 'detailed')}>{tr("分享詳細版（純文字）")}</Button>
+                              <Button variant="outline" className="col-span-2 !w-auto !py-2 !px-2 !text-xs bg-white" disabled={!Array.isArray(savedReceiptFiles[record.id]) || !savedReceiptFiles[record.id].length} onClick={() => shareSavedRecord(record, 'receipts')}>{receiptHistoryLoading[record.id] ? tr("正在讀取…") : tr("另分享歷史單據圖片")}</Button>
                             </div>
-                            {savedReceiptFiles[record.id] === null && <p className="text-xs text-red-600 mt-2">此裝置找不到收據圖片；可能已清除網站資料。</p>}
-                            {Array.isArray(savedReceiptFiles[record.id]) && savedReceiptFiles[record.id].length === 0 && <p className="text-xs text-red-600 mt-2">本機歷史中沒有收據圖片副本。</p>}
+                            {savedReceiptFiles[record.id] === null && <p className="text-xs text-red-600 mt-2">{tr("此裝置找不到收據圖片；可能已清除網站資料。")}</p>}
+                            {Array.isArray(savedReceiptFiles[record.id]) && savedReceiptFiles[record.id].length === 0 && <p className="text-xs text-red-600 mt-2">{tr("本機歷史中沒有收據圖片副本。")}</p>}
                           </div>
                         )}
                       </Card>
@@ -2578,46 +2662,45 @@
                 )}
               </div>
             )}
-            
+
             {showSettings && (
                <div className="space-y-6 animate-in fade-in duration-300">
-                  <h2 className="text-xl font-bold flex items-center gap-2 text-slate-800"><Icon path={icons.settings} className="text-slate-600"/> 系統設定</h2>
+                  <h2 className="text-xl font-bold flex items-center gap-2 text-slate-800"><Icon path={icons.settings} className="text-slate-600"/>{tr(" 系統設定")}</h2>
+                  <Card><LanguageSwitch value={uiLang} onChange={changeUiLanguage} /></Card>
                   <Card>
-                    <Label className="text-base mb-3">API 服務供應商</Label>
+                    <Label className="text-base mb-3">{tr("API 服務供應商")}</Label>
                     <div className="mb-6 rounded-xl border border-brand-500 bg-brand-50 p-4">
                       <div className="font-bold text-base text-brand-900">OpenRouter</div>
-                      <p className="text-xs text-slate-600 font-medium mt-1">目前本程式使用 OpenRouter 進行單據 OCR。</p>
+                      <p className="text-xs text-slate-600 font-medium mt-1">{tr("目前本程式使用 OpenRouter 進行單據 OCR。")}</p>
                     </div>
 
                     <div className="border-t border-slate-400 pt-6 space-y-5">
                       <div>
-                        <Label className="text-base flex justify-between items-center">
-                          API 金鑰 (Key)
-                          <a href="https://openrouter.ai/settings/keys" target="_blank" rel="noreferrer" className="text-sm text-brand-700 hover:text-brand-800 underline font-semibold">取得 API 金鑰 ↗</a>
+                        <Label className="text-base flex justify-between items-center">{tr("API 金鑰 (Key)")}<a href="https://openrouter.ai/settings/keys" target="_blank" rel="noreferrer" className="text-sm text-brand-700 hover:text-brand-800 underline font-semibold">{tr("取得 API 金鑰 ↗")}</a>
                         </Label>
                         {!isEditingKey && apiKey ? (
                           <div className="bg-slate-50 border border-slate-400 rounded-xl p-4 mt-2">
                             <div className="font-mono text-sm text-slate-700 bg-white p-2.5 rounded-lg border border-slate-500 mb-3 break-all font-semibold">{maskKey(apiKey)}</div>
-                            <div className="flex gap-2">
-                              <Button variant="secondary" className="flex-1 !py-2 !text-sm border-slate-500" onClick={() => { editKeyRef.current = apiKey; setApiKey(''); setIsEditingKey(true); }}><Icon path={icons.edit} size={14}/> 更換</Button>
-                              <Button variant="secondary" className="flex-1 !py-2 !text-sm text-blue-700 border-slate-500" onClick={testKey}>🧪 測試連線</Button>
-                              <Button variant="secondary" className="!py-2 !px-3 text-red-700 border-red-500 hover:bg-red-50" onClick={forgetApiKey}><Icon path={icons.trash} size={16}/></Button>
+                            <div className="grid grid-cols-2 gap-2">
+                              <Button variant="secondary" className="min-w-0 !px-2 !py-2 !text-sm border-slate-500" onClick={() => { editKeyRef.current = apiKey; setApiKey(''); setIsEditingKey(true); }}><Icon path={icons.edit} size={14}/>{tr(" 更換")}</Button>
+                              <Button variant="secondary" className="min-w-0 !px-2 !py-2 !text-sm text-blue-700 border-slate-500" onClick={testKey}>{tr("🧪 測試連線")}</Button>
+                              <Button variant="secondary" className="col-span-2 !py-2 !px-3 text-red-700 border-red-500 hover:bg-red-50" onClick={forgetApiKey}><Icon path={icons.trash} size={16}/>{bi('移除金鑰', 'Remove key')}</Button>
                             </div>
-                            {keyTestResult && <div className={`text-sm font-bold mt-3 px-3 py-2 rounded-lg border ${keyTestResult.ok ? 'bg-brand-50 text-brand-800 border-brand-500' : 'bg-red-50 text-red-800 border-red-500'}`}>{keyTestResult.msg}</div>}
+                            {keyTestResult && <div className={`text-sm font-bold mt-3 px-3 py-2 rounded-lg border ${keyTestResult.ok ? 'bg-brand-50 text-brand-800 border-brand-500' : 'bg-red-50 text-red-800 border-red-500'}`}>{tr(keyTestResult.msg)}</div>}
                           </div>
                         ) : (
                           <div className="mt-2 space-y-3">
                             <div className="relative">
-                              <input 
-                                type={showKey ? 'text' : 'password'} value={apiKey} onChange={(e) => setApiKey(e.target.value)} 
-                                placeholder="在此貼上您的 API 金鑰" 
-                                className="w-full rounded-xl p-3.5 pr-12 font-mono text-sm focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 outline-none transition-all" 
+                              <input
+                                type={showKey ? 'text' : 'password'} value={apiKey} onChange={(e) => setApiKey(e.target.value)}
+                                placeholder={tr("在此貼上您的 API 金鑰")}
+                                className="w-full rounded-xl p-3.5 pr-12 font-mono text-sm focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 outline-none transition-all"
                               />
                               <button onMouseDown={() => setShowKey(true)} onMouseUp={() => setShowKey(false)} onTouchStart={() => setShowKey(true)} onTouchEnd={() => setShowKey(false)} className="absolute right-3 top-3.5 text-slate-500 hover:text-slate-800"><Icon path={icons.eye} size={20}/></button>
                             </div>
                             <div className="flex gap-2">
-                              {editKeyRef.current && <Button variant="secondary" className="flex-1 !py-2.5 text-sm border-slate-500" onClick={() => { setApiKey(editKeyRef.current); setIsEditingKey(false); editKeyRef.current=''; }}>取消修改</Button>}
-                              <Button variant="primary" className="flex-1 !py-2.5 text-sm" disabled={!apiKey.trim()} onClick={saveApiConfig}>💾 儲存並驗證</Button>
+                              {editKeyRef.current && <Button variant="secondary" className="flex-1 !py-2.5 text-sm border-slate-500" onClick={() => { setApiKey(editKeyRef.current); setIsEditingKey(false); editKeyRef.current=''; }}>{tr("取消修改")}</Button>}
+                              <Button variant="primary" className="flex-1 !py-2.5 text-sm" disabled={!apiKey.trim()} onClick={saveApiConfig}>{tr("💾 儲存並驗證")}</Button>
                             </div>
                           </div>
                         )}
@@ -2637,29 +2720,29 @@
                             }
                           } catch(e) {
                             setRememberKey(false);
-                            toast('⚠️ 無法儲存到此瀏覽器，請關閉私密瀏覽或允許網站儲存資料', 'error');
+                            toast(tr("⚠️ 無法儲存到此瀏覽器，請關閉私密瀏覽或允許網站儲存資料"), 'error');
                           }
                         }} className="w-5 h-5 mt-0.5 text-brand-600 focus:ring-brand-500 rounded" />
                         <div>
-                          <div className="font-bold text-slate-800 text-sm">將金鑰永久儲存於此瀏覽器（建議保持勾選）</div>
-                          <div className="text-xs text-slate-600 mt-1 font-medium">按「儲存並驗證」會永久保存在本機端，唔會上傳至任何伺服器。取消勾選只適合公用電腦。</div>
+                          <div className="font-bold text-slate-800 text-sm">{tr("將金鑰永久儲存於此瀏覽器（建議保持勾選）")}</div>
+                          <div className="text-xs text-slate-600 mt-1 font-medium">{tr("按「儲存並驗證」會永久保存在本機端，唔會上傳至任何伺服器。取消勾選只適合公用電腦。")}</div>
                         </div>
                       </label>
                     </div>
                   </Card>
-                  <Button variant="secondary" className="w-full border-slate-500" onClick={() => setShowSettings(false)}>返回系統</Button>
+                  <Button variant="secondary" className="w-full border-slate-500" onClick={() => setShowSettings(false)}>{tr("返回系統")}</Button>
                </div>
             )}
 
             {cameraOpen && (
-              <div className="fixed inset-0 z-[10000] bg-black/95 flex flex-col items-center justify-center p-4" role="dialog" aria-label="相機拍攝">
+              <div className="fixed inset-0 z-[10000] bg-black/95 flex flex-col items-center justify-center p-4" role="dialog" aria-label={tr("相機拍攝")}>
                 <div className="w-full max-w-lg flex items-center justify-between text-white mb-3">
-                  <h2 className="text-lg font-bold">影相上載單據</h2>
-                  <button type="button" onClick={closeCamera} className="rounded-lg bg-white/15 px-4 py-2 font-semibold">取消</button>
+                  <h2 className="text-lg font-bold">{tr("影相上載單據")}</h2>
+                  <button type="button" onClick={closeCamera} className="rounded-lg bg-white/15 px-4 py-2 font-semibold">{tr("取消")}</button>
                 </div>
                 <video ref={cameraVideoRef} playsInline muted autoPlay className="w-full max-w-lg max-h-[68vh] rounded-2xl bg-black object-contain" />
-                <p className="text-white/80 text-sm mt-3">將單據放入畫面，按下面按鈕拍攝</p>
-                <button type="button" onClick={captureCameraPhoto} className="mt-4 w-20 h-20 rounded-full border-4 border-white bg-brand-500 shadow-lg active:scale-95" aria-label="拍攝相片">
+                <p className="text-white/80 text-sm mt-3">{tr("將單據放入畫面，按下面按鈕拍攝")}</p>
+                <button type="button" onClick={captureCameraPhoto} className="mt-4 w-20 h-20 rounded-full border-4 border-white bg-brand-500 shadow-lg active:scale-95" aria-label={tr("拍攝相片")}>
                   <span className="block w-12 h-12 mx-auto rounded-full border-2 border-white/80" />
                 </button>
               </div>
