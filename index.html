@@ -550,8 +550,80 @@
       image.src = `data:${imageData.mimeType};base64,${imageData.data}`;
     });
 
+
+    const UI_LANG_KEY = 'billSplitterLanguage';
+    const UI_TRANSLATIONS = [
+      ['分帳管家', 'Bill Splitter'], ['分帳管家 AI', 'Bill Splitter AI'], ['分帳管家 AI Pro', 'Bill Splitter AI Pro'],
+      ['上載睇單', 'Scan receipt'], ['朋友認領', 'Friends claim'], ['分帳運算', 'Calculate split'], ['最終結果', 'Results'],
+      ['返回', 'Back'], ['教學', 'Guide'], ['紀錄', 'History'], ['設定', 'Settings'], ['新手教學', 'Getting started'],
+      ['系統提示與建議', 'Tips and notices'], ['返回系統', 'Back to app'], ['上一步', 'Previous'], ['下一步', 'Next'],
+      ['上載並分析單據', 'Scan and analyse receipt'], ['選擇單據圖片', 'Choose receipt image'],
+      ['可以直接影相，或者從手機選擇圖片（最多 5 張）', 'Take a photo or choose images from your phone (up to 5)'],
+      ['直接影相', 'Take photo'], ['選擇圖片', 'Choose image'], ['手動輸入項目', 'Enter items manually'],
+      ['核對項目與朋友認領', 'Review items and friends\' claims'], ['消費明細清單', 'Item list'], ['新增一筆項目', 'Add an item'],
+      ['附加稅金／服務費', 'Tax / service fee'], ['如有額外費用請在此填寫', 'Enter any additional fee'],
+      ['複製認領連結', 'Copy claim link'], ['分享認領連結＋（單據圖片）', 'Share claim link + receipt images'],
+      ['貼上朋友透過 WhatsApp 傳回的回覆', 'Paste replies from friends via WhatsApp'], ['進行分帳運算', 'Calculate split'],
+      ['結算細節設定', 'Settlement settings'], ['墊支人姓名 (Payee)', 'Payer name'], ['結算貨幣 (Currency)', 'Settlement currency'],
+      ['收款方式 (Payment Method，可多選)', 'Payment method (select all that apply)'], ['附加費用分攤邏輯 (Tax/Fee Split)', 'Tax / fee split method'],
+      ['按消費比例分攤', 'Split by spending proportion'], ['食得多出得多', 'Pay more if you consume more'], ['所有人平均分攤', 'Split equally'], ['人頭均分', 'Equal per person'],
+      ['產生分帳報告', 'Generate split report'], ['最終分帳報告', 'Final split report'], ['需要另外分享實體單副本', 'Also share receipt image copies'],
+      ['追數版報告 (精簡)', 'Payment reminder (summary)'], ['詳細明細版', 'Detailed breakdown'], ['分享報告', 'Share report'], ['分享詳細版', 'Share detailed version'],
+      ['複製文字', 'Copy text'], ['香港繁體版', 'Hong Kong Traditional Chinese'], ['包含原文 (供核對)', 'Include original text for checking'],
+      ['分享單據圖片', 'Share receipt images'], ['處理新一張單據', 'Process another receipt'], ['歷史紀錄', 'History'], ['匯出 CSV', 'Export CSV'],
+      ['暫無儲存的紀錄', 'No saved records'], ['系統設定', 'App settings'], ['API 服務供應商', 'API provider'], ['API 金鑰 (Key)', 'API key'],
+      ['取得 API 金鑰 ↗', 'Get API key ↗'], ['更換', 'Change'], ['測試連線', 'Test connection'], ['儲存並驗證', 'Save and validate'],
+      ['將金鑰永久儲存於此瀏覽器（建議保持勾選）', 'Remember this key in this browser (recommended)'],
+      ['只存本機，唔會上傳。共用電腦請勿勾選。', 'Stored only on this device and never uploaded. Do not enable this on a shared computer.'],
+      ['正在儲存…', 'Saving…'], ['儲存分帳紀錄', 'Save split record'], ['紀錄已儲存', 'Record saved'],
+      ['教學', 'Guide'], ['我明白了，開始分帳', 'Got it, start splitting'], ['第 1 步', 'Step 1'], ['第 2 步', 'Step 2'],
+      ['單據原文：', 'Original receipt: '], ['原文：', 'Original: '], ['單據共 ', 'Receipt total: '], ['共 ', 'Total '], [' 項', ' items'],
+      ['單價', 'Unit price'], ['單據總量', 'Receipt quantity'], ['單位（留空＝按份數比例）', 'Unit (leave blank to split by proportion)'],
+      ['輸入項目名稱...', 'Enter item name...'], ['未知可留空', 'Leave blank if unknown'], ['例如：件、杯、碟、罐（可留空）', 'e.g. piece, cup, plate, can (optional)'],
+      ['認領份數', 'Claimed quantity'], ['必填', 'Required'], ['付款方式：', 'Payment method: '], ['墊支人：', 'Payer: '],
+      ['第 1 步：分享一個認領連結', 'Step 1: Share one claim link'], ['第 2 步：另分享附件', 'Step 2: Share attachments'],
+      ['清除全部', 'Remove all'], ['移除', 'Remove'], ['取消此次掃描', 'Cancel this scan'], ['上一張', 'Previous image'], ['清除本張', 'Clear image'], ['撤銷上一框', 'Undo last mask'],
+      ['下一張圖片', 'Next image'], ['遮蓋完成，開始識別', 'Finish masking and scan'], ['影相上載單據', 'Take receipt photo'], ['取消', 'Cancel'],
+      ['選擇單據圖片', 'Choose receipt image'], ['分享回覆', 'Share reply'], ['複製回覆文字', 'Copy reply text'],
+      ['帳單認領', 'Bill claim'], ['填寫你的認領', 'Enter your claims'], ['帳單項目', 'Bill items'], ['認領回覆預覽', 'Claim reply preview'],
+    ];
+    const translateUiText = (value, english) => {
+      if (!english) return value;
+      let text = String(value);
+      for (const [zh, en] of UI_TRANSLATIONS) text = text.split(zh).join(en);
+      text = text.replace(/項目 (\d{2})/g, 'Item $1').replace(/編號 (\d{2})/g, 'No. $1');
+      text = text.replace(/正在讀取…/g, 'Loading…').replace(/正在保存/g, 'Saving').replace(/已選 /g, 'Selected ');
+      return text;
+    };
+    const applyUiLanguage = (english) => {
+      const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+      const nodes = [];
+      while (walker.nextNode()) nodes.push(walker.currentNode);
+      nodes.forEach(node => {
+        if (!node.__billSplitterOriginal) node.__billSplitterOriginal = node.nodeValue;
+        const next = translateUiText(node.__billSplitterOriginal, english);
+        if (node.nodeValue !== next) node.nodeValue = next;
+      });
+      document.documentElement.lang = english ? 'en' : 'zh-HK';
+      document.title = english ? 'Bill Splitter AI Pro' : '分帳管家 AI Pro';
+    };
+    const installLanguageToggle = (onChange) => {
+      let button = document.getElementById('bill-language-toggle');
+      if (!button) {
+        button = document.createElement('button');
+        button.id = 'bill-language-toggle';
+        button.type = 'button';
+        button.style.cssText = 'position:fixed;right:12px;top:12px;z-index:10001;border:1px solid #94a3b8;border-radius:999px;padding:7px 11px;background:#fff;color:#065f46;font-size:12px;font-weight:800;box-shadow:0 2px 8px rgba(0,0,0,.12);cursor:pointer';
+        document.body.appendChild(button);
+      }
+      button.textContent = document.documentElement.lang === 'en' ? '中文' : 'English';
+      button.onclick = () => onChange(document.documentElement.lang !== 'en' ? 'en' : 'zh');
+    };
+
     function App() {
       const [step, setStep] = useState(1);
+      const [uiLang, setUiLang] = useState(() => localStorage.getItem(UI_LANG_KEY) || 'zh');
+      const isEnglish = uiLang === 'en';
       const [items, setItems] = useState([]);
       const [taxAmount, setTaxAmount] = useState('');
       const [taxNote, setTaxNote] = useState('');
@@ -618,6 +690,11 @@
       const claimAttachmentInputRef = useRef(null);
       const [showClaimShareDialog, setShowClaimShareDialog] = useState(false);
       const claimShareDialogRef = useRef(null);
+      useEffect(() => {
+        try { localStorage.setItem(UI_LANG_KEY, uiLang); } catch (e) {}
+        applyUiLanguage(uiLang === 'en');
+        installLanguageToggle(next => setUiLang(next));
+      }, [uiLang, step, showSettings, showHistory, showTutorial, showClaimShareDialog, items.length, results]);
       useEffect(() => {
         if (!showClaimShareDialog) return;
         const dialog = claimShareDialogRef.current;
@@ -1458,7 +1535,7 @@
           // failure can be retried without selecting the files again.
           setLastImageData(imageDataArray);
 
-          const promptText = `你是一個專門分析單據的 OCR 分帳助手。任務：讀取單據文字，抽取消費項目、稅費，並判斷貨幣，輸出 JSON。不要做任何運算解釋、不要加註解、不要輸出 Markdown。
+          const promptText = isEnglish ? `You are an OCR bill-splitting assistant. Read the receipt, extract items and fees, detect the currency, and return JSON only. Do not explain calculations, add comments, or use Markdown.\n[Language requirement] Use clear English for items[].name and taxNote. Preserve the original receipt wording in items[].original. Keep names and quantities faithful to the receipt.\nThere are ${files.length} receipt image(s); merge them into one list.\n[A. items] name: English item name, original: exact receipt wording, ja: Japanese name if present, price: unit price number, qty: receipt quantity number, totalQty: allocatable total quantity or null, unit: unit such as piece/cup/plate, total: item total number. Exclude tax, service fee and discount.\n[B. taxTotal] total tax or service fee; use 0 if included. taxNote: short note.\n[C. currency] ISO 3-letter code such as HKD, JPY, TWD.\n[D. date] YYYY-MM-DD or null; never use today.\n[E. receiptTotal] final amount due on the receipt or null.\n[F. JSON] {"items":[{"name":"Pizza","original":"Pizza","ja":"","price":120,"qty":1,"totalQty":8,"unit":"piece","total":120}],"taxTotal":45,"taxNote":"VAT 45","currency":"JPY","date":"2026-03-14","receiptTotal":165}` : `你是一個專門分析單據的 OCR 分帳助手。任務：讀取單據文字，抽取消費項目、稅費，並判斷貨幣，輸出 JSON。不要做任何運算解釋、不要加註解、不要輸出 Markdown。
 【語言硬性要求】所有翻譯後的中文（尤其是 items[].name）必須使用「繁體中文-香港（zh-HK）」；禁止輸出簡體字、簡體中文或中國大陸用語。請將單據上的簡體中文、日文或其他語言轉換成香港繁體字，例如「饮料」必須寫成「飲品」、「账单」必須寫成「帳單」、「发票」必須寫成「發票」。不可只複製原文中的簡體字。items[].original 必須保留單據原文，但 items[].name 必須是香港繁體中文。
 這裡有 ${files.length} 張單據。請合併成一份清單。
 【A. 消費項目 items】"name":繁體中文名稱, "original":單據原文字樣, "ja":日文名稱(如有), "price":單價(數字), "qty":單據數量(數字), "totalQty":可分配總數量(數字，單據冇寫總量就填 null), "unit":單位（件/杯/碟/罐/份等，未知留空）, "total":該項總額(數字)。不可含稅金服務費折扣。
@@ -1592,7 +1669,7 @@
           unit: String(item.unit || '').trim()
         }));
         const link = new URL('./claim.html', window.location.href);
-        link.hash = `data=${encodeClaimLinkPayload(payload)}`;
+        link.hash = `data=${encodeClaimLinkPayload(payload)}&lang=${uiLang}`;
         return link.toString();
       };
 
@@ -1624,8 +1701,8 @@
         const link = buildFriendClaimLink();
         if (!link) return;
         if (!ensureDraftSavedForSharing()) return;
-        const message = `請打開以下連結填寫手機認領表：\n${link}`;
-        shareTextWithFiles(message, [], '手機認領連結');
+        const message = isEnglish ? `Open this link to fill in the bill claim form:\n${link}` : `請打開以下連結填寫手機認領表：\n${link}`;
+        shareTextWithFiles(message, [], isEnglish ? 'Bill claim link' : '手機認領連結');
       };
 
       const shareClaimAttachments = () => {
@@ -1745,15 +1822,15 @@
         if (!results) return "";
         const others = Object.keys(results.personTotals).filter(p => p !== payer);
         const curr = results.currency;
-        const paymentLabel = paymentMethods.length ? paymentMethods.join('、') : '未指定';
-        let txt = `💰 *分帳結果｜各人應付金額與收款資料* 💰\n📅 ${results.date} · 💴 結算貨幣：*${getCurrencyName(curr)}*\n💳 請過數俾：*${payer}*\n💵 付款方式：${paymentLabel}\n────────\n`;
+        const paymentLabel = paymentMethods.length ? paymentMethods.map(pm => isEnglish ? ({'轉數快 (FPS)':'FPS','現金':'Cash','銀行轉帳':'Bank transfer'}[pm] || pm) : pm).join(isEnglish ? ', ' : '、') : (isEnglish ? 'Not specified' : '未指定');
+        let txt = isEnglish ? `💰 *Bill split result | Amounts due and payment details* 💰\n📅 ${results.date} · 💴 Currency: *${curr}*\n💳 Pay to: *${payer}*\n💵 Payment method: ${paymentLabel}\n────────\n` : `💰 *分帳結果｜各人應付金額與收款資料* 💰\n📅 ${results.date} · 💴 結算貨幣：*${getCurrencyName(curr)}*\n💳 請過數俾：*${payer}*\n💵 付款方式：${paymentLabel}\n────────\n`;
         others.forEach(person => { txt += `👤 *${person}* — 應付 ➡️ *${formatMoney(results.personTotals[person].total, curr)}*\n\n`; });
-        if (others.length === 0) txt += `（只有墊支人一位，無需過數）\n`;
+        if (others.length === 0) txt += isEnglish ? `(Only the payer; no transfer needed)\n` : `（只有墊支人一位，無需過數）\n`;
         txt += `────────\n`;
         const owed = others.reduce((s, p) => s + results.personTotals[p].total, 0);
         txt += `📊 應收合計：*${formatMoney(owed, curr)}*\n`;
-        if (results.personTotals[payer]) txt += `🙋 ${payer} 自己一份：${formatMoney(results.personTotals[payer].total, curr)}\n`;
-        txt += `\n🙏 收到請覆「已轉」，多謝合作！`;
+        if (results.personTotals[payer]) txt += isEnglish ? `🙋 ${payer}'s share: ${formatMoney(results.personTotals[payer].total, curr)}\n` : `🙋 ${payer} 自己一份：${formatMoney(results.personTotals[payer].total, curr)}\n`;
+        txt += isEnglish ? `\n🙏 Please reply "paid" after transferring. Thank you!` : `\n🙏 收到請覆「已轉」，多謝合作！`;
         return txt;
       };
 
@@ -1761,33 +1838,33 @@
         if (!results) return "";
         const full = mode === 'full';
         const curr = results.currency;
-        const paymentLabel = paymentMethods.length ? paymentMethods.join('、') : '未指定';
+        const paymentLabel = paymentMethods.length ? paymentMethods.map(pm => isEnglish ? ({'轉數快 (FPS)':'FPS','現金':'Cash','銀行轉帳':'Bank transfer'}[pm] || pm) : pm).join(isEnglish ? ', ' : '、') : (isEnglish ? 'Not specified' : '未指定');
         const oneLineName = value => String(value || '').replace(/\s+/g, ' ').trim();
-        let txt = `🧾 *分帳詳細明細｜各人認領項目與應付金額* 🧾\n📅 ${results.date} · 💴 結算貨幣：${getCurrencyName(curr)}\n💳 墊支人：${payer}\n💵 付款方式：${paymentLabel}\n⚖️ 稅／服務費：${taxSplitMethod === 'equal' ? '全部人平均分' : '按消費比例分'}\n────────\n\n`;
+        let txt = isEnglish ? `🧾 *Detailed bill split | Claimed items and amounts due* 🧾\n📅 ${results.date} · 💴 Currency: ${curr}\n💳 Payer: ${payer}\n💵 Payment method: ${paymentLabel}\n⚖️ Tax / fee: ${taxSplitMethod === 'equal' ? 'split equally' : 'split by spending proportion'}\n────────\n\n` : `🧾 *分帳詳細明細｜各人認領項目與應付金額* 🧾\n📅 ${results.date} · 💴 結算貨幣：${getCurrencyName(curr)}\n💳 墊支人：${payer}\n💵 付款方式：${paymentLabel}\n⚖️ 稅／服務費：${taxSplitMethod === 'equal' ? '全部人平均分' : '按消費比例分'}\n────────\n\n`;
         let grandTotal = 0;
         Object.keys(results.personTotals).forEach(person => {
           const p = results.personTotals[person];
           txt += `👤 *${person}*\n`;
           p.items.forEach(i => {
             txt += `*${i.id}* ${oneLineName(i.name)}\n`;
-            if (full && i.original && i.original !== i.name) txt += `🌐 原文：${oneLineName(i.original)}\n`;
-            if (full && i.ja && i.ja !== i.original) txt += `🇯🇵 日文：${oneLineName(i.ja)}\n`;
-            const share = i.isActualUnit ? `（${i.qty} ${i.unit || i.unitName || '單位'}，按實際單位）` : `（${i.qty}/${i.totalClaimed} 份比例）`;
+            if (full && i.original && i.original !== i.name) txt += isEnglish ? `🌐 Original: ${oneLineName(i.original)}\n` : `🌐 原文：${oneLineName(i.original)}\n`;
+            if (full && i.ja && i.ja !== i.original) txt += isEnglish ? `🇯🇵 Japanese: ${oneLineName(i.ja)}\n` : `🇯🇵 日文：${oneLineName(i.ja)}\n`;
+            const share = i.isActualUnit ? (isEnglish ? `(${i.qty} ${i.unit || i.unitName || 'units'}, actual quantity)` : `（${i.qty} ${i.unit || i.unitName || '單位'}，按實際單位）`) : (isEnglish ? `(${i.qty}/${i.totalClaimed} share ratio)` : `（${i.qty}/${i.totalClaimed} 份比例）`);
             txt += `💲 ${formatMoney(i.amount, curr)} ${share}\n\n`;
           });
           (p.adjustments || []).forEach(a => {
-            txt += `${oneLineName(a.name)}\n未認領數量由此人承擔\n`;
-            txt += `💲 ${formatMoney(a.amount, curr)}（${a.qty} ${a.unit}，${a.reason}）\n\n`;
+            txt += `${oneLineName(a.name)}\n${isEnglish ? 'Unclaimed quantity assigned to this person' : '未認領數量由此人承擔'}\n`;
+            txt += `💲 ${formatMoney(a.amount, curr)} (${a.qty} ${a.unit}, ${isEnglish ? ({'墊支人承擔未認領數量':'payer covers unclaimed quantity','已認領人士平均承擔未認領數量':'shared equally by claimants','指定承擔未認領數量':'assigned unclaimed quantity'}[a.reason] || a.reason) : a.reason})\n\n`;
           });
-          if (p.tax > 0) txt += `▫️ 稅／服務費分攤 💲 ${formatMoney(p.tax, curr)}\n`;
-          txt += `▶️ *應付：${formatMoney(p.total, curr)}*\n────────\n`;
+          if (p.tax > 0) txt += isEnglish ? `▫️ Tax / fee share 💲 ${formatMoney(p.tax, curr)}\n` : `▫️ 稅／服務費分攤 💲 ${formatMoney(p.tax, curr)}\n`;
+          txt += isEnglish ? `▶️ *Amount due: ${formatMoney(p.total, curr)}*\n────────\n` : `▶️ *應付：${formatMoney(p.total, curr)}*\n────────\n`;
           grandTotal += p.total;
         });
         const itemsSum = items.reduce((sum, item) => sum + toNum(item.total), 0);
         const billTotal = itemsSum + toNum(taxAmount);
         const diff = Math.abs(grandTotal - billTotal);
-        txt += `\n📊 *總核對*\n項目小計：${formatMoney(itemsSum, curr)}\n稅／服務費：${formatMoney(taxAmount, curr)}\n單據總計：${formatMoney(billTotal, curr)}\n各人合計：${formatMoney(grandTotal, curr)}\n差額：${formatMoney(diff, curr)} ${diff < 0.05 ? '✅' : '⚠️ 請檢查認領數量'}\n`;
-        if (full && taxNote) txt += `\n📝 稅費來源：${taxNote}\n`;
+        txt += isEnglish ? `\n📊 *Totals check*\nItems subtotal: ${formatMoney(itemsSum, curr)}\nTax / fee: ${formatMoney(taxAmount, curr)}\nReceipt total: ${formatMoney(billTotal, curr)}\nPeople total: ${formatMoney(grandTotal, curr)}\nDifference: ${formatMoney(diff, curr)} ${diff < 0.05 ? '✅' : '⚠️ Check claimed quantities'}\n` : `\n📊 *總核對*\n項目小計：${formatMoney(itemsSum, curr)}\n稅／服務費：${formatMoney(taxAmount, curr)}\n單據總計：${formatMoney(billTotal, curr)}\n各人合計：${formatMoney(grandTotal, curr)}\n差額：${formatMoney(diff, curr)} ${diff < 0.05 ? '✅' : '⚠️ 請檢查認領數量'}\n`;
+        if (full && taxNote) txt += isEnglish ? `\n📝 Tax / fee note: ${taxNote}\n` : `\n📝 稅費來源：${taxNote}\n`;
         return txt;
       };
 

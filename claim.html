@@ -130,6 +130,31 @@
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
   <script>
+
+    const claimTranslations = [
+      ['分帳管家 AI', 'Bill Splitter AI'], ['填寫你的認領', 'Enter your claims'], ['在每項填入你認領的份數，填好後把回覆自行傳回發起人即可。', 'Enter the quantity you claim for each item, then send the reply back to the organiser.'],
+      ['打不開這份認領表', 'Unable to open this claim form'], ['連結資料不完整或格式不正確。請向發起人索取最新的認領連結。', 'The link is incomplete or invalid. Please ask the organiser for a new claim link.'],
+      ['填寫說明', 'Instructions'], ['數字本身就是份數。', 'Numbers represent shares.'], ['例如 0.5＝半份、1＝一份、2＝兩份；留空或填 0 代表沒有認領。', 'For example, 0.5 = half a share, 1 = one share, and 2 = two shares. Leave blank or enter 0 if you claim none.'],
+      ['你的姓名', 'Your name'], ['例如：阿明', 'e.g. Alex'], ['請用發起人認得的名字，回覆會用這個名字標示。', 'Use a name the organiser will recognise; it will be included in your reply.'],
+      ['帳單項目', 'Bill items'], ['認領回覆預覽', 'Claim reply preview'], ['分享回覆', 'Share reply'], ['複製回覆文字', 'Copy reply text'],
+      ['此頁不會自動發送訊息或收集回覆。認領資料只在你的瀏覽器內整理；項目名稱已包含在邀請連結中。', 'This page never sends messages or collects replies automatically. Claim data is processed only in your browser; item names are included in the invitation link.'],
+      ['單據原文：', 'Original receipt: '], ['認領份數', 'Claimed quantity'], ['項', 'items'], ['請先填寫你的姓名。', 'Please enter your name first.'], ['姓名請勿包含冒號或等號。', 'Name must not contain a colon or equals sign.'],
+      ['請至少填寫一項大於 0 的認領數量。', 'Please enter at least one claimed quantity greater than 0.'], ['已填妥，請發回給發起人。', 'Complete. Please send this reply to the organiser.'],
+      ['已複製，可貼到 WhatsApp 傳回。', 'Copied. Paste it into WhatsApp and send it back.'], ['分享未完成；你仍可按「複製回覆文字」。', 'Sharing was not completed; you can still copy the reply text.'],
+    ];
+    const claimLangParam = new URLSearchParams(location.hash.slice(1)).get('lang');
+    const claimEnglish = claimLangParam ? claimLangParam === 'en' : localStorage.getItem('billSplitterLanguage') === 'en';
+    const claimTranslate = value => claimEnglish ? claimTranslations.reduce((text, [zh, en]) => text.split(zh).join(en), String(value)) : value;
+    const applyClaimLanguage = () => {
+      const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT); const nodes = [];
+      while (walker.nextNode()) nodes.push(walker.currentNode);
+      nodes.forEach(node => { if (!node.__claimOriginal) node.__claimOriginal = node.nodeValue; node.nodeValue = claimTranslate(node.__claimOriginal); });
+      document.documentElement.lang = claimEnglish ? 'en' : 'zh-HK';
+      document.title = claimEnglish ? 'Bill claim | Bill Splitter AI' : '帳單認領｜分帳管家 AI';
+      let button = document.getElementById('claim-language-toggle');
+      if (!button) { button = document.createElement('button'); button.id = 'claim-language-toggle'; button.type = 'button'; button.style.cssText = 'position:fixed;right:12px;top:12px;z-index:20;border:1px solid #b9c9c0;border-radius:999px;padding:7px 11px;background:#fff;color:#066447;font-size:12px;font-weight:800;box-shadow:0 2px 8px rgba(0,0,0,.12)'; button.textContent = claimEnglish ? '中文' : 'English'; button.onclick = () => { localStorage.setItem('billSplitterLanguage', claimEnglish ? 'zh' : 'en'); const params = new URLSearchParams(location.hash.slice(1)); params.set('lang', claimEnglish ? 'zh' : 'en'); location.hash = params.toString(); location.reload(); }; document.body.appendChild(button); }
+    };
+
     (() => {
       const loadError = document.getElementById('load-error');
       const content = document.getElementById('claim-content');
@@ -182,7 +207,7 @@
       }
 
       function renderItems() {
-        itemCount.textContent = `${items.length} 項`;
+        itemCount.textContent = claimEnglish ? `${items.length} items` : `${items.length} 項`;
         items.forEach((item, index) => {
           const card = makeElement('article', 'item-card');
           const heading = makeElement('div', 'item-heading');
@@ -221,7 +246,12 @@
         const person = nameInput.value.trim().replace(/[\r\n]+/g, ' ');
         if (!person) return { text: '', error: '請先填寫你的姓名。', complete: false };
         if (/[:：=＝]/.test(person)) return { text: '', error: '姓名請勿包含冒號或等號。', complete: false };
-        const lines = [
+        const lines = claimEnglish ? [
+          '🧾 *Bill claim reply* 🧾',
+          `👤 Name: ${person}`,
+          '━━━━━━━━━━━━━━',
+          '🍽️ *My claimed items*'
+        ] : [
           '🧾 *分帳認領回覆* 🧾',
           `👤 姓名：${person}`,
           '━━━━━━━━━━━━━━',
@@ -253,13 +283,13 @@
           const normalized = parsedValue[1].replace(/^0+(?=\d)/, '').replace(/^(?=\.)/, '0').replace(/\.$/, '');
           const displayName = item.name.replace(/[\r\n=＝]/g, ' ').replace(/\s+/g, ' ').trim();
           const quantity = enteredUnit
-            ? `實際數量 = ${normalized} ${item.unit}`
-            : `認領份數 = ${normalized}`;
+            ? (claimEnglish ? `Actual quantity = ${normalized} ${item.unit}` : `實際數量 = ${normalized} ${item.unit}`)
+            : (claimEnglish ? `Claimed shares = ${normalized}` : `認領份數 = ${normalized}`);
           lines.push(`🔶 *${item.id} ${displayName}*　👉🏻 ${quantity}`);
           claims++;
         }
         if (!claims) return { text: '', error: '請至少填寫一項大於 0 的認領數量。', complete: false };
-        lines.push('━━━━━━━━━━━━━━', '✅ *已填妥，請發回給發起人。*');
+        lines.push('━━━━━━━━━━━━━━', claimEnglish ? '✅ *Complete. Please send this reply to the organiser.*' : '✅ *已填妥，請發回給發起人。*');
         return { text: lines.join('\n'), error: '', complete: true };
       }
 
@@ -297,17 +327,17 @@
       copyButton.addEventListener('click', async () => {
         const result = getReply();
         if (!result.complete) { updatePreview(); return; }
-        showToast(await copyText(result.text) ? '已複製，可貼到 WhatsApp 傳回。' : '無法自動複製，請選取預覽文字複製。');
+        showToast(await copyText(result.text) ? (claimEnglish ? 'Copied. Paste into WhatsApp and send it back.' : '已複製，可貼到 WhatsApp 傳回。') : (claimEnglish ? 'Copy failed; select the preview text manually.' : '無法自動複製，請選取預覽文字複製。'));
       });
       shareButton.addEventListener('click', async () => {
         const result = getReply();
         if (!result.complete) { updatePreview(); return; }
         if (!navigator.share) {
-          showToast(await copyText(result.text) ? '已複製，請貼到 WhatsApp 傳回。' : '此瀏覽器未支援分享，請手動複製預覽文字。');
+          showToast(await copyText(result.text) ? (claimEnglish ? 'Copied. Paste into WhatsApp and send it back.' : '已複製，請貼到 WhatsApp 傳回。') : (claimEnglish ? 'Sharing is not supported; copy the preview text manually.' : '此瀏覽器未支援分享，請手動複製預覽文字。'));
           return;
         }
         try {
-          await navigator.share({ title: '帳單認領回覆', text: result.text });
+          await navigator.share({ title: claimEnglish ? 'Bill claim reply' : '帳單認領回覆', text: result.text });
         } catch (error) {
           if (error?.name !== 'AbortError') showToast('分享未完成；你仍可按「複製回覆文字」。');
         }
@@ -318,6 +348,7 @@
         renderItems();
         content.hidden = false;
         updatePreview();
+        applyClaimLanguage();
       } catch (_) {
         loadError.hidden = false;
       }
