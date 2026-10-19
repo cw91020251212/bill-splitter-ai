@@ -19,11 +19,3 @@
 ## 驗證
 
 已通過 Babel JSX 轉換、JavaScript 語法解析、service worker 語法檢查及 `git diff --check`。本報告與程式修正會隨同新版一併部署。
-
-## 2026-10-20 — Added English language mode
-
-- Added an `English` / `中文` toggle without creating a second site to maintain.
-- English mode translates the app interface, claim page, validation copy, OCR instruction, and split report labels.
-- User-entered item names, payer/friend names, amounts, quantities, and original receipt text remain unchanged for accuracy.
-- Claim links now carry the selected language (`lang=en` or `lang=zh`) so friends open the matching claim form.
-- Incremented the service-worker cache to `v33` so installed PWA users can receive the update.
