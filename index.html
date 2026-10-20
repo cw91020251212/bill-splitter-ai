@@ -13,7 +13,7 @@
       theme: {
         extend: {
           colors: {
-            brand: { 50: '#ecfdf5', 100: '#d1fae5', 400: '#34d399', 500: '#10b981', 600: '#059669', 700: '#047857', 900: '#064e3b' }
+            brand: { 50: '#effbf4', 100: '#ddf5e7', 300: '#b5f2cf', 400: '#92e3b7', 500: '#67c99a', 600: '#38976e', 700: '#29835f', 800: '#29835f', 900: '#29835f' }
           },
           boxShadow: {
             'card': '0 2px 8px -2px rgba(0, 0, 0, 0.05), 0 4px 16px -4px rgba(0, 0, 0, 0.02)',
@@ -40,7 +40,7 @@
       transition: border-color 0.2s, box-shadow 0.2s;
     }
     input:focus, textarea:focus {
-      border-color: #059669 !important; /* 聚焦時變為品牌深綠 */
+      border-color: #67c99a !important; /* 聚焦時變為品牌深綠 */
     }
 
     .animate-spin { animation: spin 1s linear infinite; }
@@ -1012,7 +1012,7 @@
 
       const toast = (text, type = 'success') => {
         const msg = document.createElement('div');
-        const color = type === 'error' ? '#dc2626' : '#059669';
+        const color = type === 'error' ? '#dc2626' : '#29835f';
         msg.style.cssText = `position:fixed;top:24px;left:50%;transform:translateX(-50%);background:${color};color:white;padding:12px 24px;border-radius:12px;z-index:9999;font-weight:600;font-size:14px;box-shadow:0 10px 25px -5px rgba(0,0,0,0.15);max-width:90vw;text-align:center;animation:fade-in-down 0.3s ease-out;`;
         msg.textContent = tr(text);
         document.body.appendChild(msg);

@@ -7,7 +7,7 @@
   --outline-strong: #418260;
   --ink: #213128;
   --muted-ink: #4b5d50;
-  --brand-ink: #07513a;
+  --brand-ink: #29835f;
 }
 html { color-scheme: light; background: var(--page-grey); }
 body.bg-slate-50 { background: var(--page-grey); color: var(--ink); }
@@ -30,17 +30,17 @@ body.bg-slate-50 { background: var(--page-grey); color: var(--ink); }
   box-shadow: inset 0 1px 2px #233a2a0a;
 }
 #root button[data-ui-language] { min-height: 34px; border-radius: 7px; color: #425747; }
-#root button[data-ui-language][aria-pressed="true"] { background: #116344; color: #fff; box-shadow: 0 1px 3px #173c2e30; }
+#root button[data-ui-language][aria-pressed="true"] { background: #80d9aa; color: #fff; box-shadow: 0 1px 3px #173c2e30; }
 #root .stepper-panel { background: #fdfdfd; border-color: #89998a; padding-top: 12px; padding-bottom: 12px; }
 #root .stepper-panel .bg-slate-300 { background: #aebaae; }
 #root .step-nav { gap: 5px; padding: 0; }
 #root .step-nav button { min-height: 52px; padding: 6px 3px; border: 1px solid #68a17e; background: #ffffff; color: #526452; }
 #root .step-nav button[class*="bg-brand-50"] { background: #cce3d1; border-color: #428d62; color: #174b30; box-shadow: inset 0 0 0 .5px #428d62; }
 #root .step-nav button > span:first-child { border-color: #4f946a; }
-#root .step-nav button[class*="bg-brand-50"] > span:first-child { border-color: #075d40; background: #08764f; color: #fff; }
+#root .step-nav button[class*="bg-brand-50"] > span:first-child { border-color: #60b68d; background: #67c99a; color: #fff; }
 #root main { padding-top: 24px; }
 #root .page-section-heading { padding-bottom: 12px; border-bottom: 1px solid #99b9a3; margin-bottom: 18px; align-items: flex-start; gap: 10px; }
-#root .page-section-heading > span { margin-top: 1px; flex-shrink: 0; background: #d1e5d4; border-color: #4c805d; color: #1b5d36; }
+#root .page-section-heading > span { margin-top: 1px; flex-shrink: 0; background: #d1e5d4; border-color: #4c805d; color: #29835f; }
 #root main h2.text-2xl { color: var(--ink); font-size: clamp(21px, 5.7vw, 25px); line-height: 1.35; letter-spacing: -.025em; }
 #root .app-card {
   background-color: var(--surface-grey);
@@ -71,10 +71,10 @@ body.bg-slate-50 { background: var(--page-grey); color: var(--ink); }
   box-shadow: none;
 }
 #root input::placeholder, #root textarea::placeholder { color: #6a776e; opacity: 1; }
-#root input:focus, #root textarea:focus, #root select:focus { border-color: #08764f !important; outline: 3px solid #08764f25; outline-offset: 1px; }
+#root input:focus, #root textarea:focus, #root select:focus { border-color: #67c99a !important; outline: 3px solid #67c99a25; outline-offset: 1px; }
 #root button { line-height: 1.45; }
-#root button.bg-brand-600 { background-color: #08704e; border-color: #07543b; box-shadow: 0 3px 0 #064b3522; }
-#root button.bg-brand-600:hover:not(:disabled) { background-color: #075c41; }
+#root button.bg-brand-600 { background-color: #80d9aa; border-color: #60b68d; box-shadow: 0 3px 0 #064b3522; }
+#root button.bg-brand-600:hover:not(:disabled) { background-color: #92e3b7; }
 #root button.bg-white[class*="border-slate-"] { background-color: #ffffff; }
 #root :is(.border-slate-200,.border-slate-300,.border-slate-400,.border-slate-500) { border-color: #5a9271; }
 #root :is(.border-b,.border-t)[class*="border-slate-"] { border-color: #9ab9a2; }
@@ -95,7 +95,7 @@ body.bg-slate-50 { background: var(--page-grey); color: var(--ink); }
 #root [data-testid="claim-link-actions"] { padding: 12px; border: 1px solid #6a9e7c; border-radius: 14px; background: #e2ecdd; }
 #root [data-testid="receipt-next-step"] { box-shadow: 0 3px 0 #d3b276; }
 #root details { border-color: #6b9c7c; }
-#root :is(button,a,input,select,textarea):focus-visible { outline: 3px solid #0c6247; outline-offset: 3px; }
+#root :is(button,a,input,select,textarea):focus-visible { outline: 3px solid #29835f; outline-offset: 3px; }
 @media (max-width: 379px) {
   #root .app-header-row { padding-left: 12px; padding-right: 12px; }
   #root .app-card { border-radius: 16px; }
@@ -155,18 +155,18 @@ html[lang="en"] #root .header-actions .guide-label { display: none; }
 
 /* Primary actions and the brand: dark lower-left to light upper-right. */
 :root {
-  --brand-action-gradient: linear-gradient(to top right, #07513b 0%, #0c6c4c 55%, #26865e 100%);
-  --brand-wordmark-gradient: linear-gradient(to top right, #07513b 0%, #0b6345 55%, #117453 100%);
+  --brand-action-gradient: linear-gradient(to top right, #49b88b 0%, #80d9aa 55%, #b5f2cf 100%);
+  --brand-wordmark-gradient: linear-gradient(to top right, #29835f 0%, #2a845f 55%, #2b8560 100%);
 }
 #root button.bg-brand-600:not(:disabled), #root .app-brand-icon {
   background-image: var(--brand-action-gradient);
-  background-color: #0c6c4c;
-  border-color: #388b62 !important;
+  background-color: #80d9aa;
+  border-color: #60b68d !important;
 }
 #root button.bg-brand-600:not(:disabled):hover { background-image: var(--brand-action-gradient); }
-/* Keep the brand icon unchanged; this lighter endpoint is for action buttons only. */
-#root .app-brand-icon { background-image: linear-gradient(to top right, #07513b 0%, #0c6c4c 55%, #12805c 100%); }
-#root .app-brand-name, #root [data-testid="app-pro-label"] { color: #0b6345; }
+/* The icon and primary actions share the same lighter directional green. */
+#root .app-brand-icon { background-image: linear-gradient(to top right, #49b88b 0%, #80d9aa 55%, #b5f2cf 100%); }
+#root .app-brand-name, #root [data-testid="app-pro-label"] { color: #29835f; }
 @supports ((-webkit-background-clip: text) or (background-clip: text)) {
   #root .app-brand-name, #root [data-testid="app-pro-label"] {
     background-image: var(--brand-wordmark-gradient);
@@ -250,7 +250,7 @@ html[lang="en"] #root .header-actions .guide-label { display: none; }
 
 #root main[data-current-step="4"] .page-section-heading { border-bottom-color: #9bb4cf; }
 #root main[data-current-step="4"] .page-section-heading > span {
-  background: #e6f1e9; border-color: #5f9873; color: #1d603c;
+  background: #e6f1e9; border-color: #5f9873; color: #29835f;
 }
 #root main[data-current-step="4"] .page-section-heading h2 { color: #294e7a; }
 #root main[data-current-step="4"] [data-testid="final-summary-preview"] {
@@ -271,8 +271,8 @@ html[lang="en"] #root .header-actions .guide-label { display: none; }
 #root:has(main[data-current-step="2"]) .step-nav button:nth-child(2) > span:first-child { background: #355f8e; border-color: #294e7a; color: #fff; }
 #root:has(main[data-current-step="3"]) .step-nav button:nth-child(3) { background: #fff1cf; border-color: #a97922; color: #704a08; }
 #root:has(main[data-current-step="3"]) .step-nav button:nth-child(3) > span:first-child { background: #80550d; border-color: #704a08; color: #fff; }
-#root:has(main[data-current-step="4"]) .step-nav button:nth-child(4) { background: #e6f1e9; border-color: #5f9873; color: #1d603c; }
-#root:has(main[data-current-step="4"]) .step-nav button:nth-child(4) > span:first-child { background: #246c45; border-color: #1d603c; color: #fff; }
+#root:has(main[data-current-step="4"]) .step-nav button:nth-child(4) { background: #e6f1e9; border-color: #5f9873; color: #29835f; }
+#root:has(main[data-current-step="4"]) .step-nav button:nth-child(4) > span:first-child { background: #80d9aa; border-color: #29835f; color: #fff; }
 
 /* Receipt inspection uses a bright paper-like surface; camera and modal
    backdrops remain unchanged. Do not alter the uploaded image pixels. */
@@ -280,3 +280,26 @@ html[lang="en"] #root .header-actions .guide-label { display: none; }
   background-color: #ffffff;
   border: 1px solid #89a692;
 }
+
+/* v49: lighter green only; semantic blue/amber and geometry unchanged. */
+:root { --brand-readable: #29835f; --brand-amount: #38976e; --brand-on-light: #123d2c; }
+#root :is(.text-brand-600,.text-brand-700,.text-brand-800,.text-brand-900),
+#root [class~="text-brand-600/80"] { color: var(--brand-readable); }
+#root :is(.text-brand-700.text-xl,.text-brand-700.text-2xl,.text-brand-600.text-2xl) { color: var(--brand-amount); }
+#root :is(button.bg-brand-600,.app-brand-icon),
+#root .bg-brand-600.text-white { color: var(--brand-on-light); }
+#root button.bg-brand-600:disabled { background-color: #9cdeb9; border-color: #60b68d; }
+#root .bg-brand-500:not(.api-settings-card > button > span) { background-color: #67c99a; }
+#root .bg-brand-700 { background-color: #67c99a; color: var(--brand-on-light); }
+#root .bg-brand-400 { background-color: #92e3b7; }
+#root button[data-ui-language][aria-pressed="true"] { color: var(--brand-on-light); }
+#root:has(main[data-current-step="4"]) .step-nav button:nth-child(4) > span:first-child { color: var(--brand-on-light); }
+#root .hover\:bg-brand-700:hover { background-color: #92e3b7; }
+#root .hover\:text-brand-700:hover, #root .hover\:text-brand-800:hover { color: var(--brand-readable); }
+#root :where(.border-brand-700) { border-color: #60b68d; }
+#root :where(.border-brand-600, .border-brand-500) { border-color: #78b898; }
+#root [class~="!text-emerald-900"] { color: var(--brand-readable) !important; }
+#root [class~="!border-emerald-700"] { border-color: #78b898 !important; }
+
+#root :is(.text-brand-700.bg-brand-50,.text-brand-700.bg-brand-100,.text-brand-900.bg-brand-50) { color: #257b59; }
+#root .app-header-row > div:last-child button:not(.guide-button) { color: #29835f; }

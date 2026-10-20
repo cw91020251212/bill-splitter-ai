@@ -126,8 +126,8 @@
     act.type = 'button';
     act.textContent = actionLabel;
     act.style.cssText =
-      'flex:0 0 auto;padding:9px 14px;border:0;border-radius:10px;background:#16a34a;' +
-      'color:#fff;font:700 14px system-ui,sans-serif;cursor:pointer';
+      'flex:0 0 auto;padding:9px 14px;border:0;border-radius:10px;background:linear-gradient(to top right,#49b88b,#b5f2cf);' +
+      'color:#123d2c;font:700 14px system-ui,sans-serif;cursor:pointer';
     act.addEventListener('click', function () {
       onAction();
     });
