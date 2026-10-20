@@ -59,7 +59,7 @@
     ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
     ::-webkit-scrollbar-thumb:hover { background: #64748b; }
   </style>
-  <link rel="stylesheet" href="./theme.css?v=v49-light-green">
+  <link rel="stylesheet" href="./theme.css?v=v52-clear-current">
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
@@ -587,6 +587,11 @@
         window.addEventListener('storage', onLanguageStorage);
         return () => window.removeEventListener('storage', onLanguageStorage);
       }, []);
+      // Invalidate old asynchronous work whenever the current bill is discarded.
+      const billGenerationRef = useRef(0);
+      const ocrAbortRef = useRef(null);
+      const ocrProgressRef = useRef(null);
+      const ocrCompleteRef = useRef(null);
       const [step, setStep] = useState(1);
       const [items, setItems] = useState([]);
       const displayItemName = item => uiLang === 'en' && (item?.nameEn || item?.nameEnEdited) ? item.nameEn : item?.name || '';
@@ -839,11 +844,13 @@
       useEffect(() => {
         if (!draftReady) return;
         const snapshot = draftAssets;
+        const generation = billGenerationRef.current;
         if (snapshot.unavailable) { setDraftAssetStatus('error'); return; }
         const containsAssets = Boolean(snapshot.images.length || snapshot.attachments.length);
         if (containsAssets && persistedDraftAssetRevisionRef.current === snapshot.revision) { setDraftAssetStatus('saved'); return; }
         setDraftAssetStatus(containsAssets ? 'saving' : 'saved');
         draftAssetQueueRef.current = draftAssetQueueRef.current.catch(() => {}).then(async () => {
+          if (generation !== billGenerationRef.current) return;
           await accessActiveDraftAssets(containsAssets ? 'write' : 'delete', snapshot);
           persistedDraftAssetRevisionRef.current = containsAssets ? snapshot.revision : null;
           if (draftSnapshotRef.current.assetRevision === snapshot.revision) setDraftAssetStatus('saved');
@@ -1101,6 +1108,7 @@
 
       const saveCurrentRecord = async () => {
         if (!results || isSaved || isSavingRecord) return;
+        const generation = billGenerationRef.current;
         setIsSavingRecord(true);
         const recordId = Date.now();
         const receiptImageCount = lastImageData.length;
@@ -1110,7 +1118,7 @@
           const newRecord = { id: recordId, date: results.date, payer, totalAmount: billTotal, currency: results.currency, simplifiedText: getSimplifiedResult('zh-HK'), detailedText: getDetailedResult('zh', 'zh-HK'), detailedFullText: getDetailedResult('full', 'zh-HK'), reportLanguage: uiLang, reportData: { simplified: { zh: getSimplifiedResult('zh-HK'), en: getSimplifiedResult('en') }, detailed: { zh: getDetailedResult('zh', 'zh-HK'), en: getDetailedResult('zh', 'en'), fullZh: getDetailedResult('full', 'zh-HK'), fullEn: getDetailedResult('full', 'en') } }, receiptImageCount };
           setSavedHistory(current => [newRecord, ...current]);
           if (receiptImageCount) setSavedReceiptFiles(current => ({ ...current, [recordId]: receiptFiles }));
-          setIsSaved(true);
+          if (generation === billGenerationRef.current) setIsSaved(true);
           toast(receiptImageCount ? `✅ 紀錄及 ${receiptImageCount} 張實體單副本已儲存在本機！` : '✅ 紀錄已成功儲存！');
         } catch (error) {
           console.error('Unable to save receipt images locally:', error);
@@ -1230,12 +1238,33 @@
       };
 
       const handleGoToStep1 = () => {
-        setStepError(''); setItems([]); setFriendsReplies(''); setResults(null);
-        updatePendingReceiptShare(false); setReceiptShareNudge(0);
-        setIsSaved(false); setIsSavingRecord(false); setIncludeReceiptImages(false); setLastImageData([]); setTaxAmount(''); setTaxNote('');
-        setClaimAttachments([]); if (claimAttachmentInputRef.current) claimAttachmentInputRef.current.value = '';
+        if (!draftReady) return;
+        billGenerationRef.current += 1;
+        ocrAbortRef.current?.abort(); ocrAbortRef.current = null;
+        clearInterval(ocrProgressRef.current); ocrProgressRef.current = null;
+        clearTimeout(ocrCompleteRef.current); ocrCompleteRef.current = null;
+        // Clear the live persistence snapshot immediately, before React's next render.
+        // Never clear the whole origin: history, saved receipts and settings are separate.
+        draftSnapshotRef.current = { ...draftSnapshotRef.current, hasWork: false, hasAssets: false };
+        try { localStorage.removeItem(ACTIVE_DRAFT_KEY); }
+        catch (_) { setDraftSaveError(bi('未能清除本機草稿，請檢查網站儲存權限。', 'Could not clear the local draft. Check site storage permissions.')); }
+        restoredDraftAssetsRef.current = null;
+        persistedDraftAssetRevisionRef.current = null;
+        pendingReceiptShareRef.current = false; receiptReturnArmedRef.current = false;
+        setPendingReceiptShare(false); setReceiptShareNudge(0);
+        setStepError(''); setUploadError(''); setItems([]); setFriendsReplies(''); setResults(null);
+        setIsAnalyzing(false); setProgress(0); setProgressText('');
+        setIsSaved(false); setIncludeReceiptImages(false); setLastImageData([]); setTaxAmount(''); setTaxNote('');
+        setClaimAttachments([]); setClaimInfo(null); setShowClaimShareDialog(false);
+        [fileInputRef, cameraInputRef, claimAttachmentInputRef].forEach(ref => { if (ref.current) ref.current.value = ''; });
+        closeCamera(); setRedactionDrawingMode(false); setShowRedaction(false);
+        setPendingRedactionImages([]); setRedactionMasks([]); setRedactionIndex(0);
+        setIsPreparingRedacted(false); setRedactionImageLoadedVersion(0);
         setPayer(''); setTaxSplitMethod('proportional'); setReconciliation(null); setDetailLang('zh'); setDraftNotice('');
-        setCurrency('HKD'); setDetectedCurrency('HKD'); setPaymentMethods(['轉數快 (FPS)']); setStep(1);
+        setCurrency('HKD'); setDetectedCurrency('HKD'); setPaymentMethods(['轉數快 (FPS)']);
+        setShowHistory(false); setShowSettings(false); setShowTutorial(false); setStatusExpanded(false); setStep(1);
+        window.scrollTo({ top: 0, behavior: 'instant' });
+        toast(bi('已清空目前帳單；歷史紀錄及已存收據保留。', 'Current bill cleared. History and saved receipts kept.'));
       };
 
       const handleGoToStep2 = () => { setStepError(''); setStep(2); };
@@ -1307,8 +1336,10 @@
           if (cameraInputRef.current) cameraInputRef.current.click();
           return;
         }
+        const generation = billGenerationRef.current;
         navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false })
           .then(stream => {
+            if (generation !== billGenerationRef.current) { stream.getTracks().forEach(track => track.stop()); return; }
             cameraStreamRef.current = stream;
             setCameraOpen(true);
             requestAnimationFrame(() => {
@@ -1318,7 +1349,7 @@
               }
             });
           })
-          .catch(() => toast('⚠️ 未能開啟相機，請允許此網站使用相機，或改用「選擇圖片」', 'error'));
+          .catch(() => { if (generation === billGenerationRef.current) toast('⚠️ 未能開啟相機，請允許此網站使用相機，或改用「選擇圖片」', 'error'); });
       };
 
       const closeCamera = () => {
@@ -1339,7 +1370,9 @@
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
         canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+        const generation = billGenerationRef.current;
         canvas.toBlob(blob => {
+          if (generation !== billGenerationRef.current) return;
           if (!blob) { toast('⚠️ 未能擷取相片，請再試一次', 'error'); return; }
           closeCamera();
           handleFileUpload({ target: { files: [new File([blob], `receipt-camera-${Date.now()}.jpg`, { type: 'image/jpeg' })], value: '' } });
@@ -1432,6 +1465,7 @@
         if (!pendingRedactionImages.length || isPreparingRedacted) return;
         setRedactionDrawingMode(false);
         setIsPreparingRedacted(true);
+        const generation = billGenerationRef.current;
         try {
           const makeBatch = async quality => {
             const output = [];
@@ -1443,6 +1477,7 @@
           let redactedFiles = await makeBatch(0.92);
           if (redactedFiles.reduce((sum, file) => sum + file.size, 0) > 12 * 1024 * 1024) redactedFiles = await makeBatch(0.82);
           if (redactedFiles.reduce((sum, file) => sum + file.size, 0) > 12 * 1024 * 1024) throw new Error('遮蓋後圖片總容量仍超過 12 MB，請減少圖片數量或分批處理。');
+          if (generation !== billGenerationRef.current) return;
           setPendingRedactionImages([]);
           setRedactionMasks([]);
           setRedactionIndex(0);
@@ -1451,13 +1486,14 @@
           redactionDragRef.current = null;
           handleFileUpload({ target: { files: redactedFiles, value: '' } }, true);
         } catch (error) {
-          toast(`⚠️ ${error?.message || '無法製作遮蓋版，請再試一次。'}`, 'error');
+          if (generation === billGenerationRef.current) toast(`⚠️ ${error?.message || '無法製作遮蓋版，請再試一次。'}`, 'error');
         } finally {
-          setIsPreparingRedacted(false);
+          if (generation === billGenerationRef.current) setIsPreparingRedacted(false);
         }
       };
 
       const handleFileUpload = async (event, alreadyRedacted = false) => {
+        const generation = billGenerationRef.current;
         const inputTarget = event?.target;
         const files = Array.from(inputTarget?.files || []);
         const clearFileSelection = () => {
@@ -1484,6 +1520,7 @@
               reader.onerror = () => reject(new Error('未能讀取所選圖片'));
               reader.readAsDataURL(file);
             })));
+            if (generation !== billGenerationRef.current) return;
             setRedactionDrawingMode(false);
             setPendingRedactionImages(originals);
             setRedactionMasks(originals.map(() => []));
@@ -1492,9 +1529,10 @@
             redactionDragRef.current = null;
             setShowRedaction(true);
           } catch (error) {
+            if (generation !== billGenerationRef.current) return;
             setUploadError({ main: '圖片讀取失敗', sub: error?.message || '請再選一次圖片。', action: null });
           } finally {
-            clearFileSelection();
+            if (generation === billGenerationRef.current) clearFileSelection();
           }
           return;
         }
@@ -1504,7 +1542,10 @@
         setProgress(5);
         setProgressText('正在讀取圖片...');
 
+        const controller = new AbortController();
+        ocrAbortRef.current?.abort(); ocrAbortRef.current = controller;
         let progressInterval = setInterval(() => {
+          if (generation !== billGenerationRef.current) { clearInterval(progressInterval); return; }
           setProgress(prev => {
             if (prev < 30) { setProgressText('傳送至 AI 伺服器分析...'); return prev + 15; }
             if (prev < 60) { setProgressText('AI 正在精準提取文字與價錢...'); return prev + 10; }
@@ -1513,6 +1554,7 @@
             return prev;
           });
         }, 1200);
+        ocrProgressRef.current = progressInterval;
 
         try {
           const base64Promises = files.map(file => {
@@ -1524,6 +1566,7 @@
             });
           });
           const imageDataArray = await Promise.all(base64Promises);
+          if (generation !== billGenerationRef.current) return;
           // Keep the last successfully read batch so a transient AI/OCR
           // failure can be retried without selecting the files again.
           setLastImageData(imageDataArray);
@@ -1546,11 +1589,13 @@
           const contentArray = [{ type: "text", text: promptText }];
           imageDataArray.forEach(img => { contentArray.push({ type: "image_url", image_url: { url: `data:${img.mimeType};base64,${img.data}` } }); });
           const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+            signal: controller.signal,
             method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey.trim()}` },
             body: JSON.stringify({ model: apiModel, messages: [{ role: "user", content: contentArray }], temperature: 0.1 })
           });
           if (!response.ok) throw new Error(`OpenRouter HTTP ${response.status}: 鎖匙被拒。請檢查 API 金鑰。`);
           const data = await response.json();
+          if (generation !== billGenerationRef.current) return;
           const jsonText = data.choices?.[0]?.message?.content;
           if (!jsonText) throw new Error('OpenRouter 伺服器未回傳內容。');
           const shaped = extractPayload(jsonText);
@@ -1566,7 +1611,8 @@
           setProgress(100);
           setProgressText('處理完成！');
 
-          setTimeout(() => {
+          ocrCompleteRef.current = setTimeout(() => {
+            if (generation !== billGenerationRef.current) return;
             setItems(formattedItems);
             setCurrency(parsedCurrency);
             setDetectedCurrency(parsedCurrency);
@@ -1586,10 +1632,11 @@
 
         } catch (error) {
           clearInterval(progressInterval);
+          if (generation !== billGenerationRef.current || error?.name === 'AbortError') return;
           setIsAnalyzing(false);
           setUploadError({ main: '讀取失敗', sub: error?.message || '未知錯誤', action: null });
         } finally {
-          clearFileSelection();
+          if (generation === billGenerationRef.current) clearFileSelection();
         }
       };
 
@@ -2075,6 +2122,9 @@
                     <button onClick={() => setShowHistory(true)} title={tr("紀錄")} className="flex items-center gap-1.5 px-2.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-400 rounded-lg text-sm font-semibold transition-colors">
                       <Icon path={icons.history} size={16}/>
                     </button>
+                    <button type="button" data-testid="header-clear-current" disabled={!draftReady} onClick={handleGoToStep1} title={bi('清空目前帳單（保留歷史及已存收據）', 'Clear current bill (keep history and saved receipts)')} aria-label={bi('清空目前帳單', 'Clear current bill')} className="header-clear-button flex items-center justify-center gap-1.5 px-2.5 py-2 border rounded-lg text-sm transition-colors">
+                      <Icon path={icons.trash} size={16}/><span className="clear-label">{bi('清空', 'Clear')}</span>
+                    </button>
                   </React.Fragment>
                 )}
               </div>
@@ -2260,7 +2310,7 @@
                       <h3 className="text-lg font-bold text-slate-800">{tr("選擇單據圖片")}</h3>
                       <p className="text-sm font-medium text-slate-500 mt-2">{tr("可以直接影相，或者從手機選擇圖片（最多 5 張）")}</p>
                       <div className="flex flex-col sm:flex-row gap-3 mt-5 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
-                        <Button variant="primary" className="flex-1 !py-3" onClick={triggerCamera}>{tr("📷 直接影相")}</Button>
+                        <Button variant="primary" className="flex-1 !py-3" onClick={triggerCamera}><Icon path={'<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3Z"/><circle cx="12" cy="13" r="4"/>'} size={20}/>{tr("📷 直接影相").replace("📷", "").trim()}</Button>
                         <Button variant="secondary" className="flex-1 !py-3" onClick={triggerUpload}><Icon path={icons.fileImage} size={18}/>{tr(" 選擇圖片")}</Button>
                       </div>
                     </div>
