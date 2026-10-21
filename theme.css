@@ -356,3 +356,14 @@ html[lang="en"] #root .header-actions .guide-label { display: none; }
   #root .app-header-row h1 { font-size: 16px; }
   html[lang="en"] #root .app-header-row h1 { font-size: 12px; }
 }
+
+/* Alternative actions: localised text remains readable and is never a button. */
+#root .choice-divider { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; min-width: 0; color: var(--muted-ink); font-size: 13px; font-weight: 600; line-height: 1.5; text-transform: none; }
+#root .choice-divider::before, #root .choice-divider::after { content: ""; flex: 1; height: 1px; background: #9ab0a3; }
+#root .choice-divider-inline { width: auto; flex: 0 0 auto; align-self: center; }
+#root .choice-divider-inline::before, #root .choice-divider-inline::after { display: none; }
+@media (max-width: 639px) {
+  #root [data-testid="receipt-source-actions"] .choice-divider-inline { width: 100%; }
+  #root [data-testid="receipt-source-actions"] .choice-divider-inline::before,
+  #root [data-testid="receipt-source-actions"] .choice-divider-inline::after { display: block; }
+}

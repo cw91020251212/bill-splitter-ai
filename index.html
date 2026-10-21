@@ -59,7 +59,7 @@
     ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
     ::-webkit-scrollbar-thumb:hover { background: #64748b; }
   </style>
-  <link rel="stylesheet" href="./theme.css?v=v52-logo-restored">
+  <link rel="stylesheet" href="./theme.css?v=v52-choice-or-1">
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
@@ -70,6 +70,10 @@
     const tr = value => window.BillI18n.t(value);
     const tf = (key, values) => window.BillI18n.format(key, values);
     const bi = (zh, en) => window.BillI18n.language === 'en' ? en : zh;
+    // Alternative actions, not sequential workflow steps.
+    const ChoiceDivider = ({ inline = false }) => (
+      <span data-testid="choice-divider" className={`choice-divider${inline ? ' choice-divider-inline' : ''}`}>{tr("或")}</span>
+    );
     const LanguageSwitch = ({ value, onChange, compact = false }) => (
       <div className={`flex gap-3 ${compact ? 'w-full items-center justify-between' : 'flex-col items-start sm:flex-row sm:items-center sm:justify-between'}`}>
         <span className="text-xs font-semibold text-slate-500">{bi('介面語言', 'App language')}</span>
@@ -2309,19 +2313,16 @@
                       <div className="w-20 h-20 bg-slate-100 text-slate-500 rounded-full flex items-center justify-center mb-4 shadow-sm border border-slate-400 transition-transform group-hover:scale-105"><Icon path={icons.fileImage} size={36} /></div>
                       <h3 className="text-lg font-bold text-slate-800">{tr("選擇單據圖片")}</h3>
                       <p className="text-sm font-medium text-slate-500 mt-2">{tr("可以直接影相，或者從手機選擇圖片（最多 5 張）")}</p>
-                      <div className="flex flex-col sm:flex-row gap-3 mt-5 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+                      <div data-testid="receipt-source-actions" className="flex flex-col sm:flex-row items-stretch gap-3 mt-5 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
                         <Button variant="primary" className="flex-1 !py-3" onClick={triggerCamera}><Icon path={'<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3Z"/><circle cx="12" cy="13" r="4"/>'} size={20}/>{tr("📷 直接影相").replace("📷", "").trim()}</Button>
+                        <ChoiceDivider inline />
                         <Button variant="secondary" className="flex-1 !py-3" onClick={triggerUpload}><Icon path={icons.fileImage} size={18}/>{tr(" 選擇圖片")}</Button>
                       </div>
                     </div>
                   )}
                 </div>
 
-                <div className="flex items-center gap-4 py-2">
-                  <div className="h-px bg-slate-400 flex-1"></div>
-                  <span className="text-xs font-semibold text-slate-500 uppercase tracking-widest">OR</span>
-                  <div className="h-px bg-slate-400 flex-1"></div>
-                </div>
+                <div data-testid="entry-method-choice" className="py-2"><ChoiceDivider /></div>
 
                 <Button variant="secondary" className="w-full border-slate-500" onClick={() => handleGoToStep2(true)}>{tr("手動輸入項目 ")}<Icon path={icons.arrowRight} size={18}/>
                 </Button>
@@ -2393,9 +2394,11 @@
                   <div>
                     <Label className="flex items-center justify-between mb-3"><span>{tr("1. 產生手機認領連結發送給朋友")}</span></Label>
                     <p className="text-xs text-slate-500 mb-3">{tr("朋友在手機瀏覽器填寫後，可自行透過 WhatsApp 分享回覆；中文名稱及有提供的單據原文會包含在連結內，方便核對。")}</p>
+                    <p className="text-xs text-slate-600 mb-2">{bi('以下方式擇一即可，毋須兩個都按。', 'Choose either option below; you do not need to tap both.')}</p>
                     <div data-testid="claim-link-actions" className="flex flex-col gap-3">
                       <Button variant="secondary" onClick={generateFriendClaimLink} className="!w-full text-sm bg-white hover:bg-slate-50 border-slate-500">
                         <Icon path={icons.copy} size={18} className="text-slate-600"/>{tr(" 複製認領連結")}</Button>
+                      <ChoiceDivider />
                       <Button variant="primary" onClick={openClaimShareDialog} className="!w-full text-sm">
                         <Icon path={icons.share} size={18}/>{tr(" 分享認領連結＋（單據圖片）")}</Button>
                     </div>
@@ -2488,7 +2491,7 @@
                       <Button variant="secondary" className="w-full border-red-500 text-red-700" onClick={() => { setReconciliation(null); setStep(2); }}>{tr("返回修改認領數量")}</Button>
                     ) : (
                       <div>
-                        <Label required={!reconciliation.policy} className="text-base">{tr("剩餘數量由誰承擔？")}</Label>
+                        <Label required={!reconciliation.policy} className="text-base">{tr("剩餘數量由誰承擔？")} <span className="text-xs font-normal">{bi('（擇一）', '(choose one)')}</span></Label>
                         <div className="grid gap-2 mt-2">
                           {[{ id: 'payer', label: tf("由墊支人（{0}）承擔", [payer || '我']) }, { id: 'equal', label: tr("由已認領人士平均承擔") }, ...Object.keys(claimInfo?.claims || {}).map(person => ({ id: `person:${person}`, label: tf("指定由 {0} 承擔", [person]) }))].map(option => (
                             <label key={option.id} className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer ${reconciliation.policy === option.id ? 'bg-white border-brand-500' : 'bg-white border-amber-300'}`}>
@@ -2510,11 +2513,11 @@
                   </div>
 
                   <div>
-                    <Label className="text-lg mb-3">{tr("結算貨幣 (Currency)")}</Label>
+                    <Label className="text-lg mb-3">{tr("結算貨幣 (Currency)")} <span className="text-xs font-normal">{bi('（擇一）', '(choose one)')}</span></Label>
                     <div className="flex flex-wrap gap-2.5">
                       {displayCurrencies.map(c => (
                           <button
-                              key={c} onClick={() => setCurrency(c)}
+                              key={c} onClick={() => setCurrency(c)} aria-pressed={currency === c}
                               className={`px-4 py-2.5 rounded-xl border font-bold text-sm transition-all outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 ${currency === c ? 'border-brand-600 bg-brand-50 text-brand-700 shadow-sm' : 'border-slate-500 bg-white text-slate-600 hover:bg-slate-50'}`}
                           >
                               {getCurrencyName(c)}
@@ -2538,7 +2541,7 @@
                   </div>
 
                   <div className="border-t border-slate-400 pt-6">
-                    <Label className="text-lg mb-3">{tr("附加費用分攤邏輯 (Tax/Fee Split)")}</Label>
+                    <Label className="text-lg mb-3">{tr("附加費用分攤邏輯 (Tax/Fee Split)")} <span className="text-xs font-normal">{bi('（擇一）', '(choose one)')}</span></Label>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {[{ id: 'proportional', label: tr("按消費比例分攤"), desc: tr("食得多出得多") }, { id: 'equal', label: tr("所有人平均分攤"), desc: tr("人頭均分") }].map(opt => (
                         <label key={opt.id} className={`flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-all ${taxSplitMethod === opt.id ? 'bg-brand-50 border-brand-500 shadow-sm' : 'bg-white border-slate-500 hover:bg-slate-50'}`}>
@@ -2585,8 +2588,9 @@
                     <div className="p-4 bg-slate-50 border-b border-slate-400">
                       <h3 className="font-bold text-slate-800 text-base">{tr("💰 追數版報告 (精簡)")}</h3>
                       <p className="text-xs text-slate-500 font-medium mt-0.5">{tr("第 1 步：分享純文字報告，不附圖片")}</p>
-                      <div className="flex gap-2 mt-3">
+                      <div data-testid="summary-report-actions" className="flex items-center gap-2 mt-3">
                         <Button onClick={() => shareCurrentReport(getSimplifiedResult(), tr("分帳追數結果"))} variant="primary" className="flex-1 !w-auto !px-2 !py-2 text-sm">{tr("分享報告")}</Button>
+                        <ChoiceDivider inline />
                         <Button onClick={() => copyCurrentReport(getSimplifiedResult(), tr("追數版"))} variant="outline" className="flex-1 !w-auto !px-2 !py-2 text-sm bg-white hover:bg-brand-50 border-slate-500 text-slate-700 hover:text-brand-700 hover:border-brand-500"><Icon path={icons.copy} size={16}/>{tr(" 複製文字")}</Button>
                       </div>
                       {includeReceiptImages && lastImageData.length > 0 && <p className="mt-3 rounded-lg border-l-4 border-amber-600 bg-amber-50 p-3 text-sm leading-relaxed text-amber-950"><strong>{tr("這一步只有文字，不附圖片。")}</strong>{tr("返回後會自動帶你到")}<a href="#receipt-share-step" className="font-bold underline underline-offset-2">{tr("第 2 步分享單據圖片（")}{lastImageData.length}{tr(" 張）")}</a>{tr("，毋須自行尋找。")}</p>}
@@ -2599,16 +2603,18 @@
                   <div className="p-4 bg-slate-50 border-b border-slate-400">
                     <div className="mb-3">
                       <h3 className="font-bold text-slate-800 text-base">{tr("🧾 詳細明細版")}</h3>
-                      <p className="text-xs text-slate-500 font-medium mt-0.5">{tr("第 1 步也可選詳細版；同樣只分享文字")}</p>
+                      <p className="text-xs text-slate-500 font-medium mt-0.5">{bi('或選詳細版；第 1 步只需發送一款文字報告。', 'Or choose the detailed version; send just one text report in step 1.')}</p>
                     </div>
-                    <div className="flex gap-2 mb-4">
+                    <div data-testid="detail-report-actions" className="flex items-center gap-2 mb-4">
                       <Button onClick={() => shareCurrentReport(getDetailedResult(detailLang), tr("分帳詳細明細"))} variant="primary" className="flex-1 !w-auto !px-2 !py-2 text-sm">{tr("分享詳細版")}</Button>
+                      <ChoiceDivider inline />
                       <Button onClick={() => copyCurrentReport(getDetailedResult(detailLang), tr("詳細版"))} variant="secondary" className="flex-1 !w-auto !px-2 !py-2 text-sm bg-white border-slate-500"><Icon path={icons.copy} size={16}/>{tr(" 複製文字")}</Button>
                     </div>
                     {includeReceiptImages && lastImageData.length > 0 && <p className="mb-4 rounded-lg border-l-4 border-amber-600 bg-amber-50 p-3 text-sm leading-relaxed text-amber-950"><strong>{tr("這一步只有文字，不附圖片。")}</strong>{tr("返回後會自動帶你到")}<a href="#receipt-share-step" className="font-bold underline underline-offset-2">{tr("第 2 步分享單據圖片（")}{lastImageData.length}{tr(" 張）")}</a>{tr("，毋須自行尋找。")}</p>}
+                    <p className="text-xs text-slate-600 mb-2">{bi('菜名顯示方式（擇一）', 'Item name display (choose one)')}</p>
                     <div className="flex bg-slate-200/60 p-1 rounded-lg border border-slate-400">
-                      <button onClick={() => setDetailLang('zh')} className={`flex-1 py-1.5 rounded-md text-xs font-bold transition-all ${detailLang === 'zh' ? 'bg-white text-slate-800 shadow border border-slate-300' : 'text-slate-600 hover:text-slate-800'}`}>{bi('中文菜名版', 'Item names only')}</button>
-                      <button onClick={() => setDetailLang('full')} className={`flex-1 py-1.5 rounded-md text-xs font-bold transition-all ${detailLang === 'full' ? 'bg-white text-slate-800 shadow border border-slate-300' : 'text-slate-600 hover:text-slate-800'}`}>{tr("包含原文 (供核對)")}</button>
+                      <button onClick={() => setDetailLang('zh')} aria-pressed={detailLang === 'zh'} className={`flex-1 py-1.5 rounded-md text-xs font-bold transition-all ${detailLang === 'zh' ? 'bg-white text-slate-800 shadow border border-slate-300' : 'text-slate-600 hover:text-slate-800'}`}>{bi('中文菜名版', 'Item names only')}</button>
+                      <button onClick={() => setDetailLang('full')} aria-pressed={detailLang === 'full'} className={`flex-1 py-1.5 rounded-md text-xs font-bold transition-all ${detailLang === 'full' ? 'bg-white text-slate-800 shadow border border-slate-300' : 'text-slate-600 hover:text-slate-800'}`}>{tr("包含原文 (供核對)")}</button>
                     </div>
                   </div>
                   <div data-testid="final-detail-preview" className="p-4 bg-white font-sans text-sm text-slate-600 whitespace-pre-wrap break-words leading-relaxed selection:bg-slate-200">{getDetailedResult(detailLang)}</div>
@@ -2742,6 +2748,7 @@
                           </div>
                         </div>
                         {!record.reportData && uiLang === 'en' && <p className="px-4 pt-3 text-xs text-amber-800">{bi('已儲存報告：原文語言（舊紀錄不會翻譯）。', 'Saved report: original language (legacy records are not translated).')}</p>}
+                        <p className="px-4 pt-3 text-xs text-slate-600">{bi('複製追數版或詳細版，擇一即可。', 'Copy either the summary or the detailed version; one is enough.')}</p>
                         <div className="p-4 bg-white flex flex-wrap gap-2.5">
                           <Button variant="outline" className="flex-1 !py-2 !text-sm !px-2 bg-white hover:bg-brand-50 border-slate-400 text-slate-700 hover:text-brand-700 hover:border-brand-500" onClick={() => copyToClipboard(getSavedReportText(record, 'simplified'), bi('追數版', 'Summary'))}><Icon path={icons.copy} size={16}/> {bi('追數版', 'Summary')}</Button>
                           <Button variant="secondary" className="flex-1 !py-2 !text-sm !px-2 bg-white border-slate-500" onClick={() => copyToClipboard(getSavedReportText(record, 'detailed'), bi('詳細版', 'Detailed'))}><Icon path={icons.copy} size={16}/> {bi('詳細版', 'Detailed')}</Button>
@@ -2751,6 +2758,7 @@
                           <div className="px-4 pb-4">
                             <p className="text-xs text-slate-600 mb-2">{tr("📎 本機收據副本：")}{record.receiptImageCount}{tr(" 張")}</p>
                             <p className="text-xs text-slate-600 mb-2">{tr("先分享一款純文字報告，再另分享圖片；每次自行在 WhatsApp 選同一收件人並確認。")}</p>
+                            <p className="text-xs text-slate-600 mb-2">{bi('文字報告可選追數版或詳細版，毋須兩款都發。', 'Choose the summary or detailed text report; you do not need to send both.')}</p>
                             <div className="grid grid-cols-2 gap-2">
                               <Button variant="outline" className="!w-auto !py-2 !px-2 !text-xs bg-white" onClick={() => shareSavedRecord(record, 'simplified')}>{tr("分享追數版（純文字）")}</Button>
                               <Button variant="secondary" className="!w-auto !py-2 !px-2 !text-xs bg-white" onClick={() => shareSavedRecord(record, 'detailed')}>{tr("分享詳細版（純文字）")}</Button>

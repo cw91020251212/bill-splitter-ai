@@ -2,6 +2,7 @@
 (() => {
   'use strict';
   const dictionary = {
+  "或": "or",
   "必填": "Required",
   "AI 回傳的內容不是有效 JSON，請重試或改用其他模型。": "AI returned invalid JSON. Please try again or use another model.",
   "上載睇單": "Upload",

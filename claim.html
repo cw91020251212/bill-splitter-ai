@@ -62,7 +62,7 @@
     .preview-title { margin: 0 0 5px; font-size: 17px; }
     .preview-subtitle { margin: 0 0 12px; color: var(--muted); font-size: 13px; line-height: 1.5; }
     .preview { min-height: 150px; padding: 12px; resize: vertical; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 14px; line-height: 1.6; }
-    .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-top: 12px; }
+    .actions { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 9px; margin-top: 12px; }
     .button { min-height: 48px; padding: 11px 10px; border: 1px solid var(--green); border-radius: 12px; color: var(--green-dark); background: white; font-size: 14px; font-weight: 750; cursor: pointer; -webkit-tap-highlight-color: transparent; }
     .button.primary { color: white; background: var(--green); }
     .button:active { transform: scale(.985); }
@@ -205,6 +205,7 @@
       color: #294e7a; background: #f6f9fd; border-color: #678bb6;
     }
     #copy-button:not(:disabled):hover { background: #e5eef8; }
+    .reply-choice-divider { display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 13px; font-weight: 600; line-height: 1.5; }
     /* Lighter green fills need dark labels for readable contrast. */
     .button.primary, .brand-mark { color: #123d2c; }
   </style>
@@ -252,6 +253,7 @@
             <textarea id="reply-preview" class="preview" readonly aria-label="認領回覆文字預覽" placeholder="先填姓名和至少一項數量，回覆文字便會顯示在這裡。"></textarea>
             <div class="actions">
               <button id="share-button" class="button primary" type="button" disabled>分享回覆</button>
+              <span id="reply-choice-divider" class="reply-choice-divider">或</span>
               <button id="copy-button" class="button" type="button" disabled>複製回覆文字</button>
             </div>
             <p id="share-help" class="share-help">按「分享回覆」後，在手機分享清單選 WhatsApp、選擇發起人，再自行按發送。亦可先複製文字，再貼到 WhatsApp。</p>
@@ -304,7 +306,7 @@
           personLabel: '你的姓名', namePlaceholder: '例如：阿明', nameHint: '請用發起人認得的名字，回覆會用這個名字標示。',
           items: '帳單項目', preview: '認領回覆預覽', previewSubtitle: '會列出項目名稱、編號和認領數量，並沿用原程式的 WhatsApp 排版，方便發起人核對。',
           previewPlaceholder: '先填姓名和至少一項數量，回覆文字便會顯示在這裡。', previewLabel: '認領回覆文字預覽',
-          share: '分享回覆', copy: '複製回覆文字', shareHelp: '按「分享回覆」後，在手機分享清單選 WhatsApp、選擇發起人，再自行按發送。亦可先複製文字，再貼到 WhatsApp。',
+          or: '或', share: '分享回覆', copy: '複製回覆文字', shareHelp: '按「分享回覆」後，在手機分享清單選 WhatsApp、選擇發起人，再自行按發送。亦可先複製文字，再貼到 WhatsApp。',
           footer: '此頁不會自動發送訊息或收集回覆。認領資料只在你的瀏覽器內整理；項目名稱已包含在邀請連結中。',
           itemCount: n => `${n} 項`, original: text => `單據原文：${text}`, total: (n, unit) => `單據共 ${n} ${unit}`,
           unitLabel: '可選單位', noUnit: '不選單位', qtyLabel: '認領份數', qtyPlaceholder: '例如：0.5、1、2', qtyAria: (id, name) => `${id} ${name} 認領份數`,
@@ -326,7 +328,7 @@
           personLabel: 'Your name', namePlaceholder: 'For example: Alex', nameHint: 'Use a name the organizer will recognize; it will identify your reply.',
           items: 'Bill items', preview: 'Claim reply preview', previewSubtitle: 'The reply includes item names, IDs, and quantities in a WhatsApp-friendly format for the organizer to check.',
           previewPlaceholder: 'Enter your name and at least one quantity to see the reply here.', previewLabel: 'Claim reply text preview',
-          share: 'Share reply', copy: 'Copy reply text', shareHelp: 'Tap “Share reply”, choose WhatsApp and the organizer from your phone’s share menu, then send it yourself. Or copy the text and paste it into WhatsApp.',
+          or: 'or', share: 'Share reply', copy: 'Copy reply text', shareHelp: 'Tap “Share reply”, choose WhatsApp and the organizer from your phone’s share menu, then send it yourself. Or copy the text and paste it into WhatsApp.',
           footer: 'This page does not send messages or collect replies automatically. Your claims are prepared only in your browser; item names are included in the invitation link.',
           itemCount: n => `${n} ${n === 1 ? 'item' : 'items'}`, original: text => `Receipt text: ${text}`, total: (n, unit) => `Receipt total ${n} ${unit}`,
           unitLabel: 'Optional unit', noUnit: 'No unit', qtyLabel: 'Quantity to claim', qtyPlaceholder: 'For example: 0.5, 1, 2', qtyAria: (id, name) => `${id} ${name} quantity to claim`,
@@ -415,6 +417,7 @@
         preview.setAttribute('aria-label', text.previewLabel);
         shareButton.textContent = text.share;
         copyButton.textContent = text.copy;
+        document.getElementById('reply-choice-divider').textContent = text.or;
         document.getElementById('share-help').textContent = text.shareHelp;
         document.getElementById('footer').textContent = text.footer;
         renderItems();
