@@ -334,13 +334,25 @@ html[lang="en"] #root .header-actions .guide-label { display: none; }
   #root .app-header-row > div:first-child > div:last-child { min-width: 0; }
   #root .app-header-row h1 { font-size: 18px; }
 }
-@media (max-width: 359px) {
-  #root .app-header-row { padding-left: 8px; padding-right: 8px; column-gap: 6px; }
-  #root .app-header-row .app-brand-icon { display: none; }
-  #root .app-header-row h1 { font-size: 17px; }
-  html[lang="en"] #root .app-header-row h1 { font-size: 15px; }
+@media (min-width: 390px) and (max-width: 479px) {
+  html[lang="en"] #root .app-header-row h1 { font-size: 13px; }
 }
-@media (min-width: 360px) and (max-width: 389px) {
-  #root .app-header-row .app-brand-icon { display: none; }
-  html[lang="en"] #root .app-header-row h1 { font-size: 16px; }
+/* Reserve real space for the brand on narrow screens; never hide or clip it. */
+@media (max-width: 389px) {
+  #root .app-header-row { padding-left: 8px; padding-right: 8px; column-gap: 6px; }
+  #root .app-header-row > div:first-child { gap: 4px; }
+  #root .app-header-row > div:first-child > div.app-brand-icon:first-child { display: flex; width: 30px; height: 36px; border-radius: 10px; }
+  #root .app-brand-icon svg { width: 20px; height: 20px; }
+  #root .header-actions { gap: 4px; }
+  #root .app-header-row .header-actions > button:not(.header-back-button) { width: 36px; padding: 8px; justify-content: center; }
+  #root .app-header-row .header-actions > button.header-language-button { padding: 0; }
+  #root .app-header-row h1 { font-size: 17px; }
+  html[lang="en"] #root .app-header-row h1 { font-size: 13px; }
+}
+@media (max-width: 359px) {
+  #root .app-header-row { padding-left: 6px; padding-right: 6px; column-gap: 4px; }
+  #root .app-header-row > div:first-child > div.app-brand-icon:first-child { width: 28px; height: 36px; }
+  #root .header-actions { gap: 3px; }
+  #root .app-header-row h1 { font-size: 16px; }
+  html[lang="en"] #root .app-header-row h1 { font-size: 12px; }
 }
