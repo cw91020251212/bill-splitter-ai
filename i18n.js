@@ -417,6 +417,22 @@
   "處": "area(s)"
 };
   Object.assign(dictionary, { '教學': 'Guide', '新手教學': 'Guide', ' 更換': ' Change', '上載並分析單據': 'Upload receipt', '✅ OpenRouter API 金鑰已設定': '✅ OpenRouter ready' });
+  Object.assign(dictionary, {
+    '港幣': 'Hong Kong dollars', '日元': 'Japanese yen', '韓圜': 'South Korean won', '台幣': 'Taiwan dollars', '泰銖': 'Thai baht', '美金': 'US dollars', '歐元': 'Euros', '英鎊': 'British pounds', '人民幣': 'Chinese yuan',
+    '認字偶爾第一次未能成功，未必係張相有問題；可以用同一張圖片即時再試一次。': 'Recognition may not succeed on the first try; it may not be the image. Try again now with the same image.',
+    '請保留菜名、價格、稅費和日期。只有黑框內像素會被永久移除；框外內容仍會隨遮蓋版送到你設定的認字服務。原圖不會用於認字、歷史儲存或分享。': 'Keep item names, prices, taxes, and dates visible. Pixels inside each black box are permanently removed. Only the covered copy is sent to the recognition service you set. The original image is not used for recognition, history, or sharing.',
+    '墊支人姓名': 'Payee name',
+    '結算貨幣': 'Currency',
+    '收款方式（可多選）': 'Payment method (select all that apply)',
+    '附加費用點樣分攤': 'How to split tax and service charges',
+    ' 匯出表格': ' Export spreadsheet',
+    '🔑 6. 認字設定與鎖匙': '🔑 6. Recognition setup and key',
+    '認字服務': 'Recognition service',
+    '在此貼上你的免費鎖匙': 'Paste your free key here',
+    '✓ 鎖匙有效': '✓ Valid key',
+    '本機附件草稿未能保存，暫不切換去其他程式；請檢查網站儲存權限及剩餘空間。': 'Local attachment draft not saved. Do not switch apps yet; check this site’s storage permissions and available space.',
+    '草稿已自動保存於本機。切換去其他程式後請回到同一瀏覽器、同一網址繼續；清除網站資料會刪除草稿。': 'Draft saved on this browser/device. After switching apps, return to the same browser and URL to continue. Clearing site data will delete the draft.'
+  });
   const KEY = 'billSplitterLanguage';
   let language = 'zh-HK';
   try {
@@ -450,7 +466,7 @@
   const format = (key, values) => t(key).replace(/\{(\d+)\}/g, (_, index) => String(values[Number(index)] ?? ''));
   const apply = () => {
     document.documentElement.lang = language;
-    document.title = language === 'en' ? 'Bill Splitter Pro' : '分帳管家 AI Pro';
+    document.title = language === 'en' ? 'Bill Splitter Pro' : '分帳管家';
   };
   window.BillI18n = {
     get language() { return language; }, t, format,

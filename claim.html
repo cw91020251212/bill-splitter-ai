@@ -218,7 +218,7 @@
         <button id="language-toggle" class="language-toggle" type="button" aria-label="Switch language">English</button>
       </div>
       <h1 id="page-title">填寫你的認領</h1>
-      <p id="page-intro">在每項填入你認領的份數，填好後把回覆自行傳回發起人即可。你唔需要 API 鎖匙，亦唔使登入。</p>
+      <p id="page-intro">在每項填入你認領的份數，填好後把回覆自行傳回發起人即可。你唔需要鎖匙，亦唔使登入。</p>
     </header>
 
     <main>
@@ -262,7 +262,7 @@
       </div>
     </main>
 
-    <footer id="footer" class="footer">此頁不會自動發送訊息或收集回覆。認領資料只在你的瀏覽器內整理；項目名稱已包含在邀請連結中。你唔需要 API 鎖匙。</footer>
+    <footer id="footer" class="footer">此頁不會自動發送訊息或收集回覆。認領資料只在你的瀏覽器內整理；項目名稱已包含在邀請連結中。你唔需要鎖匙。</footer>
   </div>
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
@@ -300,14 +300,14 @@
       };
       const messages = {
         'zh-HK': {
-          title: '填寫你的認領', intro: '在每項填入你認領的份數，填好後把回覆自行傳回發起人即可。你唔需要 API 鎖匙，亦唔使登入。',
+          title: '填寫你的認領', intro: '在每項填入你認領的份數，填好後把回覆自行傳回發起人即可。你唔需要鎖匙，亦唔使登入。',
           errorTitle: '打不開這份認領表', errorDescription: '連結資料不完整或格式不正確。請向發起人索取最新的認領連結。',
           noticeLabel: '填寫說明', noticeTitle: '數字本身就是份數。', noticeCopy: '例如 0.5＝半份、1＝一份、2＝兩份；留空或填 0 代表沒有認領。',
           personLabel: '你的姓名', namePlaceholder: '例如：阿明', nameHint: '請用發起人認得的名字，回覆會用這個名字標示。',
           items: '帳單項目', preview: '認領回覆預覽', previewSubtitle: '會列出項目名稱、編號和認領數量，並沿用原程式的 WhatsApp 排版，方便發起人核對。',
           previewPlaceholder: '先填姓名和至少一項數量，回覆文字便會顯示在這裡。', previewLabel: '認領回覆文字預覽',
           or: '或', share: '分享回覆', copy: '複製回覆文字', shareHelp: '按「分享回覆」後，在手機分享清單選 WhatsApp、選擇發起人，再自行按發送。亦可先複製文字，再貼到 WhatsApp。',
-          footer: '此頁不會自動發送訊息或收集回覆。認領資料只在你的瀏覽器內整理；項目名稱已包含在邀請連結中。你唔需要 API 鎖匙。',
+          footer: '此頁不會自動發送訊息或收集回覆。認領資料只在你的瀏覽器內整理；項目名稱已包含在邀請連結中。你唔需要鎖匙。',
           itemCount: n => `${n} 項`, original: text => `單據原文：${text}`, total: (n, unit) => `單據共 ${n} ${unit}`,
           unitLabel: '可選單位', noUnit: '不選單位', qtyLabel: '認領份數', qtyPlaceholder: '例如：0.5、1、2', qtyAria: (id, name) => `${id} ${name} 認領份數`,
           qtyHint: (item) => item.totalQty && item.unit
