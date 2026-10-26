@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>分帳管家 AI Pro</title>
+  <title>分帳管家</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -67,7 +67,7 @@
     ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
     ::-webkit-scrollbar-thumb:hover { background: #64748b; }
   </style>
-  <link rel="stylesheet" href="./theme.css?v=v58-readable-mobile">
+  <link rel="stylesheet" href="./theme.css?v=v60-mobile-zh">
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
@@ -85,8 +85,8 @@
     const LanguageSwitch = ({ value, onChange, compact = false }) => (
       <div className={`flex gap-3 ${compact ? 'w-full items-center justify-between' : 'flex-col items-start sm:flex-row sm:items-center sm:justify-between'}`}>
         <span className="text-base font-semibold text-slate-600">{bi('介面語言', 'App language')}</span>
-        <div role="group" aria-label={tr("Language / 語言")} className="language-switch-control inline-flex shrink-0 rounded-lg border border-slate-300 bg-slate-100 p-0.5">
-          {[['zh-HK', tr("繁體中文")], ['en', 'English']].map(([code, label]) => (
+        <div role="group" aria-label={value === 'en' ? 'Language' : '語言'} className="language-switch-control inline-flex shrink-0 rounded-lg border border-slate-300 bg-slate-100 p-0.5">
+          {[['zh-HK', tr("繁體中文")], ['en', value === 'en' ? 'English' : '英文']].map(([code, label]) => (
             <button key={code} type="button" data-ui-language={code} aria-pressed={value === code} onClick={() => onChange(code)} className={`min-h-[40px] rounded-md px-3 py-1.5 text-base font-semibold transition-colors ${value === code ? 'bg-white text-brand-900 shadow-sm' : 'text-slate-700 hover:bg-white/60'}`}>{tr(label)}</button>
           ))}
         </div>
@@ -182,11 +182,11 @@
     const FREE_OCR_MAX_ATTEMPTS = 3;
     const OCR_RETRY_BACKOFF_MS = [1200, 2500];
     const FREE_MODELS = [
-      [QWEN_FREE_MODEL, 'Qwen2.5 VL 72B（免費，預設）', 'Qwen2.5 VL 72B (free, default)'],
-      [BAIDU_FREE_MODEL, '百度 OCR Fast（免費，專做 OCR）', 'Baidu OCR Fast (free, built for OCR)']
+      [QWEN_FREE_MODEL, '千問認字（免費，預設）', 'Qwen2.5 VL 72B (free, default)'],
+      [BAIDU_FREE_MODEL, '百度認字（免費，專門讀字）', 'Baidu OCR Fast (free, built for OCR)']
     ];
     const PAID_MODELS = [
-      ['google/gemini-3.8-flash', 'Gemini 3.8 Flash（較快，可能收費）', 'Gemini 3.8 Flash (faster, may cost money)']
+      ['google/gemini-3.8-flash', '進階快速認字（可能收費）', 'Gemini 3.8 Flash (faster, may cost money)']
     ];
     const FREE_MODEL_IDS = FREE_MODELS.map(model => model[0]);
     const PAID_MODEL_IDS = PAID_MODELS.map(model => model[0]);
@@ -204,12 +204,12 @@
     const describeOpenRouterFailure = (status) => {
       const code = Number(status) || 0;
       if (code === 401) return '鎖匙被拒（401）。請檢查有冇漏字或黏埋舊鎖匙。手動分帳同朋友認領都唔使鎖匙。';
-      if (code === 402) return '此模型需要付費額度（402）。請改回免費模型；免費使用唔使充值。';
-      if (code === 403) return 'OpenRouter 拒絕這次請求（403）。如果揀了進階模型，可能係未有付費額度；免費模型唔使充值。';
-      if (code === 429) return '請求太密或免費額度暫時用盡（429）。請稍後再試，或改用手動輸入。免費模型唔使充值。';
+      if (code === 402) return '這個認字方式要收費（402）。請改回免費認字；免費使用唔使充值。';
+      if (code === 403) return '認字服務拒絕這次請求（403）。如果揀了進階認字，可能係未有付費額度；免費認字唔使充值。';
+      if (code === 429) return '請求太密或免費額度暫時用盡（429）。請稍後再試，或改用手動輸入。免費認字唔使充值。';
       if (code === 400 || code === 413 || code === 415) return `圖片或請求未被接受（${code}）。可以再試，或改用手動輸入。`;
-      if (code >= 500) return `OpenRouter 暫時未能處理（${code}）。請稍後再試，或改用手動輸入。`;
-      return `識別未完成（HTTP ${code}）。可以再試，或改用手動輸入。`;
+      if (code >= 500) return `認字服務暫時未能處理（${code}）。請稍後再試，或改用手動輸入。`;
+      return `識別未完成（編號 ${code}）。可以再試，或改用手動輸入。`;
     };
 
     // Retry the same free model on blips. 401 and other client/billing errors fail fast.
@@ -257,7 +257,7 @@
         const objMatch = txt.match(/\{[\s\S]*\}/);
         const arrMatch = txt.match(/\[[\s\S]*\]/);
         const candidate = (objMatch && arrMatch) ? (objMatch.index <= arrMatch.index ? objMatch[0] : arrMatch[0]) : (objMatch ? objMatch[0] : (arrMatch ? arrMatch[0] : null));
-        if (!candidate) throw new Error('AI 回傳的內容不是有效 JSON，請重試或改用其他模型。');
+        if (!candidate) throw new Error('認字結果格式不正確，請重試或改用手動輸入。');
         data = JSON.parse(candidate);
       }
       if (Array.isArray(data)) return { items: data, taxTotal: null, taxNote: '', currency: 'HKD', date: null, receiptTotal: null };
@@ -481,7 +481,7 @@
     };
 
     const getCurrencyName = (curr) => {
-      const map = { 'HKD': '港幣 (HKD)', 'JPY': '日元 (JPY)', 'KRW': '韓圜 (KRW)', 'TWD': '台幣 (TWD)', 'THB': '泰銖 (THB)', 'USD': '美金 (USD)', 'EUR': '歐元 (EUR)', 'GBP': '英鎊 (GBP)', 'CNY': '人民幣 (CNY)' };
+      const map = { 'HKD': '港幣', 'JPY': '日元', 'KRW': '韓圜', 'TWD': '台幣', 'THB': '泰銖', 'USD': '美金', 'EUR': '歐元', 'GBP': '英鎊', 'CNY': '人民幣' };
       return tr(map[curr?.toUpperCase()] || curr);
     };
 
@@ -812,7 +812,7 @@
           setDraftSaveError('');
           return true;
         } catch (error) {
-          setDraftSaveError('本機草稿未能保存。請勿關閉頁面或切換 App；請允許網站儲存資料、釋放空間或先複製報告備份。');
+          setDraftSaveError('本機草稿未能保存。請勿關閉頁面或切換去其他程式；請允許網站儲存資料、釋放空間或先複製報告備份。');
           return false;
         }
       };
@@ -950,9 +950,9 @@
       }, [draftReady, draftAssets]);
 
       const ensureDraftSavedForSharing = () => {
-        if (!persistActiveDraft()) { toast('⚠️ 本機草稿未能保存，暫不切換 App；請先備份帳單或檢查網站儲存權限。', 'error'); return false; }
+        if (!persistActiveDraft()) { toast('⚠️ 本機草稿未能保存，暫不切換去其他程式；請先備份帳單或檢查網站儲存權限。', 'error'); return false; }
         if (hasDraftAssets && persistedDraftAssetRevisionRef.current !== draftAssets.revision) {
-          toast(draftAssetStatus === 'error' ? '⚠️ 附件草稿未能保存，暫不切換 App；請檢查網站儲存權限及剩餘空間。' : '⏳ 正在保存本機附件，完成後請再按分享。', 'error');
+          toast(draftAssetStatus === 'error' ? '⚠️ 附件草稿未能保存，暫不切換去其他程式；請檢查網站儲存權限及剩餘空間。' : '⏳ 正在保存本機附件，完成後請再按分享。', 'error');
           return false;
         }
         return true;
@@ -1164,7 +1164,7 @@
         try {
           const r = await fetch('https://openrouter.ai/api/v1/models', { headers: { 'Authorization': `Bearer ${apiKey.trim()}` } });
           if (!r.ok) throw new Error(describeOpenRouterFailure(r.status));
-          setKeyTestResult({ ok: true, msg: '✓ 鎖匙有效 (Valid API Key)' });
+          setKeyTestResult({ ok: true, msg: '✓ 鎖匙有效' });
         } catch (e) {
           setKeyTestResult({ ok: false, msg: e.message });
         } finally { setKeyTesting(false); }
@@ -1253,12 +1253,12 @@
           let filesSupported = false;
           try { filesSupported = typeof navigator.canShare === 'function' && navigator.canShare({ files: shareFiles }); } catch (error) {}
           if (!filesSupported) {
-            toast('⚠️ 此瀏覽器不支援分享附件；請改用手機 Safari／Chrome，或於 WhatsApp 手動附加檔案。', 'error');
+            toast('⚠️ 此瀏覽器不支援分享附件；請改用手機自帶瀏覽器，或喺聊天程式手動附加檔案。', 'error');
             return;
           }
         }
         if (typeof navigator.share !== 'function') {
-          if (shareFiles.length) { toast('⚠️ 此瀏覽器無法分享附件；請於 WhatsApp 手動附加圖片或檔案。', 'error'); return; }
+          if (shareFiles.length) { toast('⚠️ 此瀏覽器無法分享附件；請於聊天程式手動附加圖片或檔案。', 'error'); return; }
           copyToClipboard(text, title);
           if (onSettled) onSettled();
           return;
@@ -1284,7 +1284,7 @@
         setReceiptShareNudge(0);
         if (includeReceiptImages && lastImageData.length) {
           if (!updatePendingReceiptShare(true)) {
-            toast('⚠️ 下一步提示未能存入本機草稿，暫不切換 App；請先檢查儲存權限。', 'error');
+            toast('⚠️ 下一步提示未能存入本機草稿，暫不切換去其他程式；請先檢查儲存權限。', 'error');
             return;
           }
         }
@@ -1340,7 +1340,7 @@
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a'); link.href = url; link.setAttribute('download', `${uiLang === 'en' ? 'bill-split-history' : '分帳紀錄'}_${new Date().toISOString().split('T')[0]}.csv`);
         document.body.appendChild(link); link.click(); document.body.removeChild(link); URL.revokeObjectURL(url);
-        toast('✅ 成功匯出 CSV！');
+        toast('✅ 成功匯出表格！');
       };
 
       const handleGoToStep1 = () => {
@@ -1456,12 +1456,12 @@
       };
 
       const triggerUpload = () => {
-        if (!apiKey.trim()) { toast('讀外語單據先要你自己的免費 OpenRouter 鎖匙。預設只用免費模型，唔使充值。朋友認領唔使鎖匙。', 'error'); setShowSettings(true); return; }
+        if (!apiKey.trim()) { toast('讀外語單據先要你自己的免費認字鎖匙。預設只用免費認字，唔使充值。朋友認領唔使鎖匙。', 'error'); setShowSettings(true); return; }
         if(fileInputRef.current) fileInputRef.current.click();
       };
 
       const triggerCamera = () => {
-        if (!apiKey.trim()) { toast('讀外語單據先要你自己的免費 OpenRouter 鎖匙。預設只用免費模型，唔使充值。朋友認領唔使鎖匙。', 'error'); setShowSettings(true); return; }
+        if (!apiKey.trim()) { toast('讀外語單據先要你自己的免費認字鎖匙。預設只用免費認字，唔使充值。朋友認領唔使鎖匙。', 'error'); setShowSettings(true); return; }
         if (!navigator.mediaDevices?.getUserMedia) {
           toast('⚠️ 此瀏覽器不支援網頁相機，請改用「選擇圖片」', 'error');
           if (cameraInputRef.current) cameraInputRef.current.click();
@@ -1607,7 +1607,7 @@
           };
           let redactedFiles = await makeBatch(0.92);
           if (redactedFiles.reduce((sum, file) => sum + file.size, 0) > 12 * 1024 * 1024) redactedFiles = await makeBatch(0.82);
-          if (redactedFiles.reduce((sum, file) => sum + file.size, 0) > 12 * 1024 * 1024) throw new Error('遮蓋後圖片總容量仍超過 12 MB，請減少圖片數量或分批處理。');
+          if (redactedFiles.reduce((sum, file) => sum + file.size, 0) > 12 * 1024 * 1024) throw new Error('遮蓋後圖片仍然太大，請減少圖片數量或分批處理。');
           if (generation !== billGenerationRef.current) return;
           setPendingRedactionImages([]);
           setRedactionMasks([]);
@@ -1636,8 +1636,8 @@
         const totalSize = files.reduce((sum, file) => sum + file.size, 0);
 
         if (files.length > 5) { setUploadError({ main: '一次最多可上載 5 張圖片', sub: '', action: null }); clearFileSelection(); return; }
-        if (files.some(file => !allowedTypes.includes(file.type))) { setUploadError({ main: '只支援 JPG、PNG 或 WebP 圖片格式', sub: '', action: null }); clearFileSelection(); return; }
-        if (totalSize > 12 * 1024 * 1024) { setUploadError({ main: '圖片總容量不可超過 12 MB', sub: '請壓縮後再試', action: null }); clearFileSelection(); return; }
+        if (files.some(file => !allowedTypes.includes(file.type))) { setUploadError({ main: '只支援一般相片，請勿揀其他檔案', sub: '', action: null }); clearFileSelection(); return; }
+        if (totalSize > 12 * 1024 * 1024) { setUploadError({ main: '圖片總容量太大', sub: '請減少張數或壓縮後再試', action: null }); clearFileSelection(); return; }
 
         if (!alreadyRedacted) {
           setUploadError('');
@@ -1679,7 +1679,7 @@
         ocrProgressRef.current = null;
 
         try {
-          if (!apiKey.trim()) throw new Error('讀外語單據先要你自己的免費 OpenRouter 鎖匙。預設只用免費模型，唔使充值。朋友認領唔使鎖匙。');
+          if (!apiKey.trim()) throw new Error('讀外語單據先要你自己的免費認字鎖匙。預設只用免費認字，唔使充值。朋友認領唔使鎖匙。');
           const base64Promises = files.map(file => {
             return new Promise((resolve, reject) => {
               const reader = new FileReader();
@@ -1696,7 +1696,7 @@
 
           const useFreeTier = modelUsesFreeTier(apiModel, allowPaidModels);
           const modelForRequest = resolveBillModel(apiModel, allowPaidModels);
-          setProgressText(useFreeTier ? '正在壓縮圖片，方便免費模型處理...' : '正在壓縮圖片...');
+          setProgressText(useFreeTier ? '正在壓縮圖片，方便免費認字...' : '正在壓縮圖片...');
           const aiImages = [];
           for (const image of imageDataArray) {
             try {
@@ -1711,10 +1711,10 @@
           }
           if (generation !== billGenerationRef.current) return;
           const waitingText = (modelId) => modelId === QWEN_FREE_MODEL
-            ? '已送到免費 Qwen，等候回覆。免費使用唔使充值。'
+            ? '已送到免費認字，等候回覆。免費使用唔使充值。'
             : modelId === BAIDU_FREE_MODEL
-              ? '已送到免費百度 OCR，等候回覆。唔使充值。'
-              : '已送到所選進階模型，等候回覆。進階模型可能產生費用。';
+              ? '已送到免費百度認字，等候回覆。唔使充值。'
+              : '已送到所選進階認字，等候回覆。進階認字可能產生費用。';
           setProgressText(waitingText(modelForRequest));
 
           const promptText = `讀旅行／外幣收據（日文、韓文或其他語言 OK）。合併所有圖片成一份清單。只輸出 JSON，無 Markdown、無解釋。
@@ -1761,17 +1761,17 @@ items[].name 用香港繁體中文；original 保留單據原文；nameEn 有可
               }
               const data = await response.json();
               const jsonText = data.choices?.[0]?.message?.content;
-              if (!jsonText || !String(jsonText).trim()) throw markTransient(null, 'OpenRouter 伺服器未回傳內容。');
+              if (!jsonText || !String(jsonText).trim()) throw markTransient(null, '認字服務未有回覆。');
               let shaped;
               try {
                 shaped = extractPayload(jsonText);
               } catch (parseError) {
-                const message = String(parseError?.message || '').includes('不是有效 JSON')
+                const message = String(parseError?.message || '').includes('格式不正確')
                   ? parseError.message
-                  : 'AI 回傳的內容不是有效 JSON，請重試或改用其他模型。';
+                  : '認字結果格式不正確，請重試或改用手動輸入。';
                 throw markTransient(parseError, message);
               }
-              if (!Array.isArray(shaped.items) || shaped.items.length === 0) throw markTransient(null, 'AI 回傳格式不符。');
+              if (!Array.isArray(shaped.items) || shaped.items.length === 0) throw markTransient(null, '認字結果格式不符。');
               return shaped;
             } catch (error) {
               if (controller.signal.aborted) {
@@ -1779,7 +1779,7 @@ items[].name 用香港繁體中文；original 保留單據原文；nameEn 有可
                 aborted.name = 'AbortError';
                 throw aborted;
               }
-              if (error?.name === 'AbortError') throw markTransient(null, '免費模型等候逾時。可以再試，或改用手動輸入。');
+              if (error?.name === 'AbortError') throw markTransient(null, '免費認字等候逾時。可以再試，或改用手動輸入。');
               const status = Number(error?.status) || 0;
               if (status || error?.transient === true) throw error;
               throw markTransient(error, error?.message);
@@ -1830,11 +1830,11 @@ items[].name 用香港繁體中文；original 保留單據原文；nameEn 有可
             try {
               shaped = await readModelAttempts(BAIDU_FREE_MODEL, {
                 maxAttempts: FREE_OCR_MAX_ATTEMPTS,
-                firstStatus: '預設模型失敗，改用百度 OCR…'
+                firstStatus: '預設認字失敗，改用百度認字…'
               });
             } catch (fallbackError) {
               if (fallbackError?.name === 'AbortError' || Number(fallbackError?.status) === 401) throw fallbackError;
-              const combined = new Error('預設 Qwen 同百度 OCR 都未能讀完這張單。可以再試，或改用手動輸入。');
+              const combined = new Error('預設認字同百度認字都未能讀完這張單。可以再試，或改用手動輸入。');
               combined.detail = [error?.detail || error?.message, fallbackError?.detail || fallbackError?.message].filter(Boolean).join(' / ').slice(0, 180);
               throw combined;
             }
@@ -1972,7 +1972,7 @@ items[].name 用香港繁體中文；original 保留單據原文；nameEn 有可
         const nextFiles = [...claimAttachments, ...selectedFiles];
         if (nextFiles.length > 10) { toast('⚠️ 一次最多可選擇 10 個附件。', 'error'); return; }
         if (nextFiles.reduce((sum, file) => sum + file.size, 0) > 20 * 1024 * 1024) {
-          toast('⚠️ 附件總容量不可超過 20 MB，請移除部分檔案後再試。', 'error');
+          toast('⚠️ 附件總容量太大，請移除部分檔案後再試。', 'error');
           return;
         }
         setClaimAttachments(nextFiles);
@@ -1989,7 +1989,7 @@ items[].name 用香港繁體中文；original 保留單據原文；nameEn 有可
         if (!ensureDraftSavedForSharing()) return;
         const message = uiLang === 'en'
           ? `Please open this link to fill in the mobile claim form. No API key is needed:\n${link}`
-          : `請打開以下連結填寫手機認領表（唔使 API 鎖匙）：\n${link}`;
+          : `請打開以下連結填寫手機認領表（唔使鎖匙）：\n${link}`;
         shareTextWithFiles(message, [], '手機認領連結');
       };
 
@@ -2115,7 +2115,10 @@ items[].name 用香港繁體中文；original 保留單據原文；nameEn 有可
           'Alipay': 'Alipay',
           '未指定': 'Not specified'
         };
-        if (language !== 'en') return value || '未指定';
+        if (language !== 'en') {
+          const zh = { '轉數快 (FPS)': '轉數快', 'Alipay': '支付寶', 'PayMe': 'PayMe' };
+          return zh[value] || value || '未指定';
+        }
         return map[value] || value || 'Not specified';
       };
       const unitDisplay = (value, language = uiLang, quantity = null) => {
@@ -2124,7 +2127,7 @@ items[].name 用香港繁體中文；original 保留單據原文；nameEn 有可
         return map[value] || value || 'unit(s)';
       };
       const reportCurrencyName = (currency, language) => {
-        if (language !== 'en') { const names = { HKD: '港幣 (HKD)', JPY: '日元 (JPY)', KRW: '韓圜 (KRW)', TWD: '台幣 (TWD)', THB: '泰銖 (THB)', USD: '美金 (USD)', EUR: '歐元 (EUR)', GBP: '英鎊 (GBP)', MOP: '澳門幣 (MOP)', CNY: '人民幣 (CNY)' }; return names[String(currency || '').toUpperCase()] || currency; }
+        if (language !== 'en') { const names = { HKD: '港幣', JPY: '日元', KRW: '韓圜', TWD: '台幣', THB: '泰銖', USD: '美金', EUR: '歐元', GBP: '英鎊', MOP: '澳門幣', CNY: '人民幣' }; return names[String(currency || '').toUpperCase()] || currency; }
         const code = String(currency || '').toUpperCase();
         const names = { HKD: 'Hong Kong dollars (HKD)', JPY: 'Japanese yen (JPY)', KRW: 'South Korean won (KRW)', TWD: 'New Taiwan dollars (TWD)', THB: 'Thai baht (THB)', USD: 'US dollars (USD)', EUR: 'euros (EUR)', GBP: 'British pounds (GBP)', MOP: 'Macanese patacas (MOP)', CNY: 'Chinese yuan (CNY)', MOP: 'Macanese patacas (MOP)', AUD: 'Australian dollars (AUD)', CAD: 'Canadian dollars (CAD)', SGD: 'Singapore dollars (SGD)' };
         return names[code] || code;
@@ -2253,7 +2256,7 @@ items[].name 用香港繁體中文；original 保留單據原文；nameEn 有可
             if (unclaimedCount > 0) push(3, 'C2', `${unclaimedCount} 項冇人認領（${formatMoney(unclaimedCost, currency)} 未分攤）`, '請補回認領，或刪走冇人食嘅項目', { label: '前往', run: () => jumpToStep(2) });
         }
 
-        if (isAnalyzing) push(4, 'A1', progressText || '已送到免費模型，等候回覆。免費模型有時較慢，唔係故障，亦唔使充值。', '免費模型有時較慢，唔係故障，亦唔使充值', null);
+        if (isAnalyzing) push(4, 'A1', progressText || '已送到免費認字，等候回覆。免費認字有時較慢，唔係故障，亦唔使充值。', '免費認字有時較慢，唔係故障，亦唔使充值', null);
         else if (step === 2 && items.length > 0 && friendsReplies.trim() && (!claimInfo || claimInfo.issues.length === 0)) {
             push(5, 'G2', '認領資料準備就緒', '下一步先填墊支人，再計算', { label: '下一步', run: goToPayerStep });
         }
@@ -2344,12 +2347,12 @@ items[].name 用香港繁體中文；original 保留單據原文；nameEn 有可
                   <Icon path={icons.calculator} size={22} />
                 </div>
                 <div>
-                  <h1 className="text-xl font-extrabold text-slate-800 tracking-tight"><span className="app-brand-name block sm:inline whitespace-nowrap">{tr("分帳管家")}</span><span className="inline-flex items-baseline gap-1 sm:ml-1 whitespace-nowrap"><span data-testid="app-pro-label" className="text-brand-600 font-black">Pro</span><span data-testid="app-version-label" className="text-[10px] leading-3 font-semibold tracking-normal text-brand-700">V1.0.1</span></span></h1>
+                  <h1 className="text-xl font-extrabold text-slate-800 tracking-tight"><span className="app-brand-name block sm:inline whitespace-nowrap">{tr("分帳管家")}</span><span className="inline-flex items-baseline gap-1 sm:ml-1 whitespace-nowrap"><span data-testid="app-pro-label" className="text-brand-600 font-black">{uiLang === 'en' ? 'Pro' : '專業'}</span><span data-testid="app-version-label" className="text-[10px] leading-3 font-semibold tracking-normal text-brand-700">1.0.1</span></span></h1>
                 </div>
               </div>
               <div className="header-actions flex items-center gap-1.5 sm:gap-2">
-                <button type="button" data-testid="header-language-toggle" data-ui-language={uiLang === 'en' ? 'zh-HK' : 'en'} onClick={() => changeUiLanguage(uiLang === 'en' ? 'zh-HK' : 'en')} title={uiLang === 'en' ? 'Switch to Traditional Chinese' : '切換至 English'} aria-label={uiLang === 'en' ? 'Switch to Traditional Chinese' : '切換至 English'} className="header-language-button flex items-center justify-center px-2.5 py-2 bg-slate-100 text-slate-700 border border-slate-400 rounded-lg text-xs font-bold transition-colors">
-                  <span className="language-divider" aria-hidden="true"></span><span className="language-zh" lang="zh-HK">中</span><span className="language-en" lang="en">Eng</span>
+                <button type="button" data-testid="header-language-toggle" data-ui-language={uiLang === 'en' ? 'zh-HK' : 'en'} onClick={() => changeUiLanguage(uiLang === 'en' ? 'zh-HK' : 'en')} title={uiLang === 'en' ? 'Switch to Traditional Chinese' : '切換至英文'} aria-label={uiLang === 'en' ? 'Switch to Traditional Chinese' : '切換至英文'} className="header-language-button flex items-center justify-center px-2.5 py-2 bg-slate-100 text-slate-700 border border-slate-400 rounded-lg text-xs font-bold transition-colors">
+                  <span className="language-divider" aria-hidden="true"></span><span className="language-zh" lang="zh-HK">中</span><span className="language-en" lang="en">英</span>
                 </button>
                 {(showHistory || showSettings || showTutorial) ? (
                   <button onClick={() => {setShowHistory(false); setShowSettings(false); setShowTutorial(false);}} className="header-back-button flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-semibold transition-colors border border-slate-400">
@@ -2407,8 +2410,8 @@ items[].name 用香港繁體中文；original 保留單據原文；nameEn 有可
               <div data-testid="draft-status" className="mb-4 rounded-xl border border-slate-300 bg-slate-50 p-3 text-xs leading-relaxed text-slate-700" role="status" aria-live="polite">
                 {draftNotice && <p className="font-semibold mb-1">{tr(draftNotice)}</p>}
                 {draftSaveError || ((hasDraftAssets || draftAssets.unavailable) && draftAssetStatus === 'error') ? (
-                  <p role="alert" className="font-semibold text-red-700">{draftSaveError || tr("本機附件草稿未能保存，暫不切換 App；請檢查網站儲存權限及剩餘空間。")}</p>
-                ) : <p>{hasDraftAssets && draftAssetStatus === 'saving' ? tr("正在保存本機圖片／附件，完成後才可分享…") : tr("草稿已自動保存於本機。切換 App 後請回到同一瀏覽器、同一網址繼續；清除網站資料會刪除草稿。")}</p>}
+                  <p role="alert" className="font-semibold text-red-700">{draftSaveError || tr("本機附件草稿未能保存，暫不切換去其他程式；請檢查網站儲存權限及剩餘空間。")}</p>
+                ) : <p>{hasDraftAssets && draftAssetStatus === 'saving' ? tr("正在保存本機圖片／附件，完成後才可分享…") : tr("草稿已自動保存於本機。切換去其他程式後請回到同一瀏覽器、同一網址繼續；清除網站資料會刪除草稿。")}</p>}
               </div>
             )}
 
@@ -2426,7 +2429,7 @@ items[].name 用香港繁體中文；original 保留單據原文；nameEn 有可
 
                     <div className="rounded-xl border border-amber-500 bg-amber-50 p-3 mb-4">
                       <p className="text-sm font-semibold text-amber-900">{bi('如需遮蓋電話、卡號或會員號，先按下方筆鍵，再拖動框選。未啟用時，滑動只會瀏覽圖片。', 'To hide a phone, card or membership number, enable the pen below, then drag a box. With the pen off, swiping only scrolls.')}</p>
-                      <p className="text-xs text-amber-900 mt-1.5 leading-relaxed">{tr("請保留菜名、價格、稅費和日期。只有黑框內像素會被永久移除；框外內容仍會隨遮蓋版送到你設定的 AI 服務作 OCR。原圖不會用於 OCR、歷史儲存或分享。")}</p>
+                      <p className="text-xs text-amber-900 mt-1.5 leading-relaxed">{tr("請保留菜名、價格、稅費和日期。只有黑框內像素會被永久移除；框外內容仍會隨遮蓋版送到你設定的認字服務。原圖不會用於認字、歷史儲存或分享。")}</p>
                     </div>
 
                     <div className="flex items-start gap-3 mb-4">
@@ -2493,11 +2496,14 @@ items[].name 用香港繁體中文；original 保留單據原文；nameEn 有可
             {/* Step 1: Photo scan is the main path; manual entry is the fallback */}
             {step === 1 && !showSettings && !showHistory && !showTutorial && (
               <div data-testid="scan-start" className="space-y-6 animate-in fade-in duration-500">
+                <Card data-testid="mobile-language-card" className="sm:hidden">
+                  <LanguageSwitch value={uiLang} onChange={changeUiLanguage} />
+                </Card>
                 <div className="page-section-heading flex items-center gap-2 mb-2">
                   <span className="w-8 h-8 rounded-full bg-brand-100 border border-brand-500 text-brand-700 flex items-center justify-center font-bold">1</span>
                   <h2 className="text-2xl font-bold text-slate-800 tracking-tight">{tr("上載並分析單據")}</h2>
                 </div>
-                <p className="text-base text-slate-700 leading-relaxed">{bi('出差食飯、日韓單據睇唔明？影張相，免費 Qwen 會讀出項目同價錢。預設唔使充值。', 'On a trip and can’t read the receipt? Take a photo. Free Qwen reads the items and prices. The default does not need a top-up.')}</p>
+                <p className="text-base text-slate-700 leading-relaxed">{bi('出差食飯、日韓單據睇唔明？影張相，免費認字會讀出項目同價錢。預設唔使充值。', 'On a trip and can’t read the receipt? Take a photo. Free Qwen reads the items and prices. The default does not need a top-up.')}</p>
 
                 <Card className="api-settings-card bg-gradient-to-br from-brand-50 to-white border-brand-500">
                   <button
@@ -2517,17 +2523,17 @@ items[].name 用香港繁體中文；original 保留單據原文；nameEn 有可
                       <span className="block font-bold text-base leading-snug mb-1">
                         {apiKey.trim()
                           ? (!modelUsesFreeTier(apiModel, allowPaidModels)
-                            ? bi('✅ 進階模型已開啟', '✅ Advanced model is on')
+                            ? bi('✅ 進階認字已開啟', '✅ Advanced model is on')
                             : resolveBillModel(apiModel, allowPaidModels) === BAIDU_FREE_MODEL
-                              ? bi('✅ 免費百度 OCR 已設定', '✅ Free Baidu OCR is set')
-                              : bi('✅ 免費 Qwen 已設定', '✅ Free Qwen is set'))
+                              ? bi('✅ 免費百度認字已設定', '✅ Free Baidu OCR is set')
+                              : bi('✅ 免費認字已設定', '✅ Free Qwen is set'))
                           : bi('⚠️ 尚未設定免費鎖匙', '⚠️ Free key is not set yet')}
                       </span>
                       <span className={`block text-base font-medium leading-snug ${apiKey.trim() ? 'text-slate-600' : 'text-red-700'}`}>
                         {apiKey.trim()
                           ? (!modelUsesFreeTier(apiModel, allowPaidModels)
                             ? bi('可能產生費用。點此返回設定。', 'This may cost money. Tap to open settings.')
-                            : bi('預設唔使充值。點此可改模型或鎖匙。', 'The default needs no top-up. Tap to change the model or key.'))
+                            : bi('預設唔使充值。點此可改認字方式或鎖匙。', 'The default needs no top-up. Tap to change the model or key.'))
                           : bi('點擊此處設定免費鎖匙，先可以讀外語單據。', 'Tap here to set a free key before a foreign receipt can be read.')}
                       </span>
                     </div>
@@ -2551,14 +2557,14 @@ items[].name 用香港繁體中文；original 保留單據原文；nameEn 有可
                         <div className="ocr-indeterminate bg-brand-500 h-3 rounded-full"></div>
                       </div>
                       <p className="text-base text-slate-700 mt-4 leading-relaxed">{!modelUsesFreeTier(apiModel, allowPaidModels)
-                        ? bi('請稍候。進階模型可能產生費用。完成後會直接帶你去核對項目。', 'Please wait. Advanced models may cost money. Items appear when the reply arrives.')
-                        : bi('請稍候。暫時讀唔到會再試同一模型，畫面會寫明第幾次。完成後會直接帶你去核對項目。', 'Please wait. If the read fails temporarily, the same model is tried again and the status shows the attempt. Items appear when a reply arrives.')}</p>
+                        ? bi('請稍候。進階認字可能產生費用。完成後會直接帶你去核對項目。', 'Please wait. Advanced models may cost money. Items appear when the reply arrives.')
+                        : bi('請稍候。暫時讀唔到會再試同一種認字，畫面會寫明第幾次。完成後會直接帶你去核對項目。', 'Please wait. If the read fails temporarily, the same model is tried again and the status shows the attempt. Items appear when a reply arrives.')}</p>
                     </div>
                   ) : uploadError ? (
                     <div className="flex flex-col items-center max-w-md mx-auto">
                       <div className="w-20 h-20 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center mb-4 shadow-sm border border-amber-300"><Icon path={icons.alert} size={36} /></div>
                       <h3 className="text-lg font-bold text-slate-800">{tr("今次未能完整讀取單據")}</h3>
-                      <p className="text-base font-medium text-slate-700 mt-2">{tr("AI 偶爾第一次未能成功辨識，未必係張相有問題；可以用同一張圖片即時再試一次。")}</p>
+                      <p className="text-base font-medium text-slate-700 mt-2">{tr("認字偶爾第一次未能成功，未必係張相有問題；可以用同一張圖片即時再試一次。")}</p>
                       {uploadError.sub && <p className="text-base text-slate-700 mt-2 break-words">{tr(uploadError.sub)}</p>}
                       {uploadError.detail && <p className="text-base text-slate-600 mt-1 break-words">{uploadError.detail}</p>}
                       {lastImageData.length ? (
@@ -2670,8 +2676,8 @@ items[].name 用香港繁體中文；original 保留單據原文；nameEn 有可
                 <div className="border-t border-slate-400 my-6 pt-6 space-y-6">
                   <div>
                     <Label className="flex items-center justify-between mb-3"><span>{tr("1. 產生手機認領連結發送給朋友")}</span></Label>
-                    <p className="text-xs text-slate-500 mb-3">{tr("朋友在手機瀏覽器填寫後，可自行透過 WhatsApp 分享回覆；中文名稱及有提供的單據原文會包含在連結內，方便核對。")}</p>
-                    <p className="text-base text-slate-700 mb-3 leading-relaxed">{bi('朋友唔需要 API 鎖匙，亦唔好把你的鎖匙發俾佢哋。', 'Friends do not need an API key. Do not send them yours.')}</p>
+                    <p className="text-xs text-slate-500 mb-3">{tr("朋友在手機瀏覽器填寫後，可自行透過聊天程式分享回覆；中文名稱及有提供的單據原文會包含在連結內，方便核對。")}</p>
+                    <p className="text-base text-slate-700 mb-3 leading-relaxed">{bi('朋友唔需要鎖匙，亦唔好把你的鎖匙發俾佢哋。', 'Friends do not need an API key. Do not send them yours.')}</p>
                     <p className="text-xs text-slate-600 mb-2">{bi('以下方式擇一即可，毋須兩個都按。', 'Choose either option below; you do not need to tap both.')}</p>
                     <div data-testid="claim-link-actions" className="flex flex-col gap-3">
                       <Button variant="secondary" onClick={generateFriendClaimLink} className="!w-full text-sm bg-white hover:bg-slate-50 border-slate-500">
@@ -2697,7 +2703,7 @@ items[].name 用香港繁體中文；original 保留單據原文；nameEn 有可
                         ref={claimAttachmentInputRef}
                         onChange={handleClaimAttachmentSelection}
                       />
-                      <p className="text-xs text-slate-500 mt-2 leading-relaxed">{tr("合併的所有項目共用一個認領連結。為免 WhatsApp 在每張圖片重複顯示連結，請先完成第 1 步，再返回此視窗完成第 2 步；每次都自行選同一位朋友或群組並確認，不會自動接續發送。附件不會寫入網址或朋友的認領頁；最多 10 個檔案，合共 20 MB。")}</p>
+                      <p className="text-xs text-slate-500 mt-2 leading-relaxed">{tr("合併的所有項目共用一個認領連結。為免聊天程式在每張圖片重複顯示連結，請先完成第 1 步，再返回此視窗完成第 2 步；每次都自行選同一位朋友或群組並確認，不會自動接續發送。附件不會寫入網址或朋友的認領頁；最多 10 個檔案，附件唔好太多。")}</p>
                       {claimAttachments.length > 0 && (
                         <div className="mt-3 border-t border-slate-300 pt-3">
                           <div className="flex items-center justify-between gap-2 mb-2">
@@ -2726,11 +2732,11 @@ items[].name 用香港繁體中文；original 保留單據原文；nameEn 有可
 
                   <div>
                     <Label required={friendsReplies.length === 0} className="flex items-center justify-between mb-3">
-                      <span>{tr("2. 貼上朋友透過 WhatsApp 傳回的回覆")}</span>
+                      <span>{tr("2. 貼上朋友透過聊天程式傳回的回覆")}</span>
                     </Label>
                     <textarea
                       ref={el => fieldRefs.current.replies = el} value={friendsReplies} onChange={(e) => {setFriendsReplies(e.target.value); setReconciliation(null); setStepError('');}} onPaste={handlePasteReplies} onFocus={onFocusReplies} onBlur={onBlurReplies}
-                      placeholder={tr("在此處貼上朋友透過 WhatsApp 傳回的認領內容... (支援連續貼上多份回覆)")}
+                      placeholder={tr("在此處貼上朋友透過聊天程式傳回的認領內容... (支援連續貼上多份回覆)")}
                       className="w-full h-48 bg-white border border-slate-500 rounded-xl p-4 text-sm font-mono text-slate-700 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none resize-y shadow-inner leading-relaxed">
                     </textarea>
                   </div>
@@ -2787,12 +2793,12 @@ items[].name 用香港繁體中文；original 保留單據原文；nameEn 有可
 
                 <Card className="space-y-8">
                   <div>
-                    <Label required={!payer} className="text-lg">{tr("墊支人姓名 (Payee)")}</Label>
+                    <Label required={!payer} className="text-lg">{tr("墊支人姓名")}</Label>
                     <input type="text" ref={el => fieldRefs.current.payer = el} value={payer} onChange={(e) => {setPayer(e.target.value); setStepError('');}} placeholder={tr("請輸入先付款人的姓名...")} className="w-full rounded-xl p-3.5 text-base font-semibold text-slate-800 outline-none transition-all bg-slate-50 focus:bg-white" />
                   </div>
 
                   <div>
-                    <Label className="text-lg mb-3">{tr("結算貨幣 (Currency)")} <span className="text-xs font-normal">{bi('（擇一）', '(choose one)')}</span></Label>
+                    <Label className="text-lg mb-3">{tr("結算貨幣")} <span className="text-xs font-normal">{bi('（擇一）', '(choose one)')}</span></Label>
                     <div className="flex flex-wrap gap-2.5">
                       {displayCurrencies.map(c => (
                           <button
@@ -2806,21 +2812,21 @@ items[].name 用香港繁體中文；original 保留單據原文；nameEn 有可
                   </div>
 
                   <div>
-                    <Label className="text-lg mb-3">{tr("收款方式 (Payment Method，可多選)")}</Label>
+                    <Label className="text-lg mb-3">{tr("收款方式（可多選）")}</Label>
                     <div className="flex flex-wrap gap-2.5">
                       {paymentOptions.map(pm => (
                         <button
                           key={tr(pm)} onClick={() => setPaymentMethods(current => current.includes(pm) ? current.filter(method => method !== pm) : [...current, pm])} aria-pressed={paymentMethods.includes(pm)}
                           className={`px-4 py-2.5 rounded-xl border font-bold text-sm transition-all outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 ${paymentMethods.includes(pm) ? 'border-brand-600 bg-brand-50 text-brand-700 shadow-sm' : 'border-slate-500 bg-white text-slate-600 hover:bg-slate-50'}`}
                         >
-                          {tr(pm)}
+                          {uiLang === 'en' ? tr(pm) : (pm === '轉數快 (FPS)' ? '轉數快' : pm === 'Alipay' ? '支付寶' : pm)}
                         </button>
                       ))}
                     </div>
                   </div>
 
                   <div className="border-t border-slate-400 pt-6">
-                    <Label className="text-lg mb-3">{tr("附加費用分攤邏輯 (Tax/Fee Split)")} <span className="text-xs font-normal">{bi('（擇一）', '(choose one)')}</span></Label>
+                    <Label className="text-lg mb-3">{tr("附加費用點樣分攤")} <span className="text-xs font-normal">{bi('（擇一）', '(choose one)')}</span></Label>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {[{ id: 'proportional', label: tr("按消費比例分攤"), desc: tr("食得多出得多") }, { id: 'equal', label: tr("所有人平均分攤"), desc: tr("人頭均分") }].map(opt => (
                         <label key={opt.id} className={`flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-all ${taxSplitMethod === opt.id ? 'bg-brand-50 border-brand-500 shadow-sm' : 'bg-white border-slate-500 hover:bg-slate-50'}`}>
@@ -2905,13 +2911,13 @@ items[].name 用香港繁體中文；original 保留單據原文；nameEn 有可
                       <span aria-hidden="true" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-amber-900 text-2xl font-bold text-white">2</span>
                       <div className="min-w-0">
                         <h3 id="receipt-share-heading" className="text-2xl font-extrabold leading-snug text-amber-950">{tr("第 2 步：分享單據圖片")}</h3>
-                        <p className="mt-2 text-base font-semibold leading-relaxed text-amber-950">{tr("按一下，選 WhatsApp 和收件人，再手動發送全部 ")}{lastImageData.length}{tr(" 張圖片。")}</p>
+                        <p className="mt-2 text-base font-semibold leading-relaxed text-amber-950">{tr("按一下，選聊天程式和收件人，再手動發送全部 ")}{lastImageData.length}{tr(" 張圖片。")}</p>
                       </div>
                     </div>
                     {pendingReceiptShare && <p role="status" className="mt-4 rounded-xl border-2 border-amber-800 bg-white p-3 text-base font-bold leading-relaxed text-amber-950">{tr("文字報告不會自動附圖。請先確認文字已發出，再分享單據。")}</p>}
                     {!lastImageData.length && <p role="alert" className="mt-4 font-bold text-amber-950">{tr("本機圖片暫未能載入。請重新開啟同一網址重試讀取草稿，勿重設帳單。")}</p>}
                     <Button onClick={shareCurrentReceipts} disabled={!lastImageData.length} variant="primary" className="mt-4 !w-full !bg-amber-900 hover:!bg-amber-950 !text-white !border-amber-950 !py-4 !font-bold disabled:!opacity-100 disabled:!bg-slate-700"><Icon path={icons.share} size={20}/>{tr(" 分享單據圖片（")}{lastImageData.length}{tr(" 張）")}</Button>
-                    <p className="mt-3 text-sm leading-relaxed text-amber-950">{tr("只分享圖片，不會重發文字報告；是否送出請在 WhatsApp 確認。")}</p>
+                    <p className="mt-3 text-sm leading-relaxed text-amber-950">{tr("只分享圖片，不會重發文字報告；是否送出請在聊天程式確認。")}</p>
                   </section>
                 )}
 
@@ -2947,8 +2953,8 @@ items[].name 用香港繁體中文；original 保留單據原文；nameEn 有可
                   </div>
                   <div className="p-5 space-y-4">
                     {[
-                      ['1', tr("睇單"), bi('出差、日韓食飯：影相或揀圖，免費 Qwen 讀出項目、價錢同稅費。暫時失敗會再試同一模型，仍然失敗先改試一次免費百度 OCR。預設唔使充值。', 'On a trip, take or choose a photo. Free Qwen reads items, prices, and tax on Japanese, Korean, and other foreign receipts. A temporary failure retries the same model, then free Baidu OCR is tried once. The default does not need a top-up.')],
-                      ['2', tr("認領"), tr("複製「認領表」發到 WhatsApp 群組；只填數字係份數比例，數字加單位就係實際食用數量。")],
+                      ['1', tr("睇單"), bi('出差、日韓食飯：影相或揀圖，免費認字會讀出項目、價錢同稅費。暫時讀唔到會再試幾次，仍然失敗先改用百度認字。預設唔使充值。', 'On a trip, take or choose a photo. Free Qwen reads items, prices, and tax on Japanese, Korean, and other foreign receipts. A temporary failure retries the same model, then free Baidu OCR is tried once. The default does not need a top-up.')],
+                      ['2', tr("認領"), tr("複製「認領表」發到聊天程式群組；只填數字係份數比例，數字加單位就係實際食用數量。")],
                       ['3', tr("運算"), tr("填墊支人姓名、確認自動偵測的貨幣、付款方式。")],
                       ['4', tr("結果"), tr("得出「追數版」同「詳細版」，複製後發返群組。")],
                     ].map(([n, t, d]) => (
@@ -2967,8 +2973,8 @@ items[].name 用香港繁體中文；original 保留單據原文；nameEn 有可
                   </div>
                   <p className="font-bold text-slate-800 pt-1 mb-2">{tr("例子一：按份數比例分一項 $120 食物")}</p>
                   <div className="bg-slate-50 border border-slate-400 rounded-xl p-4 text-sm space-y-3">
-                    <p className="text-slate-800">{tr("阿明填 ")}<strong className="text-brand-700 bg-brand-100 border border-brand-500 px-1.5 py-0.5 rounded">2</strong>{tr("，Cathy 填 ")}<strong className="text-brand-700 bg-brand-100 border border-brand-500 px-1.5 py-0.5 rounded">1</strong>{tr("，即合共 3 份。")}</p>
-                    <div className="bg-white border border-slate-400 rounded-lg p-3 text-xs text-slate-600 font-mono shadow-sm">{tr("系統自動計：每份 $40。")}<br/>{tr("阿明 $80，Cathy $40。")}</div>
+                    <p className="text-slate-800">{tr("阿明填 ")}<strong className="text-brand-700 bg-brand-100 border border-brand-500 px-1.5 py-0.5 rounded">2</strong>{tr("，阿芬填 ")}<strong className="text-brand-700 bg-brand-100 border border-brand-500 px-1.5 py-0.5 rounded">1</strong>{tr("，即合共 3 份。")}</p>
+                    <div className="bg-white border border-slate-400 rounded-lg p-3 text-xs text-slate-600 font-mono shadow-sm">{tr("系統自動計：每份 $40。")}<br/>{tr("阿明 $80，阿芬 $40。")}</div>
                     <p className="text-brand-700 font-bold flex items-center gap-1.5 mt-2"><Icon path={icons.check} size={16}/>{tr(" 唔需要知道實際有幾件，填幾多份就按比例分。")}</p>
                   </div>
                   <p className="font-bold text-slate-800 pt-1 mb-2">{tr("例子二：按實際單位分一項 $120 食物")}</p>
@@ -2979,8 +2985,8 @@ items[].name 用香港繁體中文；original 保留單據原文；nameEn 有可
                   </div>
                 </Accordion>
 
-                <Accordion title={tr("🔑 6. AI 設定與鎖匙")} tone="slate" icon={icons.key}>
-                  <p className="text-sm text-slate-800 leading-relaxed mb-3">{bi('讀日韓等外語單據要用你自己的免費 OpenRouter 鎖匙。預設係免費 Qwen，唔使充值。暫時失敗會再試同一模型；Qwen 仍然失敗只會再試一次免費百度 OCR，不會再轉去其他模型。鎖匙只留在這部機，請勿發俾朋友。朋友認領唔使鎖匙。進階模型可能收費，要你自己開啟。', 'Reading Japanese, Korean, and other foreign receipts uses your own free OpenRouter key. Free Qwen is the default, with no top-up. A temporary failure retries the same model. If Qwen still fails, free Baidu OCR is tried once, and nothing else. The key stays on this device. Do not send it to friends. Friends do not need a key to claim. Advanced models may cost money and stay off until you turn them on.')}</p>
+                <Accordion title={tr("🔑 6. 認字設定與鎖匙")} tone="slate" icon={icons.key}>
+                  <p className="text-sm text-slate-800 leading-relaxed mb-3">{bi('讀日韓等外語單據要用你自己的免費認字鎖匙。預設係免費認字，唔使充值。暫時讀唔到會再試幾次；仍然失敗只會再試一次百度認字，不會再轉去其他方式。鎖匙只留在這部機，請勿發俾朋友。朋友認領唔使鎖匙。進階認字可能收費，要你自己開啟。', 'Reading Japanese, Korean, and other foreign receipts uses your own free OpenRouter key. Free Qwen is the default, with no top-up. A temporary failure retries the same model. If Qwen still fails, free Baidu OCR is tried once, and nothing else. The key stays on this device. Do not send it to friends. Friends do not need a key to claim. Advanced models may cost money and stay off until you turn them on.')}</p>
                   <div className="bg-slate-50 border border-slate-400 rounded-xl p-3 text-sm space-y-1.5">
                     <p className="font-bold text-slate-800">{tr("記住我的鎖匙（免每次重輸）")}</p>
                     <p className="text-slate-600 text-xs">{tr("在設定勾選「記住鎖匙」，只存本機，唔會上傳。共用電腦請勿勾選。")}</p>
@@ -3003,7 +3009,7 @@ items[].name 用香港繁體中文；original 保留單據原文；nameEn 有可
                   </div>
                   {savedHistory.length > 0 && (
                     <button onClick={exportCSV} className="flex items-center gap-1.5 px-3 py-2 bg-white text-slate-800 hover:bg-slate-50 border border-slate-500 rounded-lg text-sm font-bold shadow-sm transition-all active:scale-[0.98]">
-                      <Icon path={icons.download} size={16}/>{tr(" 匯出 CSV")}</button>
+                      <Icon path={icons.download} size={16}/>{tr(" 匯出表格")}</button>
                   )}
                 </div>
 
@@ -3036,7 +3042,7 @@ items[].name 用香港繁體中文；original 保留單據原文；nameEn 有可
                         {Number(record.receiptImageCount) > 0 && (
                           <div className="px-4 pb-4">
                             <p className="text-xs text-slate-600 mb-2">{tr("📎 本機收據副本：")}{record.receiptImageCount}{tr(" 張")}</p>
-                            <p className="text-xs text-slate-600 mb-2">{tr("先分享一款純文字報告，再另分享圖片；每次自行在 WhatsApp 選同一收件人並確認。")}</p>
+                            <p className="text-xs text-slate-600 mb-2">{tr("先分享一款純文字報告，再另分享圖片；每次自行在聊天程式選同一收件人並確認。")}</p>
                             <p className="text-xs text-slate-600 mb-2">{bi('文字報告可選追數版或詳細版，毋須兩款都發。', 'Choose the summary or detailed text report; you do not need to send both.')}</p>
                             <div className="grid grid-cols-2 gap-2">
                               <Button variant="outline" className="!w-auto !py-2 !px-2 !text-xs bg-white" onClick={() => shareSavedRecord(record, 'simplified')}>{tr("分享追數版（純文字）")}</Button>
@@ -3059,15 +3065,15 @@ items[].name 用香港繁體中文；original 保留單據原文；nameEn 有可
                   <h2 className="text-2xl font-bold flex items-center gap-2 text-slate-800"><Icon path={icons.settings} className="text-slate-600"/>{tr(" 系統設定")}</h2>
                   <Card><LanguageSwitch value={uiLang} onChange={changeUiLanguage} /></Card>
                   <Card>
-                    <Label className="text-base mb-3">{tr("API 服務供應商")}</Label>
+                    <Label className="text-base mb-3">{tr("認字服務")}</Label>
                     <div className="mb-6 rounded-xl border border-brand-500 bg-brand-50 p-4">
-                      <div className="font-bold text-base text-brand-900">OpenRouter</div>
-                      <p className="text-base text-slate-700 font-medium mt-1 leading-relaxed">{bi('用來讀日韓等外語單據。預設免費 Qwen；暫時失敗會再試同一模型，仍然失敗只改試一次免費百度 OCR。唔使充值。鎖匙只留在這部機，請勿發俾朋友。朋友認領唔使鎖匙。', 'Used to read Japanese, Korean, and other foreign receipts. Free Qwen is the default. A temporary failure retries the same model. If it still fails, free Baidu OCR is tried once. No top-up. The key stays on this device. Do not send it to friends. Friends do not need a key to claim.')}</p>
+                      <div className="font-bold text-base text-brand-900">{bi('免費認字', 'OpenRouter')}</div>
+                      <p className="text-base text-slate-700 font-medium mt-1 leading-relaxed">{bi('用來讀日韓等外語單據。預設免費認字；暫時讀唔到會再試幾次，仍然失敗只改試一次百度認字。唔使充值。鎖匙只留在這部機，請勿發俾朋友。朋友認領唔使鎖匙。', 'Used to read Japanese, Korean, and other foreign receipts. Free Qwen is the default. A temporary failure retries the same model. If it still fails, free Baidu OCR is tried once. No top-up. The key stays on this device. Do not send it to friends. Friends do not need a key to claim.')}</p>
                     </div>
 
                     <div className="border-t border-slate-400 pt-6 space-y-5">
                       <div>
-                        <Label className="text-base">{bi('識別模型（預設免費）', 'Recognition model (free by default)')}</Label>
+                        <Label className="text-base">{bi('認字方式（預設免費）', 'Recognition model (free by default)')}</Label>
                         <select
                           data-testid="model-select"
                           value={resolveBillModel(apiModel, allowPaidModels)}
@@ -3077,7 +3083,7 @@ items[].name 用香港繁體中文；original 保留單據原文；nameEn 有可
                           }}
                           className="w-full rounded-xl p-3.5 text-base font-semibold text-slate-800 bg-white"
                         >
-                          <optgroup label={bi('免費模型', 'Free models')}>
+                          <optgroup label={bi('免費認字', 'Free models')}>
                             {FREE_MODELS.map(([id, zh, en]) => <option key={id} value={id}>{bi(zh, en)}</option>)}
                           </optgroup>
                           {allowPaidModels && (
@@ -3087,10 +3093,10 @@ items[].name 用香港繁體中文；original 保留單據原文；nameEn 有可
                           )}
                         </select>
                         <p className="text-base text-slate-700 mt-2 leading-relaxed">{!modelUsesFreeTier(apiModel, allowPaidModels)
-                          ? bi('你已揀付費／進階模型，可能產生費用。改回上面的免費模型就唔使充值。', 'You selected a paid/advanced model, which may cost money. Switch back to a free model and you do not need to top up.')
+                          ? bi('你已揀付費／進階認字，可能產生費用。改回上面的免費認字就唔使充值。', 'You selected a paid/advanced model, which may cost money. Switch back to a free model and you do not need to top up.')
                           : resolveBillModel(apiModel, allowPaidModels) === BAIDU_FREE_MODEL
-                            ? bi('而家用緊免費百度 OCR，唔使充值。暫時失敗會再試同一模型，不會再自動轉去其他模型。', 'Free Baidu OCR is selected, with no top-up. A temporary failure retries the same model. The app does not switch to another model.')
-                            : bi('預設免費 Qwen，唔使充值。暫時失敗會再試同一模型幾次，仍然失敗先自動改試一次免費百度 OCR，不會再轉去其他模型。', 'Free Qwen is the default, with no top-up. A temporary failure retries the same model a few times. If it still fails, free Baidu OCR is tried once. Nothing else is tried after that.')}</p>
+                            ? bi('而家用緊免費百度認字，唔使充值。暫時讀唔到會再試幾次，不會再自動轉去其他方式。', 'Free Baidu OCR is selected, with no top-up. A temporary failure retries the same model. The app does not switch to another model.')
+                            : bi('預設免費認字，唔使充值。暫時失敗會再試幾次，仍然失敗先自動改試一次免費百度認字，不會再轉去其他方式。', 'Free Qwen is the default, with no top-up. A temporary failure retries the same model a few times. If it still fails, free Baidu OCR is tried once. Nothing else is tried after that.')}</p>
                       </div>
 
                       <label className="flex items-start gap-3 p-4 bg-amber-50 rounded-xl border border-amber-400 cursor-pointer">
@@ -3108,12 +3114,12 @@ items[].name 用香港繁體中文；original 保留單據原文；nameEn 有可
                         />
                         <div>
                           <div className="font-bold text-slate-800 text-base">{bi('進階／可能產生費用', 'Advanced / may cost money')}</div>
-                          <p className="text-base text-slate-700 mt-1 leading-relaxed">{bi('預設關閉。開啟後先可以揀較快的付費模型，可能會用到你 OpenRouter 帳戶的付費額度。保持關閉就只會用免費模型，唔使充值。', 'Off by default. Turn this on before you can choose a faster paid model. That may use paid credit on your OpenRouter account. Leave it off and only free models are used, with no top-up.')}</p>
+                          <p className="text-base text-slate-700 mt-1 leading-relaxed">{bi('預設關閉。開啟後先可以揀較快、但可能要收費的認字。保持關閉就只會用免費認字，唔使充值。', 'Off by default. Turn this on before you can choose a faster paid model. That may use paid credit on your OpenRouter account. Leave it off and only free models are used, with no top-up.')}</p>
                         </div>
                       </label>
 
                       <div>
-                        <Label className="text-base flex justify-between items-center">{bi('免費 API 金鑰', 'Free API key')}<a href="https://openrouter.ai/settings/keys" target="_blank" rel="noreferrer" className="text-sm text-brand-700 hover:text-brand-800 underline font-semibold">{bi('取得免費金鑰 ↗', 'Get a free key ↗')}</a>
+                        <Label className="text-base flex justify-between items-center">{bi('免費認字鎖匙', 'Free API key')}<a href="https://openrouter.ai/settings/keys" target="_blank" rel="noreferrer" className="text-sm text-brand-700 hover:text-brand-800 underline font-semibold">{bi('取得免費金鑰 ↗', 'Get a free key ↗')}</a>
                         </Label>
                         {!isEditingKey && apiKey ? (
                           <div className="bg-slate-50 border border-slate-400 rounded-xl p-4 mt-2">
@@ -3130,7 +3136,7 @@ items[].name 用香港繁體中文；original 保留單據原文；nameEn 有可
                             <div className="relative">
                               <input
                                 type={showKey ? 'text' : 'password'} value={apiKey} onChange={(e) => setApiKey(e.target.value)}
-                                placeholder={tr("在此貼上您的 API 金鑰")}
+                                placeholder={tr("在此貼上你的免費鎖匙")}
                                 className="w-full rounded-xl p-3.5 pr-12 font-mono text-base focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 outline-none transition-all"
                               />
                               <button onMouseDown={() => setShowKey(true)} onMouseUp={() => setShowKey(false)} onTouchStart={() => setShowKey(true)} onTouchEnd={() => setShowKey(false)} className="absolute right-3 top-3.5 text-slate-500 hover:text-slate-800"><Icon path={icons.eye} size={20}/></button>
