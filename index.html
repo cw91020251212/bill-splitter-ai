@@ -77,7 +77,7 @@
     ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
     ::-webkit-scrollbar-thumb:hover { background: #64748b; }
   </style>
-  <link rel="stylesheet" href="./theme.css?v=v58-readable-mobile">
+  <link rel="stylesheet" href="./theme.css?v=v62-color-accents">
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
@@ -2676,10 +2676,10 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
                     <button onClick={() => setShowTutorial(true)} title={tr("新手教學")} className="guide-button flex items-center gap-1.5 px-3 py-2 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-500 rounded-lg text-sm font-semibold transition-colors">
                       <Icon path={icons.bookOpen} size={16}/> <span className="guide-label">{tr("教學")}</span>
                     </button>
-                    <button onClick={() => setShowSettings(true)} title={tr("設定")} className="flex items-center gap-1.5 px-2.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-400 rounded-lg text-sm font-semibold transition-colors">
+                    <button onClick={() => setShowSettings(true)} title={tr("設定")} className="header-settings-button flex items-center gap-1.5 px-2.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-400 rounded-lg text-sm font-semibold transition-colors">
                       <Icon path={icons.settings} size={16}/>
                     </button>
-                    <button onClick={() => setShowHistory(true)} title={tr("紀錄")} className="flex items-center gap-1.5 px-2.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-400 rounded-lg text-sm font-semibold transition-colors">
+                    <button onClick={() => setShowHistory(true)} title={tr("紀錄")} className="header-history-button flex items-center gap-1.5 px-2.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-400 rounded-lg text-sm font-semibold transition-colors">
                       <Icon path={icons.history} size={16}/>
                     </button>
                     <button type="button" data-testid="header-clear-current" disabled={!draftReady} onClick={handleGoToStep1} title={bi('清空目前帳單（保留歷史及已存收據）', 'Clear current bill (keep history and saved receipts)')} aria-label={bi('清空目前帳單', 'Clear current bill')} className="header-clear-button flex items-center justify-center gap-1.5 px-2.5 py-2 border rounded-lg text-sm transition-colors">
@@ -3260,7 +3260,7 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
                   <div className="bg-slate-50 px-5 py-4 border-b border-slate-400">
                     <h3 className="font-bold text-slate-800 text-base flex items-center gap-2">{tr("🗺️ 整個流程（4 步）")}</h3>
                   </div>
-                  <div className="p-5 space-y-4">
+                  <div className="guide-flow p-5 space-y-4">
                     {[
                       ['1', tr("睇單"), bi('影相或揀圖，讀出項目、價錢同稅費。', 'Take or choose a photo to read items, prices, and tax.')],
                       ['2', tr("認領"), tr("複製「認領表」發到 WhatsApp 群組；只填數字係份數比例，數字加單位就係實際食用數量。")],
@@ -3311,7 +3311,7 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
               <div className="space-y-6 animate-in fade-in duration-300">
                 <div className="flex justify-between items-center mb-2">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-slate-200 text-slate-700 border border-slate-400 rounded-xl flex items-center justify-center shadow-sm shrink-0">
+                    <div className="history-mark w-10 h-10 bg-slate-200 text-slate-700 border border-slate-400 rounded-xl flex items-center justify-center shadow-sm shrink-0">
                       <Icon path={icons.history} size={22}/>
                     </div>
                     <h2 className="text-2xl font-bold text-slate-800 tracking-tight">{tr("歷史紀錄")}</h2>
@@ -3371,7 +3371,7 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
 
             {showSettings && (
                <div className="space-y-6 animate-in fade-in duration-300">
-                  <h2 className="text-2xl font-bold flex items-center gap-2 text-slate-800"><Icon path={icons.settings} className="text-slate-600"/>{tr(" 系統設定")}</h2>
+                  <h2 className="text-2xl font-bold flex items-center gap-2 text-slate-800"><Icon path={icons.settings} className="settings-mark"/>{tr(" 系統設定")}</h2>
                   <Card><LanguageSwitch value={uiLang} onChange={changeUiLanguage} /></Card>
                   <Card>
                     <Label className="text-base mb-3">{tr("API 服務供應商")}</Label>
