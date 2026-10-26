@@ -286,6 +286,288 @@
       return { items, taxTotal, taxNote: data.taxNote || data.tax_note || '', currency: data.currency || data.Currency || 'HKD', date, receiptTotal };
     };
 
+    // Free vision models often copy the receipt into name. Keep name in Hong Kong
+    // Traditional Chinese and leave kana/hangul in original (and ja only when different).
+    const RECEIPT_NAME_PENDING = '（未譯，見原文）';
+    const RECEIPT_NAME_PENDING_EN = 'See original';
+    const RECEIPT_EXTRA_CHINESE_KEYS = ['nameZh', 'name_zh', 'zh', 'zhHK', 'chinese', 'nameTc', 'nameTC', 'translation', 'translated', 'translatedName'];
+    const RECEIPT_GENERIC_NAMES = new Set(['項目', '商品', '品項', '品目', '食物', '食品', '菜式', '菜品', 'item', 'items', 'unknown', 'n/a', 'na']);
+    const RECEIPT_TRAD_MAP = {
+      '寿': '壽', '焼': '燒', '烧': '燒', '麺': '麵', '面': '麵', '竜': '龍', '龙': '龍', '黒': '黑', '麦': '麥',
+      '塩': '鹽', '盐': '鹽', '楽': '樂', '乐': '樂', '気': '氣', '气': '氣', '広': '廣', '广': '廣', '国': '國',
+      '会': '會', '発': '發', '发': '發', '児': '兒', '儿': '兒', '桜': '櫻', '沢': '澤', '泽': '澤', '浜': '濱',
+      '辺': '邊', '边': '邊', '仏': '佛', '恵': '惠', '芸': '藝', '艺': '藝', '転': '轉', '转': '轉', '鶏': '雞',
+      '鸡': '雞', '饭': '飯', '鱼': '魚', '虾': '蝦', '饺': '餃', '乌': '烏', '东': '東', '汤': '湯', '锅': '鍋',
+      '酱': '醬', '韩': '韓', '条': '條', '饮': '飲', '丽': '麗', '猪': '豬', '豚': '豬', '鸭': '鴨', '鹅': '鵝',
+      '点': '點', '个': '個', '盘': '盤', '红': '紅', '绿': '綠', '鲜': '鮮', '姜': '薑', '葱': '蔥', '炖': '燉',
+      '卤': '滷', '饼': '餅', '馆': '館', '楼': '樓', '层': '層', '号': '號', '单': '單', '价': '價', '总': '總',
+      '计': '計', '税': '稅', '圆': '圓', '块': '塊', '只': '隻'
+    };
+    const DISH_GLOSSARY = {
+      'アイスクリーム': '雪糕', 'アイス': '雪糕', 'カレーライス': '咖喱飯', 'カレー': '咖喱', 'コーヒー': '咖啡',
+      'コーラ': '可樂', 'ジュース': '果汁', 'ステーキ': '牛扒', 'サラダ': '沙律', 'サンドイッチ': '三文治',
+      'ハンバーガー': '漢堡', 'ピザ': '薄餅', 'ピッツァ': '薄餅', 'パスタ': '意粉', 'スパゲッティ': '意粉',
+      'オムライス': '蛋包飯', 'デザート': '甜品', 'ケーキ': '蛋糕', 'プリン': '布甸', 'ラーメン': '拉麵',
+      'らーめん': '拉麵', 'うどん': '烏冬', 'おそば': '蕎麥麵', 'そば': '蕎麥麵', 'おにぎり': '飯團',
+      'おでん': '關東煮', '天ぷら': '天婦羅', 'てんぷら': '天婦羅', '天麩羅': '天婦羅', 'ぎょうざ': '餃子',
+      'ギョーザ': '餃子', 'シュウマイ': '燒賣', 'すし': '壽司', '寿司': '壽司', 'さしみ': '刺身',
+      '生ビール': '生啤', 'ビール': '啤酒', '日本酒': '清酒', '焼酎': '燒酎', 'ハイボール': '高球',
+      '赤ワイン': '紅酒', '白ワイン': '白酒', 'ワイン': '葡萄酒', 'お茶漬け': '茶泡飯', 'お茶': '茶',
+      '緑茶': '綠茶', 'ご飯': '白飯', 'ごはん': '白飯', 'ライス': '白飯', '味噌汁': '味噌湯', 'みそしる': '味噌湯',
+      '焼き肉': '燒肉', '焼肉': '燒肉', 'やきにく': '燒肉', '焼き鳥': '燒雞串', 'やきとり': '燒雞串',
+      '唐揚げ': '炸雞', 'から揚げ': '炸雞', 'からあげ': '炸雞', 'とんかつ': '炸豬排', 'トンカツ': '炸豬排',
+      '豚カツ': '炸豬排', 'カツ丼': '炸豬排飯', '牛丼': '牛肉飯', 'ぎゅうどん': '牛肉飯', 'お好み焼き': '大阪燒',
+      'たこ焼き': '章魚燒', 'マグロ': '吞拿魚', 'まぐろ': '吞拿魚', 'サーモン': '三文魚', 'いくら': '三文魚籽',
+      '海老': '蝦', 'えび': '蝦', 'エビ': '蝦', 'いか': '魷魚', 'イカ': '魷魚', 'たこ': '章魚', 'タコ': '章魚',
+      'ほたて': '扇貝', 'ホタテ': '扇貝', 'お弁当': '便當', '弁当': '便當', 'セット': '套餐', '大盛': '大碗',
+      '朝食': '早餐', '昼食': '午餐', '夕食': '晚餐', '비빔밥': '拌飯', '김치찌개': '泡菜鍋', '김치볶음밥': '泡菜炒飯',
+      '김치': '泡菜', '된장찌개': '大醬湯', '순두부찌개': '嫩豆腐鍋', '순두부': '嫩豆腐', '불고기': '韓式燒肉',
+      '삼겹살': '五花肉', '갈비': '排骨', '냉면': '冷麵', '라면': '拉麵', '김밥': '紫菜包飯', '떡볶이': '炒年糕',
+      '소주': '燒酒', '맥주': '啤酒', '잡채': '雜菜', '삼계탕': '參雞湯', '해물파전': '海鮮蔥餅', '파전': '蔥餅',
+      '만두': '餃子', '치킨': '炸雞', '커피': '咖啡', '아이스크림': '雪糕', '칼국수': '刀切麵'
+    };
+    const DISH_GLOSSARY_KEYS = Object.keys(DISH_GLOSSARY).sort((a, b) => b.length - a.length || (a < b ? -1 : a > b ? 1 : 0));
+
+    const receiptText = (value) => String(value ?? '').replace(/\s+/g, ' ').trim();
+    const receiptCompact = (value) => receiptText(value).normalize('NFKC').replace(/\s+/g, '').toLowerCase();
+    const sameReceiptText = (a, b) => {
+      const left = receiptCompact(a);
+      const right = receiptCompact(b);
+      return !!left && left === right;
+    };
+    const countScript = (value, pattern) => (receiptCompact(value).match(pattern) || []).length;
+    const kanaCount = (value) => countScript(value, /[\u3040-\u30ff]/g);
+    const hangulCount = (value) => countScript(value, /[\u1100-\u11ff\u3130-\u318f\uac00-\ud7af]/g);
+    const hanCount = (value) => countScript(value, /[\u4e00-\u9fff]/g);
+    const latinCount = (value) => countScript(value, /[a-z]/g);
+    const hasKana = (value) => kanaCount(value) > 0;
+    const hasHangul = (value) => hangulCount(value) > 0;
+    const hasHan = (value) => hanCount(value) > 0;
+    const isForeignScriptHeavy = (value) => {
+      const foreign = kanaCount(value) + hangulCount(value);
+      if (!foreign) return false;
+      const han = hanCount(value);
+      return han === 0 || han * 2 <= foreign;
+    };
+    const looksLikeChineseName = (value) => {
+      const text = receiptText(value);
+      if (!text || hasKana(text) || hasHangul(text) || !hasHan(text)) return false;
+      return hanCount(text) >= latinCount(text);
+    };
+    const looksLikeEnglishName = (value) => {
+      const text = receiptText(value);
+      if (!text || hasHan(text) || hasKana(text) || hasHangul(text)) return false;
+      return latinCount(text) > 0;
+    };
+    const isGenericDishName = (value) => RECEIPT_GENERIC_NAMES.has(receiptCompact(value));
+    const toHongKongTraditional = (value) => {
+      const source = receiptText(value);
+      let out = '';
+      for (const ch of source) out += RECEIPT_TRAD_MAP[ch] || ch;
+      return out.replace(/\s+/g, ' ').trim();
+    };
+    const splitReceiptNameChunks = (value) => {
+      const parenBits = [];
+      const outside = receiptText(value).replace(/[（(]([^（）()]*)[）)]/g, (_, inner) => {
+        parenBits.push(inner);
+        return ' ';
+      });
+      return [outside, ...parenBits].flatMap(part => String(part).split(/[\/／|｜]/)).map(receiptText).filter(Boolean);
+    };
+    const applyDishGlossary = (value) => {
+      const source = receiptCompact(value);
+      if (!source) return '';
+      if (DISH_GLOSSARY[source]) return DISH_GLOSSARY[source];
+      let index = 0;
+      let out = '';
+      let replaced = false;
+      while (index < source.length) {
+        let hit = '';
+        for (const key of DISH_GLOSSARY_KEYS) {
+          if (key.length >= 2 && source.startsWith(key, index)) { hit = key; break; }
+        }
+        if (hit) {
+          out += DISH_GLOSSARY[hit];
+          index += hit.length;
+          replaced = true;
+        } else {
+          out += source[index];
+          index += 1;
+        }
+      }
+      return replaced ? out : '';
+    };
+    const extractBilingualChinese = (value) => {
+      const chunks = splitReceiptNameChunks(value);
+      const chinese = chunks.filter(looksLikeChineseName);
+      const foreign = chunks.filter(part => hasKana(part) || hasHangul(part));
+      if (!chinese.length || !foreign.length) return '';
+      return chinese.join('');
+    };
+    const foreignReceiptText = (value) => {
+      const chunks = splitReceiptNameChunks(value);
+      const chinese = chunks.filter(looksLikeChineseName);
+      const foreign = chunks.filter(part => hasKana(part) || hasHangul(part));
+      if (!chinese.length || !foreign.length) return '';
+      return foreign.join('');
+    };
+    const japaneseReading = (value) => {
+      const text = receiptText(value);
+      if (!hasKana(text) || hasHangul(text)) return '';
+      if (!hasHan(text)) return text;
+      return (receiptCompact(text).match(/[\u3040-\u30ff]+/g) || []).join('');
+    };
+    const translateMixedScriptDish = (value) => {
+      const source = receiptCompact(value);
+      if (!source) return '';
+      const runs = [];
+      let buf = '';
+      let kind = '';
+      const kindOf = (ch) => {
+        if (/[\u3040-\u30ff]/.test(ch)) return 'kana';
+        if (/[\u1100-\u11ff\u3130-\u318f\uac00-\ud7af]/.test(ch)) return 'hangul';
+        if (/[\u4e00-\u9fff]/.test(ch)) return 'han';
+        return 'other';
+      };
+      for (const ch of source) {
+        const nextKind = kindOf(ch);
+        const stick = buf && (nextKind === kind || nextKind === 'other' || kind === 'other');
+        if (stick) buf += ch;
+        else {
+          if (buf) runs.push({ kind, text: buf });
+          buf = ch;
+          kind = nextKind;
+        }
+      }
+      if (buf) runs.push({ kind, text: buf });
+      const foreignRuns = runs.filter(run => run.kind === 'kana' || run.kind === 'hangul');
+      const hanRuns = runs.filter(run => run.kind === 'han');
+      if (!foreignRuns.length || !hanRuns.length) return '';
+      const foreignText = foreignRuns.map(run => applyDishGlossary(run.text));
+      if (foreignText.some(part => !part)) return '';
+      const hanText = toHongKongTraditional(hanRuns.map(run => run.text).join(''));
+      const translatedForeign = toHongKongTraditional(foreignText.join(''));
+      if (receiptCompact(hanText) === receiptCompact(translatedForeign)) return hanText;
+      const rebuilt = runs.map(run => (run.kind === 'kana' || run.kind === 'hangul') ? applyDishGlossary(run.text) : run.text).join('');
+      const traditional = toHongKongTraditional(rebuilt);
+      return (hasKana(traditional) || hasHangul(traditional)) ? '' : traditional;
+    };
+    const translateForeignDishName = (value) => {
+      const raw = receiptText(value);
+      if (!raw || isGenericDishName(raw)) return '';
+      const bilingual = extractBilingualChinese(raw);
+      if (bilingual) return toHongKongTraditional(bilingual);
+      if (hasKana(raw) || hasHangul(raw)) {
+        const mixed = translateMixedScriptDish(raw);
+        if (mixed) return mixed;
+        const traditional = toHongKongTraditional(applyDishGlossary(raw) || raw);
+        if (hasKana(traditional) || hasHangul(traditional) || !hasHan(traditional)) return '';
+        return traditional;
+      }
+      if (!hasHan(raw)) return '';
+      const traditional = toHongKongTraditional(applyDishGlossary(raw) || raw);
+      if (hasKana(traditional) || hasHangul(traditional) || !hasHan(traditional)) return '';
+      return traditional;
+    };
+    const nameNeedsChinese = (name, original) => {
+      if (isForeignScriptHeavy(name) || hasKana(name) || hasHangul(name)) return true;
+      if (sameReceiptText(name, original) && (hasKana(original) || hasHangul(original))) return true;
+      if (!receiptText(name) && (hasKana(original) || hasHangul(original))) return true;
+      if (isGenericDishName(name) && (hasKana(original) || hasHangul(original))) return true;
+      if (looksLikeEnglishName(name) && (hasKana(original) || hasHangul(original))) return true;
+      return false;
+    };
+    const jaRepeatsOriginal = (reading, original) => {
+      const left = receiptCompact(reading);
+      const right = receiptCompact(original);
+      if (!left || !right) return false;
+      return left === right || right.includes(left);
+    };
+    const keepDistinctJapanese = (current, candidate, original) => {
+      const have = japaneseReading(current);
+      if (have && !jaRepeatsOriginal(have, original)) return have;
+      const next = japaneseReading(candidate);
+      if (!next || jaRepeatsOriginal(next, original)) return '';
+      return next;
+    };
+    const parkedChineseName = (source, nameEn, ja) => {
+      const values = [nameEn, ja, ...RECEIPT_EXTRA_CHINESE_KEYS.map(key => source[key])];
+      for (const value of values) {
+        const text = receiptText(value);
+        if (looksLikeChineseName(text) && !isGenericDishName(text)) return text;
+      }
+      return '';
+    };
+    const firstForeignTranslation = (...values) => {
+      for (const value of values) {
+        const text = receiptText(value);
+        if (!hasKana(text) && !hasHangul(text)) continue;
+        const translated = translateForeignDishName(text);
+        if (translated && looksLikeChineseName(translated) && !isGenericDishName(translated)) return translated;
+      }
+      return '';
+    };
+    const normalizeReceiptItemNames = (item) => {
+      const source = item && typeof item === 'object' ? item : {};
+      let name = receiptText(source.name);
+      let nameEn = receiptText(source.nameEn);
+      let original = receiptText(source.original);
+      let ja = receiptText(source.ja);
+
+      if ((hasKana(name) || hasHangul(name)) && looksLikeChineseName(original)) {
+        const foreign = foreignReceiptText(name) || name;
+        if (!looksLikeChineseName(foreign)) {
+          name = original;
+          original = foreign;
+        }
+      }
+      if (!original && (hasKana(name) || hasHangul(name))) original = foreignReceiptText(name) || name;
+      if (hasKana(name) || hasKana(original)) ja = keepDistinctJapanese(ja, name, original);
+      if (looksLikeEnglishName(name) && (hasKana(original) || hasHangul(original)) && !nameEn) nameEn = name;
+
+      const parked = parkedChineseName(source, nameEn, ja);
+      if (nameNeedsChinese(name, original) && parked) {
+        if (sameReceiptText(parked, nameEn)) nameEn = '';
+        if (sameReceiptText(parked, ja)) ja = '';
+        name = parked;
+      }
+
+      if (nameNeedsChinese(name, original)) {
+        const translated = firstForeignTranslation(name, original, ja);
+        if (!original && (hasKana(name) || hasHangul(name))) original = foreignReceiptText(name) || name;
+        if (hasKana(name) || hasKana(original)) ja = keepDistinctJapanese(ja, name, original);
+        name = translated || RECEIPT_NAME_PENDING;
+      } else if (hasHan(name)) {
+        const traditional = toHongKongTraditional(applyDishGlossary(name) || name);
+        if (traditional && !hasKana(traditional) && !hasHangul(traditional)) name = traditional;
+      }
+
+      if (looksLikeChineseName(nameEn)) {
+        if (!looksLikeChineseName(name) || name === RECEIPT_NAME_PENDING) name = toHongKongTraditional(nameEn);
+        nameEn = '';
+      } else if (nameEn && !looksLikeEnglishName(nameEn)) {
+        if (!original && (hasKana(nameEn) || hasHangul(nameEn))) original = nameEn;
+        if (hasKana(nameEn)) ja = keepDistinctJapanese(ja, nameEn, original);
+        nameEn = '';
+      }
+
+      if (hasKana(name) || hasHangul(name)) name = RECEIPT_NAME_PENDING;
+      else if (hasHan(name) && name !== RECEIPT_NAME_PENDING) name = toHongKongTraditional(name);
+      ja = japaneseReading(ja);
+      if (!ja || jaRepeatsOriginal(ja, original) || sameReceiptText(ja, name)) ja = '';
+      return { name, nameEn, original, ja };
+    };
+    const receiptPrimaryLabel = (name, nameEn, original, english) => {
+      const pendingLabel = english ? RECEIPT_NAME_PENDING_EN : RECEIPT_NAME_PENDING;
+      const chosen = receiptText(english ? (nameEn || name) : name);
+      if (chosen === RECEIPT_NAME_PENDING) return pendingLabel;
+      if (chosen && !hasKana(chosen) && !hasHangul(chosen)) return chosen;
+      const chinese = receiptText(name);
+      if (chinese === RECEIPT_NAME_PENDING) return pendingLabel;
+      if (chinese && !hasKana(chinese) && !hasHangul(chinese) && looksLikeChineseName(chinese)) return chinese;
+      return pendingLabel;
+    };
+
     const STEP_LABELS = ['上載睇單', '朋友認領', '分帳運算', '最終結果'];
     const SEP  = '\n\n➖➖➖➖➖➖➖➖➖➖\n\n';
     const TAIL = '\n\n';
@@ -1731,11 +2013,21 @@
               : '已送到所選進階模型，等候回覆。進階模型可能產生費用。';
           setProgressText(waitingText(modelForRequest));
 
-          const promptText = `讀旅行／外幣收據（日文、韓文或其他語言 OK）。合併所有圖片成一份清單。只輸出 JSON，無 Markdown、無解釋。
-items[].name 用香港繁體中文；original 保留單據原文；nameEn 有可靠英文才填，否則 ""；ja 有日文名才填。
-每項：name, nameEn, original, ja, price, qty, totalQty(無則 null), unit(無則 ""), total。勿把稅／服務費／折扣算進項目。
-頂層：taxTotal(外加稅／服務費總和，內含則 0), taxNote, currency(ISO 三位，不明用 HKD), date(YYYY-MM-DD 或 null，勿用今天), receiptTotal(應付總額或 null)。
-格式：{"items":[{"name":"薄餅","nameEn":"Pizza","original":"Pizza","ja":"","price":120,"qty":1,"totalQty":null,"unit":"件","total":120}],"taxTotal":45,"taxNote":"消費税","currency":"JPY","date":"2026-03-14","receiptTotal":165}
+          const promptText = `你幫香港人讀旅行單據（日本、韓國或其他非中文）。合併所有圖片成一份清單。只輸出一個 JSON，無 Markdown、無解釋。
+
+name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這是硬性規則，唔可以違反：
+- 日文、韓文或其他非中文單據：name 一定要譯成繁體中文。name 禁止含平假名、片假名、韓文，亦禁止同 original 相同。
+- 就算冇標準譯名，都要寫香港人會用嘅繁體叫法。唔好留空，唔好把原文抄入 name。例如 ラーメン 必須寫成拉麵，비빔밥 必須寫成拌飯。
+- original：逐字保留單據原文，日文就全日文，韓文就全韓文。
+- nameEn：只有你肯定嘅英文先填，否則 ""。唔好把中文、日文或韓文放喺 nameEn。
+- ja：只有另一個日文寫法，而且同 original 唔同時先填，否則 ""。
+
+正確：{"name":"拉麵","nameEn":"","original":"ラーメン","ja":""}
+錯誤：{"name":"ラーメン","original":"ラーメン"}（name 仍然係日文，唔算翻譯）
+
+每項欄位：name, nameEn, original, ja, price, qty, totalQty（無則 null）, unit（無則 ""，用繁體，如件／杯／碗）, total。稅、服務費、折扣唔好當成項目。
+頂層：taxTotal（外加稅／服務費總和，已內含則 0）, taxNote, currency（ISO 三位，不明用 HKD）, date（YYYY-MM-DD 或 null，唔好用今天）, receiptTotal（應付總額或 null）。
+格式：{"items":[{"name":"拉麵","nameEn":"","original":"ラーメン","ja":"","price":980,"qty":1,"totalQty":null,"unit":"碗","total":980}],"taxTotal":78,"taxNote":"消費税","currency":"JPY","date":"2026-03-14","receiptTotal":1058}
 這裡有 ${files.length} 張單據。`;
 
           let parsedItems = [];
@@ -1864,10 +2156,13 @@ items[].name 用香港繁體中文；original 保留單據原文；nameEn 有可
           if (generation !== billGenerationRef.current || !shaped) return;
           setProgressText('正在整理識別結果...');
           parsedItems = shaped.items; parsedTax = shaped.taxTotal; parsedTaxNote = shaped.taxNote; parsedCurrency = shaped.currency?.toUpperCase() || 'HKD';
-          const formattedItems = parsedItems.map((item, idx) => ({
-            id: String(idx + 1).padStart(2, '0'), name: item.name || '項目', nameEn: typeof item.nameEn === 'string' ? item.nameEn.trim() : '', original: item.original || '', ja: item.ja || '',
-            price: toNum(item.price), qty: toNum(item.qty) || 1, totalQty: item.totalQty === null ? null : (toNum(item.totalQty) || toNum(item.qty) || null), unit: String(item.unit || '').trim(), total: toNum(item.total) || (toNum(item.price) * (toNum(item.qty) || 1)) || 0
-          }));
+          const formattedItems = parsedItems.map((item, idx) => {
+            const names = normalizeReceiptItemNames(item);
+            return {
+              id: String(idx + 1).padStart(2, '0'), name: names.name || '項目', nameEn: names.nameEn, original: names.original, ja: names.ja,
+              price: toNum(item.price), qty: toNum(item.qty) || 1, totalQty: item.totalQty === null ? null : (toNum(item.totalQty) || toNum(item.qty) || null), unit: String(item.unit || '').trim(), total: toNum(item.total) || (toNum(item.price) * (toNum(item.qty) || 1)) || 0
+            };
+          });
 
           setProgress(0);
           setProgressText('處理完成！');
@@ -2203,10 +2498,10 @@ items[].name 用香港繁體中文；original 保留單據原文；nameEn 有可
           const p = results.personTotals[person];
           txt += `👤 *${person}*\n`;
           p.items.forEach(i => {
-            const itemName = english ? (i.nameEn || i.name) : i.name;
+            const itemName = receiptPrimaryLabel(i.name, i.nameEn, i.original, english);
             txt += `*${i.id}* ${oneLineName(itemName)}\n`;
-            if (full && i.original && i.original !== i.name) txt += english ? `🌐 Original: ${oneLineName(i.original)}\n` : `🌐 原文：${oneLineName(i.original)}\n`;
-            if (full && i.ja && i.ja !== i.original) txt += english ? `🇯🇵 Japanese: ${oneLineName(i.ja)}\n` : `🇯🇵 日文：${oneLineName(i.ja)}\n`;
+            if (full && i.original && oneLineName(i.original) !== oneLineName(itemName)) txt += english ? `🌐 Original: ${oneLineName(i.original)}\n` : `🌐 原文：${oneLineName(i.original)}\n`;
+            if (full && i.ja && oneLineName(i.ja) !== oneLineName(i.original) && oneLineName(i.ja) !== oneLineName(itemName)) txt += english ? `🇯🇵 Japanese: ${oneLineName(i.ja)}\n` : `🇯🇵 日文：${oneLineName(i.ja)}\n`;
             const shownUnit = unitDisplay(i.unit || i.unitName || (english ? 'unit(s)' : '單位'), language, i.qty);
             const share = i.isActualUnit
               ? (english ? `(${i.qty} ${shownUnit}, actual quantity)` : `（${i.qty} ${shownUnit}，按實際單位）`)
@@ -2214,7 +2509,7 @@ items[].name 用香港繁體中文；original 保留單據原文；nameEn 有可
             txt += `💲 ${formatMoney(i.amount, curr)} ${share}\n\n`;
           });
           (p.adjustments || []).forEach(a => {
-            const adjustmentName = english ? (a.nameEn || a.name) : a.name;
+            const adjustmentName = receiptPrimaryLabel(a.name, a.nameEn, a.original, english);
             const reasonMap = { '墊支人承擔未認領數量': 'Unclaimed quantity covered by the payer', '已認領人士平均承擔未認領數量': 'Unclaimed quantity shared equally by claimants', '指定承擔未認領數量': 'Unclaimed quantity assigned to this person' };
             txt += `${oneLineName(adjustmentName)}\n${english ? 'Unclaimed quantity covered by this person' : '未認領數量由此人承擔'}\n`;
             txt += english
