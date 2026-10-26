@@ -305,7 +305,7 @@ html[lang="en"] #root .header-actions .guide-label { display: none; }
 #root [class~="!border-emerald-700"] { border-color: #047857 !important; }
 
 #root :is(.text-brand-700.bg-brand-50,.text-brand-700.bg-brand-100,.text-brand-900.bg-brand-50) { color: #257b59; }
-#root .app-header-row > div:last-child button:not(.guide-button) { color: #29835f; }
+#root .app-header-row > div:last-child button:not(.guide-button):not(.header-settings-button):not(.header-history-button):not(.header-clear-button):not(.header-language-button):not(.header-back-button) { color: #29835f; }
 
 /* v51 local preview: black regular-weight labels without text shadows.
    Preserve gradient stops, geometry, icons, focus rings and disabled styling. */
@@ -415,21 +415,25 @@ html[lang="en"] #root .header-actions .guide-label { display: none; }
    frame and focus. These rules sit last so they beat the slate remap when a
    control also carries a semantic color class. */
 #root .language-switch-control { background: #e4eaf3; border-color: #7d93b3; }
-#root .app-header-row .header-actions > button.header-language-button {
+#root .app-header-row > div.header-actions > button.header-language-button {
   background: #e8eef8; border-color: #6d86b0; color: #243e66;
 }
-#root .app-header-row .header-actions > button.guide-button {
+#root .app-header-row > div.header-actions > button.guide-button {
   background: #fff4d8; border-color: #c4922f; color: #7a4e08;
 }
-#root .app-header-row .header-actions > button.header-settings-button {
+#root .app-header-row > div.header-actions > button.header-settings-button {
   background: #e7f1fb; border-color: #3d6ea5; color: #1a4a82;
 }
-#root .app-header-row .header-actions > button.header-history-button {
+#root .app-header-row > div.header-actions > button.header-history-button {
   background: #f6ecfb; border-color: #8a5aa3; color: #5c2d78;
 }
-#root .app-header-row .header-actions > button.header-back-button {
+#root .app-header-row > div.header-actions > button.header-clear-button {
+  background: #fff1ed; border-color: #b86850; color: #943d2a;
+}
+#root .app-header-row > div.header-actions > button.header-back-button {
   background: #f4f1ec; border-color: #8a7f72; color: #3d3832;
 }
+#root .upload-dropzone { border-color: #3e8f64; }
 #root .settings-mark {
   box-sizing: border-box; width: 42px; height: 42px; padding: 8px; flex-shrink: 0;
   color: #1a4a82; background: #e7f1fb; border: 1.5px solid #5d86b8; border-radius: 12px;
@@ -448,14 +452,14 @@ html[lang="en"] #root .header-actions .guide-label { display: none; }
 #root .guide-flow > div:nth-child(3) > span { background: #fff1cf; border-color: #a97922; color: #704a08; }
 #root .guide-flow > div:nth-child(4) > span { background: #e6f1e9; border-color: #5f9873; color: #1f6b45; }
 
-#root .step-nav button:nth-child(1) { border-color: #7f9bbd; color: #35557a; }
-#root .step-nav button:nth-child(1) > span:first-child { border-color: #4d74a3; color: #2a4d78; background: #fff; }
-#root .step-nav button:nth-child(2) { border-color: #9a96c8; color: #4a4578; }
-#root .step-nav button:nth-child(2) > span:first-child { border-color: #6d68b0; color: #3c3578; background: #fff; }
-#root .step-nav button:nth-child(3) { border-color: #d2b07a; color: #7a5410; }
-#root .step-nav button:nth-child(3) > span:first-child { border-color: #c4922f; color: #7a4e08; background: #fff; }
-#root .step-nav button:nth-child(4) { border-color: #7eae90; color: #246846; }
-#root .step-nav button:nth-child(4) > span:first-child { border-color: #5f9873; color: #1f6b45; background: #fff; }
+#root .step-nav button:nth-child(1):not([class*="bg-brand-50"]) { border-color: #7f9bbd; color: #35557a; }
+#root .step-nav button:nth-child(1):not([class*="bg-brand-50"]) > span:first-child { border-color: #4d74a3; color: #2a4d78; background: #fff; }
+#root .step-nav button:nth-child(2):not([class*="bg-brand-50"]) { border-color: #9a96c8; color: #4a4578; }
+#root .step-nav button:nth-child(2):not([class*="bg-brand-50"]) > span:first-child { border-color: #6d68b0; color: #3c3578; background: #fff; }
+#root .step-nav button:nth-child(3):not([class*="bg-brand-50"]) { border-color: #d2b07a; color: #7a5410; }
+#root .step-nav button:nth-child(3):not([class*="bg-brand-50"]) > span:first-child { border-color: #c4922f; color: #7a4e08; background: #fff; }
+#root .step-nav button:nth-child(4):not([class*="bg-brand-50"]) { border-color: #7eae90; color: #246846; }
+#root .step-nav button:nth-child(4):not([class*="bg-brand-50"]) > span:first-child { border-color: #5f9873; color: #1f6b45; background: #fff; }
 #root .stepper-panel .flex.w-full.gap-2 > div.bg-slate-300 { background: #d9d3cb; }
 #root .stepper-panel .flex.w-full.gap-2 > div:nth-child(1):is(.bg-brand-400, .bg-brand-500) { background: #3e6fa3; }
 #root .stepper-panel .flex.w-full.gap-2 > div:nth-child(2):is(.bg-brand-400, .bg-brand-500) { background: #4a4588; }
