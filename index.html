@@ -50,7 +50,10 @@
       100% { transform: translateX(360%); }
     }
     .ocr-indeterminate { width: 36%; animation: ocrSlide 1.3s ease-in-out infinite; }
-    input, textarea { font-size: 16px !important; }
+    input, textarea, select { font-size: 16px !important; }
+    @media (max-width: 639px) {
+      input, textarea, select { font-size: 18px !important; }
+    }
 
     @keyframes flashTarget {
       0%, 100% { background-color: transparent; box-shadow: none; }
@@ -64,7 +67,7 @@
     ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
     ::-webkit-scrollbar-thumb:hover { background: #64748b; }
   </style>
-  <link rel="stylesheet" href="./theme.css?v=v56-short-prompt">
+  <link rel="stylesheet" href="./theme.css?v=v58-readable-mobile">
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
@@ -81,10 +84,10 @@
     );
     const LanguageSwitch = ({ value, onChange, compact = false }) => (
       <div className={`flex gap-3 ${compact ? 'w-full items-center justify-between' : 'flex-col items-start sm:flex-row sm:items-center sm:justify-between'}`}>
-        <span className="text-xs font-semibold text-slate-500">{bi('介面語言', 'App language')}</span>
+        <span className="text-base font-semibold text-slate-600">{bi('介面語言', 'App language')}</span>
         <div role="group" aria-label={tr("Language / 語言")} className="language-switch-control inline-flex shrink-0 rounded-lg border border-slate-300 bg-slate-100 p-0.5">
           {[['zh-HK', tr("繁體中文")], ['en', 'English']].map(([code, label]) => (
-            <button key={code} type="button" data-ui-language={code} aria-pressed={value === code} onClick={() => onChange(code)} className={`min-h-[32px] rounded-md px-3 py-1 text-xs font-semibold transition-colors ${value === code ? 'bg-white text-brand-900 shadow-sm' : 'text-slate-600 hover:bg-white/60'}`}>{tr(label)}</button>
+            <button key={code} type="button" data-ui-language={code} aria-pressed={value === code} onClick={() => onChange(code)} className={`min-h-[40px] rounded-md px-3 py-1.5 text-base font-semibold transition-colors ${value === code ? 'bg-white text-brand-900 shadow-sm' : 'text-slate-700 hover:bg-white/60'}`}>{tr(label)}</button>
           ))}
         </div>
       </div>
@@ -2488,7 +2491,7 @@ items[].name 用香港繁體中文；original 保留單據原文；nameEn 有可
 
                     <div className="flex flex-col gap-2">
                       <button type="button" data-testid="redaction-recognize-now" onClick={startOcrWithRedactedImages} disabled={isPreparingRedacted} className="px-3 py-3 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-sm shadow-sm disabled:opacity-60">{isPreparingRedacted ? bi('正在準備圖片…', 'Preparing images…') : bi('直接識別', 'Recognize now')}</button>
-                      <p className="text-xs text-slate-600 leading-relaxed">{bi('可以直接識別，遮蓋係可選。已畫的黑框仍會遮走；未畫的位置會一併送去識別。手動輸入不會出現這個畫面。', 'You can recognize now. Redaction is optional. Boxes you already drew stay covered; everything else is sent. Manual entry never shows this screen.')}</p>
+                      <p className="text-base text-slate-700 leading-relaxed">{bi('可以直接識別，遮蓋係可選。已畫的黑框仍會遮走；未畫的位置會一併送去識別。手動輸入不會出現這個畫面。', 'You can recognize now. Redaction is optional. Boxes you already drew stay covered; everything else is sent. Manual entry never shows this screen.')}</p>
                       <div className="grid grid-cols-2 gap-2">
                         <button type="button" onClick={cancelReceiptRedaction} disabled={isPreparingRedacted} className="px-3 py-3 rounded-xl border border-slate-400 bg-white text-slate-700 font-bold text-sm disabled:opacity-50">{tr("取消此次掃描")}</button>
                         <button type="button" onClick={() => redactionIndex < pendingRedactionImages.length - 1 ? setRedactionIndex(index => index + 1) : startOcrWithRedactedImages()} disabled={isPreparingRedacted} className="px-3 py-3 rounded-xl border border-brand-600 bg-white text-brand-800 font-bold text-sm disabled:opacity-60">{isPreparingRedacted ? bi('正在準備圖片…', 'Preparing images…') : redactionIndex < pendingRedactionImages.length - 1 ? tr("下一張圖片") : tr("遮蓋完成，開始識別")}</button>
@@ -2506,32 +2509,68 @@ items[].name 用香港繁體中文；original 保留單據原文；nameEn 有可
                   <span className="w-8 h-8 rounded-full bg-brand-100 border border-brand-500 text-brand-700 flex items-center justify-center font-bold">1</span>
                   <h2 className="text-2xl font-bold text-slate-800 tracking-tight">{tr("上載並分析單據")}</h2>
                 </div>
-                <p className="text-sm text-slate-600 leading-relaxed -mt-3">{bi('影張出差或外語單據，讀出項目同價錢。', 'Photograph a travel receipt to read the items and prices.')}</p>
+                <p className="text-base text-slate-700 leading-relaxed">{bi('影張出差或外語單據，讀出項目同價錢。', 'Photograph a travel receipt to read the items and prices.')}</p>
 
-                {!isOnline && <p className="text-sm text-amber-900 bg-amber-50 border border-amber-400 rounded-xl p-3">{bi('而家冇網絡，暫時讀唔到單據。連線後再影相，或者先手動輸入。', 'No connection, so the receipt cannot be read yet. Take a photo once you are online, or enter items manually for now.')}</p>}
+                <Card className="api-settings-card bg-gradient-to-br from-brand-50 to-white border-brand-500">
+                  <button
+                    type="button"
+                    data-testid="open-free-key-settings"
+                    onClick={() => setShowSettings(true)}
+                    className={`w-full flex items-center gap-4 p-4 rounded-xl border transition-all active:scale-[0.99] text-left shadow-sm ${
+                      apiKey.trim()
+                        ? 'bg-white border-brand-500 hover:border-brand-600 text-slate-700'
+                        : 'bg-red-50 border-red-500 hover:bg-red-100 text-red-800'
+                    }`}
+                  >
+                    <span className={`w-12 h-12 shrink-0 rounded-full flex items-center justify-center text-white shadow-sm ${apiKey.trim() ? 'bg-brand-500' : 'bg-red-500'}`}>
+                      <Icon path={icons.key} size={24}/>
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <span className="block font-bold text-base leading-snug mb-1">
+                        {apiKey.trim()
+                          ? (!modelUsesFreeTier(apiModel, allowPaidModels)
+                            ? bi('✅ 進階模型已開啟', '✅ Advanced model is on')
+                            : resolveBillModel(apiModel, allowPaidModels) === BACKUP_FREE_MODEL
+                              ? bi('✅ 免費 Nemotron 已設定', '✅ Free Nemotron is set')
+                              : bi('✅ 免費 Gemma 已設定', '✅ Free Gemma is set'))
+                          : bi('⚠️ 尚未設定免費鎖匙', '⚠️ Free key is not set yet')}
+                      </span>
+                      <span className={`block text-base font-medium leading-snug ${apiKey.trim() ? 'text-slate-600' : 'text-red-700'}`}>
+                        {apiKey.trim()
+                          ? (!modelUsesFreeTier(apiModel, allowPaidModels)
+                            ? bi('可能產生費用。點此返回設定。', 'This may cost money. Tap to open settings.')
+                            : bi('預設唔使充值。點此可改模型或鎖匙。', 'The default needs no top-up. Tap to change the model or key.'))
+                          : bi('點擊此處設定免費鎖匙，先可以讀外語單據。', 'Tap here to set a free key before a foreign receipt can be read.')}
+                      </span>
+                    </div>
+                    <Icon path={icons.settings} size={22} className="shrink-0 text-slate-500"/>
+                  </button>
+                </Card>
 
-                <div className={`upload-dropzone w-full rounded-2xl border border-dashed p-6 flex flex-col items-center justify-center text-center transition-all ${isAnalyzing ? 'border-brand-500 bg-brand-50 shadow-inner' : 'border-slate-500 bg-white'}`}>
+                {!isOnline && <p className="text-base text-amber-900 bg-amber-50 border border-amber-400 rounded-xl p-3">{bi('而家冇網絡，暫時讀唔到單據。連線後再影相，或者先手動輸入。', 'No connection, so the receipt cannot be read yet. Take a photo once you are online, or enter items manually for now.')}</p>}
+
+                <div className={`upload-dropzone w-full rounded-2xl border border-dashed p-10 flex flex-col items-center justify-center text-center transition-all ${isAnalyzing ? 'border-brand-500 bg-brand-50 shadow-inner' : 'border-slate-500 bg-white hover:border-brand-500 hover:bg-slate-50 shadow-sm'}`}>
                   <input type="file" accept="image/jpeg,image/png,image/webp" multiple className="hidden" ref={fileInputRef} onChange={handleFileUpload} />
                   <input type="file" accept="image/jpeg,image/png,image/webp" capture="environment" className="hidden" ref={cameraInputRef} onChange={handleFileUpload} />
 
                   {isAnalyzing ? (
                     <div className="w-full max-w-xs mx-auto" role="status" aria-live="polite">
-                      <div className="flex items-start gap-2 text-sm font-bold text-brand-800 mb-3 text-left">
-                        <Icon path={icons.loader} size={18} className="animate-spin shrink-0 mt-0.5"/>
+                      <div className="flex items-start gap-2 text-base font-bold text-brand-800 mb-3 text-left">
+                        <Icon path={icons.loader} size={22} className="animate-spin shrink-0 mt-0.5"/>
                         <span data-testid="ocr-status">{tr(progressText)}</span>
                       </div>
-                      <div className="w-full bg-brand-100 border border-brand-300 rounded-full h-2 overflow-hidden" aria-hidden="true">
-                        <div className="ocr-indeterminate bg-brand-500 h-2 rounded-full"></div>
+                      <div className="w-full bg-brand-100 border border-brand-300 rounded-full h-3 overflow-hidden shadow-inner" aria-hidden="true">
+                        <div className="ocr-indeterminate bg-brand-500 h-3 rounded-full"></div>
                       </div>
-                      <p className="text-xs text-slate-600 mt-3 leading-relaxed">{bi('請稍候。完成後會帶你去核對項目。', 'Please wait. You can check the items when it finishes.')}</p>
+                      <p className="text-base text-slate-700 mt-4 leading-relaxed">{bi('請稍候。完成後會帶你去核對項目。', 'Please wait. You can check the items when it finishes.')}</p>
                     </div>
                   ) : uploadError ? (
                     <div className="flex flex-col items-center max-w-md mx-auto">
-                      <div className="w-16 h-16 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center mb-3 shadow-sm border border-amber-300"><Icon path={icons.alert} size={28} /></div>
+                      <div className="w-20 h-20 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center mb-4 shadow-sm border border-amber-300"><Icon path={icons.alert} size={36} /></div>
                       <h3 className="text-lg font-bold text-slate-800">{tr("今次未能完整讀取單據")}</h3>
-                      <p className="text-sm font-medium text-slate-600 mt-2">{tr("AI 偶爾第一次未能成功辨識，未必係張相有問題；可以用同一張圖片即時再試一次。")}</p>
-                      {uploadError.sub && <p className="text-sm text-slate-700 mt-2 break-words">{tr(uploadError.sub)}</p>}
-                      {uploadError.detail && <p className="text-xs text-slate-500 mt-1 break-words">{uploadError.detail}</p>}
+                      <p className="text-base font-medium text-slate-700 mt-2">{tr("AI 偶爾第一次未能成功辨識，未必係張相有問題；可以用同一張圖片即時再試一次。")}</p>
+                      {uploadError.sub && <p className="text-base text-slate-700 mt-2 break-words">{tr(uploadError.sub)}</p>}
+                      {uploadError.detail && <p className="text-base text-slate-600 mt-1 break-words">{uploadError.detail}</p>}
                       {lastImageData.length ? (
                         <Button variant="primary" className="mt-4 w-full sm:w-auto" onClick={retryLastUpload}>{tr("↻ 用剛才圖片再試一次")}</Button>
                       ) : (
@@ -2541,26 +2580,22 @@ items[].name 用香港繁體中文；original 保留單據原文；nameEn 有可
                     </div>
                   ) : (
                     <div className="flex flex-col items-center w-full">
-                      <h3 className="text-base font-bold text-slate-800">{tr("選擇單據圖片")}</h3>
-                      <p className="text-sm font-medium text-slate-500 mt-2">{tr("可以直接影相，或者從手機選擇圖片（最多 5 張）")}</p>
-                      <div data-testid="receipt-source-actions" className="flex flex-col sm:flex-row items-stretch gap-3 mt-4 w-full">
+                      <div className="w-20 h-20 bg-slate-100 text-slate-500 rounded-full flex items-center justify-center mb-4 shadow-sm border border-slate-400"><Icon path={icons.fileImage} size={36} /></div>
+                      <h3 className="text-lg font-bold text-slate-800">{tr("選擇單據圖片")}</h3>
+                      <p className="text-base font-medium text-slate-600 mt-2">{tr("可以直接影相，或者從手機選擇圖片（最多 5 張）")}</p>
+                      <div data-testid="receipt-source-actions" className="flex flex-col sm:flex-row items-stretch gap-3 mt-5 w-full max-w-sm">
                         <Button data-testid="receipt-camera" variant="primary" className="flex-1 !py-3" onClick={triggerCamera}><Icon path={'<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3Z"/><circle cx="12" cy="13" r="4"/>'} size={20}/>{tr("📷 直接影相").replace("📷", "").trim()}</Button>
                         <ChoiceDivider inline />
                         <Button data-testid="receipt-upload" variant="secondary" className="flex-1 !py-3" onClick={triggerUpload}><Icon path={icons.fileImage} size={18}/>{tr(" 選擇圖片")}</Button>
                       </div>
-                      {!apiKey.trim() ? (
-                        <p className="text-xs text-slate-600 mt-4 leading-relaxed max-w-sm">{bi('讀單據要用你自己的免費 OpenRouter 鎖匙。', 'Reading a receipt needs your own free OpenRouter key.')} <button type="button" data-testid="open-free-key-settings" onClick={() => setShowSettings(true)} className="font-bold text-brand-800 underline">{bi('設定免費鎖匙', 'Set a free key')}</button></p>
-                      ) : !modelUsesFreeTier(apiModel, allowPaidModels) ? (
-                        <p className="text-xs text-slate-500 mt-4 leading-relaxed max-w-sm">{bi('已開啟進階模型，可能產生費用。', 'Advanced models are on and may cost money.')}</p>
-                      ) : null}
                     </div>
                   )}
                 </div>
 
-                <div className="text-center">
+                <div data-testid="entry-method-choice" className="text-center py-2">
                   <ChoiceDivider />
-                  <Button data-testid="start-manual" variant="secondary" className="w-full mt-4 border-slate-500" onClick={startManualEntry}>{bi('手動輸入項目', 'Enter items manually')}</Button>
-                  <p className="text-xs text-slate-500 mt-2 leading-relaxed">{bi('識別失敗，或者只想改幾項，可以喺度手動加。', 'Use this when recognition fails, or when you only need to edit a few items.')}</p>
+                  <Button data-testid="start-manual" variant="secondary" className="w-full mt-4 border-slate-500" onClick={startManualEntry}>{bi('手動輸入項目', 'Enter items manually')}<Icon path={icons.arrowRight} size={18}/></Button>
+                  <p className="text-base text-slate-600 mt-2 leading-relaxed">{bi('識別失敗，或者只想改幾項，可以喺度手動加。', 'Use this when recognition fails, or when you only need to edit a few items.')}</p>
                 </div>
               </div>
             )}
@@ -2572,7 +2607,7 @@ items[].name 用香港繁體中文；original 保留單據原文；nameEn 有可
                   <span className="w-8 h-8 rounded-full bg-brand-100 border border-brand-500 text-brand-700 flex items-center justify-center font-bold">2</span>
                   <h2 className="text-2xl font-bold text-slate-800 tracking-tight">{items.length === 0 ? bi('新增項目', 'Add items') : tr("核對項目與朋友認領")}</h2>
                 </div>
-                {items.length === 0 && <p className="text-sm text-slate-600 leading-relaxed -mt-3">{bi('影相讀單之後，喺度核對同改。識別唔到先手動加。有項目之後先會出現認領連結。', 'After a photo scan, check and edit the items here. Add them manually if recognition fails. The claim link appears once an item exists.')}</p>}
+                {items.length === 0 && <p className="text-base text-slate-700 leading-relaxed">{bi('影相讀單之後，喺度核對同改。識別唔到先手動加。有項目之後先會出現認領連結。', 'After a photo scan, check and edit the items here. Add them manually if recognition fails. The claim link appears once an item exists.')}</p>}
 
                 <div className="space-y-4">
                   <div className="flex justify-between items-end mb-1">
@@ -2583,7 +2618,7 @@ items[].name 用香港繁體中文；original 保留單據原文；nameEn 有可
                   {items.length === 0 && (
                     <Card data-testid="manual-empty-state" className="text-center !py-8">
                       <h3 className="text-lg font-bold text-slate-800">{bi('未有項目', 'No items yet')}</h3>
-                      <p className="text-sm text-slate-600 mt-2 leading-relaxed">{bi('返回影相，讀日韓等外語單據。手動輸入留俾改錯或識別失敗。', 'Go back and photograph the receipt so Japanese, Korean, and other foreign bills can be read. Manual entry is for corrections or a failed scan.')}</p>
+                      <p className="text-base text-slate-700 mt-2 leading-relaxed">{bi('返回影相，讀日韓等外語單據。手動輸入留俾改錯或識別失敗。', 'Go back and photograph the receipt so Japanese, Korean, and other foreign bills can be read. Manual entry is for corrections or a failed scan.')}</p>
                       <Button data-testid="open-ai-scan" variant="primary" className="w-full mt-4" onClick={openAiScan}>{bi('返回影相讀單', 'Back to photo scan')}</Button>
                       <Button data-testid="add-item-primary" variant="secondary" className="w-full mt-3 border-slate-500" onClick={addItemAndFocus}><Icon path={icons.plus} size={18}/>{bi('手動新增項目', 'Add an item manually')}</Button>
                     </Card>
@@ -2596,25 +2631,25 @@ items[].name 用香港繁體中文；original 保留單據原文；nameEn 有可
                       </button>
                       <div className="grid gap-4">
                         <div>
-                          <label className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5 block">{tr("編號 ")}{item.id}{tr(" - 名稱")}</label>
+                          <label className="text-base font-bold text-slate-700 uppercase tracking-wider mb-1.5 block">{tr("編號 ")}{item.id}{tr(" - 名稱")}</label>
                           <input type="text" ref={el => fieldRefs.current[`item-name-${idx}`] = el} value={displayItemName(item)} onChange={(e) => updateItem(idx, uiLang === 'en' && (item.nameEn || item.nameEnEdited) ? 'nameEn' : 'name', e.target.value)} onKeyDown={(e) => handleItemKeyDown(e, 'name', idx)} className="w-full text-base font-semibold text-slate-800 border-b border-slate-500 focus:border-brand-500 bg-transparent outline-none pb-1" placeholder={tr("輸入項目名稱...")} />
                           {(item.original || item.ja) && <div className="mt-1 text-xs font-normal text-slate-500 italic truncate" title={item.original || item.ja}>{tr("原文：")}{item.original || item.ja}</div>}
                         </div>
                         <div className="flex gap-4">
                           <div className="flex-1">
-                            <label className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5 block">{tr("單價")}</label>
+                            <label className="text-base font-bold text-slate-700 uppercase tracking-wider mb-1.5 block">{tr("單價")}</label>
                             <div className="flex items-center border-b border-slate-500 focus-within:border-brand-500 transition-colors">
                               <span className="text-slate-600 font-bold mr-1.5">{getCurrencySymbol(currency)}</span>
                               <input type="number" ref={el => fieldRefs.current[`item-price-${idx}`] = el} value={item.price} onChange={(e) => updateItem(idx, 'price', e.target.value)} onKeyDown={(e) => handleItemKeyDown(e, 'price', idx)} className="w-full text-base font-semibold text-slate-800 bg-transparent outline-none pb-1 border-none shadow-none focus:ring-0" placeholder="0" />
                             </div>
                           </div>
                           <div className="w-24">
-                            <label className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5 block">{tr("單據總量")}</label>
+                            <label className="text-base font-bold text-slate-700 uppercase tracking-wider mb-1.5 block">{tr("單據總量")}</label>
                             <input type="number" ref={el => fieldRefs.current[`item-qty-${idx}`] = el} value={item.totalQty ?? ''} onChange={(e) => updateItem(idx, 'totalQty', e.target.value === '' ? null : e.target.value)} onKeyDown={(e) => handleItemKeyDown(e, 'qty', idx)} className="w-full text-base font-semibold text-slate-800 border-b border-slate-500 focus:border-brand-500 bg-transparent outline-none pb-1 text-center" placeholder={tr("未知可留空")} />
                           </div>
                         </div>
                         <div>
-                          <label className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5 block">{tr("單位（留空＝按份數比例）")}</label>
+                          <label className="text-base font-bold text-slate-700 uppercase tracking-wider mb-1.5 block">{tr("單位（留空＝按份數比例）")}</label>
                           <input type="text" value={item.unit || ''} onChange={(e) => updateItem(idx, 'unit', e.target.value)} className="w-full text-base font-semibold text-slate-800 border-b border-slate-500 focus:border-brand-500 bg-transparent outline-none pb-1" placeholder={tr("例如：件、杯、碟、罐（可留空）")} />
                         </div>
                       </div>
@@ -2623,7 +2658,7 @@ items[].name 用香港繁體中文；original 保留單據原文；nameEn 有可
                   {items.length > 0 && (
                     <React.Fragment>
                       <Button variant="outline" onClick={addItem} className="w-full border-dashed border-brand-500 bg-white/50 hover:bg-brand-50 text-brand-700"><Icon path={icons.plus} size={18}/>{tr(" 新增一筆項目")}</Button>
-                      <button type="button" data-testid="scan-another" onClick={openAiScan} className="w-full text-sm font-semibold text-slate-600 underline py-1">{bi('再影一張單據', 'Scan another receipt')}</button>
+                      <button type="button" data-testid="scan-another" onClick={openAiScan} className="w-full text-base font-semibold text-slate-700 underline py-2">{bi('再影一張單據', 'Scan another receipt')}</button>
                     </React.Fragment>
                   )}
                 </div>
@@ -2646,7 +2681,7 @@ items[].name 用香港繁體中文；original 保留單據原文；nameEn 有可
                   <div>
                     <Label className="flex items-center justify-between mb-3"><span>{tr("1. 產生手機認領連結發送給朋友")}</span></Label>
                     <p className="text-xs text-slate-500 mb-3">{tr("朋友在手機瀏覽器填寫後，可自行透過 WhatsApp 分享回覆；中文名稱及有提供的單據原文會包含在連結內，方便核對。")}</p>
-                    <p className="text-xs text-slate-600 mb-3 leading-relaxed">{bi('朋友唔需要 API 鎖匙，亦唔好把你的鎖匙發俾佢哋。', 'Friends do not need an API key. Do not send them yours.')}</p>
+                    <p className="text-base text-slate-700 mb-3 leading-relaxed">{bi('朋友唔需要 API 鎖匙，亦唔好把你的鎖匙發俾佢哋。', 'Friends do not need an API key. Do not send them yours.')}</p>
                     <p className="text-xs text-slate-600 mb-2">{bi('以下方式擇一即可，毋須兩個都按。', 'Choose either option below; you do not need to tap both.')}</p>
                     <div data-testid="claim-link-actions" className="flex flex-col gap-3">
                       <Button variant="secondary" onClick={generateFriendClaimLink} className="!w-full text-sm bg-white hover:bg-slate-50 border-slate-500">
@@ -3031,13 +3066,13 @@ items[].name 用香港繁體中文；original 保留單據原文；nameEn 有可
 
             {showSettings && (
                <div className="space-y-6 animate-in fade-in duration-300">
-                  <h2 className="text-xl font-bold flex items-center gap-2 text-slate-800"><Icon path={icons.settings} className="text-slate-600"/>{tr(" 系統設定")}</h2>
+                  <h2 className="text-2xl font-bold flex items-center gap-2 text-slate-800"><Icon path={icons.settings} className="text-slate-600"/>{tr(" 系統設定")}</h2>
                   <Card><LanguageSwitch value={uiLang} onChange={changeUiLanguage} /></Card>
                   <Card>
                     <Label className="text-base mb-3">{tr("API 服務供應商")}</Label>
                     <div className="mb-6 rounded-xl border border-brand-500 bg-brand-50 p-4">
                       <div className="font-bold text-base text-brand-900">OpenRouter</div>
-                      <p className="text-xs text-slate-600 font-medium mt-1">{bi('用來讀外語單據。預設免費。鎖匙只留在這部機。', 'Used to read foreign receipts. Free by default. The key stays on this device.')}</p>
+                      <p className="text-base text-slate-700 font-medium mt-1 leading-relaxed">{bi('用來讀外語單據。預設免費。鎖匙只留在這部機。', 'Used to read foreign receipts. Free by default. The key stays on this device.')}</p>
                     </div>
 
                     <div className="border-t border-slate-400 pt-6 space-y-5">
@@ -3050,7 +3085,7 @@ items[].name 用香港繁體中文；original 保留單據原文；nameEn 有可
                             const next = resolveBillModel(event.target.value, allowPaidModels);
                             setApiModel(next);
                           }}
-                          className="w-full rounded-xl p-3.5 text-sm font-semibold text-slate-800 bg-white"
+                          className="w-full rounded-xl p-3.5 text-base font-semibold text-slate-800 bg-white"
                         >
                           <optgroup label={bi('免費模型', 'Free models')}>
                             {FREE_MODELS.map(([id, zh, en]) => <option key={id} value={id}>{bi(zh, en)}</option>)}
@@ -3061,7 +3096,7 @@ items[].name 用香港繁體中文；original 保留單據原文；nameEn 有可
                             </optgroup>
                           )}
                         </select>
-                        <p className="text-xs text-slate-600 mt-2 leading-relaxed">{!modelUsesFreeTier(apiModel, allowPaidModels)
+                        <p className="text-base text-slate-700 mt-2 leading-relaxed">{!modelUsesFreeTier(apiModel, allowPaidModels)
                           ? bi('你已揀進階模型，可能產生費用。改回免費模型就唔使充值。', 'You selected an advanced model, which may cost money. Switch back to a free model and you do not need to top up.')
                           : resolveBillModel(apiModel, allowPaidModels) === BACKUP_FREE_MODEL
                             ? bi('而家用免費 Nemotron。讀唔到會再試同一模型。', 'Free Nemotron is selected. A failed read retries the same model.')
@@ -3082,8 +3117,8 @@ items[].name 用香港繁體中文；original 保留單據原文；nameEn 有可
                           className="w-5 h-5 mt-0.5 text-brand-600 focus:ring-brand-500 rounded"
                         />
                         <div>
-                          <div className="font-bold text-slate-800 text-sm">{bi('進階／可能產生費用', 'Advanced / may cost money')}</div>
-                          <p className="text-xs text-slate-700 mt-1 leading-relaxed">{bi('預設關閉。開啟後先可以揀較快的付費模型，可能會用到你 OpenRouter 帳戶的付費額度。保持關閉就只會用免費模型，唔使充值。', 'Off by default. Turn this on before you can choose a faster paid model. That may use paid credit on your OpenRouter account. Leave it off and only free models are used, with no top-up.')}</p>
+                          <div className="font-bold text-slate-800 text-base">{bi('進階／可能產生費用', 'Advanced / may cost money')}</div>
+                          <p className="text-base text-slate-700 mt-1 leading-relaxed">{bi('預設關閉。開啟後先可以揀較快的付費模型，可能會用到你 OpenRouter 帳戶的付費額度。保持關閉就只會用免費模型，唔使充值。', 'Off by default. Turn this on before you can choose a faster paid model. That may use paid credit on your OpenRouter account. Leave it off and only free models are used, with no top-up.')}</p>
                         </div>
                       </label>
 
@@ -3094,8 +3129,8 @@ items[].name 用香港繁體中文；original 保留單據原文；nameEn 有可
                           <div className="bg-slate-50 border border-slate-400 rounded-xl p-4 mt-2">
                             <div className="font-mono text-sm text-slate-700 bg-white p-2.5 rounded-lg border border-slate-500 mb-3 break-all font-semibold">{maskKey(apiKey)}</div>
                             <div className="grid grid-cols-2 gap-2">
-                              <Button variant="secondary" className="min-w-0 !px-2 !py-2 !text-sm border-slate-500" onClick={() => { editKeyRef.current = apiKey; setApiKey(''); setIsEditingKey(true); }}><Icon path={icons.edit} size={14}/>{tr(" 更換")}</Button>
-                              <Button variant="secondary" className="min-w-0 !px-2 !py-2 !text-sm text-blue-700 border-slate-500" onClick={testKey}>{tr("🧪 測試連線")}</Button>
+                              <Button variant="secondary" className="min-w-0 !px-2 !py-2 border-slate-500" onClick={() => { editKeyRef.current = apiKey; setApiKey(''); setIsEditingKey(true); }}><Icon path={icons.edit} size={16}/>{tr(" 更換")}</Button>
+                              <Button variant="secondary" className="min-w-0 !px-2 !py-2 text-blue-700 border-slate-500" onClick={testKey}>{tr("🧪 測試連線")}</Button>
                               <Button variant="secondary" className="col-span-2 !py-2 !px-3 text-red-700 border-red-500 hover:bg-red-50" onClick={forgetApiKey}><Icon path={icons.trash} size={16}/>{bi('移除金鑰', 'Remove key')}</Button>
                             </div>
                             {keyTestResult && <div className={`text-sm font-bold mt-3 px-3 py-2 rounded-lg border ${keyTestResult.ok ? 'bg-brand-50 text-brand-800 border-brand-500' : 'bg-red-50 text-red-800 border-red-500'}`}>{tr(keyTestResult.msg)}</div>}
@@ -3106,7 +3141,7 @@ items[].name 用香港繁體中文；original 保留單據原文；nameEn 有可
                               <input
                                 type={showKey ? 'text' : 'password'} value={apiKey} onChange={(e) => setApiKey(e.target.value)}
                                 placeholder={tr("在此貼上您的 API 金鑰")}
-                                className="w-full rounded-xl p-3.5 pr-12 font-mono text-sm focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 outline-none transition-all"
+                                className="w-full rounded-xl p-3.5 pr-12 font-mono text-base focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 outline-none transition-all"
                               />
                               <button onMouseDown={() => setShowKey(true)} onMouseUp={() => setShowKey(false)} onTouchStart={() => setShowKey(true)} onTouchEnd={() => setShowKey(false)} className="absolute right-3 top-3.5 text-slate-500 hover:text-slate-800"><Icon path={icons.eye} size={20}/></button>
                             </div>
@@ -3136,8 +3171,8 @@ items[].name 用香港繁體中文；original 保留單據原文；nameEn 有可
                           }
                         }} className="w-5 h-5 mt-0.5 text-brand-600 focus:ring-brand-500 rounded" />
                         <div>
-                          <div className="font-bold text-slate-800 text-sm">{tr("將金鑰永久儲存於此瀏覽器（建議保持勾選）")}</div>
-                          <div className="text-xs text-slate-600 mt-1 font-medium">{tr("按「儲存並驗證」會永久保存在本機端，唔會上傳至任何伺服器。取消勾選只適合公用電腦。")}</div>
+                          <div className="font-bold text-slate-800 text-base">{tr("將金鑰永久儲存於此瀏覽器（建議保持勾選）")}</div>
+                          <div className="text-base text-slate-700 mt-1 font-medium leading-relaxed">{tr("按「儲存並驗證」會永久保存在本機端，唔會上傳至任何伺服器。取消勾選只適合公用電腦。")}</div>
                         </div>
                       </label>
                     </div>
