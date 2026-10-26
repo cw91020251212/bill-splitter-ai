@@ -434,11 +434,28 @@
     '草稿已自動保存於本機。切換去其他程式後請回到同一瀏覽器、同一網址繼續；清除網站資料會刪除草稿。': 'Draft saved on this browser/device. After switching apps, return to the same browser and URL to continue. Clearing site data will delete the draft.'
   });
   const KEY = 'billSplitterLanguage';
+  const MOBILE_ZH_FLAG = 'billSplitterMobileZhApplied';
+  const phoneWidth = () => {
+    try { return window.matchMedia('(max-width: 639px)').matches; }
+    catch (_) { return false; }
+  };
   let language = 'zh-HK';
   try {
     const query = new URLSearchParams(location.search).get('lang');
     const saved = localStorage.getItem(KEY);
     language = query === 'en' || query === 'zh-HK' ? query : saved === 'en' ? 'en' : 'zh-HK';
+    // 手機同電腦唔共用呢部機的語言紀錄。手機第一次打開時對齊繁體中文；
+    // 之後喺呢部手機自己揀英文，就會留住，唔會再改返。
+    if (phoneWidth() && localStorage.getItem(MOBILE_ZH_FLAG) !== '1') {
+      language = 'zh-HK';
+      localStorage.setItem(KEY, language);
+      localStorage.setItem(MOBILE_ZH_FLAG, '1');
+      if (query && query !== language) {
+        const url = new URL(location.href);
+        url.searchParams.set('lang', language);
+        history.replaceState(null, '', url);
+      }
+    }
   } catch (_) {}
   const escapeRegExp = text => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const patterns = Object.entries(dictionary).filter(([key]) => /\{\d+\}/.test(key)).map(([key, value]) => {
@@ -472,7 +489,10 @@
     get language() { return language; }, t, format,
     setLanguage(value) {
       language = value === 'en' ? 'en' : 'zh-HK';
-      try { localStorage.setItem(KEY, language); } catch (_) {}
+      try {
+        localStorage.setItem(KEY, language);
+        localStorage.setItem(MOBILE_ZH_FLAG, '1');
+      } catch (_) {}
       try { const url = new URL(location.href); url.searchParams.set('lang', language); history.replaceState(null, '', url); } catch (_) {}
       apply();
     }

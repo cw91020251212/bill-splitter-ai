@@ -346,10 +346,21 @@
       };
       const queryLanguage = new URLSearchParams(window.location.search).get('lang');
       let savedLanguage = '';
+      let mobileZhApplied = '';
       try { savedLanguage = localStorage.getItem('billSplitterLanguage') || ''; } catch (_) {}
+      try { mobileZhApplied = localStorage.getItem('billSplitterMobileZhApplied') || ''; } catch (_) {}
       let language = queryLanguage === 'en' || queryLanguage === 'zh-HK'
         ? queryLanguage
         : (savedLanguage === 'en' ? 'en' : 'zh-HK');
+      try {
+        const narrow = window.matchMedia('(max-width: 639px)').matches;
+        const explicit = queryLanguage === 'en' || queryLanguage === 'zh-HK';
+        if (narrow && !explicit && mobileZhApplied !== '1' && language !== 'zh-HK') {
+          language = 'zh-HK';
+          localStorage.setItem('billSplitterLanguage', language);
+          localStorage.setItem('billSplitterMobileZhApplied', '1');
+        }
+      } catch (_) {}
 
       function decodeBase64Url(value) {
         const base64 = value.replace(/-/g, '+').replace(/_/g, '/');
@@ -587,7 +598,10 @@
       itemList.addEventListener('change', updatePreview);
       languageButton.addEventListener('click', () => {
         const nextLanguage = language === 'en' ? 'zh-HK' : 'en';
-        try { localStorage.setItem('billSplitterLanguage', nextLanguage); } catch (_) {}
+        try {
+          localStorage.setItem('billSplitterLanguage', nextLanguage);
+          localStorage.setItem('billSplitterMobileZhApplied', '1');
+        } catch (_) {}
         try { const url = new URL(location.href); url.searchParams.set('lang', nextLanguage); history.replaceState(null, '', url); } catch (_) {}
         applyLanguage(nextLanguage);
       });
