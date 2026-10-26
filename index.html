@@ -175,6 +175,9 @@
     const QWEN_FREE_MODEL = 'qwen/qwen2.5-vl-72b-instruct:free';
     const BAIDU_FREE_MODEL = 'baidu/qianfan-ocr-fast:free';
     const OCR_ATTEMPT_MS = 45000;
+    // Same free model only: 1 try + 2 retries. Not a model cascade.
+    const FREE_OCR_MAX_ATTEMPTS = 3;
+    const OCR_RETRY_BACKOFF_MS = [1200, 2500];
     const FREE_MODELS = [
       [QWEN_FREE_MODEL, 'Qwen2.5 VL 72B（免費，預設）', 'Qwen2.5 VL 72B (free, default)'],
       [BAIDU_FREE_MODEL, '百度 OCR Fast（免費，專做 OCR）', 'Baidu OCR Fast (free, built for OCR)']
@@ -205,6 +208,36 @@
       if (code >= 500) return `OpenRouter 暫時未能處理（${code}）。請稍後再試，或改用手動輸入。`;
       return `識別未完成（HTTP ${code}）。可以再試，或改用手動輸入。`;
     };
+
+    // Retry the same free model on blips. 401 and other client/billing errors fail fast.
+    const isTransientOcrFailure = (error) => {
+      if (!error || error.name === 'AbortError') return false;
+      const status = Number(error.status) || 0;
+      if (status === 401) return false;
+      if (status === 408 || status === 429 || (status >= 500 && status <= 599)) return true;
+      if (status) return false;
+      return error.transient === true;
+    };
+
+    const waitForOcrBackoff = (ms, signal) => new Promise((resolve, reject) => {
+      if (signal?.aborted) {
+        const aborted = new Error('Aborted');
+        aborted.name = 'AbortError';
+        reject(aborted);
+        return;
+      }
+      const timer = setTimeout(() => {
+        signal?.removeEventListener('abort', onAbort);
+        resolve();
+      }, ms);
+      const onAbort = () => {
+        clearTimeout(timer);
+        const aborted = new Error('Aborted');
+        aborted.name = 'AbortError';
+        reject(aborted);
+      };
+      signal?.addEventListener('abort', onAbort, { once: true });
+    });
 
     const toNum = (v) => {
       if (typeof v === 'number') return isFinite(v) ? v : 0;
@@ -1695,6 +1728,12 @@ items[].name 用香港繁體中文；original 保留單據原文；nameEn 有可
 
           const contentArray = [{ type: "text", text: promptText }];
           aiImages.forEach(img => { contentArray.push({ type: "image_url", image_url: { url: `data:${img.mimeType};base64,${img.data}` } }); });
+          const markTransient = (error, message) => {
+            const transient = new Error(message || error?.message || '網絡中斷，請再試。');
+            transient.transient = true;
+            if (error?.detail) transient.detail = error.detail;
+            return transient;
+          };
           const readReceiptModel = async (modelId) => {
             const attempt = new AbortController();
             const timer = setTimeout(() => attempt.abort(), OCR_ATTEMPT_MS);
@@ -1719,9 +1758,17 @@ items[].name 用香港繁體中文；original 保留單據原文；nameEn 有可
               }
               const data = await response.json();
               const jsonText = data.choices?.[0]?.message?.content;
-              if (!jsonText || !String(jsonText).trim()) throw new Error('OpenRouter 伺服器未回傳內容。');
-              const shaped = extractPayload(jsonText);
-              if (!Array.isArray(shaped.items) || shaped.items.length === 0) throw new Error('AI 回傳格式不符。');
+              if (!jsonText || !String(jsonText).trim()) throw markTransient(null, 'OpenRouter 伺服器未回傳內容。');
+              let shaped;
+              try {
+                shaped = extractPayload(jsonText);
+              } catch (parseError) {
+                const message = String(parseError?.message || '').includes('不是有效 JSON')
+                  ? parseError.message
+                  : 'AI 回傳的內容不是有效 JSON，請重試或改用其他模型。';
+                throw markTransient(parseError, message);
+              }
+              if (!Array.isArray(shaped.items) || shaped.items.length === 0) throw markTransient(null, 'AI 回傳格式不符。');
               return shaped;
             } catch (error) {
               if (controller.signal.aborted) {
@@ -1729,26 +1776,61 @@ items[].name 用香港繁體中文；original 保留單據原文；nameEn 有可
                 aborted.name = 'AbortError';
                 throw aborted;
               }
-              if (error?.name === 'AbortError') throw new Error('免費模型等候逾時。可以再試，或改用手動輸入。');
-              throw error;
+              if (error?.name === 'AbortError') throw markTransient(null, '免費模型等候逾時。可以再試，或改用手動輸入。');
+              const status = Number(error?.status) || 0;
+              if (status || error?.transient === true) throw error;
+              throw markTransient(error, error?.message);
             } finally {
               clearTimeout(timer);
               controller.signal.removeEventListener('abort', abortAttempt);
             }
           };
 
+          const readModelAttempts = async (modelId, { maxAttempts, firstStatus }) => {
+            let lastError;
+            for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+              if (generation !== billGenerationRef.current) return null;
+              if (attempt === 1) {
+                setProgressText(firstStatus);
+              } else {
+                setProgressText(`讀單失敗，再試一次…（${attempt}/${maxAttempts}）`);
+                const backoff = OCR_RETRY_BACKOFF_MS[Math.min(attempt - 2, OCR_RETRY_BACKOFF_MS.length - 1)];
+                await waitForOcrBackoff(backoff, controller.signal);
+                if (generation !== billGenerationRef.current) return null;
+              }
+              try {
+                return await readReceiptModel(modelId);
+              } catch (error) {
+                lastError = error;
+                if (attempt >= maxAttempts || !isTransientOcrFailure(error)) throw error;
+              }
+            }
+            throw lastError;
+          };
+
           let shaped;
+          const freeModelRequest = modelForRequest === QWEN_FREE_MODEL || modelForRequest === BAIDU_FREE_MODEL;
           try {
-            shaped = await readReceiptModel(modelForRequest);
+            if (freeModelRequest) {
+              shaped = await readModelAttempts(modelForRequest, {
+                maxAttempts: FREE_OCR_MAX_ATTEMPTS,
+                firstStatus: waitingText(modelForRequest)
+              });
+            } else {
+              setProgressText(waitingText(modelForRequest));
+              shaped = await readReceiptModel(modelForRequest);
+            }
           } catch (error) {
-            const keyRejected = error?.status === 401;
+            const keyRejected = Number(error?.status) === 401;
             if (error?.name === 'AbortError' || keyRejected || modelForRequest !== QWEN_FREE_MODEL) throw error;
             if (generation !== billGenerationRef.current) return;
-            setProgressText('預設模型失敗，改用百度 OCR…');
             try {
-              shaped = await readReceiptModel(BAIDU_FREE_MODEL);
+              shaped = await readModelAttempts(BAIDU_FREE_MODEL, {
+                maxAttempts: FREE_OCR_MAX_ATTEMPTS,
+                firstStatus: '預設模型失敗，改用百度 OCR…'
+              });
             } catch (fallbackError) {
-              if (fallbackError?.name === 'AbortError') throw fallbackError;
+              if (fallbackError?.name === 'AbortError' || Number(fallbackError?.status) === 401) throw fallbackError;
               const combined = new Error('預設 Qwen 同百度 OCR 都未能讀完這張單。可以再試，或改用手動輸入。');
               combined.detail = [error?.detail || error?.message, fallbackError?.detail || fallbackError?.message].filter(Boolean).join(' / ').slice(0, 180);
               throw combined;
@@ -2424,12 +2506,14 @@ items[].name 用香港繁體中文；original 保留單據原文；nameEn 有可
                     <div className="w-full max-w-xs mx-auto" role="status" aria-live="polite">
                       <div className="flex items-start gap-2 text-sm font-bold text-brand-800 mb-3 text-left">
                         <Icon path={icons.loader} size={18} className="animate-spin shrink-0 mt-0.5"/>
-                        <span>{tr(progressText)}</span>
+                        <span data-testid="ocr-status">{tr(progressText)}</span>
                       </div>
                       <div className="w-full bg-brand-100 border border-brand-300 rounded-full h-2 overflow-hidden" aria-hidden="true">
                         <div className="ocr-indeterminate bg-brand-500 h-2 rounded-full"></div>
                       </div>
-                      <p className="text-xs text-slate-600 mt-3 leading-relaxed">{bi('請稍候。免費模型有時要等耐啲，完成後會直接帶你去核對項目。', 'Please wait. Free models can take a while. Items appear when the reply arrives.')}</p>
+                      <p className="text-xs text-slate-600 mt-3 leading-relaxed">{!modelUsesFreeTier(apiModel, allowPaidModels)
+                        ? bi('請稍候。進階模型可能產生費用。完成後會直接帶你去核對項目。', 'Please wait. Advanced models may cost money. Items appear when the reply arrives.')
+                        : bi('請稍候。暫時讀唔到會再試同一模型，畫面會寫明第幾次。完成後會直接帶你去核對項目。', 'Please wait. If the read fails temporarily, the same model is tried again and the status shows the attempt. Items appear when a reply arrives.')}</p>
                     </div>
                   ) : uploadError ? (
                     <div className="flex flex-col items-center max-w-md mx-auto">
@@ -2460,8 +2544,8 @@ items[].name 用香港繁體中文；original 保留單據原文；nameEn 有可
                         <p className="text-xs text-slate-500 mt-4 leading-relaxed max-w-sm">{!modelUsesFreeTier(apiModel, allowPaidModels)
                           ? bi('鎖匙只留在這部機。你已開啟進階模型，可能產生費用。朋友認領唔使鎖匙。', 'The key stays on this device. Advanced models are on and may cost money. Friends do not need a key to claim.')
                           : resolveBillModel(apiModel, allowPaidModels) === BAIDU_FREE_MODEL
-                            ? bi('鎖匙只留在這部機。而家用免費百度 OCR，唔使充值。朋友認領唔使鎖匙。', 'The key stays on this device. Free Baidu OCR is in use, with no top-up. Friends do not need a key to claim.')
-                            : bi('鎖匙只留在這部機。而家用免費 Qwen，唔使充值。Qwen 讀唔到會再試一次免費百度 OCR。朋友認領唔使鎖匙。', 'The key stays on this device. Free Qwen is in use, with no top-up. If Qwen cannot read the receipt, free Baidu OCR is tried once. Friends do not need a key to claim.')}</p>
+                            ? bi('鎖匙只留在這部機。而家用免費百度 OCR，唔使充值。暫時失敗會再試同一模型，不會轉去其他模型。朋友認領唔使鎖匙。', 'The key stays on this device. Free Baidu OCR is in use, with no top-up. A temporary failure retries the same model and does not switch models. Friends do not need a key to claim.')
+                            : bi('鎖匙只留在這部機。而家用免費 Qwen，唔使充值。暫時失敗會再試同一模型，仍然失敗先改試一次免費百度 OCR。朋友認領唔使鎖匙。', 'The key stays on this device. Free Qwen is in use, with no top-up. A temporary failure retries the same model, then free Baidu OCR is tried once. Friends do not need a key to claim.')}</p>
                       )}
                     </div>
                   )}
@@ -2832,7 +2916,7 @@ items[].name 用香港繁體中文；original 保留單據原文；nameEn 有可
                   </div>
                   <div className="p-5 space-y-4">
                     {[
-                      ['1', tr("睇單"), bi('出差、日韓食飯：影相或揀圖，免費 Qwen 讀出項目、價錢同稅費。Qwen 這次失敗會再試一次免費百度 OCR。預設唔使充值。', 'On a trip, take or choose a photo. Free Qwen reads items, prices, and tax on Japanese, Korean, and other foreign receipts. If Qwen fails once, free Baidu OCR is tried once. The default does not need a top-up.')],
+                      ['1', tr("睇單"), bi('出差、日韓食飯：影相或揀圖，免費 Qwen 讀出項目、價錢同稅費。暫時失敗會再試同一模型，仍然失敗先改試一次免費百度 OCR。預設唔使充值。', 'On a trip, take or choose a photo. Free Qwen reads items, prices, and tax on Japanese, Korean, and other foreign receipts. A temporary failure retries the same model, then free Baidu OCR is tried once. The default does not need a top-up.')],
                       ['2', tr("認領"), tr("複製「認領表」發到 WhatsApp 群組；只填數字係份數比例，數字加單位就係實際食用數量。")],
                       ['3', tr("運算"), tr("填墊支人姓名、確認自動偵測的貨幣、付款方式。")],
                       ['4', tr("結果"), tr("得出「追數版」同「詳細版」，複製後發返群組。")],
@@ -2865,7 +2949,7 @@ items[].name 用香港繁體中文；original 保留單據原文；nameEn 有可
                 </Accordion>
 
                 <Accordion title={tr("🔑 6. AI 設定與鎖匙")} tone="slate" icon={icons.key}>
-                  <p className="text-sm text-slate-800 leading-relaxed mb-3">{bi('讀日韓等外語單據要用你自己的免費 OpenRouter 鎖匙。預設係免費 Qwen，唔使充值。Qwen 這次失敗只會再試一次免費百度 OCR，不會再轉去其他模型。鎖匙只留在這部機，請勿發俾朋友。朋友認領唔使鎖匙。進階模型可能收費，要你自己開啟。', 'Reading Japanese, Korean, and other foreign receipts uses your own free OpenRouter key. Free Qwen is the default, with no top-up. If Qwen fails once, free Baidu OCR is tried once, and nothing else. The key stays on this device. Do not send it to friends. Friends do not need a key to claim. Advanced models may cost money and stay off until you turn them on.')}</p>
+                  <p className="text-sm text-slate-800 leading-relaxed mb-3">{bi('讀日韓等外語單據要用你自己的免費 OpenRouter 鎖匙。預設係免費 Qwen，唔使充值。暫時失敗會再試同一模型；Qwen 仍然失敗只會再試一次免費百度 OCR，不會再轉去其他模型。鎖匙只留在這部機，請勿發俾朋友。朋友認領唔使鎖匙。進階模型可能收費，要你自己開啟。', 'Reading Japanese, Korean, and other foreign receipts uses your own free OpenRouter key. Free Qwen is the default, with no top-up. A temporary failure retries the same model. If Qwen still fails, free Baidu OCR is tried once, and nothing else. The key stays on this device. Do not send it to friends. Friends do not need a key to claim. Advanced models may cost money and stay off until you turn them on.')}</p>
                   <div className="bg-slate-50 border border-slate-400 rounded-xl p-3 text-sm space-y-1.5">
                     <p className="font-bold text-slate-800">{tr("記住我的鎖匙（免每次重輸）")}</p>
                     <p className="text-slate-600 text-xs">{tr("在設定勾選「記住鎖匙」，只存本機，唔會上傳。共用電腦請勿勾選。")}</p>
@@ -2947,7 +3031,7 @@ items[].name 用香港繁體中文；original 保留單據原文；nameEn 有可
                     <Label className="text-base mb-3">{tr("API 服務供應商")}</Label>
                     <div className="mb-6 rounded-xl border border-brand-500 bg-brand-50 p-4">
                       <div className="font-bold text-base text-brand-900">OpenRouter</div>
-                      <p className="text-xs text-slate-600 font-medium mt-1">{bi('用來讀日韓等外語單據。預設免費 Qwen；Qwen 失敗只改試一次免費百度 OCR。唔使充值。鎖匙只留在這部機，請勿發俾朋友。朋友認領唔使鎖匙。', 'Used to read Japanese, Korean, and other foreign receipts. Free Qwen is the default. If it fails, free Baidu OCR is tried once. No top-up. The key stays on this device. Do not send it to friends. Friends do not need a key to claim.')}</p>
+                      <p className="text-xs text-slate-600 font-medium mt-1">{bi('用來讀日韓等外語單據。預設免費 Qwen；暫時失敗會再試同一模型，仍然失敗只改試一次免費百度 OCR。唔使充值。鎖匙只留在這部機，請勿發俾朋友。朋友認領唔使鎖匙。', 'Used to read Japanese, Korean, and other foreign receipts. Free Qwen is the default. A temporary failure retries the same model. If it still fails, free Baidu OCR is tried once. No top-up. The key stays on this device. Do not send it to friends. Friends do not need a key to claim.')}</p>
                     </div>
 
                     <div className="border-t border-slate-400 pt-6 space-y-5">
@@ -2974,8 +3058,8 @@ items[].name 用香港繁體中文；original 保留單據原文；nameEn 有可
                         <p className="text-xs text-slate-600 mt-2 leading-relaxed">{!modelUsesFreeTier(apiModel, allowPaidModels)
                           ? bi('你已揀付費／進階模型，可能產生費用。改回上面的免費模型就唔使充值。', 'You selected a paid/advanced model, which may cost money. Switch back to a free model and you do not need to top up.')
                           : resolveBillModel(apiModel, allowPaidModels) === BAIDU_FREE_MODEL
-                            ? bi('而家用緊免費百度 OCR，唔使充值。這次失敗不會再自動轉去其他模型。', 'Free Baidu OCR is selected, with no top-up. If this attempt fails, the app does not switch to another model.')
-                            : bi('預設免費 Qwen，唔使充值。這次失敗會自動改試一次免費百度 OCR，不會再轉去其他模型。', 'Free Qwen is the default, with no top-up. If it fails once, free Baidu OCR is tried once. Nothing else is tried after that.')}</p>
+                            ? bi('而家用緊免費百度 OCR，唔使充值。暫時失敗會再試同一模型，不會再自動轉去其他模型。', 'Free Baidu OCR is selected, with no top-up. A temporary failure retries the same model. The app does not switch to another model.')
+                            : bi('預設免費 Qwen，唔使充值。暫時失敗會再試同一模型幾次，仍然失敗先自動改試一次免費百度 OCR，不會再轉去其他模型。', 'Free Qwen is the default, with no top-up. A temporary failure retries the same model a few times. If it still fails, free Baidu OCR is tried once. Nothing else is tried after that.')}</p>
                       </div>
 
                       <label className="flex items-start gap-3 p-4 bg-amber-50 rounded-xl border border-amber-400 cursor-pointer">
