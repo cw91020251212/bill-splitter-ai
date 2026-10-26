@@ -175,15 +175,16 @@
     };
 
     // Free models are the only ones selectable unless the user opts into paid models.
-    const QWEN_FREE_MODEL = 'qwen/qwen2.5-vl-72b-instruct:free';
-    const BAIDU_FREE_MODEL = 'baidu/qianfan-ocr-fast:free';
+    // Locked free vision ids that currently have a provider. No free Qwen VL or Baidu OCR endpoint does.
+    const DEFAULT_FREE_MODEL = 'google/gemma-4-31b-it:free';
+    const BACKUP_FREE_MODEL = 'nvidia/nemotron-3.5-super-vl:free';
     const OCR_ATTEMPT_MS = 45000;
     // Same free model only: 1 try + 2 retries. Not a model cascade.
     const FREE_OCR_MAX_ATTEMPTS = 3;
     const OCR_RETRY_BACKOFF_MS = [1200, 2500];
     const FREE_MODELS = [
-      [QWEN_FREE_MODEL, 'Qwen2.5 VL 72B（免費，預設）', 'Qwen2.5 VL 72B (free, default)'],
-      [BAIDU_FREE_MODEL, '百度 OCR Fast（免費，專做 OCR）', 'Baidu OCR Fast (free, built for OCR)']
+      [DEFAULT_FREE_MODEL, 'Gemma 4 31B（免費，預設）', 'Gemma 4 31B (free, default)'],
+      [BACKUP_FREE_MODEL, 'Nemotron 3.5 VL（免費，後備）', 'Nemotron 3.5 VL (free, backup)']
     ];
     const PAID_MODELS = [
       ['google/gemini-3.8-flash', 'Gemini 3.8 Flash（較快，可能收費）', 'Gemini 3.8 Flash (faster, may cost money)']
@@ -193,7 +194,7 @@
     const resolveBillModel = (model, allowPaid) => {
       if (FREE_MODEL_IDS.includes(model)) return model;
       if (allowPaid === true && PAID_MODEL_IDS.includes(model)) return model;
-      return QWEN_FREE_MODEL;
+      return DEFAULT_FREE_MODEL;
     };
     const modelUsesFreeTier = (model, allowPaid) => FREE_MODEL_IDS.includes(resolveBillModel(model, allowPaid));
     const FREE_AI_MAX_EDGE = 1280;
@@ -201,9 +202,12 @@
     const PAID_AI_MAX_EDGE = 1600;
     const PAID_AI_JPEG_QUALITY = 0.72;
 
-    const describeOpenRouterFailure = (status) => {
+    const providerMissingDetail = (detail) => /no endpoints found|no (?:available |allowed )?providers?|model not found|冇供應商/i.test(String(detail || ''));
+
+    const describeOpenRouterFailure = (status, detail) => {
       const code = Number(status) || 0;
       if (code === 401) return '鎖匙被拒（401）。請檢查有冇漏字或黏埋舊鎖匙。手動分帳同朋友認領都唔使鎖匙。';
+      if (code === 404 || providerMissingDetail(detail)) return 'OpenRouter 暫時冇供應商提供所選模型，所以睇唔到單據。請改用另一個免費模型，或稍後再試。唔使充值。';
       if (code === 402) return '此模型需要付費額度（402）。請改回免費模型；免費使用唔使充值。';
       if (code === 403) return 'OpenRouter 拒絕這次請求（403）。如果揀了進階模型，可能係未有付費額度；免費模型唔使充值。';
       if (code === 429) return '請求太密或免費額度暫時用盡（429）。請稍後再試，或改用手動輸入。免費模型唔使充值。';
@@ -734,7 +738,7 @@
 
       const [apiKey, setApiKey] = useState('');
 
-      const [apiModel, setApiModel] = useState(QWEN_FREE_MODEL);
+      const [apiModel, setApiModel] = useState(DEFAULT_FREE_MODEL);
       const [allowPaidModels, setAllowPaidModels] = useState(false);
       // API keys are user settings: a normal save must survive closing/reopening
       // the app. Keep sessionStorage only as a same-tab fallback.
@@ -1207,7 +1211,7 @@
       const forgetApiKey = () => {
         if(window.confirm(tr("確定要清除鎖匙嗎？這將會刪除您本機上的設定。"))) {
           try { localStorage.removeItem('billSplitterApiConfig'); sessionStorage.removeItem('billSplitterApiConfig'); } catch(e) {}
-          setApiKey(''); setIsEditingKey(true); setRememberKey(false); setAllowPaidModels(false); setApiModel(QWEN_FREE_MODEL);
+          setApiKey(''); setIsEditingKey(true); setRememberKey(false); setAllowPaidModels(false); setApiModel(DEFAULT_FREE_MODEL);
           toast('🗑️ 已清除鎖匙', 'error');
         }
       };
@@ -1456,12 +1460,12 @@
       };
 
       const triggerUpload = () => {
-        if (!apiKey.trim()) { toast('讀外語單據先要你自己的免費 OpenRouter 鎖匙。預設只用免費模型，唔使充值。朋友認領唔使鎖匙。', 'error'); setShowSettings(true); return; }
+        if (!apiKey.trim()) { toast('讀單據先要你自己的免費 OpenRouter 鎖匙。', 'error'); setShowSettings(true); return; }
         if(fileInputRef.current) fileInputRef.current.click();
       };
 
       const triggerCamera = () => {
-        if (!apiKey.trim()) { toast('讀外語單據先要你自己的免費 OpenRouter 鎖匙。預設只用免費模型，唔使充值。朋友認領唔使鎖匙。', 'error'); setShowSettings(true); return; }
+        if (!apiKey.trim()) { toast('讀單據先要你自己的免費 OpenRouter 鎖匙。', 'error'); setShowSettings(true); return; }
         if (!navigator.mediaDevices?.getUserMedia) {
           toast('⚠️ 此瀏覽器不支援網頁相機，請改用「選擇圖片」', 'error');
           if (cameraInputRef.current) cameraInputRef.current.click();
@@ -1679,7 +1683,7 @@
         ocrProgressRef.current = null;
 
         try {
-          if (!apiKey.trim()) throw new Error('讀外語單據先要你自己的免費 OpenRouter 鎖匙。預設只用免費模型，唔使充值。朋友認領唔使鎖匙。');
+          if (!apiKey.trim()) throw new Error('讀單據先要你自己的免費 OpenRouter 鎖匙。');
           const base64Promises = files.map(file => {
             return new Promise((resolve, reject) => {
               const reader = new FileReader();
@@ -1710,10 +1714,10 @@
             }
           }
           if (generation !== billGenerationRef.current) return;
-          const waitingText = (modelId) => modelId === QWEN_FREE_MODEL
-            ? '已送到免費 Qwen，等候回覆。免費使用唔使充值。'
-            : modelId === BAIDU_FREE_MODEL
-              ? '已送到免費百度 OCR，等候回覆。唔使充值。'
+          const waitingText = (modelId) => modelId === DEFAULT_FREE_MODEL
+            ? '已送到免費 Gemma，等候回覆。'
+            : modelId === BACKUP_FREE_MODEL
+              ? '已送到免費 Nemotron，等候回覆。'
               : '已送到所選進階模型，等候回覆。進階模型可能產生費用。';
           setProgressText(waitingText(modelForRequest));
 
@@ -1743,10 +1747,13 @@ items[].name 用香港繁體中文；original 保留單據原文；nameEn 有可
             const abortAttempt = () => attempt.abort();
             controller.signal.addEventListener('abort', abortAttempt);
             try {
+              const requestBody = { model: modelId, messages: [{ role: "user", content: contentArray }], temperature: 0.1 };
+              // Nemotron reasons by default; leave it off so the receipt JSON stays in content.
+              if (modelId === BACKUP_FREE_MODEL) requestBody.reasoning = { enabled: false };
               const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
                 signal: attempt.signal,
                 method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey.trim()}` },
-                body: JSON.stringify({ model: modelId, messages: [{ role: "user", content: contentArray }], temperature: 0.1 })
+                body: JSON.stringify(requestBody)
               });
               if (!response.ok) {
                 let detail = '';
@@ -1754,13 +1761,15 @@ items[].name 用香港繁體中文；original 保留單據原文；nameEn 有可
                   const errBody = await response.json();
                   detail = errBody?.error?.message || errBody?.message || '';
                 } catch (parseError) {}
-                const failure = new Error(describeOpenRouterFailure(response.status));
+                const failure = new Error(describeOpenRouterFailure(response.status, detail));
                 failure.status = response.status;
                 failure.detail = String(detail || '').replace(/\s+/g, ' ').trim().slice(0, 180);
                 throw failure;
               }
               const data = await response.json();
-              const jsonText = data.choices?.[0]?.message?.content;
+              const message = data.choices?.[0]?.message || {};
+              let jsonText = message.content;
+              if (!jsonText || !String(jsonText).trim()) jsonText = message.reasoning || '';
               if (!jsonText || !String(jsonText).trim()) throw markTransient(null, 'OpenRouter 伺服器未回傳內容。');
               let shaped;
               try {
@@ -1812,7 +1821,7 @@ items[].name 用香港繁體中文；original 保留單據原文；nameEn 有可
           };
 
           let shaped;
-          const freeModelRequest = modelForRequest === QWEN_FREE_MODEL || modelForRequest === BAIDU_FREE_MODEL;
+          const freeModelRequest = modelForRequest === DEFAULT_FREE_MODEL || modelForRequest === BACKUP_FREE_MODEL;
           try {
             if (freeModelRequest) {
               shaped = await readModelAttempts(modelForRequest, {
@@ -1825,16 +1834,19 @@ items[].name 用香港繁體中文；original 保留單據原文；nameEn 有可
             }
           } catch (error) {
             const keyRejected = Number(error?.status) === 401;
-            if (error?.name === 'AbortError' || keyRejected || modelForRequest !== QWEN_FREE_MODEL) throw error;
+            if (error?.name === 'AbortError' || keyRejected || modelForRequest !== DEFAULT_FREE_MODEL) throw error;
             if (generation !== billGenerationRef.current) return;
             try {
-              shaped = await readModelAttempts(BAIDU_FREE_MODEL, {
+              shaped = await readModelAttempts(BACKUP_FREE_MODEL, {
                 maxAttempts: FREE_OCR_MAX_ATTEMPTS,
-                firstStatus: '預設模型失敗，改用百度 OCR…'
+                firstStatus: '預設模型失敗，改用 Nemotron…'
               });
             } catch (fallbackError) {
               if (fallbackError?.name === 'AbortError' || Number(fallbackError?.status) === 401) throw fallbackError;
-              const combined = new Error('預設 Qwen 同百度 OCR 都未能讀完這張單。可以再試，或改用手動輸入。');
+              const bothMissing = providerMissingDetail(error?.detail) || providerMissingDetail(fallbackError?.detail) || providerMissingDetail(error?.message) || providerMissingDetail(fallbackError?.message);
+              const combined = new Error(bothMissing
+                ? '這兩個免費模型暫時都冇供應商，所以睇唔到單據。請稍後再試，或改用手動輸入。唔使充值。'
+                : '免費 Gemma 同 Nemotron 都未能讀完這張單。可以再試，或改用手動輸入。');
               combined.detail = [error?.detail || error?.message, fallbackError?.detail || fallbackError?.message].filter(Boolean).join(' / ').slice(0, 180);
               throw combined;
             }
@@ -2253,7 +2265,7 @@ items[].name 用香港繁體中文；original 保留單據原文；nameEn 有可
             if (unclaimedCount > 0) push(3, 'C2', `${unclaimedCount} 項冇人認領（${formatMoney(unclaimedCost, currency)} 未分攤）`, '請補回認領，或刪走冇人食嘅項目', { label: '前往', run: () => jumpToStep(2) });
         }
 
-        if (isAnalyzing) push(4, 'A1', progressText || '已送到免費模型，等候回覆。免費模型有時較慢，唔係故障，亦唔使充值。', '免費模型有時較慢，唔係故障，亦唔使充值', null);
+        if (isAnalyzing) push(4, 'A1', progressText || '已送到免費模型，等候回覆。', '', null);
         else if (step === 2 && items.length > 0 && friendsReplies.trim() && (!claimInfo || claimInfo.issues.length === 0)) {
             push(5, 'G2', '認領資料準備就緒', '下一步先填墊支人，再計算', { label: '下一步', run: goToPayerStep });
         }
@@ -2497,7 +2509,7 @@ items[].name 用香港繁體中文；original 保留單據原文；nameEn 有可
                   <span className="w-8 h-8 rounded-full bg-brand-100 border border-brand-500 text-brand-700 flex items-center justify-center font-bold">1</span>
                   <h2 className="text-2xl font-bold text-slate-800 tracking-tight">{tr("上載並分析單據")}</h2>
                 </div>
-                <p className="text-base text-slate-700 leading-relaxed">{bi('出差食飯、日韓單據睇唔明？影張相，免費 Qwen 會讀出項目同價錢。預設唔使充值。', 'On a trip and can’t read the receipt? Take a photo. Free Qwen reads the items and prices. The default does not need a top-up.')}</p>
+                <p className="text-base text-slate-700 leading-relaxed">{bi('影張出差或外語單據，讀出項目同價錢。', 'Photograph a travel receipt to read the items and prices.')}</p>
 
                 <Card className="api-settings-card bg-gradient-to-br from-brand-50 to-white border-brand-500">
                   <button
@@ -2518,9 +2530,9 @@ items[].name 用香港繁體中文；original 保留單據原文；nameEn 有可
                         {apiKey.trim()
                           ? (!modelUsesFreeTier(apiModel, allowPaidModels)
                             ? bi('✅ 進階模型已開啟', '✅ Advanced model is on')
-                            : resolveBillModel(apiModel, allowPaidModels) === BAIDU_FREE_MODEL
-                              ? bi('✅ 免費百度 OCR 已設定', '✅ Free Baidu OCR is set')
-                              : bi('✅ 免費 Qwen 已設定', '✅ Free Qwen is set'))
+                            : resolveBillModel(apiModel, allowPaidModels) === BACKUP_FREE_MODEL
+                              ? bi('✅ 免費 Nemotron 已設定', '✅ Free Nemotron is set')
+                              : bi('✅ 免費 Gemma 已設定', '✅ Free Gemma is set'))
                           : bi('⚠️ 尚未設定免費鎖匙', '⚠️ Free key is not set yet')}
                       </span>
                       <span className={`block text-base font-medium leading-snug ${apiKey.trim() ? 'text-slate-600' : 'text-red-700'}`}>
@@ -2550,9 +2562,7 @@ items[].name 用香港繁體中文；original 保留單據原文；nameEn 有可
                       <div className="w-full bg-brand-100 border border-brand-300 rounded-full h-3 overflow-hidden shadow-inner" aria-hidden="true">
                         <div className="ocr-indeterminate bg-brand-500 h-3 rounded-full"></div>
                       </div>
-                      <p className="text-base text-slate-700 mt-4 leading-relaxed">{!modelUsesFreeTier(apiModel, allowPaidModels)
-                        ? bi('請稍候。進階模型可能產生費用。完成後會直接帶你去核對項目。', 'Please wait. Advanced models may cost money. Items appear when the reply arrives.')
-                        : bi('請稍候。暫時讀唔到會再試同一模型，畫面會寫明第幾次。完成後會直接帶你去核對項目。', 'Please wait. If the read fails temporarily, the same model is tried again and the status shows the attempt. Items appear when a reply arrives.')}</p>
+                      <p className="text-base text-slate-700 mt-4 leading-relaxed">{bi('請稍候。完成後會帶你去核對項目。', 'Please wait. You can check the items when it finishes.')}</p>
                     </div>
                   ) : uploadError ? (
                     <div className="flex flex-col items-center max-w-md mx-auto">
@@ -2947,7 +2957,7 @@ items[].name 用香港繁體中文；original 保留單據原文；nameEn 有可
                   </div>
                   <div className="p-5 space-y-4">
                     {[
-                      ['1', tr("睇單"), bi('出差、日韓食飯：影相或揀圖，免費 Qwen 讀出項目、價錢同稅費。暫時失敗會再試同一模型，仍然失敗先改試一次免費百度 OCR。預設唔使充值。', 'On a trip, take or choose a photo. Free Qwen reads items, prices, and tax on Japanese, Korean, and other foreign receipts. A temporary failure retries the same model, then free Baidu OCR is tried once. The default does not need a top-up.')],
+                      ['1', tr("睇單"), bi('影相或揀圖，讀出項目、價錢同稅費。', 'Take or choose a photo to read items, prices, and tax.')],
                       ['2', tr("認領"), tr("複製「認領表」發到 WhatsApp 群組；只填數字係份數比例，數字加單位就係實際食用數量。")],
                       ['3', tr("運算"), tr("填墊支人姓名、確認自動偵測的貨幣、付款方式。")],
                       ['4', tr("結果"), tr("得出「追數版」同「詳細版」，複製後發返群組。")],
@@ -2980,7 +2990,7 @@ items[].name 用香港繁體中文；original 保留單據原文；nameEn 有可
                 </Accordion>
 
                 <Accordion title={tr("🔑 6. AI 設定與鎖匙")} tone="slate" icon={icons.key}>
-                  <p className="text-sm text-slate-800 leading-relaxed mb-3">{bi('讀日韓等外語單據要用你自己的免費 OpenRouter 鎖匙。預設係免費 Qwen，唔使充值。暫時失敗會再試同一模型；Qwen 仍然失敗只會再試一次免費百度 OCR，不會再轉去其他模型。鎖匙只留在這部機，請勿發俾朋友。朋友認領唔使鎖匙。進階模型可能收費，要你自己開啟。', 'Reading Japanese, Korean, and other foreign receipts uses your own free OpenRouter key. Free Qwen is the default, with no top-up. A temporary failure retries the same model. If Qwen still fails, free Baidu OCR is tried once, and nothing else. The key stays on this device. Do not send it to friends. Friends do not need a key to claim. Advanced models may cost money and stay off until you turn them on.')}</p>
+                  <p className="text-sm text-slate-800 leading-relaxed mb-3">{bi('讀外語單據要用你自己的免費 OpenRouter 鎖匙。預設免費。鎖匙只留在這部機，請勿發俾朋友。', 'Foreign receipts need your own free OpenRouter key. The default is free. The key stays on this device. Do not send it to friends.')}</p>
                   <div className="bg-slate-50 border border-slate-400 rounded-xl p-3 text-sm space-y-1.5">
                     <p className="font-bold text-slate-800">{tr("記住我的鎖匙（免每次重輸）")}</p>
                     <p className="text-slate-600 text-xs">{tr("在設定勾選「記住鎖匙」，只存本機，唔會上傳。共用電腦請勿勾選。")}</p>
@@ -3062,7 +3072,7 @@ items[].name 用香港繁體中文；original 保留單據原文；nameEn 有可
                     <Label className="text-base mb-3">{tr("API 服務供應商")}</Label>
                     <div className="mb-6 rounded-xl border border-brand-500 bg-brand-50 p-4">
                       <div className="font-bold text-base text-brand-900">OpenRouter</div>
-                      <p className="text-base text-slate-700 font-medium mt-1 leading-relaxed">{bi('用來讀日韓等外語單據。預設免費 Qwen；暫時失敗會再試同一模型，仍然失敗只改試一次免費百度 OCR。唔使充值。鎖匙只留在這部機，請勿發俾朋友。朋友認領唔使鎖匙。', 'Used to read Japanese, Korean, and other foreign receipts. Free Qwen is the default. A temporary failure retries the same model. If it still fails, free Baidu OCR is tried once. No top-up. The key stays on this device. Do not send it to friends. Friends do not need a key to claim.')}</p>
+                      <p className="text-base text-slate-700 font-medium mt-1 leading-relaxed">{bi('用來讀外語單據。預設免費。鎖匙只留在這部機。', 'Used to read foreign receipts. Free by default. The key stays on this device.')}</p>
                     </div>
 
                     <div className="border-t border-slate-400 pt-6 space-y-5">
@@ -3087,10 +3097,10 @@ items[].name 用香港繁體中文；original 保留單據原文；nameEn 有可
                           )}
                         </select>
                         <p className="text-base text-slate-700 mt-2 leading-relaxed">{!modelUsesFreeTier(apiModel, allowPaidModels)
-                          ? bi('你已揀付費／進階模型，可能產生費用。改回上面的免費模型就唔使充值。', 'You selected a paid/advanced model, which may cost money. Switch back to a free model and you do not need to top up.')
-                          : resolveBillModel(apiModel, allowPaidModels) === BAIDU_FREE_MODEL
-                            ? bi('而家用緊免費百度 OCR，唔使充值。暫時失敗會再試同一模型，不會再自動轉去其他模型。', 'Free Baidu OCR is selected, with no top-up. A temporary failure retries the same model. The app does not switch to another model.')
-                            : bi('預設免費 Qwen，唔使充值。暫時失敗會再試同一模型幾次，仍然失敗先自動改試一次免費百度 OCR，不會再轉去其他模型。', 'Free Qwen is the default, with no top-up. A temporary failure retries the same model a few times. If it still fails, free Baidu OCR is tried once. Nothing else is tried after that.')}</p>
+                          ? bi('你已揀進階模型，可能產生費用。改回免費模型就唔使充值。', 'You selected an advanced model, which may cost money. Switch back to a free model and you do not need to top up.')
+                          : resolveBillModel(apiModel, allowPaidModels) === BACKUP_FREE_MODEL
+                            ? bi('而家用免費 Nemotron。讀唔到會再試同一模型。', 'Free Nemotron is selected. A failed read retries the same model.')
+                            : bi('預設免費 Gemma。讀唔到會再試同一模型，仍然失敗先改試一次免費 Nemotron。', 'Free Gemma is the default. A failed read retries the same model, then tries free Nemotron once.')}</p>
                       </div>
 
                       <label className="flex items-start gap-3 p-4 bg-amber-50 rounded-xl border border-amber-400 cursor-pointer">
