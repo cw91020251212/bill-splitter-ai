@@ -367,3 +367,43 @@ html[lang="en"] #root .header-actions .guide-label { display: none; }
   #root [data-testid="receipt-source-actions"] .choice-divider-inline::before,
   #root [data-testid="receipt-source-actions"] .choice-divider-inline::after { display: block; }
 }
+
+/* Phone reading size. The header toolbar stays compact so five actions still fit.
+   Landing, settings, scan, and form labels use a larger scale than the tightened text-xs copy. */
+@media (max-width: 639px) {
+  #root main :is(h2.text-xl, h2.text-2xl) {
+    font-size: 26px;
+    line-height: 1.3;
+  }
+  #root main h3 {
+    font-size: 22px;
+    line-height: 1.35;
+  }
+  #root main .text-xs {
+    font-size: 16px;
+    line-height: 1.5;
+  }
+  #root main .text-sm {
+    font-size: 17px;
+    line-height: 1.5;
+  }
+  #root main :is(.text-base, select) {
+    font-size: 18px;
+    line-height: 1.5;
+  }
+  #root main :is(label.uppercase, .uppercase.tracking-wider) {
+    letter-spacing: 0.02em;
+  }
+  #root main .choice-divider { font-size: 16px; }
+  #root main button[data-ui-language] {
+    min-height: 44px;
+    font-size: 17px;
+  }
+  #root main :is(.\!text-xs, .\!text-sm) { font-size: 16px !important; }
+  #root main :is(.w-5.h-5, .w-6.h-6) {
+    font-size: 12px;
+    line-height: 1;
+  }
+  #root [role="status"].fixed .text-xs { font-size: 15px; line-height: 1.35; }
+  #root [role="status"].fixed .text-\[10px\] { font-size: 13px; line-height: 1.35; }
+}
