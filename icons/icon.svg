@@ -1,19 +1,24 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="分帳管家 AI">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="分帳管家">
   <defs>
     <linearGradient id="bg" x1="0" y1="1" x2="1" y2="0">
-      <stop offset="0" stop-color="#49b88b"/>
-      <stop offset="1" stop-color="#b5f2cf"/>
+      <stop offset="0" stop-color="#0F6B42"/>
+      <stop offset="0.5" stop-color="#1F9A64"/>
+      <stop offset="1" stop-color="#62D29A"/>
     </linearGradient>
+    <radialGradient id="coin" cx="34%" cy="30%" r="80%">
+      <stop offset="0" stop-color="#FFE7A3"/>
+      <stop offset="0.45" stop-color="#F5B423"/>
+      <stop offset="1" stop-color="#E08E0A"/>
+    </radialGradient>
   </defs>
-  <rect width="512" height="512" rx="112.64" fill="url(#bg)"/>
-  <g>
-    <path d="M164.25,111.82 H301.88 a26.21,26.21 0 0 1 26.21,26.21 V360.86 L153.87,380.52 L169.71,360.86 L185.55,380.52 L201.39,360.86 L217.22,380.52 L233.06,360.86 L248.9,380.52 L264.74,360.86 L280.58,380.52 L296.41,360.86 L312.25,380.52 L328.09,360.86 V138.04 a26.21,26.21 0 0 1 26.21,26.21 Z" fill="#FFFFFF"/>
-    <rect x="164.25" y="147.87" width="117.96" height="26.21" rx="13.11" fill="#F59E0B"/>
-    <rect x="164.25" y="200.29" width="131.07" height="19.66" rx="9.83" fill="#C6D5CD"/>
-    <rect x="164.25" y="246.17" width="98.3" height="19.66" rx="9.83" fill="#C6D5CD"/>
-    <rect x="164.25" y="292.04" width="72.09" height="19.66" rx="9.83" fill="#C6D5CD"/>
-    <circle cx="341.2" cy="334.64" r="85.2" fill="#49a77d"/>
-    <circle cx="341.2" cy="334.64" r="75.37" fill="#FFFFFF"/>
-    <path d="M310.07,336.28 L331.37,359.22 L373.96,305.15" fill="none" stroke="#2563EB" stroke-width="26.21" stroke-linecap="round" stroke-linejoin="round"/>
-  </g>
+  <rect width="512" height="512" rx="118" fill="url(#bg)"/>
+  <path fill="#FFF8EE" d="M106 68 H318 A26 26 0 0 1 344 94 V276 L300 340 L256 276 L212 340 L168 276 L124 340 L80 276 V94 A26 26 0 0 1 106 68 Z"/>
+  <rect x="112" y="104" width="188" height="50" rx="16" fill="#F6B21A"/>
+  <rect x="112" y="176" width="188" height="36" rx="12" fill="#127A4C"/>
+  <rect x="112" y="230" width="124" height="36" rx="12" fill="#127A4C"/>
+  <circle cx="388" cy="396" r="100" fill="#C56E06"/>
+  <circle cx="388" cy="392" r="90" fill="url(#coin)"/>
+  <rect x="328" y="376" width="120" height="32" rx="16" fill="#0E5C38"/>
+  <circle cx="388" cy="332" r="16" fill="#0E5C38"/>
+  <circle cx="388" cy="452" r="16" fill="#0E5C38"/>
 </svg>

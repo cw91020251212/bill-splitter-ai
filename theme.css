@@ -538,3 +538,23 @@ html[lang="en"] #root .header-actions .guide-label { display: none; }
 #root .hover\:bg-red-50:hover { background-color: #fff1ef; }
 #root .app-card.bg-amber-50 { background: #fff2d9; border-color: #c4923a; }
 #root .app-card.border-amber-500 { border-color: #c4923a; }
+
+/* Header mark is the app icon itself: receipt, gold split-coin, brand green.
+   Slightly larger than the old 40px tile, and square on narrow phones. */
+#root img.app-brand-icon {
+  width: 48px;
+  height: 48px;
+  display: block;
+  flex: 0 0 auto;
+  object-fit: contain;
+  background: transparent !important;
+  background-image: none !important;
+  border: 0 !important;
+  box-shadow: none;
+}
+@media (max-width: 389px) {
+  #root img.app-brand-icon { width: 42px; height: 42px; }
+}
+@media (max-width: 359px) {
+  #root img.app-brand-icon { width: 38px; height: 38px; }
+}
