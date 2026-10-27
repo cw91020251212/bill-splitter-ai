@@ -13,7 +13,7 @@
  * Bump CACHE_VERSION whenever you edit index.html so returning users get the
  * new build instead of the cached one.
  */
-const CACHE_VERSION = 'v66-one-tap-claim';
+const CACHE_VERSION = 'v67-free-scan-cascade';
 const SHELL_CACHE = `bill-splitter-shell-${CACHE_VERSION}`;
 const ASSET_CACHE = `bill-splitter-assets-${CACHE_VERSION}`;
 const CDN_CACHE = `bill-splitter-cdn-${CACHE_VERSION}`;
@@ -24,6 +24,7 @@ const SHELL_URLS = [
   './index.html',
   './claim.html',
   './claim-relay.js',
+  './ocr-cascade.js',
   './i18n.js',
   './theme.css',
   './manifest.webmanifest',

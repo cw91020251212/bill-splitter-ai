@@ -77,13 +77,14 @@
     ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
     ::-webkit-scrollbar-thumb:hover { background: #64748b; }
   </style>
-  <link rel="stylesheet" href="./theme.css?v=v66-one-tap-claim">
+  <link rel="stylesheet" href="./theme.css?v=v67-free-scan-cascade">
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
 
   <script src="./i18n.js"></script>
   <script src="./claim-relay.js"></script>
+  <script src="./ocr-cascade.js"></script>
   <script type="text/babel">
     const { useState, useRef, useEffect, useMemo } = React;
     const tr = value => window.BillI18n.t(value);
@@ -184,57 +185,22 @@
       );
     };
 
-    // Free models are the only ones selectable unless the user opts into paid models.
-    // Locked free vision ids that currently have a provider. No free Qwen VL or Baidu OCR endpoint does.
-    const DEFAULT_FREE_MODEL = 'google/gemma-4-31b-it:free';
-    const BACKUP_FREE_MODEL = 'nvidia/nemotron-3.5-super-vl:free';
-    const OCR_ATTEMPT_MS = 45000;
-    // Same free model only: 1 try + 2 retries. Not a model cascade.
-    const FREE_OCR_MAX_ATTEMPTS = 3;
-    const OCR_RETRY_BACKOFF_MS = [1200, 2500];
-    const FREE_MODELS = [
-      [DEFAULT_FREE_MODEL, 'Gemma 4 31B（免費，預設）', 'Gemma 4 31B (free, default)'],
-      [BACKUP_FREE_MODEL, 'Nemotron 3.5 VL（免費，後備）', 'Nemotron 3.5 VL (free, backup)']
-    ];
-    const PAID_MODELS = [
-      ['google/gemini-3.8-flash', 'Gemini 3.8 Flash（較快，可能收費）', 'Gemini 3.8 Flash (faster, may cost money)']
-    ];
-    const FREE_MODEL_IDS = FREE_MODELS.map(model => model[0]);
-    const PAID_MODEL_IDS = PAID_MODELS.map(model => model[0]);
-    const resolveBillModel = (model, allowPaid) => {
-      if (FREE_MODEL_IDS.includes(model)) return model;
-      if (allowPaid === true && PAID_MODEL_IDS.includes(model)) return model;
-      return DEFAULT_FREE_MODEL;
-    };
-    const modelUsesFreeTier = (model, allowPaid) => FREE_MODEL_IDS.includes(resolveBillModel(model, allowPaid));
+    // Free vision cascade lives in ocr-cascade.js. Paid models stay opt-in.
+    const Ocr = window.OcrCascade;
+    const DEFAULT_FREE_MODEL = Ocr.DEFAULT_FREE_MODEL;
+    const FREE_MODELS = Ocr.FREE_MODELS;
+    const PAID_MODELS = Ocr.PAID_MODELS;
+    const resolveBillModel = Ocr.resolveBillModel;
+    const modelUsesFreeTier = Ocr.modelUsesFreeTier;
+    const describeOpenRouterFailure = Ocr.describeOpenRouterFailure;
+    const isTransientOcrFailure = Ocr.isTransientOcrFailure;
+    const OCR_ATTEMPT_MS = Ocr.OCR_ATTEMPT_MS;
+    const FREE_OCR_MAX_ATTEMPTS = Ocr.TRANSIENT_ATTEMPTS;
+    const OCR_RETRY_BACKOFF_MS = Ocr.OCR_RETRY_BACKOFF_MS;
     const FREE_AI_MAX_EDGE = 1280;
     const FREE_AI_JPEG_QUALITY = 0.6;
     const PAID_AI_MAX_EDGE = 1600;
     const PAID_AI_JPEG_QUALITY = 0.72;
-
-    const providerMissingDetail = (detail) => /no endpoints found|no (?:available |allowed )?providers?|model not found|冇供應商/i.test(String(detail || ''));
-
-    const describeOpenRouterFailure = (status, detail) => {
-      const code = Number(status) || 0;
-      if (code === 401) return '鎖匙被拒（401）。請檢查有冇漏字或黏埋舊鎖匙。手動分帳同朋友認領都唔使鎖匙。';
-      if (code === 404 || providerMissingDetail(detail)) return 'OpenRouter 暫時冇供應商提供所選模型，所以睇唔到單據。請改用另一個免費模型，或稍後再試。唔使充值。';
-      if (code === 402) return '此模型需要付費額度（402）。請改回免費模型；免費使用唔使充值。';
-      if (code === 403) return 'OpenRouter 拒絕這次請求（403）。如果揀了進階模型，可能係未有付費額度；免費模型唔使充值。';
-      if (code === 429) return '請求太密或免費額度暫時用盡（429）。請稍後再試，或改用手動輸入。免費模型唔使充值。';
-      if (code === 400 || code === 413 || code === 415) return `圖片或請求未被接受（${code}）。可以再試，或改用手動輸入。`;
-      if (code >= 500) return `OpenRouter 暫時未能處理（${code}）。請稍後再試，或改用手動輸入。`;
-      return `識別未完成（HTTP ${code}）。可以再試，或改用手動輸入。`;
-    };
-
-    // Retry the same free model on blips. 401 and other client/billing errors fail fast.
-    const isTransientOcrFailure = (error) => {
-      if (!error || error.name === 'AbortError') return false;
-      const status = Number(error.status) || 0;
-      if (status === 401) return false;
-      if (status === 408 || status === 429 || (status >= 500 && status <= 599)) return true;
-      if (status) return false;
-      return error.transient === true;
-    };
 
     const waitForOcrBackoff = (ms, signal) => new Promise((resolve, reject) => {
       if (signal?.aborted) {
@@ -265,7 +231,9 @@
     };
 
     const extractPayload = (rawText) => {
-      let txt = String(rawText).replace(/```json/gi, '').replace(/```/g, '').trim();
+      const stripFences = value => String(value || '').replace(/```json/gi, '').replace(/```/g, '').trim();
+      let txt = stripFences(rawText).replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+      if (!txt) txt = stripFences(rawText);
       let data = null;
       try { data = JSON.parse(txt); } catch (e) {
         const objMatch = txt.match(/\{[\s\S]*\}/);
@@ -2083,12 +2051,7 @@
             }
           }
           if (generation !== billGenerationRef.current) return;
-          const waitingText = (modelId) => modelId === DEFAULT_FREE_MODEL
-            ? '已送到免費 Gemma，等候回覆。'
-            : modelId === BACKUP_FREE_MODEL
-              ? '已送到免費 Nemotron，等候回覆。'
-              : '已送到所選進階模型，等候回覆。進階模型可能產生費用。';
-          setProgressText(waitingText(modelForRequest));
+          setProgressText(Ocr.waitingText(modelForRequest));
 
           const promptText = `你幫香港人讀旅行單據（日本、韓國或其他非中文）。合併所有圖片成一份清單。只輸出一個 JSON，無 Markdown、無解釋。
 
@@ -2126,9 +2089,7 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
             const abortAttempt = () => attempt.abort();
             controller.signal.addEventListener('abort', abortAttempt);
             try {
-              const requestBody = { model: modelId, messages: [{ role: "user", content: contentArray }], temperature: 0.1 };
-              // Nemotron reasons by default; leave it off so the receipt JSON stays in content.
-              if (modelId === BACKUP_FREE_MODEL) requestBody.reasoning = { enabled: false };
+              const requestBody = Ocr.buildRequestBody(modelId, [{ role: "user", content: contentArray }]);
               const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
                 signal: attempt.signal,
                 method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey.trim()}` },
@@ -2146,10 +2107,8 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
                 throw failure;
               }
               const data = await response.json();
-              const message = data.choices?.[0]?.message || {};
-              let jsonText = message.content;
-              if (!jsonText || !String(jsonText).trim()) jsonText = message.reasoning || '';
-              if (!jsonText || !String(jsonText).trim()) throw markTransient(null, 'OpenRouter 伺服器未回傳內容。');
+              const jsonText = Ocr.messageText(data.choices?.[0]?.message || {});
+              if (!jsonText) throw markTransient(null, 'OpenRouter 伺服器未回傳內容。');
               let shaped;
               try {
                 shaped = extractPayload(jsonText);
@@ -2167,7 +2126,12 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
                 aborted.name = 'AbortError';
                 throw aborted;
               }
-              if (error?.name === 'AbortError') throw markTransient(null, '免費模型等候逾時。可以再試，或改用手動輸入。');
+              if (error?.name === 'AbortError') {
+                const timeout = markTransient(null, '免費模型等候逾時。可以再試，或改用手動輸入。');
+                timeout.timedOut = true;
+                timeout.transient = false;
+                throw timeout;
+              }
               const status = Number(error?.status) || 0;
               if (status || error?.transient === true) throw error;
               throw markTransient(error, error?.message);
@@ -2200,35 +2164,37 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
           };
 
           let shaped;
-          const freeModelRequest = modelForRequest === DEFAULT_FREE_MODEL || modelForRequest === BACKUP_FREE_MODEL;
-          try {
-            if (freeModelRequest) {
-              shaped = await readModelAttempts(modelForRequest, {
-                maxAttempts: FREE_OCR_MAX_ATTEMPTS,
-                firstStatus: waitingText(modelForRequest)
-              });
-            } else {
-              setProgressText(waitingText(modelForRequest));
-              shaped = await readReceiptModel(modelForRequest);
+          if (Ocr.isFreeModel(modelForRequest)) {
+            const order = Ocr.cascadeOrder(modelForRequest);
+            const failures = [];
+            for (let index = 0; index < order.length; index += 1) {
+              const modelId = order[index];
+              if (generation !== billGenerationRef.current) return;
+              try {
+                shaped = await readModelAttempts(modelId, {
+                  maxAttempts: FREE_OCR_MAX_ATTEMPTS,
+                  firstStatus: index === 0 ? Ocr.waitingText(modelId) : Ocr.switchText(modelId)
+                });
+                if (generation !== billGenerationRef.current) return;
+                if (shaped) break;
+              } catch (error) {
+                if (error?.name === 'AbortError' || Number(error?.status) === 401) throw error;
+                failures.push({ modelId, error });
+                if (!Ocr.shouldCascade(error) || index === order.length - 1) {
+                  const combined = new Error(Ocr.exhaustedMessage(failures));
+                  combined.detail = Ocr.exhaustedDetail(failures);
+                  throw combined;
+                }
+              }
             }
-          } catch (error) {
-            const keyRejected = Number(error?.status) === 401;
-            if (error?.name === 'AbortError' || keyRejected || modelForRequest !== DEFAULT_FREE_MODEL) throw error;
-            if (generation !== billGenerationRef.current) return;
-            try {
-              shaped = await readModelAttempts(BACKUP_FREE_MODEL, {
-                maxAttempts: FREE_OCR_MAX_ATTEMPTS,
-                firstStatus: '預設模型失敗，改用 Nemotron…'
-              });
-            } catch (fallbackError) {
-              if (fallbackError?.name === 'AbortError' || Number(fallbackError?.status) === 401) throw fallbackError;
-              const bothMissing = providerMissingDetail(error?.detail) || providerMissingDetail(fallbackError?.detail) || providerMissingDetail(error?.message) || providerMissingDetail(fallbackError?.message);
-              const combined = new Error(bothMissing
-                ? '這兩個免費模型暫時都冇供應商，所以睇唔到單據。請稍後再試，或改用手動輸入。唔使充值。'
-                : '免費 Gemma 同 Nemotron 都未能讀完這張單。可以再試，或改用手動輸入。');
-              combined.detail = [error?.detail || error?.message, fallbackError?.detail || fallbackError?.message].filter(Boolean).join(' / ').slice(0, 180);
+            if (!shaped) {
+              const combined = new Error(Ocr.exhaustedMessage(failures));
+              combined.detail = Ocr.exhaustedDetail(failures);
               throw combined;
             }
+          } else {
+            setProgressText(Ocr.waitingText(modelForRequest));
+            shaped = await readReceiptModel(modelForRequest);
           }
           if (generation !== billGenerationRef.current || !shaped) return;
           setProgressText('正在整理識別結果...');
@@ -2941,9 +2907,7 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
                         {apiKey.trim()
                           ? (!modelUsesFreeTier(apiModel, allowPaidModels)
                             ? bi('✅ 進階模型已開啟', '✅ Advanced model is on')
-                            : resolveBillModel(apiModel, allowPaidModels) === BACKUP_FREE_MODEL
-                              ? bi('✅ 免費 Nemotron 已設定', '✅ Free Nemotron is set')
-                              : bi('✅ 免費 Gemma 已設定', '✅ Free Gemma is set'))
+                            : bi(`✅ 免費 ${Ocr.shortLabel(resolveBillModel(apiModel, allowPaidModels))} 已設定`, `✅ Free ${Ocr.shortLabel(resolveBillModel(apiModel, allowPaidModels))} is set`))
                           : bi('⚠️ 尚未設定免費鎖匙', '⚠️ Free key is not set yet')}
                       </span>
                       <span className={`block text-base font-medium leading-snug ${apiKey.trim() ? 'text-slate-600' : 'text-red-700'}`}>
@@ -3542,9 +3506,7 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
                         </select>
                         <p className="text-base text-slate-700 mt-2 leading-relaxed">{!modelUsesFreeTier(apiModel, allowPaidModels)
                           ? bi('你已揀進階模型，可能產生費用。改回免費模型就唔使充值。', 'You selected an advanced model, which may cost money. Switch back to a free model and you do not need to top up.')
-                          : resolveBillModel(apiModel, allowPaidModels) === BACKUP_FREE_MODEL
-                            ? bi('而家用免費 Nemotron。讀唔到會再試同一模型。', 'Free Nemotron is selected. A failed read retries the same model.')
-                            : bi('預設免費 Gemma。讀唔到會再試同一模型，仍然失敗先改試一次免費 Nemotron。', 'Free Gemma is the default. A failed read retries the same model, then tries free Nemotron once.')}</p>
+                          : bi('而家用免費模型。讀唔到會自動改試清單入面其他免費模型，唔使自己轉，亦唔使充值。', 'A free model is selected. If it cannot read the receipt, the app tries the other free models automatically. You do not switch models, and you do not need to top up.')}</p>
                       </div>
 
                       <label className="flex items-start gap-3 p-4 bg-amber-50 rounded-xl border border-amber-400 cursor-pointer">
