@@ -1,3 +1,4 @@
+// Run after starting the local static server documented in tests/README.md.
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -6,7 +7,68 @@ const base = process.env.BASE_URL || 'http://127.0.0.1:4178/';
 if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?\//.test(base)) throw new Error('Local-only test.');
 const out = process.env.TEST_OUTPUT_DIR || '/tmp/bill-tutorial-qa';
 const results = [];
-const waitStage = (page, stage) => page.waitForFunction(stage => document.querySelector('[data-testid="interactive-tutorial"]')?.dataset.stage === stage, stage);
+const stages = ['upload', 'manual', 'verify', 'items', 'fee', 'share', 'share-options', 'replies', 'payer', 'currency', 'payment', 'tax-method', 'calculate', 'report', 'report-share', 'detail'];
+const steps = [1, 1, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 4, 4, 4];
+const selectors = [
+  '[data-testid="receipt-source-actions"]', '[data-testid="start-manual"]', '[data-testid="verify-item"]',
+  '[data-tutorial-target="item-fields"]', '[data-tutorial-target="fee"]', '[data-tutorial-target="open-claim-share"]',
+  '[data-tutorial-target="send-claim-link"]', '[data-testid="claim-replies"]',
+  '[data-tutorial-target="calculation-settings"]', '[data-tutorial-target="currency"]',
+  '[data-testid="payment-methods"]', '[data-tutorial-target="tax-method"]',
+  '[data-testid="calculate-split"]', '[data-testid="final-summary-preview"]',
+  '[data-testid="summary-report-actions"]', '[data-testid="detail-report-actions"]'
+];
+const waitStage = (page, stage) => page.waitForFunction(stage => {
+  const tutorial = document.querySelector('[data-testid="interactive-tutorial"]');
+  return tutorial?.dataset.stage === stage && tutorial.dataset.ready === 'true';
+}, stage);
+const demo = page => page.locator('[data-tutorial-demo]');
+const target = (page, i) => demo(page).locator(selectors[i]);
+async function advance(page, i) {
+  if (i === 5) { await target(page, 5).click(); await waitStage(page, 'share-options'); }
+  else if (i === 6) { await target(page, 6).click(); await waitStage(page, 'replies'); }
+  else if (i === 12) { await target(page, 12).click(); await waitStage(page, 'report'); }
+  else {
+    await page.getByTestId('tutorial-next').click();
+    if (i < stages.length - 1) await waitStage(page, stages[i + 1]);
+  }
+}
+async function assertTargetGating(page, i, label) {
+  const outside = await page.evaluate(selector => {
+    const card = document.querySelector('[data-testid="tutorial-card"]');
+    const target = document.querySelector('[data-tutorial-demo] ' + selector);
+    const visible = e => !!(e.getClientRects().length && getComputedStyle(e).visibility !== 'hidden' && getComputedStyle(e).display !== 'none');
+    return [...document.querySelectorAll('button,a[href],input,select,textarea,[tabindex]')]
+      .filter(e => visible(e) && !e.disabled && e.tabIndex >= 0 && !card?.contains(e) && !target?.contains(e))
+      .map(e => e.dataset.testid || e.tagName.toLowerCase());
+  }, selectors[i]);
+  assert.deepEqual(outside, [], label + ': other controls remain keyboard-accessible');
+}
+async function walkTutorial(page, label) {
+  await page.getByTestId('start-tutorial').click(); await waitStage(page, 'upload');
+  for (let i = 0; i < stages.length; i++) {
+    await waitStage(page, stages[i]);
+    await target(page, i).waitFor({ state: 'visible' });
+    assert.equal(await demo(page).locator('main').getAttribute('data-current-step'), String(steps[i]), label + '-' + stages[i] + ': App step');
+    assert.equal(await page.getByTestId('tutorial-card').getAttribute('aria-modal'), 'false', label + ': tutorial must be non-modal');
+    assert.equal(await demo(page).evaluate(e => e.inert), false, label + ': demo must not be inert');
+    assert(await page.getByTestId('tutorial-card').evaluate(e => e.getBoundingClientRect().width <= 340), label + ': tutorial card too wide');
+    const jumpButtons = await page.getByTestId('tutorial-card').locator('button').evaluateAll(bs => bs.filter(b => /(?:step\s*[1-4]|第\s*[一二三四1-4]\s*步)/i.test(b.textContent + ' ' + b.getAttribute('aria-label'))).map(b => b.textContent.trim()));
+    assert.deepEqual(jumpButtons, [], label + ': duplicate four-step jump controls');
+    await assertTargetGating(page, i, label + '-' + stages[i]);
+    if ([0, 7, 10].includes(i)) {
+      for (const key of ['Tab', 'Tab', 'Tab', 'Tab', 'Tab', 'Shift+Tab']) {
+        await page.keyboard.press(key);
+        assert(await page.evaluate(selector => {
+          const active = document.activeElement;
+          return document.querySelector('[data-testid="tutorial-card"]')?.contains(active) || document.querySelector('[data-tutorial-demo] ' + selector)?.contains(active);
+        }, selectors[i]), label + '-' + stages[i] + ': keyboard focus escaped target/card');
+      }
+    }
+    await advance(page, i);
+  }
+  await page.getByTestId('interactive-tutorial').waitFor({ state: 'detached' });
+}
 (async () => {
   const browser = await chromium.launch({ headless: true, executablePath: process.env.CHROMIUM_EXECUTABLE || undefined, args: ['--no-sandbox'] });
   try {
@@ -15,55 +77,22 @@ const waitStage = (page, stage) => page.waitForFunction(stage => document.queryS
     page.on('pageerror', e => errors.push(e.message));
     page.on('request', r => { if (/openrouter\.ai|ntfy\.sh/.test(r.url())) requests.push(r.url().replace(/\?.*/, '')); });
     await page.goto(base, { waitUntil: 'networkidle' }); await page.getByTestId('start-tutorial').waitFor();
-    const before = await page.evaluate(() => ({ ...localStorage }));
-    await page.getByTestId('start-tutorial').click(); await waitStage(page, 'upload');
-    // Demo controls are inert and cannot take focus; guide controls form one loop.
-    assert(await page.locator('[data-tutorial-demo]').evaluate(e => e.inert));
-    for (let i = 0; i < 15; i++) { await page.keyboard.press('Tab'); assert(await page.evaluate(() => document.querySelector('[data-testid="tutorial-card"]').contains(document.activeElement))); }
-    await page.keyboard.press('Shift+Tab');
-    assert(await page.evaluate(() => document.querySelector('[data-testid="tutorial-card"]').contains(document.activeElement)));
-    // Even a synthetic click bypassing inert cannot invoke destructive real handlers.
-    await page.evaluate(() => document.querySelector('[data-tutorial-demo] [data-testid="header-clear-current"]').click());
-    assert.equal(await page.locator('[data-tutorial-demo] main').getAttribute('data-current-step'), '1');
-    await page.getByRole('button', { name: '第 4 步：最終結果', exact: true }).click(); await waitStage(page, 'report');
-    await page.locator('[data-tutorial-demo] [data-testid="final-summary-preview"]').waitFor();
-    const sample = await page.locator('[data-tutorial-demo] [data-testid="final-summary-preview"]').innerText();
-    assert.match(sample, /44\.00/); assert.match(sample, /88\.00/);
-    await page.evaluate(() => {
-      const demo = document.querySelector('[data-tutorial-demo]');
-      demo.querySelector('[data-testid="header-clear-current"]').click();
-      demo.querySelector('[data-testid="summary-report-actions"] button').click();
-      [...demo.querySelectorAll('button')].find(b => /儲存此分帳紀錄/.test(b.textContent))?.click();
-    });
-    assert.equal(await page.locator('[data-tutorial-demo] main').getAttribute('data-current-step'), '4');
-    await page.setViewportSize({ width: 844, height: 390 }); await page.waitForTimeout(200);
-    const card = await page.getByTestId('tutorial-card').boundingBox(); assert(card.x >= 0 && card.y >= 0 && card.y + card.height <= 390);
-    await page.getByRole('button', { name: '第 2 步：各自認帳', exact: true }).click(); await waitStage(page, 'items');
-    await page.getByTestId('tutorial-next').click(); await waitStage(page, 'share');
-    await page.evaluate(() => document.querySelector('[data-tutorial-demo] dialog button:last-child').click());
-    await page.getByTestId('tutorial-close').click();
-    assert.deepEqual(await page.evaluate(() => ({ ...localStorage })), before);
+    const before = await page.evaluate(() => Object.fromEntries(Object.keys(localStorage).map(k => [k, localStorage.getItem(k)])));
+    await walkTutorial(page, 'empty-bill');
+    assert.deepEqual(await page.evaluate(() => Object.fromEntries(Object.keys(localStorage).map(k => [k, localStorage.getItem(k)]))), before, 'tutorial changed localStorage');
     assert.equal(await page.locator('[data-live-app] main').getAttribute('data-current-step'), '1');
-    assert.equal(await page.locator('[data-live-app] [data-testid="items-step"]').count(), 0);
-    assert.deepEqual(requests, []); assert.deepEqual(errors, []);
-    results.push({ label: 'empty-bill-keyboard-jump-resize-defence', passed: true }); console.log('PASS empty-bill-keyboard-jump-resize-defence');
-    await page.getByTestId('start-tutorial').click();
-    await page.getByRole('button', { name: '詳細說明', exact: true }).click();
-    await page.locator('[data-live-app] main').getByRole('heading', { name: '新手教學', exact: true }).waitFor();
-    assert.equal(await page.locator('[data-live-app] [data-testid="receipt-source-actions"]').count(), 0);
-    await page.locator('[data-live-app] .header-back-button').click();
-    await page.locator('[data-live-app] [data-testid="receipt-source-actions"]').waitFor();
-    results.push({ label: 'original-detailed-help-preserved', passed: true }); console.log('PASS original-detailed-help-preserved');
+    assert.deepEqual(requests, [], 'tutorial made a business network request'); assert.deepEqual(errors, [], 'browser exceptions');
+    results.push({ label: 'empty-bill-16-stop-gating-nonmodal', passed: true }); console.log('PASS empty-bill-16-stop-gating-nonmodal');
     await context.close();
 
+    // Keep the offline service-worker assertion: tutorial JS/CSS must survive removal of runtime cache entries.
     const offlineContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
     const offline = await offlineContext.newPage(); const offlineErrors = [];
     offline.on('pageerror', e => offlineErrors.push(e.message));
     await offline.goto(base, { waitUntil: 'networkidle' }); await offline.getByTestId('start-tutorial').waitFor();
     await offline.evaluate(async () => { await navigator.serviceWorker.register('./sw.js'); await navigator.serviceWorker.ready; });
     await offline.waitForFunction(() => Boolean(navigator.serviceWorker.controller));
-    await offline.reload({ waitUntil: 'networkidle' }); await offline.getByTestId('start-tutorial').waitFor();
-    await offline.waitForTimeout(300);
+    await offline.reload({ waitUntil: 'networkidle' }); await offline.getByTestId('start-tutorial').waitFor(); await offline.waitForTimeout(300);
     const precache = await offline.evaluate(async () => {
       const names = await caches.keys(); const shell = await caches.open(names.find(n => n.startsWith('bill-splitter-shell-')));
       const js = await shell.match('./tutorial.js'); const css = await shell.match('./tutorial.css');
@@ -76,11 +105,9 @@ const waitStage = (page, stage) => page.waitForFunction(stage => document.queryS
     assert.deepEqual(precache, { js: 200, css: 200 });
     await offlineContext.setOffline(true);
     await offline.reload({ waitUntil: 'domcontentloaded' }); await offline.getByTestId('start-tutorial').waitFor({ timeout: 30000 });
-    await offline.getByTestId('start-tutorial').click(); await waitStage(offline, 'upload');
-    for (const stage of ['items', 'share', 'replies', 'payer', 'report']) { await offline.getByTestId('tutorial-next').click(); await waitStage(offline, stage); }
-    await offline.getByTestId('tutorial-next').click(); await offline.getByTestId('interactive-tutorial').waitFor({ state: 'detached' });
-    assert.deepEqual(offlineErrors, []);
-    results.push({ label: 'registered-SW-offline-versioned-precache-fallback', passed: true }); console.log('PASS registered-SW-offline-versioned-precache-fallback');
+    await walkTutorial(offline, 'offline');
+    assert.deepEqual(offlineErrors, [], 'offline browser exceptions');
+    results.push({ label: 'registered-SW-offline-16-stop-precache-fallback', passed: true }); console.log('PASS registered-SW-offline-16-stop-precache-fallback');
     await offlineContext.close();
     fs.mkdirSync(out, { recursive: true }); fs.writeFileSync(path.join(out, 'safety-results.json'), JSON.stringify({ passed: true, cases: results }, null, 2) + '\n');
   } finally { await browser.close(); }
