@@ -51,12 +51,12 @@
   const RECEIPT_MAX_TOKENS = 4096;
 
   const MESSAGES = {
-    keyRejected: '鎖匙被拒（401）。請檢查有冇漏字或黏埋舊鎖匙。手動分帳同朋友認領都唔使鎖匙。',
+    keyRejected: '鎖匙被拒（401）。請檢查有冇漏字或黏埋舊鎖匙。手動分帳同各自認帳都唔使鎖匙。',
     providerMissing: 'OpenRouter 暫時冇供應商提供所選模型，所以睇唔到單據。請稍後再試，或改用手動輸入。唔使充值。',
     paymentRequired: '此模型需要付費額度（402）。請改回免費模型；免費使用唔使充值。',
     forbidden: 'OpenRouter 拒絕這次請求（403）。如果揀了進階模型，可能係未有付費額度；免費模型唔使充值。',
     rateLimit: '請求太密或免費額度暫時用盡（429）。請稍後再試，或改用手動輸入。免費模型唔使充值。',
-    dataPolicy: 'OpenRouter 因為私隱設定拒絕免費模型（冇符合資料政策的供應商）。請到 https://openrouter.ai/settings/privacy 開啟免費模型所需的資料分享，然後再試。唔使充值。手動輸入同朋友認領都唔使鎖匙。',
+    dataPolicy: 'OpenRouter 因為私隱設定拒絕免費模型（冇符合資料政策的供應商）。請到 https://openrouter.ai/settings/privacy 開啟免費模型所需的資料分享，然後再試。唔使充值。手動輸入同各自認帳都唔使鎖匙。',
     allMissing: '這幾個免費模型暫時都冇供應商，所以睇唔到單據。請稍後再試，或改用手動輸入。唔使充值。',
     allLimited: '免費額度暫時用緊（429）。已經自動改試其他免費模型，都未能讀完。請稍後再試，或改用手動輸入。唔使充值。',
     allFailed: '幾個免費模型都未能讀完這張單。可以再試，或改用手動輸入。唔使充值。',

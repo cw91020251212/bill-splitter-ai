@@ -77,7 +77,7 @@
     ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
     ::-webkit-scrollbar-thumb:hover { background: #64748b; }
   </style>
-  <link rel="stylesheet" href="./theme.css?v=v73-lighter-scroll-ocr">
+  <link rel="stylesheet" href="./theme.css?v=v74-ren-zhang">
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
@@ -536,7 +536,7 @@
       return pendingLabel;
     };
 
-    const STEP_LABELS = ['上載睇單', '朋友認領', '分帳運算', '最終結果'];
+    const STEP_LABELS = ['上載睇單', '各自認帳', '分帳運算', '最終結果'];
     const SEP  = '\n\n➖➖➖➖➖➖➖➖➖➖\n\n';
     const TAIL = '\n\n';
 
@@ -1197,7 +1197,7 @@
             if (restoredStep === 1 && images.length) setUploadError('已恢復遮蓋後的單據圖片；可按重試識別，毋須重新上傳。');
             setDraftNotice(assetsMissing
               ? '已恢復帳單文字及結果，但本機附件未能讀取，請重新選擇圖片／附件。'
-              : '已自動恢復上次帳單，可繼續認領、計算或分享。');
+              : '已自動恢復上次帳單，可繼續認帳、計算或分享。');
           } catch (error) {
             if (!cancelled) setDraftNotice('未能讀取本機草稿；請檢查是否使用同一瀏覽器及網址。');
           } finally { if (!cancelled) setDraftReady(true); }
@@ -1264,7 +1264,7 @@
               setStepError('');
               const names = result.updates.map(update => update.name).filter((name, index, all) => all.indexOf(name) === index);
               setInboxNote(names.join('、'));
-              toast(bi(`${names.join('、')} 已交返認領`, `${names.join(', ')} sent a claim`));
+              toast(bi(`${names.join('、')} 已交返認帳`, `${names.join(', ')} sent their share`));
             }
             setInboxPhase('live');
           } catch (_) {
@@ -1877,7 +1877,7 @@
         for (let i = 0; i < items.length; i++) {
             if (!items[i].name.trim()) { setStepError(`⚠️ 項目 ${items[i].id} 未填寫名稱！`); focusField(`item-name-${i}`); return false; }
         }
-        if (!friendsReplies.trim()) { setStepError("⚠️ 尚未貼上朋友的認領回覆！"); focusField('replies'); return false; }
+        if (!friendsReplies.trim()) { setStepError("⚠️ 尚未貼上朋友的認帳回覆！"); focusField('replies'); return false; }
         setStep(3);
         return true;
       };
@@ -2529,7 +2529,7 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
       const generateFriendClaimLink = () => {
         const link = buildFriendClaimLink();
         if (!link) return;
-        copyToClipboard(link, '手機認領連結');
+        copyToClipboard(link, tr('認帳連結'));
         markClaimLinkShared();
       };
 
@@ -2562,7 +2562,7 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
         const message = uiLang === 'en'
           ? `Open this link, enter your shares, then tap “Send to organizer”:\n${link}`
           : `請打開連結填份數，填好按「交返發起人」：\n${link}`;
-        shareTextWithFiles(message, [], '手機認領連結');
+        shareTextWithFiles(message, [], tr('認帳連結'));
       };
 
       const shareClaimAttachments = () => {
@@ -2605,7 +2605,7 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
         const hasOverClaim = reconciliationIssues.some(issue => issue.difference < 0);
         if (hasOverClaim) {
           setReconciliation({ issues: reconciliationIssues, policy: '' });
-          setStepError('⚠️ 有項目認領數量超過單據總量，請返回修改後再計算。');
+          setStepError('⚠️ 有項目認帳數量超過單據總量，請返回修改後再計算。');
           return;
         }
         if (reconciliationIssues.length && !reconciliation?.policy) {
@@ -2647,19 +2647,19 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
           const amount = issue.amount;
           if (policy === 'payer') {
             if (!personTotals[payer]) personTotals[payer] = { items: [], adjustments: [], subtotal: 0, tax: 0, total: 0 };
-            personTotals[payer].adjustments.push({ name: item.name, nameEn: item.nameEn || '', qty: issue.difference, unit: issue.unit, amount, reason: '墊支人承擔未認領數量' });
+            personTotals[payer].adjustments.push({ name: item.name, nameEn: item.nameEn || '', qty: issue.difference, unit: issue.unit, amount, reason: '墊支人承擔未認帳數量' });
             personTotals[payer].subtotal += amount; totalItemsCost += amount;
           } else if (policy === 'equal') {
             const claimants = Object.keys(personClaims).filter(person => personClaims[person][item.id] > 0);
             claimants.forEach(person => {
               const share = amount / claimants.length;
-              personTotals[person].adjustments.push({ name: item.name, nameEn: item.nameEn || '', qty: issue.difference / claimants.length, unit: issue.unit, amount: share, reason: '已認領人士平均承擔未認領數量' });
+              personTotals[person].adjustments.push({ name: item.name, nameEn: item.nameEn || '', qty: issue.difference / claimants.length, unit: issue.unit, amount: share, reason: '已認帳人士平均承擔未認帳數量' });
               personTotals[person].subtotal += share; totalItemsCost += share;
             });
           } else if (policy && policy.startsWith('person:')) {
             const person = policy.slice(7);
             if (!personTotals[person]) personTotals[person] = { items: [], adjustments: [], subtotal: 0, tax: 0, total: 0 };
-            personTotals[person].adjustments.push({ name: item.name, nameEn: item.nameEn || '', qty: issue.difference, unit: issue.unit, amount, reason: '指定承擔未認領數量' });
+            personTotals[person].adjustments.push({ name: item.name, nameEn: item.nameEn || '', qty: issue.difference, unit: issue.unit, amount, reason: '指定承擔未認帳數量' });
             personTotals[person].subtotal += amount; totalItemsCost += amount;
           }
         });
@@ -2746,8 +2746,8 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
           ? (english ? 'Split equally among everyone' : '全部人平均分')
           : (english ? 'Split in proportion to spending' : '按消費比例分');
         let txt = english
-          ? `🧾 *Detailed Bill Split | Claimed Items & Amount Due* 🧾\n📅 ${results.date} · 💴 Settlement currency: ${reportCurrencyName(curr, language)}\n💳 Payer: ${payer}\n💵 Payment methods: ${paymentLabel}\n⚖️ Tax / service charge: ${splitLabel}\n────────\n\n`
-          : `🧾 *分帳詳細明細｜各人認領項目與應付金額* 🧾\n📅 ${results.date} · 💴 結算貨幣：${reportCurrencyName(curr, language)}\n💳 墊支人：${payer}\n💵 付款方式：${paymentLabel}\n⚖️ 稅／服務費：${splitLabel}\n────────\n\n`;
+          ? `🧾 *Detailed Bill Split | Shares & Amount Due* 🧾\n📅 ${results.date} · 💴 Settlement currency: ${reportCurrencyName(curr, language)}\n💳 Payer: ${payer}\n💵 Payment methods: ${paymentLabel}\n⚖️ Tax / service charge: ${splitLabel}\n────────\n\n`
+          : `🧾 *分帳詳細明細｜各人認帳項目與應付金額* 🧾\n📅 ${results.date} · 💴 結算貨幣：${reportCurrencyName(curr, language)}\n💳 墊支人：${payer}\n💵 付款方式：${paymentLabel}\n⚖️ 稅／服務費：${splitLabel}\n────────\n\n`;
         let grandTotal = 0;
         Object.keys(results.personTotals).forEach(person => {
           const p = results.personTotals[person];
@@ -2765,8 +2765,8 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
           });
           (p.adjustments || []).forEach(a => {
             const adjustmentName = receiptPrimaryLabel(a.name, a.nameEn, a.original, english);
-            const reasonMap = { '墊支人承擔未認領數量': 'Unclaimed quantity covered by the payer', '已認領人士平均承擔未認領數量': 'Unclaimed quantity shared equally by claimants', '指定承擔未認領數量': 'Unclaimed quantity assigned to this person' };
-            txt += `${oneLineName(adjustmentName)}\n${english ? 'Unclaimed quantity covered by this person' : '未認領數量由此人承擔'}\n`;
+            const reasonMap = { '墊支人承擔未認帳數量': 'Unclaimed quantity covered by the payer', '已認帳人士平均承擔未認帳數量': 'Unclaimed quantity shared equally', '指定承擔未認帳數量': 'Unclaimed quantity assigned to this person' };
+            txt += `${oneLineName(adjustmentName)}\n${english ? 'Unclaimed quantity covered by this person' : '未認帳數量由此人承擔'}\n`;
             txt += english
               ? `💲 ${formatMoney(a.amount, curr)} (${a.qty} ${unitDisplay(a.unit, language)}, ${reasonMap[a.reason] || a.reason})\n\n`
               : `💲 ${formatMoney(a.amount, curr)}（${a.qty} ${unitDisplay(a.unit, language)}，${a.reason}）\n\n`;
@@ -2781,8 +2781,8 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
         const billTotal = itemsSum + toNum(taxAmount);
         const diff = Math.abs(grandTotal - billTotal);
         txt += english
-          ? `\n📊 *Totals check*\nItems subtotal: ${formatMoney(itemsSum, curr)}\nTax / service charge: ${formatMoney(taxAmount, curr)}\nReceipt total: ${formatMoney(billTotal, curr)}\nSum of individual amounts: ${formatMoney(grandTotal, curr)}\nDifference: ${formatMoney(diff, curr)} ${diff < 0.05 ? '✅' : '⚠️ Check claimed quantities'}\n`
-          : `\n📊 *總核對*\n項目小計：${formatMoney(itemsSum, curr)}\n稅／服務費：${formatMoney(taxAmount, curr)}\n單據總計：${formatMoney(billTotal, curr)}\n各人合計：${formatMoney(grandTotal, curr)}\n差額：${formatMoney(diff, curr)} ${diff < 0.05 ? '✅' : '⚠️ 請檢查認領數量'}\n`;
+          ? `\n📊 *Totals check*\nItems subtotal: ${formatMoney(itemsSum, curr)}\nTax / service charge: ${formatMoney(taxAmount, curr)}\nReceipt total: ${formatMoney(billTotal, curr)}\nSum of individual amounts: ${formatMoney(grandTotal, curr)}\nDifference: ${formatMoney(diff, curr)} ${diff < 0.05 ? '✅' : '⚠️ Check the quantities'}\n`
+          : `\n📊 *總核對*\n項目小計：${formatMoney(itemsSum, curr)}\n稅／服務費：${formatMoney(taxAmount, curr)}\n單據總計：${formatMoney(billTotal, curr)}\n各人合計：${formatMoney(grandTotal, curr)}\n差額：${formatMoney(diff, curr)} ${diff < 0.05 ? '✅' : '⚠️ 請檢查認帳數量'}\n`;
         if (full && taxNote) txt += english ? `\n📝 Tax note: ${taxNote}\n` : `\n📝 稅費來源：${taxNote}\n`;
         return txt;
       };
@@ -2809,10 +2809,10 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
         if (step === 3 && !payer.trim()) push(2, 'S1', '未填墊支人姓名', '填咗才可以出結果', { label: '跳去輸入', run: () => focusField('payer') });
         if (step === 2 && items.length > 0) {
             const emptyNameIdx = items.findIndex(i => !i.name.trim());
-            if (emptyNameIdx !== -1) push(2, 'S2', `項目 ${items[emptyNameIdx].id} 未填寫名稱`, '請填寫名稱以便認領', { label: '填寫', run: () => focusField(`item-name-${emptyNameIdx}`) });
+            if (emptyNameIdx !== -1) push(2, 'S2', `項目 ${items[emptyNameIdx].id} 未填寫名稱`, '請填寫名稱以便認帳', { label: '填寫', run: () => focusField(`item-name-${emptyNameIdx}`) });
         }
         if (step >= 2 && items.length === 0) push(2, 'S3', '請至少新增一個項目', '', { label: '新增', run: () => { setStep(2); addItemAndFocus(); } });
-        if (step === 2 && !friendsReplies.trim() && items.length > 0) push(2, 'S4', '尚未收到朋友的認領', '等朋友按「交返發起人」，或貼上 WhatsApp 後備', { label: '前往認領', run: () => focusField('replies') });
+        if (step === 2 && !friendsReplies.trim() && items.length > 0) push(2, 'S4', '尚未收到朋友的認帳', '等朋友按「交返發起人」，或貼上 WhatsApp 後備', { label: '前往認帳', run: () => focusField('replies') });
 
         if (step === 2 && claimInfo && claimInfo.issues.length > 0) {
             const firstIssue = claimInfo.issues[0];
@@ -2832,12 +2832,12 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
                 if(claimInfo.claims) Object.keys(claimInfo.claims).forEach(person => { itemClaimTotals[item.id] += (claimInfo.claims[person][item.id] || 0); });
             });
             items.forEach(item => { if (itemClaimTotals[item.id] <= 0) { unclaimedCount++; unclaimedCost += toNum(item.total); } });
-            if (unclaimedCount > 0) push(3, 'C2', `${unclaimedCount} 項冇人認領（${formatMoney(unclaimedCost, currency)} 未分攤）`, '請補回認領，或刪走冇人食嘅項目', { label: '前往', run: () => jumpToStep(2) });
+            if (unclaimedCount > 0) push(3, 'C2', `${unclaimedCount} 項冇人認帳（${formatMoney(unclaimedCost, currency)} 未分攤）`, '請補回認帳，或刪走冇人食嘅項目', { label: '前往', run: () => jumpToStep(2) });
         }
 
         if (isAnalyzing) push(4, 'A1', progressText || '已送到免費模型，等候回覆。', '', null);
         else if (step === 2 && items.length > 0 && friendsReplies.trim() && (!claimInfo || claimInfo.issues.length === 0)) {
-            push(5, 'G2', '認領資料準備就緒', '下一步先填墊支人，再計算', { label: '下一步', run: goToPayerStep });
+            push(5, 'G2', '認帳資料準備就緒', '下一步先填墊支人，再計算', { label: '下一步', run: goToPayerStep });
         }
 
         if (step === 1 && !isAnalyzing && !showSettings && !showTutorial && !showHistory && list.length === 0) {
@@ -2845,7 +2845,7 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
         }
         if (step === 3 && payer.trim() && items.length > 0) {
             const issues = reconciliation?.issues || [];
-            if (issues.some(issue => issue.difference < 0)) push(2, 'C3', '認領數量超過單據總量', '返回修改後再計算', { label: '上一步', run: () => setStep(2) });
+            if (issues.some(issue => issue.difference < 0)) push(2, 'C3', '認帳數量超過單據總量', '返回修改後再計算', { label: '上一步', run: () => setStep(2) });
             else if (issues.length && !reconciliation.policy) push(3, 'C3', '實際數量未完全核對', '先揀邊個承擔剩餘數量', null);
             else push(5, 'G3', '可以產生分帳報告', '確認墊支人同收款方式', { label: '產生報告', run: calculateSplit });
         }
@@ -3188,10 +3188,10 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
                       <p className="verify-summary" data-testid="verify-summary">{tf("已讀到 {0} 項 · 總額 {1}", [items.length, formatMoney(receiptTotal, currency)])}</p>
                     </div>
                   ) : (
-                    <h2 className="text-2xl font-bold text-slate-800 tracking-tight">{tr("核對項目與朋友認領")}</h2>
+                    <h2 className="text-2xl font-bold text-slate-800 tracking-tight">{tr("核對項目與各自認帳")}</h2>
                   )}
                 </div>
-                {items.length === 0 && <p className="text-base text-slate-700 leading-relaxed">{bi('有項目之後，先會出現認領連結。', 'The claim link appears once there is an item.')}</p>}
+                {items.length === 0 && <p className="text-base text-slate-700 leading-relaxed">{bi('有項目之後，先會出現認帳連結。', 'The share link appears once there is an item.')}</p>}
 
                 <div className="space-y-4">
                   {!receiptWasRead && (
@@ -3280,20 +3280,20 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
 
                 <div className="border-t border-slate-400 my-6 pt-6 space-y-6">
                   <div data-testid="claim-share-block" className="claim-share-block">
-                    <Label className="flex items-center justify-between mb-3"><span>{tr("1. 產生手機認領連結發送給朋友")}</span></Label>
+                    <Label className="flex items-center justify-between mb-3"><span>{tr("1. 產生認帳連結發送給朋友")}</span></Label>
                     <p className="text-base text-slate-700 mb-3 leading-relaxed">{bi('複製連結畀朋友填份數，填完撳交返發起人。', 'Copy the link. Friends enter their shares, then tap Send to organizer.')}</p>
                     <p data-testid="claim-share-hint" className="claim-share-hint">{tr("核對無誤就可以㩒分享")}</p>
                     <div data-testid="claim-link-actions" className="flex flex-col gap-3">
                       <Button variant="secondary" onClick={generateFriendClaimLink} className="!w-full text-sm bg-white hover:bg-slate-50 border-slate-500">
-                        <Icon path={icons.copy} size={18} className="text-slate-600"/>{tr(" 複製認領連結")}</Button>
+                        <Icon path={icons.copy} size={18} className="text-slate-600"/>{tr(" 複製認帳連結")}</Button>
                       <ChoiceDivider />
                       <Button variant="primary" onClick={openClaimShareDialog} className="!w-full text-sm">
-                        <Icon path={icons.share} size={18}/>{tr(" 分享認領連結＋（單據圖片）")}</Button>
+                        <Icon path={icons.share} size={18}/>{tr(" 分享認帳連結＋（單據圖片）")}</Button>
                     </div>
                     {showClaimShareDialog && (
                     <dialog ref={claimShareDialogRef} onCancel={() => setShowClaimShareDialog(false)} aria-labelledby="claim-share-title" className="m-auto max-w-lg rounded-2xl border border-slate-400 bg-white p-4 text-slate-800 shadow-xl overflow-y-auto backdrop:bg-slate-950/60" style={{ width: 'calc(100% - 2rem)', maxHeight: '85dvh' }}>
                       <div className="flex items-center justify-between gap-2 mb-3">
-                        <h2 id="claim-share-title" className="font-bold text-base">{tr("分享認領連結＋（單據圖片）")}</h2>
+                        <h2 id="claim-share-title" className="font-bold text-base">{tr("分享認帳連結＋（單據圖片）")}</h2>
                         <button type="button" aria-label={tr("關閉分享視窗")} onClick={() => setShowClaimShareDialog(false)} className="shrink-0 rounded-lg p-2 hover:bg-slate-100"><Icon path={icons.x} size={20}/></button>
                       </div>
                       <label htmlFor="claim-share-files" className="block text-sm font-semibold mb-2">{tr("單據圖片／其他附件（可選）")}</label>
@@ -3325,7 +3325,7 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
                         </div>
                       )}
                       <p className="mt-3 text-xs text-slate-600">{draftAssetStatus === 'saving' && hasDraftAssets ? tr("正在保存草稿附件，請稍候…") : tr("開啟分享選單前會確認本機草稿已保存。")}</p>
-                      <Button variant="primary" onClick={shareFriendClaimLink} disabled={hasDraftAssets && draftAssetStatus === 'saving'} className="!w-full mt-4 text-sm"><Icon path={icons.share} size={18}/>{tr(" 第 1 步：分享一個認領連結")}</Button>
+                      <Button variant="primary" onClick={shareFriendClaimLink} disabled={hasDraftAssets && draftAssetStatus === 'saving'} className="!w-full mt-4 text-sm"><Icon path={icons.share} size={18}/>{tr(" 第 1 步：分享一個認帳連結")}</Button>
                       {claimAttachments.length > 0 && (
                         <Button variant="outline" onClick={shareClaimAttachments} disabled={hasDraftAssets && draftAssetStatus === 'saving'} className="!w-full mt-3 text-sm"><Icon path={icons.share} size={18}/>{tr(" 第 2 步：另分享附件（")}{claimAttachments.length}{tr(" 個）")}</Button>
                       )}
@@ -3342,8 +3342,8 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
                     {...(claimLinkShared ? {} : { inert: '' })}
                   >
                     <Card data-testid="claim-inbox" className="!p-4 mb-4 border-brand-600">
-                      <h3 className="text-lg font-extrabold text-slate-800">{bi('朋友一按交返', 'Friends send claims back')}</h3>
-                      <p className="text-base text-slate-700 mt-2 leading-relaxed">{bi('朋友撳「交返發起人」後，認領會出現在下面。', 'After a friend taps Send to organizer, the claim appears below.')}</p>
+                      <h3 className="text-lg font-extrabold text-slate-800">{bi('朋友一按交返', 'Friends send their share')}</h3>
+                      <p className="text-base text-slate-700 mt-2 leading-relaxed">{bi('朋友撳「交返發起人」後，認帳會出現在下面。', 'After a friend taps Send to organizer, their share appears below.')}</p>
                       <p data-testid="claim-inbox-status" className="mt-3 text-base font-bold leading-relaxed text-slate-800" role="status">
                         {!claimRoom && bi('先複製或分享上面的連結。', 'Copy or share the link above first.')}
                         {claimRoom && inboxPhase === 'receiving' && bi('正在接收…', 'Receiving…')}
@@ -3357,12 +3357,12 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
                       <Button data-testid="claim-inbox-refresh" variant="outline" className="!w-full mt-3" disabled={!claimRoom || inboxPhase === 'receiving'} onClick={() => pullClaimsRef.current(true)}>{bi('重新接收', 'Check again')}</Button>
                     </Card>
                     <Label required={friendsReplies.length === 0} className="flex items-center justify-between mb-3">
-                      <span>{tr("2. 朋友交返的認領")}</span>
+                      <span>{tr("2. 朋友交返的認帳")}</span>
                     </Label>
                     <textarea
                       data-testid="claim-replies"
                       ref={el => fieldRefs.current.replies = el} value={friendsReplies} onChange={(e) => {setFriendsReplies(e.target.value); setReconciliation(null); setStepError('');}} onPaste={handlePasteReplies} onFocus={onFocusReplies} onBlur={onBlurReplies}
-                      placeholder={bi('認領會出現在這裡，亦可以貼上 WhatsApp 後備。', 'Claims appear here. You can also paste a WhatsApp backup.')}
+                      placeholder={bi('認帳會出現在這裡，亦可以貼上 WhatsApp 後備。', 'Shares appear here. You can also paste a WhatsApp backup.')}
                       className="w-full h-48 bg-white border border-slate-500 rounded-xl p-4 text-base font-mono text-slate-700 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none resize-y shadow-inner leading-relaxed">
                     </textarea>
                     <div className="flex gap-3 pt-2">
@@ -3387,30 +3387,30 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
                   <Card className="border-amber-500 bg-amber-50 space-y-4">
                     <div>
                       <h3 className="font-bold text-amber-900 text-lg">{tr("⚠️ 實際數量未完全核對")}</h3>
-                      <p className="text-sm text-amber-800 mt-1">{tr("只填單位嘅項目必須同單據總量對得上；未認領數量唔會無故消失。")}</p>
+                      <p className="text-sm text-amber-800 mt-1">{tr("只填單位嘅項目必須同單據總量對得上；未認帳數量唔會無故消失。")}</p>
                     </div>
                     <div className="space-y-2">
                       {reconciliation.issues.map(issue => (
                         <div key={issue.itemId} className="bg-white border border-amber-300 rounded-lg p-3 text-sm text-slate-700">
-                          <strong>{issue.itemId} {displayItemName(items.find(item => item.id === issue.itemId) || issue)}</strong>{tr("：單據 ")}{issue.totalQty} {unitDisplay(issue.unit)}{tr("，已認領 ")}{issue.claimedQty} {unitDisplay(issue.unit)}{' '}
+                          <strong>{issue.itemId} {displayItemName(items.find(item => item.id === issue.itemId) || issue)}</strong>{tr("：單據 ")}{issue.totalQty} {unitDisplay(issue.unit)}{tr("，已認帳 ")}{issue.claimedQty} {unitDisplay(issue.unit)}{' '}
                           {issue.difference > 0 ? <span className="font-bold text-amber-700">{tr("（尚欠 ")}{issue.difference} {unitDisplay(issue.unit)}{tr("，約 ")}{formatMoney(issue.amount, currency)}）</span> : <span className="font-bold text-red-700">{tr("（超出 ")}{-issue.difference} {unitDisplay(issue.unit)}）</span>}
                         </div>
                       ))}
                     </div>
                     {reconciliation.issues.some(issue => issue.difference < 0) ? (
-                      <Button variant="secondary" className="w-full border-red-500 text-red-700" onClick={() => { setReconciliation(null); setStep(2); }}>{tr("返回修改認領數量")}</Button>
+                      <Button variant="secondary" className="w-full border-red-500 text-red-700" onClick={() => { setReconciliation(null); setStep(2); }}>{tr("返回修改認帳數量")}</Button>
                     ) : (
                       <div>
                         <Label required={!reconciliation.policy} className="text-base">{tr("剩餘數量由誰承擔？")} <span className="text-xs font-normal">{bi('（擇一）', '(choose one)')}</span></Label>
                         <div className="grid gap-2 mt-2">
-                          {[{ id: 'payer', label: tf("由墊支人（{0}）承擔", [payer || '我']) }, { id: 'equal', label: tr("由已認領人士平均承擔") }, ...Object.keys(claimInfo?.claims || {}).map(person => ({ id: `person:${person}`, label: tf("指定由 {0} 承擔", [person]) }))].map(option => (
+                          {[{ id: 'payer', label: tf("由墊支人（{0}）承擔", [payer || '我']) }, { id: 'equal', label: tr("由已認帳人士平均承擔") }, ...Object.keys(claimInfo?.claims || {}).map(person => ({ id: `person:${person}`, label: tf("指定由 {0} 承擔", [person]) }))].map(option => (
                             <label key={option.id} className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer ${reconciliation.policy === option.id ? 'bg-white border-brand-500' : 'bg-white border-amber-300'}`}>
                               <input type="radio" name="reconciliationPolicy" checked={reconciliation.policy === option.id} onChange={() => setReconciliation(prev => ({ ...prev, policy: option.id }))} className="w-4 h-4 text-brand-600" />
                               <span className="font-semibold text-slate-800 text-sm">{tr(option.label)}</span>
                             </label>
                           ))}
                         </div>
-                        <p className="text-xs text-amber-800 mt-2">{tr("你亦可以按「上一步」返回認領表，補返未認領數量。")}</p>
+                        <p className="text-xs text-amber-800 mt-2">{tr("你亦可以按「上一步」返回認帳表，補返未認帳數量。")}</p>
                       </div>
                     )}
                   </Card>
@@ -3595,7 +3595,7 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
                   <div className="guide-flow p-5 space-y-4">
                     {[
                       ['1', tr("睇單"), bi('影相或揀圖，讀出項目、價錢同稅費。', 'Take or choose a photo to read items, prices, and tax.')],
-                      ['2', tr("認領"), bi('發連結。朋友填份數後撳「交返發起人」。', 'Send the link. Friends enter shares, then tap Send to organizer.')],
+                      ['2', tr("各自認帳"), bi('發連結。朋友填份數後撳「交返發起人」。', 'Send the link. Friends enter shares, then tap Send to organizer.')],
                       ['3', tr("運算"), tr("填墊支人姓名、確認自動偵測的貨幣、付款方式。")],
                       ['4', tr("結果"), tr("得出「追數版」同「詳細版」，複製後發返群組。")],
                     ].map(([n, t, d]) => (
@@ -3607,13 +3607,13 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
                   </div>
                 </Card>
 
-                <Accordion title={bi('朋友點樣交返', 'How friends send claims back')} tone="slate" defaultOpen={true} icon={icons.send}>
+                <Accordion title={bi('朋友點樣交返', 'How friends send their share')} tone="slate" defaultOpen={true} icon={icons.send}>
                   <ul className="list-disc space-y-2 pl-5">
-                    <li>{bi('複製或分享認領連結。', 'Copy or share the claim link.')}</li>
-                    <li>{bi('朋友填份數，再撳「交返發起人」。認領會出現在下面。', 'Friends enter their shares, then tap Send to organizer. The claim appears below.')}</li>
-                    <li>{bi('同一位再交會更新；幾位朋友都可以交。', 'If the same friend sends again, their claim is updated. Several friends can send.')}</li>
+                    <li>{bi('複製或分享認帳連結。', 'Copy or share the link.')}</li>
+                    <li>{bi('朋友填份數，再撳「交返發起人」。認帳會出現在下面。', 'Friends enter their shares, then tap Send to organizer. It appears below.')}</li>
+                    <li>{bi('同一位再交會更新；幾位朋友都可以交。', 'If the same friend sends again, their share is updated. Several friends can send.')}</li>
                     <li>{bi('朋友唔使 API 鎖匙，亦唔好把你的鎖匙發出去。', 'Friends do not need an API key. Do not send them yours.')}</li>
-                    <li>{bi('交返大約保留 12 小時。這頁開住會自動收到；未見到就按「重新接收」。', 'A claim is kept for about 12 hours. This page receives it while open. If it is missing, tap Check again.')}</li>
+                    <li>{bi('交返大約保留 12 小時。這頁開住會自動收到；未見到就按「重新接收」。', 'A reply is kept for about 12 hours. This page receives it while open. If it is missing, tap Check again.')}</li>
                     <li>{bi('WhatsApp 分享或複製只係後備，要自己發送。', 'WhatsApp share or copy is only a backup. You still send it yourself.')}</li>
                     <li>{bi('有單據圖片就先發連結，再另外分享圖片。', 'If there are receipt images, share the link first, then share the images separately.')}</li>
                   </ul>

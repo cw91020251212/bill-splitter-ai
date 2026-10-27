@@ -47,8 +47,8 @@ test('upsert keeps every friend and replaces a resubmission', () => {
     v: 1, name: '阿明', claims: [{ id: '01', qty: 0.5, unit: '', displayUnit: '' }]
   }], items);
   assert.equal(updated.split('姓名：阿明').length - 1, 1);
-  assert.match(updated, /認領份數 = 0\.5/);
-  assert.doesNotMatch(updated, /認領份數 = 1/);
+  assert.match(updated, /認帳份數 = 0\.5/);
+  assert.doesNotMatch(updated, /認帳份數 = 1/);
   assert.match(updated, /姓名：小美/);
 });
 
