@@ -247,6 +247,7 @@
   "手動輸入項目 ": "Enter items manually ",
   "核對項目與朋友認領": "Review items and friends’ claims",
   "核對單據": "Check the receipt",
+  "核對無誤就可以㩒分享": "If it looks right, tap share.",
   "AI 已讀好，改錯嘅就得": "AI already read it. Fix anything wrong.",
   "已讀到 {0} 項 · 總額 {1}": "Read {0} items · total {1}",
   "確認無誤，下一步": "Looks right, next",
