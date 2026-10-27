@@ -104,6 +104,25 @@ body.bg-slate-50 { background: var(--page-grey); color: var(--ink); }
 #root .upload-dropzone .w-20.h-20.bg-amber-50 { background: #fff4d6; border-color: #c4842a; color: #8a4b08; }
 #root .upload-dropzone h3 { color: #283b2c; }
 #root .upload-dropzone button { min-height: 48px; }
+/* While a receipt is being read, keep the wait panel in normal flow and stop
+   scroll anchoring from tucking it under the sticky header. */
+#root [data-testid="scan-start"].is-analyzing,
+#root .upload-dropzone.is-analyzing {
+  overflow-anchor: none;
+}
+#root .upload-dropzone.is-analyzing {
+  overflow: visible;
+  justify-content: flex-start;
+  align-items: stretch;
+  text-align: left;
+  padding: 22px 20px 20px;
+}
+#root .ocr-progress-panel {
+  width: 100%;
+  overflow: visible;
+  scroll-margin-top: 12rem;
+  scroll-margin-bottom: 6rem;
+}
 #root :is(
   input[type="text"],
   input[type="number"],
@@ -635,13 +654,13 @@ html[lang="en"] #root .header-actions .guide-label { display: none; }
   min-height: 52px;
   font-size: 1.125rem;
 }
-/* Same gray as the inactive「重新接收」button. Utility colors such as
-   text-slate-800 resolve to near-black ink, so every text node in this
-   block has to be forced — a veil behind the content does not recolor them. */
+/* Lighter than the inactive「重新接收」fill, still plainly unused.
+   Utility colors such as text-slate-800 resolve to near-black ink, so every
+   text node in this block has to be forced — a veil does not recolor them. */
 #root .claim-await-share {
-  --claim-mute-ink: #5c665f;
-  --claim-mute-surface: #e1e4df;
-  --claim-mute-line: #c5cbc4;
+  --claim-mute-ink: #6f7872;
+  --claim-mute-surface: #e9ece8;
+  --claim-mute-line: #d0d6cf;
   position: relative;
   isolation: isolate;
   border-radius: 18px;
@@ -658,10 +677,10 @@ html[lang="en"] #root .header-actions .guide-label { display: none; }
   position: absolute;
   inset: -8px;
   border-radius: 18px;
-  background: rgba(225, 228, 223, 0.78);
+  background: rgba(233, 236, 232, 0.7);
   border: 1px solid var(--claim-mute-line);
-  backdrop-filter: blur(8px) saturate(0.35);
-  -webkit-backdrop-filter: blur(8px) saturate(0.35);
+  backdrop-filter: blur(6px) saturate(0.6);
+  -webkit-backdrop-filter: blur(6px) saturate(0.6);
   z-index: 0;
   pointer-events: none;
 }
