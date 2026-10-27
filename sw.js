@@ -13,7 +13,7 @@
  * Bump CACHE_VERSION whenever you edit index.html so returning users get the
  * new build instead of the cached one.
  */
-const CACHE_VERSION = 'v74-ren-zhang';
+const CACHE_VERSION = 'v75-interactive-tutorial';
 const SHELL_CACHE = `bill-splitter-shell-${CACHE_VERSION}`;
 const ASSET_CACHE = `bill-splitter-assets-${CACHE_VERSION}`;
 const CDN_CACHE = `bill-splitter-cdn-${CACHE_VERSION}`;
@@ -27,6 +27,8 @@ const SHELL_URLS = [
   './ocr-cascade.js',
   './i18n.js',
   './theme.css',
+  './tutorial.js',
+  './tutorial.css',
   './manifest.webmanifest',
   './icons/icon.svg',
   './icons/favicon.ico',
@@ -157,7 +159,12 @@ self.addEventListener('fetch', (event) => {
 
   if (url.origin === self.location.origin) {
     event.respondWith(
-      staleWhileRevalidate(request, ASSET_CACHE).catch(() => Response.error())
+      staleWhileRevalidate(request, ASSET_CACHE).catch(async () => {
+        // The precached shell has canonical URLs; versioned local assets must
+        // still work offline immediately after installing an update.
+        const shell = await caches.open(SHELL_CACHE);
+        return (await shell.match(request, { ignoreSearch: true })) || Response.error();
+      })
     );
   }
 });

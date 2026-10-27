@@ -1,0 +1,333 @@
+/* Bill Split tutorial: deliberately scoped so the isolated demo keeps its normal page flow. */
+.bt-root {
+  display: contents;
+}
+
+[data-tutorial-demo] {
+  display: contents;
+}
+
+/* The guide provides its own status. Do not imply the demo was saved, or
+   let the live-style fixed footer obscure the highlighted sample controls. */
+[data-tutorial-demo] [role="status"] {
+  display: none;
+}
+
+/* The share preview is an inline dialog, never a browser top-layer modal. */
+[data-tutorial-demo] dialog[aria-labelledby="claim-share-title"] {
+  position: static;
+  inset: auto;
+  margin: 0;
+  transform: none;
+}
+
+.bt-layer {
+  position: fixed;
+  z-index: 90;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.bt-mask {
+  position: absolute;
+  background: rgba(21, 32, 27, .66);
+  pointer-events: none;
+}
+
+.bt-highlight {
+  position: absolute;
+  z-index: 1;
+  border: 3px solid #49b88b;
+  border-radius: 14px;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, .94), 0 0 26px 5px rgba(73, 184, 139, .48);
+  pointer-events: none;
+  animation: bt-pulse 2.2s ease-in-out infinite;
+}
+
+.bt-card {
+  position: fixed;
+  z-index: 92;
+  left: max(12px, env(safe-area-inset-left, 0px));
+  right: max(12px, env(safe-area-inset-right, 0px));
+  width: auto;
+  max-width: 680px;
+  max-height: 40vh;
+  max-height: 40dvh;
+  box-sizing: border-box;
+  margin-inline: auto;
+  padding: 12px 14px 11px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  overflow: hidden;
+  border: 1px solid #3d8e6a;
+  border-radius: 18px;
+  background: #fffefa;
+  color: #242a27;
+  box-shadow: 0 12px 34px rgba(14, 34, 24, .28), 0 2px 0 rgba(73, 184, 139, .24);
+  font-family: inherit;
+  line-height: 1.4;
+  -webkit-font-smoothing: antialiased;
+}
+
+.bt-card,
+.bt-card * {
+  box-sizing: border-box;
+}
+
+.bt-card:focus {
+  outline: none;
+}
+
+.bt-card-header {
+  min-height: 24px;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.bt-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #287652;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .09em;
+}
+
+.bt-brand-dot {
+  width: 9px;
+  height: 9px;
+  flex: 0 0 9px;
+  border-radius: 50%;
+  background: #49b88b;
+  box-shadow: 0 0 0 3px #e4f4eb;
+}
+
+.bt-close {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  display: inline-grid;
+  place-items: center;
+  margin: -4px -5px -4px 0;
+  border: 1px solid #c7d8cc;
+  border-radius: 10px;
+  background: #f5f8f3;
+  color: #283b30;
+  font: inherit;
+  font-size: 25px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.bt-steps {
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.bt-step {
+  min-width: 0;
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 4px 6px;
+  border: 1px solid #b8c9bd;
+  border-radius: 10px;
+  background: #fff;
+  color: #405147;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.bt-step.is-active {
+  border-color: #39845f;
+  background: #e5f4e9;
+  color: #175b3b;
+  box-shadow: inset 0 0 0 1px #49b88b;
+}
+
+.bt-step-number {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid #9bb7a4;
+  border-radius: 50%;
+  background: #f8fbf8;
+  font-size: 10px;
+}
+
+.bt-step.is-active .bt-step-number {
+  border-color: #49b88b;
+  background: linear-gradient(135deg, #49b88b, #80d9aa);
+  color: #103d28;
+}
+
+.bt-step-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bt-copy {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: #9dbda8 transparent;
+  padding: 1px 3px 3px 0;
+}
+
+.bt-progress {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 3px 8px;
+  margin-bottom: 3px;
+  color: #4b5a50;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.bt-progress-main {
+  color: #287652;
+}
+
+.bt-progress-sub {
+  color: #56635a;
+  font-weight: 600;
+}
+
+.bt-copy h2 {
+  margin: 0 0 3px;
+  color: #242a27;
+  font-size: clamp(16px, 4.3vw, 19px);
+  font-weight: 800;
+  line-height: 1.3;
+  letter-spacing: -.02em;
+}
+
+.bt-description {
+  margin: 0;
+  color: #3e4842;
+  font-size: 12px;
+  line-height: 1.48;
+}
+
+.bt-hint {
+  margin: 4px 0 0;
+  color: #26734f;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.bt-safety {
+  margin: 5px 0 0;
+  padding: 5px 7px;
+  border-left: 3px solid #49b88b;
+  border-radius: 0 7px 7px 0;
+  background: #edf6ef;
+  color: #3e5145;
+  font-size: 10px;
+  line-height: 1.42;
+}
+
+.bt-controls {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 6px;
+  border-top: 1px solid #e2e9e2;
+}
+
+.bt-controls button {
+  min-height: 34px;
+  border-radius: 10px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.25;
+  cursor: pointer;
+}
+
+.bt-help,
+.bt-previous {
+  padding: 6px 10px;
+  border: 1px solid #afc3b5;
+  background: #fff;
+  color: #315540;
+}
+
+.bt-next-controls {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.bt-previous:disabled {
+  opacity: .48;
+  cursor: default;
+}
+
+.bt-next {
+  padding: 7px 15px;
+  border: 1px solid #39865f;
+  background: linear-gradient(135deg, #49b88b 0%, #80d9aa 65%, #b5f2cf 100%);
+  color: #133e2a;
+  box-shadow: 0 2px 0 rgba(20, 88, 57, .15);
+}
+
+.bt-card :is(button, a, [tabindex]):focus-visible {
+  outline: 3px solid #287652;
+  outline-offset: 2px;
+}
+
+@keyframes bt-pulse {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(255,255,255,.94), 0 0 18px 3px rgba(73,184,139,.32); }
+  50% { box-shadow: 0 0 0 3px rgba(255,255,255,.98), 0 0 27px 6px rgba(73,184,139,.56); }
+}
+
+@media (max-width: 390px) {
+  .bt-card {
+    left: max(9px, env(safe-area-inset-left, 0px));
+    right: max(9px, env(safe-area-inset-right, 0px));
+    padding: 10px 11px 9px;
+    gap: 5px;
+    border-radius: 15px;
+  }
+  .bt-steps { gap: 4px; }
+  .bt-step { min-height: 32px; gap: 4px; padding: 4px 3px; font-size: 10px; }
+  .bt-step-number { width: 18px; height: 18px; flex-basis: 18px; }
+  .bt-copy h2 { font-size: 16px; }
+  .bt-description { font-size: 11px; }
+  .bt-controls button { min-height: 32px; font-size: 11px; }
+  .bt-help, .bt-previous { padding-inline: 8px; }
+  .bt-next { padding-inline: 12px; }
+}
+
+@media (max-height: 480px) {
+  .bt-card { padding-top: 8px; padding-bottom: 8px; gap: 4px; }
+  .bt-step { min-height: 29px; }
+  .bt-controls { padding-top: 4px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bt-highlight { animation: none; }
+}

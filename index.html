@@ -77,7 +77,8 @@
     ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
     ::-webkit-scrollbar-thumb:hover { background: #64748b; }
   </style>
-  <link rel="stylesheet" href="./theme.css?v=v74-ren-zhang">
+  <link rel="stylesheet" href="./theme.css?v=v75-interactive-tutorial">
+  <link rel="stylesheet" href="./tutorial.css?v=v75-interactive-tutorial">
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
@@ -85,6 +86,7 @@
   <script src="./i18n.js"></script>
   <script src="./claim-relay.js"></script>
   <script src="./ocr-cascade.js"></script>
+  <script src="./tutorial.js?v=v75-interactive-tutorial"></script>
   <script type="text/babel">
     const { useState, useRef, useEffect, useLayoutEffect, useMemo } = React;
     const tr = value => window.BillI18n.t(value);
@@ -933,13 +935,20 @@
       image.src = `data:${imageData.mimeType};base64,${imageData.data}`;
     });
 
-    function App() {
+    // The tour uses a separate App instance with memory-only sample data. The live
+    // instance stays mounted (including unsaved fields and accordion state).
+    const TUTORIAL_ITEMS = [{ id: '01', name: '招牌炒飯', nameEn: 'Signature fried rice', original: 'Signature fried rice', price: '120', total: 120, totalQty: null, unit: '' }];
+    const TUTORIAL_REPLIES = '姓名：阿明\n01 = 2\n\n姓名：Cathy\n01 = 1';
+
+    function App({ tutorialDemo = false, tutorialStage = '', tutorialSuspended = false, onStartTutorial } = {}) {
       const [uiLang, setUiLang] = useState(() => window.BillI18n.language);
       const changeUiLanguage = language => {
+        if (tutorialDemo) return;
         window.BillI18n.setLanguage(language);
         setUiLang(window.BillI18n.language);
       };
       useEffect(() => {
+        if (tutorialDemo) return;
         const onLanguageStorage = event => {
           if (event.key === 'billSplitterLanguage') changeUiLanguage(event.newValue === 'en' ? 'en' : 'zh-HK');
         };
@@ -947,20 +956,22 @@
         return () => window.removeEventListener('storage', onLanguageStorage);
       }, []);
       // Invalidate old asynchronous work whenever the current bill is discarded.
+      const tutorialSuspendedRef = useRef(tutorialSuspended);
+      tutorialSuspendedRef.current = tutorialSuspended;
       const billGenerationRef = useRef(0);
       const ocrAbortRef = useRef(null);
       const ocrProgressRef = useRef(null);
       const ocrCompleteRef = useRef(null);
       const [step, setStep] = useState(1);
-      const [items, setItems] = useState([]);
-      const [readReceipt, setReadReceipt] = useState(false);
+      const [items, setItems] = useState(() => tutorialDemo ? TUTORIAL_ITEMS.map(item => ({ ...item })) : []);
+      const [readReceipt, setReadReceipt] = useState(tutorialDemo);
       const [openItemEdits, setOpenItemEdits] = useState({});
       const openItemEditsRef = useRef({});
       const verifyModeRef = useRef(false);
       const displayItemName = item => uiLang === 'en' && (item?.nameEn || item?.nameEnEdited) ? item.nameEn : item?.name || '';
-      const [taxAmount, setTaxAmount] = useState('');
+      const [taxAmount, setTaxAmount] = useState(tutorialDemo ? '12' : '');
       const [taxNote, setTaxNote] = useState('');
-      const [friendsReplies, setFriendsReplies] = useState('');
+      const [friendsReplies, setFriendsReplies] = useState(tutorialDemo ? TUTORIAL_REPLIES : '');
 
       const [isAnalyzing, setIsAnalyzing] = useState(false);
       const [progress, setProgress] = useState(0);
@@ -985,7 +996,7 @@
       const cameraStreamRef = useRef(null);
       const cameraVideoRef = useRef(null);
 
-      const [payer, setPayer] = useState('');
+      const [payer, setPayer] = useState(tutorialDemo ? '阿明' : '');
       const [detectedCurrency, setDetectedCurrency] = useState('HKD');
       const [currency, setCurrency] = useState('HKD');
 
@@ -1041,7 +1052,7 @@
       const pendingClaimShareScrollRef = useRef(false);
       const [claimLinkShared, setClaimLinkShared] = useState(false);
       useEffect(() => {
-        if (!showClaimShareDialog) return;
+        if (tutorialDemo || !showClaimShareDialog) return;
         const dialog = claimShareDialogRef.current;
         if (!dialog) return;
         const previousOverflow = document.body.style.overflow;
@@ -1059,7 +1070,7 @@
       const [statusExpanded, setStatusExpanded] = useState(false);
       const [isOnline, setIsOnline] = useState(navigator.onLine);
 
-      const [draftReady, setDraftReady] = useState(false);
+      const [draftReady, setDraftReady] = useState(tutorialDemo);
       const [draftNotice, setDraftNotice] = useState('');
       const [draftSaveError, setDraftSaveError] = useState('');
       const [draftAssetStatus, setDraftAssetStatus] = useState('saved');
@@ -1095,6 +1106,7 @@
           claimRoom, claimInboxSeen, readReceipt, claimLinkShared: claimLinkSharedRef.current }
       };
       const persistActiveDraft = () => {
+        if (tutorialDemo) return true;
         const snapshot = draftSnapshotRef.current;
         if (!snapshot?.ready) return false;
         try {
@@ -1128,6 +1140,7 @@
       };
 
       useEffect(() => {
+        if (tutorialDemo) return;
         let cancelled = false;
         const restore = async () => {
           try {
@@ -1207,13 +1220,13 @@
       }, []);
 
       useEffect(() => {
-        if (!draftReady) return;
+        if (tutorialDemo || !draftReady) return;
         persistActiveDraft();
       }, [draftReady, step, items, readReceipt, taxAmount, taxNote, friendsReplies, payer, detectedCurrency, currency,
         taxSplitMethod, paymentMethods, results, reconciliation, isSaved, includeReceiptImages, detailLang, pendingReceiptShare, draftAssets, claimRoom, claimInboxSeen, claimLinkShared]);
 
       useEffect(() => {
-        if (!draftReady) return;
+        if (tutorialDemo || !draftReady) return;
         const onHidden = () => {
           if (document.visibilityState === 'hidden') {
             if (pendingReceiptShareRef.current) receiptReturnArmedRef.current = true;
@@ -1238,7 +1251,7 @@
       }, [draftReady]);
 
       useEffect(() => {
-        if (!draftReady || !claimRoom || !window.ClaimRelay?.isRoom(claimRoom)) return undefined;
+        if (tutorialDemo || tutorialSuspended || !draftReady || !claimRoom || !window.ClaimRelay?.isRoom(claimRoom)) return undefined;
         let stopped = false;
         let timer = 0;
         const pull = async (manual) => {
@@ -1291,10 +1304,10 @@
           window.removeEventListener('focus', onVisible);
           if (pullClaimsRef.current === pull) pullClaimsRef.current = async () => {};
         };
-      }, [draftReady, claimRoom]);
+      }, [draftReady, claimRoom, tutorialSuspended]);
 
       useEffect(() => {
-        if (!draftReady) return;
+        if (tutorialDemo || !draftReady) return;
         const snapshot = draftAssets;
         const generation = billGenerationRef.current;
         if (snapshot.unavailable) { setDraftAssetStatus('error'); return; }
@@ -1327,12 +1340,13 @@
       };
 
       useEffect(() => {
+        if (tutorialDemo || tutorialSuspended) return;
         if (pendingClaimShareScrollRef.current && step === 2 && items.length) return;
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }, [step, showHistory, showSettings, showTutorial]);
 
       useEffect(() => {
-        if (!draftReady || !pendingReceiptShare || !receiptShareNudge || step !== 4 || showHistory || showSettings || showTutorial) return;
+        if (tutorialDemo || tutorialSuspended || !draftReady || !pendingReceiptShare || !receiptShareNudge || step !== 4 || showHistory || showSettings || showTutorial) return;
         const timer = setTimeout(() => {
           if (document.visibilityState !== 'visible' || !pendingReceiptShareRef.current) return;
           const target = document.getElementById('receipt-share-step');
@@ -1342,7 +1356,7 @@
           target.focus({ preventScroll: true });
         }, 120);
         return () => clearTimeout(timer);
-      }, [draftReady, pendingReceiptShare, receiptShareNudge, step, showHistory, showSettings, showTutorial, includeReceiptImages, lastImageData.length]);
+      }, [draftReady, pendingReceiptShare, receiptShareNudge, step, showHistory, showSettings, showTutorial, includeReceiptImages, lastImageData.length, tutorialSuspended]);
 
       useEffect(() => {
         const node = claimFollowupRef.current;
@@ -1352,7 +1366,7 @@
       }, [claimLinkShared, step, items.length]);
 
       useLayoutEffect(() => {
-        if (!isAnalyzing || step !== 1 || showSettings || showHistory || showTutorial) return undefined;
+        if (tutorialDemo || tutorialSuspended || !isAnalyzing || step !== 1 || showSettings || showHistory || showTutorial) return undefined;
         let cancelled = false;
         let userMoved = false;
         const onUser = () => { userMoved = true; };
@@ -1380,20 +1394,20 @@
           window.removeEventListener('wheel', onUser);
           window.removeEventListener('resize', align);
         };
-      }, [isAnalyzing, step, progressText, showSettings, showHistory, showTutorial]);
+      }, [isAnalyzing, step, progressText, showSettings, showHistory, showTutorial, tutorialSuspended]);
 
       useLayoutEffect(() => {
-        if (!pendingClaimShareScrollRef.current) return;
+        if (tutorialDemo || tutorialSuspended || !pendingClaimShareScrollRef.current) return;
         if (step !== 2 || !items.length || showSettings || showHistory || showTutorial) return;
         const section = document.querySelector('[data-testid="items-step"]');
         const startTop = section
           ? Math.max(0, window.scrollY + section.getBoundingClientRect().top - stickyHeaderBottom() - 12)
           : 0;
         window.scrollTo({ top: startTop, behavior: 'auto' });
-      }, [step, items.length, showSettings, showHistory, showTutorial]);
+      }, [step, items.length, showSettings, showHistory, showTutorial, tutorialSuspended]);
 
       useEffect(() => {
-        if (!pendingClaimShareScrollRef.current) return undefined;
+        if (tutorialDemo || tutorialSuspended || !pendingClaimShareScrollRef.current) return undefined;
         if (step !== 2 || !items.length || showSettings || showHistory || showTutorial) return undefined;
         let cancelled = false;
         let raf = 0;
@@ -1451,7 +1465,7 @@
           window.removeEventListener('touchstart', onUser);
           window.removeEventListener('keydown', onUser);
         };
-      }, [step, items.length, showSettings, showHistory, showTutorial]);
+      }, [step, items.length, showSettings, showHistory, showTutorial, tutorialSuspended]);
 
       useEffect(() => () => {
         if (cameraStreamRef.current) {
@@ -1461,6 +1475,7 @@
       }, []);
 
       useEffect(() => {
+        if (tutorialDemo) return;
         try {
           const storedHistory = localStorage.getItem('billSplitterHistory');
           if (storedHistory) setSavedHistory(JSON.parse(storedHistory));
@@ -1512,11 +1527,12 @@
       }, [apiModel, allowPaidModels]);
 
       useEffect(() => {
+        if (tutorialDemo) return;
         try { localStorage.setItem('billSplitterHistory', JSON.stringify(savedHistory)); } catch(e) {}
       }, [savedHistory]);
 
       useEffect(() => {
-        if (!showHistory) return;
+        if (tutorialDemo || !showHistory) return;
         const pendingRecords = savedHistory.filter(record => Number(record.receiptImageCount) > 0
           && !Object.prototype.hasOwnProperty.call(savedReceiptFiles, record.id)
           && !receiptHistoryLoading[record.id]);
@@ -1560,6 +1576,7 @@
       }, []);
 
       useEffect(() => {
+        if (tutorialDemo) return;
         const h = kbOpen ? 44 : 64;
         document.body.style.paddingBottom = `calc(${h}px + env(safe-area-inset-bottom))`;
       }, [kbOpen]);
@@ -1614,6 +1631,7 @@
       };
 
       const focusField = (key) => {
+        if (tutorialDemo || tutorialSuspendedRef.current) return;
         const match = /^item-(?:name|price|qty)-(\d+)$/.exec(String(key || ''));
         if (match && verifyModeRef.current) {
           const index = Number(match[1]);
@@ -1635,6 +1653,7 @@
       };
 
       const focusReplyLine = (lineNo) => {
+        if (tutorialDemo || tutorialSuspendedRef.current) return;
         const el = fieldRefs.current.replies;
         if (!el) return;
         const lines = el.value.split('\n');
@@ -1649,6 +1668,7 @@
       };
 
       const testKey = async () => {
+        if (tutorialDemo) return;
         setKeyTesting(true);
         setKeyTestResult(null);
         try {
@@ -1661,6 +1681,7 @@
       };
 
       const saveApiConfig = () => {
+        if (tutorialDemo) return;
         const v = validateKey(apiKey, 'openrouter');
         if (v.severity === 'likely_duplicate') {
           setKeyHint(`鎖匙長度 ${v.actualLen} 字，正常應為 ${v.expectLen} 字 —— 似乎兩條黏埋咗。`);
@@ -1695,6 +1716,7 @@
       };
 
       const forgetApiKey = () => {
+        if (tutorialDemo) return;
         if(window.confirm(tr("確定要清除鎖匙嗎？這將會刪除您本機上的設定。"))) {
           try { localStorage.removeItem('billSplitterApiConfig'); sessionStorage.removeItem('billSplitterApiConfig'); } catch(e) {}
           setApiKey(''); setIsEditingKey(true); setRememberKey(false); setAllowPaidModels(false); setApiModel(DEFAULT_FREE_MODEL);
@@ -1703,6 +1725,7 @@
       };
 
       const saveCurrentRecord = async () => {
+        if (tutorialDemo) return;
         if (!results || isSaved || isSavingRecord) return;
         const generation = billGenerationRef.current;
         setIsSavingRecord(true);
@@ -1725,6 +1748,7 @@
       };
 
       const deleteRecord = async (id) => {
+        if (tutorialDemo) return;
         if (!window.confirm(tr("確定刪除此歷史紀錄及本機收據副本？資料將無法復原。"))) return;
         const record = savedHistory.find(item => item.id === id);
         try {
@@ -1738,6 +1762,7 @@
       };
 
       const shareTextWithFiles = (text, files, title, onSettled) => {
+        if (tutorialDemo) return;
         const shareFiles = files || [];
         if (shareFiles.length) {
           let filesSupported = false;
@@ -1770,6 +1795,7 @@
       };
 
       const shareCurrentReport = (text, title) => {
+        if (tutorialDemo) return;
         if (!ensureDraftSavedForSharing()) return;
         setReceiptShareNudge(0);
         if (includeReceiptImages && lastImageData.length) {
@@ -1783,6 +1809,7 @@
       };
 
       const shareCurrentReceipts = () => {
+        if (tutorialDemo) return;
         if ((!includeReceiptImages && !pendingReceiptShareRef.current) || !lastImageData.length) return;
         if (!ensureDraftSavedForSharing()) return;
         receiptReturnArmedRef.current = pendingReceiptShareRef.current;
@@ -1794,6 +1821,7 @@
       };
 
       const copyCurrentReport = (text, title) => {
+        if (tutorialDemo) return;
         if (!ensureDraftSavedForSharing()) return;
         setReceiptShareNudge(0);
         if (includeReceiptImages && lastImageData.length && !updatePendingReceiptShare(true)) return;
@@ -1802,6 +1830,7 @@
       };
 
       const shareSavedRecord = (record, reportType) => {
+        if (tutorialDemo) return;
         if (reportType !== 'receipts') {
           const text = getSavedReportText(record, reportType);
           const title = reportType === 'detailed' ? bi('分帳詳細明細', 'Detailed bill split') : bi('分帳追數結果', 'Bill split summary');
@@ -1821,6 +1850,7 @@
       };
 
       const exportCSV = () => {
+        if (tutorialDemo) return;
         if (savedHistory.length === 0) return;
         const headers = ['日期', '墊支人', '總金額', '貨幣', '追數版內容', '詳細版內容'].map(tr);
         const escapeCSV = (str) => { if (str === null || str === undefined) return '""'; return `"${String(str).replace(/"/g, '""')}"`; };
@@ -1834,6 +1864,7 @@
       };
 
       const handleGoToStep1 = () => {
+        if (tutorialDemo) return;
         if (!draftReady) return;
         billGenerationRef.current += 1;
         ocrAbortRef.current?.abort(); ocrAbortRef.current = null;
@@ -1952,11 +1983,13 @@
       };
 
       const triggerUpload = () => {
+        if (tutorialDemo) return;
         if (!apiKey.trim()) { toast('讀單據先要你自己的免費 OpenRouter 鎖匙。', 'error'); setShowSettings(true); return; }
         if(fileInputRef.current) fileInputRef.current.click();
       };
 
       const triggerCamera = () => {
+        if (tutorialDemo) return;
         if (!apiKey.trim()) { toast('讀單據先要你自己的免費 OpenRouter 鎖匙。', 'error'); setShowSettings(true); return; }
         if (!navigator.mediaDevices?.getUserMedia) {
           toast('⚠️ 此瀏覽器不支援網頁相機，請改用「選擇圖片」', 'error');
@@ -1988,6 +2021,7 @@
       };
 
       const captureCameraPhoto = () => {
+        if (tutorialDemo) return;
         const video = cameraVideoRef.current;
         if (!video || !video.videoWidth || !video.videoHeight) {
           toast('⚠️ 相機仍在啟動，請稍候再按一次', 'error');
@@ -2089,6 +2123,7 @@
       };
 
       const startOcrWithRedactedImages = async () => {
+        if (tutorialDemo) return;
         if (!pendingRedactionImages.length || isPreparingRedacted) return;
         setRedactionDrawingMode(false);
         setIsPreparingRedacted(true);
@@ -2120,6 +2155,7 @@
       };
 
       const handleFileUpload = async (event, alreadyRedacted = false) => {
+        if (tutorialDemo) return;
         const generation = billGenerationRef.current;
         const inputTarget = event?.target;
         const files = Array.from(inputTarget?.files || []);
@@ -2482,6 +2518,7 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
       };
 
       const ensureClaimRoom = () => {
+        if (tutorialDemo) return;
         if (window.ClaimRelay?.isRoom(claimRoomRef.current)) return claimRoomRef.current;
         if (!window.ClaimRelay?.createRoom) return null;
         const room = window.ClaimRelay.createRoom();
@@ -2490,6 +2527,7 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
       };
 
       const buildFriendClaimLink = (lang = uiLang) => {
+        if (tutorialDemo) return;
         if (!items.length) { setStepError('⚠️ 請先新增至少一個帳單項目。'); return null; }
         const invalidIndex = items.findIndex(item => !String(item.name || '').trim());
         if (invalidIndex !== -1) {
@@ -2527,6 +2565,7 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
       };
 
       const generateFriendClaimLink = () => {
+        if (tutorialDemo) return;
         const link = buildFriendClaimLink();
         if (!link) return;
         copyToClipboard(link, tr('認帳連結'));
@@ -2534,6 +2573,7 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
       };
 
       const handleClaimAttachmentSelection = (event) => {
+        if (tutorialDemo) return;
         const input = event.target;
         const selectedFiles = Array.from(input.files || []);
         input.value = '';
@@ -2549,12 +2589,14 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
       };
 
       const openClaimShareDialog = () => {
+        if (tutorialDemo) return;
         if (!buildFriendClaimLink()) return;
         markClaimLinkShared();
         setShowClaimShareDialog(true);
       };
 
       const shareFriendClaimLink = () => {
+        if (tutorialDemo) return;
         const link = buildFriendClaimLink();
         if (!link) return;
         if (!ensureDraftSavedForSharing()) return;
@@ -2566,12 +2608,14 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
       };
 
       const shareClaimAttachments = () => {
+        if (tutorialDemo) return;
         if (!claimAttachments.length) return;
         if (!ensureDraftSavedForSharing()) return;
         shareTextWithFiles('', claimAttachments, '');
       };
 
       const copyToClipboard = (text, btnLabel) => {
+        if (tutorialDemo) return;
         const textArea = document.createElement("textarea"); textArea.value = text; document.body.appendChild(textArea);
         textArea.select();
         try { document.execCommand('copy'); toast(`✅ ${btnLabel} 已成功複製`); } catch (err) {}
@@ -2926,6 +2970,20 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
           );
       };
 
+      useLayoutEffect(() => {
+        if (!tutorialDemo) return;
+        // Open otherwise hidden controls for the relevant part of the tour only.
+        setShowClaimShareDialog(tutorialStage === 'share');
+        const shared = ['replies', 'payer', 'report'].includes(tutorialStage);
+        claimLinkSharedRef.current = shared;
+        setClaimLinkShared(shared);
+        const edits = tutorialStage === 'items' ? { 0: true } : {};
+        openItemEditsRef.current = edits;
+        setOpenItemEdits(edits);
+        if (tutorialStage === 'report') calculateSplit();
+        else setStep(tutorialStage === 'upload' ? 1 : tutorialStage === 'payer' ? 3 : 2);
+      }, [tutorialDemo, tutorialStage]);
+
       return (
         <React.Fragment>
           {/* Header */}
@@ -2946,7 +3004,7 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
                     <Icon path={icons.arrowLeft} size={16}/>{tr(" 返回")}</button>
                 ) : (
                   <React.Fragment>
-                    <button onClick={() => setShowTutorial(true)} title={tr("新手教學")} className="guide-button flex items-center gap-1.5 px-3 py-2 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-500 rounded-lg text-sm font-semibold transition-colors">
+                    <button data-testid="start-tutorial" disabled={!draftReady || isAnalyzing || isSavingRecord} onClick={() => onStartTutorial && typeof window.BillTutorial === 'function' ? onStartTutorial(() => setShowTutorial(true)) : setShowTutorial(true)} title={tr("新手教學")} className="guide-button flex items-center gap-1.5 px-3 py-2 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-500 rounded-lg text-sm font-semibold transition-colors">
                       <Icon path={icons.bookOpen} size={16}/> <span className="guide-label">{tr("教學")}</span>
                     </button>
                     <button onClick={() => setShowSettings(true)} title={tr("設定")} className="header-settings-button flex items-center gap-1.5 px-2.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-400 rounded-lg text-sm font-semibold transition-colors">
@@ -3175,7 +3233,7 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
             )}
 
             {/* Step 2: Items & Claims */}
-            {step === 2 && (
+            {step === 2 && !showHistory && !showSettings && !showTutorial && (
               <div data-testid="items-step" className="space-y-6 animate-in fade-in duration-500">
                 <div className="page-section-heading flex items-start gap-2 mb-2">
                   <span className="w-8 h-8 rounded-full bg-brand-100 border border-brand-500 text-brand-700 flex items-center justify-center font-bold">2</span>
@@ -3214,7 +3272,7 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
                     const showVerifyRow = receiptWasRead && String(item.name || '').trim() && !openItemEdits[idx];
                     const qtyLabel = item.totalQty != null && item.totalQty !== '' ? `${item.totalQty}${item.unit ? ` ${item.unit}` : ''}` : (item.unit || '');
                     return (
-                    <Card key={idx} className="relative overflow-visible !p-4 group">
+                    <Card key={idx} data-tutorial-target={idx === 0 ? "item-editor" : undefined} className="relative overflow-visible !p-4 group">
                       <button type="button" data-testid="remove-item" onClick={() => removeItem(idx)} className="absolute -top-3 -right-3 w-8 h-8 bg-white border border-slate-400 text-slate-500 hover:text-red-700 hover:border-red-500 hover:bg-red-50 rounded-full flex items-center justify-center shadow-sm transition-colors z-10 opacity-0 group-hover:opacity-100 md:opacity-100">
                         <Icon path={icons.trash} size={14} />
                       </button>
@@ -3291,7 +3349,7 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
                         <Icon path={icons.share} size={18}/>{tr(" 分享認帳連結＋（單據圖片）")}</Button>
                     </div>
                     {showClaimShareDialog && (
-                    <dialog ref={claimShareDialogRef} onCancel={() => setShowClaimShareDialog(false)} aria-labelledby="claim-share-title" className="m-auto max-w-lg rounded-2xl border border-slate-400 bg-white p-4 text-slate-800 shadow-xl overflow-y-auto backdrop:bg-slate-950/60" style={{ width: 'calc(100% - 2rem)', maxHeight: '85dvh' }}>
+                    <dialog open={tutorialDemo ? true : undefined} ref={claimShareDialogRef} onCancel={() => setShowClaimShareDialog(false)} aria-labelledby="claim-share-title" className="m-auto max-w-lg rounded-2xl border border-slate-400 bg-white p-4 text-slate-800 shadow-xl overflow-y-auto backdrop:bg-slate-950/60" style={{ width: 'calc(100% - 2rem)', maxHeight: '85dvh' }}>
                       <div className="flex items-center justify-between gap-2 mb-3">
                         <h2 id="claim-share-title" className="font-bold text-base">{tr("分享認帳連結＋（單據圖片）")}</h2>
                         <button type="button" aria-label={tr("關閉分享視窗")} onClick={() => setShowClaimShareDialog(false)} className="shrink-0 rounded-lg p-2 hover:bg-slate-100"><Icon path={icons.x} size={20}/></button>
@@ -3376,7 +3434,7 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
             )}
 
             {/* Step 3: Calculation Settings */}
-            {step === 3 && (
+            {step === 3 && !showHistory && !showSettings && !showTutorial && (
               <div className="space-y-6 animate-in fade-in duration-500">
                 <div className="page-section-heading flex items-center gap-2 mb-2">
                   <span className="w-8 h-8 rounded-full bg-brand-100 border border-brand-500 text-brand-700 flex items-center justify-center font-bold">3</span>
@@ -3417,7 +3475,7 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
                 )}
 
                 <Card className="space-y-8">
-                  <div>
+                  <div data-tutorial-target="calculation-settings">
                     <Label required={!payer} className="text-lg">{tr("墊支人姓名 (Payee)")}</Label>
                     <input type="text" ref={el => fieldRefs.current.payer = el} value={payer} onChange={(e) => {setPayer(e.target.value); setStepError('');}} placeholder={tr("請輸入先付款人的姓名...")} className="w-full rounded-xl p-3.5 text-base font-semibold text-slate-800 outline-none transition-all bg-slate-50 focus:bg-white" />
                   </div>
@@ -3490,7 +3548,7 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
             )}
 
             {/* Step 4: Results */}
-            {step === 4 && results && (
+            {step === 4 && results && !showHistory && !showSettings && !showTutorial && (
               <div className="space-y-6 animate-in fade-in duration-500">
                 <div className="page-section-heading flex items-center gap-2 mb-2">
                   <span className="w-8 h-8 rounded-full bg-brand-600 text-white flex items-center justify-center font-bold"><Icon path={icons.check} size={18}/></span>
@@ -3801,6 +3859,7 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
 
                       <label className="flex items-start gap-3 p-4 bg-slate-50 rounded-xl border border-slate-400 cursor-pointer hover:bg-slate-100 transition-colors">
                         <input type="checkbox" checked={rememberKey} onChange={(e) => {
+                          if (tutorialDemo) return;
                           const shouldRemember = e.target.checked;
                           setRememberKey(shouldRemember);
                           try {
@@ -3845,8 +3904,40 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
       );
     }
 
+    function Application() {
+      const [tourOpen, setTourOpen] = useState(false);
+      const savedUi = useRef(null);
+      const openHelp = useRef(null);
+      const restoreFrame = useRef(0);
+      const startTour = showHelp => {
+        cancelAnimationFrame(restoreFrame.current);
+        savedUi.current = { x: window.scrollX, y: window.scrollY, focus: document.activeElement };
+        openHelp.current = showHelp;
+        setTourOpen(true);
+      };
+      const closeTour = (showHelp = false) => {
+        setTourOpen(false);
+        if (showHelp) openHelp.current?.();
+        const saved = savedUi.current;
+        restoreFrame.current = requestAnimationFrame(() => {
+          if (!showHelp && saved) {
+            saved.focus?.isConnected && saved.focus.focus({ preventScroll: true });
+            window.scrollTo({ left: saved.x, top: saved.y, behavior: 'instant' });
+          }
+        });
+      };
+      useEffect(() => () => cancelAnimationFrame(restoreFrame.current), []);
+      return <React.Fragment>
+        <div data-live-app hidden={tourOpen} {...(tourOpen ? { inert: '' } : {})}>
+          <App tutorialSuspended={tourOpen} onStartTutorial={startTour} />
+        </div>
+        {tourOpen && <window.BillTutorial language={window.BillI18n.language}
+          onClose={() => closeTour(false)} onOpenHelp={() => closeTour(true)}
+          renderDemo={stage => <App tutorialDemo tutorialStage={stage} />} />}
+      </React.Fragment>;
+    }
     const root = ReactDOM.createRoot(document.getElementById('root'));
-    root.render(<App />);
+    root.render(<Application />);
   </script>
 </body>
 </html>
