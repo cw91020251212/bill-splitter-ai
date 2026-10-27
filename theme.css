@@ -43,6 +43,43 @@ body.bg-slate-50 { background: var(--page-grey); color: var(--ink); }
 #root .page-section-heading { padding-bottom: 12px; border-bottom: 1px solid #99b9a3; margin-bottom: 18px; align-items: flex-start; gap: 10px; }
 #root .page-section-heading > span { margin-top: 1px; flex-shrink: 0; background: #d1e5d4; border-color: #4c805d; color: #29835f; }
 #root main h2.text-2xl { color: var(--ink); font-size: clamp(21px, 5.7vw, 25px); line-height: 1.35; letter-spacing: -.025em; }
+/* Verification helper copy sits on white/light surfaces and must read as
+   instruction text, not as a label or an input. */
+#root :is(.verify-hint, .verify-hint-sub, .verify-summary) {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  letter-spacing: 0;
+}
+#root .verify-hint {
+  color: #4a524e;
+  font-size: 1.125rem;
+  font-weight: 600;
+  font-style: normal;
+  line-height: 1.4;
+}
+#root .verify-hint-sub {
+  margin-top: 2px;
+  color: #4a524e;
+  font-size: 0.95rem;
+  font-weight: 500;
+  font-style: italic;
+  line-height: 1.45;
+}
+#root .verify-summary {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: #e8ebe6;
+  color: #4a524e;
+  font-size: 0.95rem;
+  font-weight: 600;
+  font-style: italic;
+  line-height: 1.4;
+}
 #root .app-card {
   background-color: var(--surface-grey);
   border: 1px solid var(--outline);
@@ -266,6 +303,13 @@ html[lang="en"] #root .header-actions .guide-label { display: none; }
   background: #eeecfb; border-color: #6d68b0; color: #3c3578;
 }
 #root main[data-current-step="2"] .page-section-heading h2 { color: #3c3578; }
+#root main[data-current-step="2"] .page-section-heading h2.verify-hint {
+  color: #4a524e;
+  font-size: 1.125rem;
+  font-weight: 600;
+  font-style: normal;
+  line-height: 1.4;
+}
 #root main[data-current-step="2"] .app-card.relative.overflow-visible { border-color: #7d78b0; }
 #root main[data-current-step="2"] .app-card.relative.overflow-visible .grid > div:first-child > label {
   color: #3c3578;
