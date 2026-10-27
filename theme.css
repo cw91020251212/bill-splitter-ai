@@ -637,20 +637,25 @@ html[lang="en"] #root .header-actions .guide-label { display: none; }
 }
 #root .claim-await-share {
   position: relative;
+  isolation: isolate;
   border-radius: 18px;
   pointer-events: none;
   user-select: none;
+}
+#root .claim-await-share > * {
+  position: relative;
+  z-index: 1;
 }
 #root .claim-await-share::before {
   content: "";
   position: absolute;
   inset: -8px;
   border-radius: 18px;
-  background: rgba(236, 238, 234, 0.5);
-  border: 1px solid #d3d8d2;
-  backdrop-filter: blur(1.2px) saturate(0.45);
-  -webkit-backdrop-filter: blur(1.2px) saturate(0.45);
-  z-index: 5;
+  background: rgba(228, 231, 226, 0.78);
+  border: 1px solid #c5cbc4;
+  backdrop-filter: blur(8px) saturate(0.35);
+  -webkit-backdrop-filter: blur(8px) saturate(0.35);
+  z-index: 0;
   pointer-events: none;
 }
 #root .claim-await-share :is(input, textarea, select, .field-round, .app-card) {
@@ -665,7 +670,16 @@ html[lang="en"] #root .header-actions .guide-label { display: none; }
   outline: none !important;
   box-shadow: none !important;
 }
-#root .claim-await-share :is(input, textarea)::placeholder { color: #6d776f !important; }
+#root .claim-await-share :is(input, textarea)::placeholder {
+  color: #3e4842 !important;
+  opacity: 1 !important;
+  -webkit-text-fill-color: #3e4842;
+}
+#root .claim-await-share .bg-red-50 {
+  background-color: #e7e9e4 !important;
+  color: #5c665f !important;
+  border-color: #c5cbc4 !important;
+}
 #root .claim-await-share button,
 #root .claim-await-share button.bg-brand-600,
 #root .claim-await-share button.bg-brand-600:not(:disabled),
