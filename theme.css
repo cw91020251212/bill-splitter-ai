@@ -67,12 +67,53 @@ body.bg-slate-50 { background: var(--page-grey); color: var(--ink); }
 #root .upload-dropzone .w-20.h-20.bg-amber-50 { background: #fff4d6; border-color: #c4842a; color: #8a4b08; }
 #root .upload-dropzone h3 { color: #283b2c; }
 #root .upload-dropzone button { min-height: 48px; }
-#root input[type="text"], #root input[type="number"], #root input[type="password"], #root textarea, #root select {
+#root :is(
+  input[type="text"],
+  input[type="number"],
+  input[type="password"],
+  input[type="search"],
+  input[type="tel"],
+  input[type="email"],
+  input[type="url"],
+  textarea,
+  select,
+  .field-round
+) {
   border: 1.5px solid #4e5964 !important;
+  border-radius: 12px;
   background-color: #fff !important;
   color: #213128;
   box-shadow: none;
 }
+#root :is(input, textarea, select).field-round:not([class*="p-"]):not([class*="px-"]) {
+  padding: 10px 12px;
+}
+/* Composite fields (price, tax) keep one rounded box around the symbol and value. */
+#root .field-round > :is(input, textarea, select) {
+  border: 0 !important;
+  border-radius: 12px;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 10px 12px;
+}
+#root .field-round > span + :is(input, textarea, select) {
+  padding-left: 6px;
+}
+#root .field-round:focus-within {
+  border-color: #67c99a !important;
+  outline: 3px solid #67c99a25;
+  outline-offset: 1px;
+}
+#root .field-round > :is(input, textarea, select):focus {
+  outline: none;
+  border-color: transparent !important;
+}
+#root input[type="number"]::-webkit-outer-spin-button,
+#root input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+#root input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 #root input::placeholder, #root textarea::placeholder { color: #6a776e; opacity: 1; }
 #root input:focus, #root textarea:focus, #root select:focus { border-color: #67c99a !important; outline: 3px solid #67c99a25; outline-offset: 1px; }
 #root button { line-height: 1.45; }
