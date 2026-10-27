@@ -1,7 +1,7 @@
 /* Warm paper, stone outlines, brand green only on the logo and primary actions.
    Blue, indigo, amber and violet are point accents, not a second brand. */
 :root {
-  --page-grey: #f8f8f8;
+  --page-grey: #c8ced6;
   --surface-grey: #ffffff;
   --inset-grey: #e8ebe6;
   --outline: #5f574e;
@@ -12,7 +12,7 @@
 }
 html { color-scheme: light; background: var(--page-grey); }
 body.bg-slate-50 { background: var(--page-grey); color: var(--ink); }
-#root { min-height: 100vh; }
+#root { min-height: 100vh; background: var(--page-grey); }
 #root .app-header {
   background: #ffffff;
   border-bottom: 1px solid var(--outline-strong);
@@ -47,7 +47,7 @@ body.bg-slate-50 { background: var(--page-grey); color: var(--ink); }
   background-color: var(--surface-grey);
   border: 1px solid var(--outline);
   border-radius: 19px;
-  box-shadow: 0 3px 0 #e8e8e8, 0 8px 18px #263c2d08;
+  box-shadow: 0 3px 0 #b4bac3, 0 8px 18px #263c2d14;
 }
 #root .app-card[class*="bg-gradient"] { background-image: none; }
 #root .api-settings-card { background: #dde7db; border-color: #6ea080; padding: 14px; }
@@ -59,7 +59,7 @@ body.bg-slate-50 { background: var(--page-grey); color: var(--ink); }
   border: 1px dashed #52926e;
   background: #ffffff;
   border-radius: 20px;
-  box-shadow: inset 0 0 0 5px #ffffff, 0 3px 0 #e8e8e8;
+  box-shadow: inset 0 0 0 5px #ffffff, 0 3px 0 #b4bac3;
 }
 #root .upload-dropzone:hover { background: #ffffff; border-color: #247047; }
 #root .upload-dropzone .w-20.h-20 { width: 64px; height: 64px; }
@@ -497,11 +497,24 @@ html[lang="en"] #root .header-actions .guide-label { display: none; }
 #root .step-nav button:nth-child(3) > span:first-child { border-color: #c4922f; color: #7a4e08; background: #fff; }
 #root .step-nav button:nth-child(4) { border-color: #7eae90; color: #246846; }
 #root .step-nav button:nth-child(4) > span:first-child { border-color: #5f9873; color: #1f6b45; background: #fff; }
-#root .stepper-panel .flex.w-full.gap-2 > div.bg-slate-300 { background: #d9d3cb; }
-#root .stepper-panel .flex.w-full.gap-2 > div:nth-child(1):is(.bg-brand-400, .bg-brand-500) { background: #3e6fa3; }
-#root .stepper-panel .flex.w-full.gap-2 > div:nth-child(2):is(.bg-brand-400, .bg-brand-500) { background: #4a4588; }
-#root .stepper-panel .flex.w-full.gap-2 > div:nth-child(3):is(.bg-brand-400, .bg-brand-500) { background: #c4842a; }
-#root .stepper-panel .flex.w-full.gap-2 > div:nth-child(4):is(.bg-brand-400, .bg-brand-500) { background: #2f9a68; }
+/* One continuous stick. Fill length is the current step out of 4
+   (step 1 = 25%, step 2 = 50%, step 3 = 75%, step 4 = 100%).
+   The track stays muted; the fill uses that step's existing accent. */
+#root .step-progress {
+  height: 6px;
+  border-radius: 9999px;
+  background: #d9d3cb;
+  overflow: hidden;
+}
+#root .step-progress-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: #3e6fa3;
+  transition: width .3s ease, background-color .3s ease;
+}
+#root .step-progress[data-step="2"] .step-progress-fill { background: #4a4588; }
+#root .step-progress[data-step="3"] .step-progress-fill { background: #c4842a; }
+#root .step-progress[data-step="4"] .step-progress-fill { background: #2f9a68; }
 
 #root button.bg-brand-600[class*="!bg-amber"]:not(:disabled) {
   background-image: none; background-color: #7a4a12; border-color: #5c370c !important; color: #fff; font-weight: 700;
