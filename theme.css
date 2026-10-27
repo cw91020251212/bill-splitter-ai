@@ -635,12 +635,19 @@ html[lang="en"] #root .header-actions .guide-label { display: none; }
   min-height: 52px;
   font-size: 1.125rem;
 }
+/* Same gray as the inactive「重新接收」button. Utility colors such as
+   text-slate-800 resolve to near-black ink, so every text node in this
+   block has to be forced — a veil behind the content does not recolor them. */
 #root .claim-await-share {
+  --claim-mute-ink: #5c665f;
+  --claim-mute-surface: #e1e4df;
+  --claim-mute-line: #c5cbc4;
   position: relative;
   isolation: isolate;
   border-radius: 18px;
   pointer-events: none;
   user-select: none;
+  color: var(--claim-mute-ink);
 }
 #root .claim-await-share > * {
   position: relative;
@@ -651,43 +658,88 @@ html[lang="en"] #root .header-actions .guide-label { display: none; }
   position: absolute;
   inset: -8px;
   border-radius: 18px;
-  background: rgba(228, 231, 226, 0.78);
-  border: 1px solid #c5cbc4;
+  background: rgba(225, 228, 223, 0.78);
+  border: 1px solid var(--claim-mute-line);
   backdrop-filter: blur(8px) saturate(0.35);
   -webkit-backdrop-filter: blur(8px) saturate(0.35);
   z-index: 0;
   pointer-events: none;
 }
-#root .claim-await-share :is(input, textarea, select, .field-round, .app-card) {
-  background-color: #e4e7e2 !important;
+#root .claim-await-share :is(
+  .app-card,
+  button,
+  input,
+  textarea,
+  select,
+  .field-round,
+  .bg-red-50,
+  [class*="bg-white"],
+  [class*="bg-slate"],
+  [class*="bg-brand"],
+  [class*="bg-red"],
+  [class*="bg-amber"],
+  [class*="bg-emerald"],
+  [class*="border-brand"],
+  [class*="border-slate"],
+  [class*="border-red"],
+  [class*="border-amber"]
+) {
+  background-color: var(--claim-mute-surface) !important;
   background-image: none !important;
-  border-color: #c5cbc4 !important;
+  border-color: var(--claim-mute-line) !important;
   box-shadow: none !important;
-  color: #4c564f !important;
+  filter: none !important;
+  opacity: 1 !important;
+  color: var(--claim-mute-ink) !important;
+  -webkit-text-fill-color: var(--claim-mute-ink) !important;
+  text-shadow: none !important;
 }
-#root .claim-await-share :is(input, textarea, select):focus {
-  border-color: #c5cbc4 !important;
+#root .claim-await-share :is(input, textarea, select):focus,
+#root .claim-await-share :is(input, textarea, select):focus-visible,
+#root .claim-await-share :is(button, a):focus,
+#root .claim-await-share :is(button, a):focus-visible {
+  border-color: var(--claim-mute-line) !important;
   outline: none !important;
   box-shadow: none !important;
+  background-color: var(--claim-mute-surface) !important;
+  background-image: none !important;
 }
 #root .claim-await-share :is(input, textarea)::placeholder {
-  color: #3e4842 !important;
+  color: var(--claim-mute-ink) !important;
   opacity: 1 !important;
-  -webkit-text-fill-color: #3e4842;
-}
-#root .claim-await-share .bg-red-50 {
-  background-color: #e7e9e4 !important;
-  color: #5c665f !important;
-  border-color: #c5cbc4 !important;
+  -webkit-text-fill-color: var(--claim-mute-ink) !important;
 }
 #root .claim-await-share button,
+#root main[data-current-step="2"] .claim-await-share button,
+#root main[data-current-step="2"] .claim-await-share .flex.gap-3.pt-2 > button,
+#root main[data-current-step="2"] .claim-await-share .flex.gap-3.pt-2 > button.bg-white[class*="border-slate-"],
 #root .claim-await-share button.bg-brand-600,
 #root .claim-await-share button.bg-brand-600:not(:disabled),
-#root .claim-await-share button.bg-brand-600:hover:not(:disabled) {
-  background-color: #e1e4df !important;
+#root .claim-await-share button.bg-brand-600:hover:not(:disabled),
+#root .claim-await-share button.bg-brand-600:disabled,
+#root .claim-await-share button:disabled,
+#root .claim-await-share button:hover {
+  background: var(--claim-mute-surface) !important;
+  background-color: var(--claim-mute-surface) !important;
   background-image: none !important;
-  border-color: #c5cbc4 !important;
-  color: #5c665f !important;
+  border-color: var(--claim-mute-line) !important;
+  color: var(--claim-mute-ink) !important;
+  -webkit-text-fill-color: var(--claim-mute-ink) !important;
   box-shadow: none !important;
+  filter: none !important;
+  opacity: 1 !important;
+  text-shadow: none !important;
 }
-#root .claim-await-share button svg { color: #6a736c !important; filter: none !important; }
+#root .claim-await-share :is(h1, h2, h3, h4, h5, h6, p, label, span, strong, em, small, li, a, legend, div),
+#root .claim-await-share :is(.text-slate-500, .text-slate-600, .text-slate-700, .text-slate-800, .text-brand-600, .text-brand-700, .text-brand-800, .text-brand-900, .text-red-700, .text-red-600) {
+  color: var(--claim-mute-ink) !important;
+  -webkit-text-fill-color: var(--claim-mute-ink) !important;
+  text-shadow: none !important;
+}
+#root .claim-await-share button svg,
+#root .claim-await-share svg {
+  color: var(--claim-mute-ink) !important;
+  stroke: var(--claim-mute-ink) !important;
+  filter: none !important;
+  opacity: 1 !important;
+}
