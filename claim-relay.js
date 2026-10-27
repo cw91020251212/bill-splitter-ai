@@ -139,18 +139,18 @@
     if (!clean) return '';
     const byId = new Map((items || []).map(item => [String(item.id), item]));
     const lines = [
-      '🧾 *分帳認領回覆* 🧾',
+      '🧾 *認帳回覆* 🧾',
       '👤 姓名：' + clean.name,
       '━━━━━━━━━━━━━━',
-      '🍽️ *我認領的項目*'
+      '🍽️ *我認帳的項目*'
     ];
     clean.claims.forEach(claim => {
       const item = byId.get(claim.id);
       const name = cleanText((item && item.name) || '項目', 200) || '項目';
       const qty = formatQty(claim.qty);
-      let quantity = '認領份數 = ' + qty;
+      let quantity = '認帳份數 = ' + qty;
       if (claim.unit) quantity = '實際數量 = ' + qty + ' ' + claim.unit;
-      else if (claim.displayUnit) quantity = '認領份數（' + claim.displayUnit + '） = ' + qty;
+      else if (claim.displayUnit) quantity = '認帳份數（' + claim.displayUnit + '） = ' + qty;
       lines.push('🔶 *' + claim.id + ' ' + name + '*　👉🏻 ' + quantity);
     });
     lines.push('━━━━━━━━━━━━━━', '✅ *已填妥，請發回給發起人。*');

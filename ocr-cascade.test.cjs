@@ -92,7 +92,7 @@ test('exhausted copy stays in Traditional Chinese and names the cause', () => {
   ];
   assert.match(ocr.exhaustedMessage(mixed), /幾個免費模型都未能讀完/);
   assert.match(ocr.exhaustedDetail(mixed), /等候逾時/);
-  assert.match(ocr.describeOpenRouterFailure(401, 'User not found'), /手動分帳同朋友認領都唔使鎖匙/);
+  assert.match(ocr.describeOpenRouterFailure(401, 'User not found'), /手動分帳同各自認帳都唔使鎖匙/);
   assert.match(ocr.waitingText(ocr.DEFAULT_FREE_MODEL), /^已送到免費 Nemotron 3\.5 VL/);
   assert.match(ocr.switchText('dots-studio/dots-3-note-preview:free'), /改試 Dots3-Note/);
 });

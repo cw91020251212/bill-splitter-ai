@@ -4,11 +4,11 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#67c99a">
-  <meta name="description" content="在手機上填寫帳單項目認領，按一下就交返發起人。">
+  <meta name="description" content="在手機上填寫帳單項目認帳，按一下就交返發起人。">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="分帳管家">
-  <title>帳單認領｜分帳管家 AI</title>
+  <title>帳單認帳｜分帳管家 AI</title>
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" sizes="180x180">
   <link rel="icon" href="./icons/icon.svg" type="image/svg+xml">
@@ -250,13 +250,13 @@
         <div class="brand"><span class="brand-mark" aria-hidden="true">✓</span><span id="brand-name">分帳管家 AI</span></div>
         <button id="language-toggle" class="language-toggle" type="button" aria-label="Switch language">English</button>
       </div>
-      <h1 id="page-title">填寫你的認領</h1>
+      <h1 id="page-title">填寫你的認帳</h1>
     </header>
 
     <main>
       <section id="load-error" class="load-error" role="alert" hidden>
-        <strong id="error-title">打不開這份認領表</strong>
-        <span id="error-description">連結資料不完整或格式不正確。請向發起人索取最新的認領連結。</span>
+        <strong id="error-title">打不開這份認帳表</strong>
+        <span id="error-description">連結資料不完整或格式不正確。請向發起人索取最新的認帳連結。</span>
       </section>
 
       <div id="claim-content" hidden>
@@ -276,9 +276,9 @@
 
           <details id="fallback-panel" class="panel preview-panel fallback-panel">
             <summary id="fallback-summary">WhatsApp 後備：分享或複製回覆</summary>
-            <h2 id="preview-title" class="preview-title">認領回覆預覽</h2>
+            <h2 id="preview-title" class="preview-title">認帳回覆預覽</h2>
             <p id="preview-subtitle" class="preview-subtitle">後備用。分享或複製後，仍要你自己在 WhatsApp 發送。</p>
-            <textarea id="reply-preview" class="preview" readonly aria-label="認領回覆文字預覽" placeholder="先填姓名和至少一項數量，回覆文字便會顯示在這裡。"></textarea>
+            <textarea id="reply-preview" class="preview" readonly aria-label="認帳回覆文字預覽" placeholder="先填姓名和至少一項數量，回覆文字便會顯示在這裡。"></textarea>
             <div class="actions">
               <button id="share-button" class="button" type="button" disabled>分享回覆</button>
               <span id="reply-choice-divider" class="reply-choice-divider">或</span>
@@ -338,59 +338,59 @@
       };
       const messages = {
         'zh-HK': {
-          title: '填寫你的認領',
-          errorTitle: '打不開這份認領表', errorDescription: '連結資料不完整或格式不正確。請向發起人索取最新的認領連結。',
+          title: '填寫你的認帳',
+          errorTitle: '打不開這份認帳表', errorDescription: '連結資料不完整或格式不正確。請向發起人索取最新的認帳連結。',
           personLabel: '你的姓名', namePlaceholder: '例如：阿明', nameHint: '請用發起人認得的名字，回覆會用這個名字標示。',
-          items: '帳單項目', preview: '認領回覆預覽', previewSubtitle: '後備用。分享或複製後，仍要你自己在 WhatsApp 發送。',
-          previewPlaceholder: '先填姓名和至少一項數量，回覆文字便會顯示在這裡。', previewLabel: '認領回覆文字預覽',
+          items: '帳單項目', preview: '認帳回覆預覽', previewSubtitle: '後備用。分享或複製後，仍要你自己在 WhatsApp 發送。',
+          previewPlaceholder: '先填姓名和至少一項數量，回覆文字便會顯示在這裡。', previewLabel: '認帳回覆文字預覽',
           or: '或', share: '分享回覆', copy: '複製回覆文字', shareHelp: '選 WhatsApp 同發起人，再自己按發送。',
           fallbackSummary: 'WhatsApp 後備：分享或複製回覆',
           submit: '交返發起人', submitting: '正在交返…', submittedToast: '已交返發起人',
           submitted: '已交返。對方開住分帳頁就會收到；12 小時內打開都收得到。可以再按一次更新。',
           submitFail: '而家交唔到。請檢查網絡再按一次，或展開下面用 WhatsApp 後備。',
           rateLimit: '而家交返的人太多，請稍後再按，或用 WhatsApp 後備。',
-          tooLarge: '認領太長，交唔到。請改用 WhatsApp 後備。',
+          tooLarge: '認帳太長，交唔到。請改用 WhatsApp 後備。',
           noRoom: '這條連結交唔到。請向發起人要連結，或用下面 WhatsApp 後備。',
           noCrypto: '請用 https 開啟這條連結，先可以交返。',
           itemCount: n => `${n} 項`, original: text => `單據原文：${text}`, total: (n, unit) => `單據共 ${n} ${unit}`,
-          unitLabel: '可選單位', noUnit: '不選單位', qtyLabel: '認領份數', qtyPlaceholder: '例如：0.5、1、2', qtyAria: (id, name) => `${id} ${name} 認領份數`,
+          unitLabel: '可選單位', noUnit: '不選單位', qtyLabel: '認帳份數', qtyPlaceholder: '例如：0.5、1、2', qtyAria: (id, name) => `${id} ${name} 認帳份數`,
           qtyHint: (item) => item.totalQty && item.unit
-            ? `0.5＝半份，1＝一份。右邊可選「${unitLabel(item.unit)}」計實際數量。留空或 0＝不認領。`
-            : '0.5＝半份，1＝一份，2＝兩份。單位可不選。留空或 0＝不認領。',
+            ? `0.5＝半份，1＝一份。右邊可選「${unitLabel(item.unit)}」計實際數量。留空或 0＝不認帳。`
+            : '0.5＝半份，1＝一份，2＝兩份。單位可不選。留空或 0＝不認帳。',
           needName: '請先填寫你的姓名。', badName: '姓名請勿包含冒號或等號。',
           invalidNumber: name => `「${name}」請輸入數字，例如 0.5、1 或 2。`, negative: '數量不能是負數，請檢查輸入。',
           digitsOnly: name => `「${name}」請只填數字份數。`, wrongUnit: (name, unit) => `「${name}」的單位請填「${unit}」，或只填數字代表份數。`,
-          needClaim: '請至少填寫一項大於 0 的認領數量。', copied: '已複製，可貼到 WhatsApp 傳回。', copyFail: '無法自動複製，請選取預覽文字複製。',
+          needClaim: '請至少填寫一項大於 0 的認帳數量。', copied: '已複製，可貼到 WhatsApp 傳回。', copyFail: '無法自動複製，請選取預覽文字複製。',
           copyToWhatsapp: '已複製，請貼到 WhatsApp 傳回。', noShare: '此瀏覽器未支援分享，請手動複製預覽文字。', shareCancelled: '分享未完成；你仍可按「複製回覆文字」。',
-          replyTitle: '分帳認領回覆', name: '姓名', claimed: '我認領的項目', quantity: '認領份數', actual: '實際數量', done: '已填妥，請發回給發起人。',
+          replyTitle: '認帳回覆', name: '姓名', claimed: '我認帳的項目', quantity: '認帳份數', actual: '實際數量', done: '已填妥，請發回給發起人。',
           quantityCount: n => `數量：${n}`
         },
         en: {
-          title: 'Claim your items',
-          errorTitle: 'This claim form could not be opened', errorDescription: 'The link is incomplete or invalid. Please ask the organizer for a claim link.',
+          title: 'Your items',
+          errorTitle: 'This page could not be opened', errorDescription: 'The link is incomplete or invalid. Please ask the organizer for a new link.',
           personLabel: 'Your name', namePlaceholder: 'For example: Alex', nameHint: 'Use a name the organizer will recognize; it will identify your reply.',
-          items: 'Bill items', preview: 'Claim reply preview', previewSubtitle: 'Backup only. After you share or copy, you still send it yourself in WhatsApp.',
-          previewPlaceholder: 'Enter your name and at least one quantity to see the reply here.', previewLabel: 'Claim reply text preview',
+          items: 'Bill items', preview: 'Reply preview', previewSubtitle: 'Backup only. After you share or copy, you still send it yourself in WhatsApp.',
+          previewPlaceholder: 'Enter your name and at least one quantity to see the reply here.', previewLabel: 'Reply preview',
           or: 'or', share: 'Share reply', copy: 'Copy reply text', shareHelp: 'Choose WhatsApp and the organizer, then send it yourself.',
           fallbackSummary: 'WhatsApp fallback: share or copy the reply',
           submit: 'Send to organizer', submitting: 'Sending…', submittedToast: 'Sent to the organizer',
           submitted: 'Sent. They will see it while their bill page is open, or if they open it within 12 hours. Tap again to update.',
           submitFail: 'Could not send just now. Check your connection and tap again, or open the WhatsApp fallback below.',
-          rateLimit: 'Too many claims are being sent right now. Wait and tap again, or use the WhatsApp fallback.',
-          tooLarge: 'This claim is too long to send. Use the WhatsApp fallback.',
-          noRoom: 'This link cannot send the claim. Ask the organizer for a link, or use the WhatsApp backup below.',
-          noCrypto: 'Open this link with https before sending the claim.',
+          rateLimit: 'Too many people are sending right now. Wait and tap again, or use the WhatsApp fallback.',
+          tooLarge: 'This reply is too long to send. Use the WhatsApp fallback.',
+          noRoom: 'This link cannot send. Ask the organizer for a link, or use the WhatsApp backup below.',
+          noCrypto: 'Open this link with https before sending.',
           itemCount: n => `${n} ${n === 1 ? 'item' : 'items'}`, original: text => `Receipt text: ${text}`, total: (n, unit) => `Receipt total ${n} ${unit}`,
-          unitLabel: 'Optional unit', noUnit: 'No unit', qtyLabel: 'Quantity to claim', qtyPlaceholder: 'For example: 0.5, 1, 2', qtyAria: (id, name) => `${id} ${name} quantity to claim`,
+          unitLabel: 'Optional unit', noUnit: 'No unit', qtyLabel: 'Your share', qtyPlaceholder: 'For example: 0.5, 1, 2', qtyAria: (id, name) => `${id} ${name} share`,
           qtyHint: item => item.totalQty && item.unit
-            ? `0.5 = half, 1 = one portion. Use the arrow to choose ${unitLabel(item.unit)} for an actual quantity. Blank or 0 means no claim.`
-            : '0.5 = half, 1 = one portion, 2 = two. The unit is optional. Blank or 0 means no claim.',
+            ? `0.5 = half, 1 = one portion. Use the arrow to choose ${unitLabel(item.unit)} for an actual quantity. Blank or 0 means skip.`
+            : '0.5 = half, 1 = one portion, 2 = two. The unit is optional. Blank or 0 means skip.',
           needName: 'Please enter your name first.', badName: 'Your name cannot contain a colon or equals sign.',
           invalidNumber: name => `Enter a number for “${name}”, such as 0.5, 1, or 2.`, negative: 'Quantity cannot be negative. Please check your entry.',
           digitsOnly: name => `Enter a number of portions only for “${name}”.`, wrongUnit: (name, unit) => `For “${name}”, enter “${unit}” as the unit or enter a number of portions only.`,
-          needClaim: 'Enter a claim quantity greater than 0 for at least one item.', copied: 'Copied. Paste it into WhatsApp to send it back.', copyFail: 'Could not copy automatically. Select and copy the preview text.',
+          needClaim: 'Enter a quantity greater than 0 for at least one item.', copied: 'Copied. Paste it into WhatsApp to send it back.', copyFail: 'Could not copy automatically. Select and copy the preview text.',
           copyToWhatsapp: 'Copied. Paste it into WhatsApp to send it back.', noShare: 'Sharing is not supported in this browser. Please copy the preview text manually.', shareCancelled: 'Sharing was not completed; you can still copy the reply text.',
-          replyTitle: 'Bill Split Claim Reply', name: 'Name', claimed: 'My claimed items', quantity: 'Quantity', actual: 'Actual quantity', done: 'Complete — please send this back to the organizer.',
+          replyTitle: 'Share reply', name: 'Name', claimed: 'My items', quantity: 'Share', actual: 'Actual quantity', done: 'Complete — please send this back to the organizer.',
           quantityCount: n => `Quantity: ${n}`
         }
       };
@@ -442,10 +442,10 @@
         language = nextLanguage;
         const text = messages[language];
         document.documentElement.lang = language;
-        document.title = language === 'en' ? 'Claim items | Bill Splitter AI' : '帳單認領｜分帳管家 AI';
+        document.title = language === 'en' ? 'Your items | Bill Splitter AI' : '帳單認帳｜分帳管家 AI';
         document.querySelector('meta[name="description"]').content = language === 'en'
-          ? 'Claim bill items on your phone, then send them to the organizer in one tap.'
-          : '在手機上填寫帳單項目認領，按一下就交返發起人。';
+          ? 'Mark your items on your phone, then send them to the organizer in one tap.'
+          : '在手機上填寫帳單項目認帳，按一下就交返發起人。';
         document.getElementById('language-toggle').textContent = language === 'en' ? '繁體中文' : 'English';
         languageButton.setAttribute('aria-label', language === 'en' ? 'Switch to Traditional Chinese' : '切換至 English');
         document.getElementById('brand-name').textContent = language === 'en' ? 'Bill Splitter AI' : '分帳管家 AI';
@@ -538,8 +538,8 @@
         if (!person) return { text: '', error: text.needName, complete: false };
         if (/[:：=＝]/.test(person)) return { text: '', error: text.badName, complete: false };
         const lines = language === 'en'
-          ? ['🧾 *Bill Split Claim Reply* 🧾', `👤 Name: ${person}`, '━━━━━━━━━━━━━━', '🍽️ *My claimed items*']
-          : ['🧾 *分帳認領回覆* 🧾', `👤 姓名：${person}`, '━━━━━━━━━━━━━━', '🍽️ *我認領的項目*'];
+          ? ['🧾 *Share reply* 🧾', `👤 Name: ${person}`, '━━━━━━━━━━━━━━', '🍽️ *My items*']
+          : ['🧾 *認帳回覆* 🧾', `👤 姓名：${person}`, '━━━━━━━━━━━━━━', '🍽️ *我認帳的項目*'];
         let claims = 0;
         const structured = [];
         for (const card of itemList.querySelectorAll('.item-card')) {
@@ -588,7 +588,7 @@
             ? `Quantity${displayOnlyUnit ? ` (${displayOnlyUnit})` : ''}=${normalized}${enteredUnit ? ` ${unitLabel(item.unit)}` : ''}`
             : enteredUnit
               ? `實際數量 = ${normalized} ${item.unit}`
-              : `認領份數${displayOnlyUnit ? `（${displayOnlyUnit}）` : ''} = ${normalized}`;
+              : `認帳份數${displayOnlyUnit ? `（${displayOnlyUnit}）` : ''} = ${normalized}`;
           lines.push(language === 'en'
             ? `🔶 *${item.id} ${safeDisplayName}*　👉🏻 ${quantity}`
             : `🔶 *${item.id} ${safeDisplayName}*　👉🏻 ${quantity}`);
