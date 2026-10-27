@@ -13,7 +13,7 @@
  * Bump CACHE_VERSION whenever you edit index.html so returning users get the
  * new build instead of the cached one.
  */
-const CACHE_VERSION = 'v65-grey-step-progress';
+const CACHE_VERSION = 'v66-one-tap-claim';
 const SHELL_CACHE = `bill-splitter-shell-${CACHE_VERSION}`;
 const ASSET_CACHE = `bill-splitter-assets-${CACHE_VERSION}`;
 const CDN_CACHE = `bill-splitter-cdn-${CACHE_VERSION}`;
@@ -23,6 +23,7 @@ const SHELL_URLS = [
   './',
   './index.html',
   './claim.html',
+  './claim-relay.js',
   './i18n.js',
   './theme.css',
   './manifest.webmanifest',
@@ -42,7 +43,8 @@ const SHELL_URLS = [
 // Hosts whose responses must never be stored.
 const NO_CACHE_HOSTS = [
   'openrouter.ai',
-  'static.cloudflareinsights.com'
+  'static.cloudflareinsights.com',
+  'ntfy.sh'
 ];
 
 // CDN hosts worth caching for offline use.

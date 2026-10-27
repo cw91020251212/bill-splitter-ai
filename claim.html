@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#67c99a">
-  <meta name="description" content="在手機上填寫帳單項目認領，完成後自行透過 WhatsApp 傳回。">
+  <meta name="description" content="在手機上填寫帳單項目認領，按一下就交返發起人。">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="分帳管家">
@@ -217,6 +217,30 @@
     .reply-choice-divider { display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 13px; font-weight: 600; line-height: 1.5; }
     /* Lighter green fills need dark labels for readable contrast. */
     .button.primary, .brand-mark { color: #123d2c; }
+    .submit-dock {
+      position: sticky; bottom: 0; z-index: 8;
+      margin: 18px -16px 0; padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+      background: color-mix(in srgb, var(--page) 94%, #fff);
+      border-top: 1px solid var(--line);
+      box-shadow: 0 -6px 18px rgba(23, 35, 31, .08);
+    }
+    .submit-main {
+      width: 100%; min-height: 56px; font-size: 20px; font-weight: 850;
+    }
+    .submit-status { min-height: 1.35em; margin: 8px 0 0; text-align: center; font-size: 15px; font-weight: 750; line-height: 1.45; color: var(--green-dark); }
+    .submit-status.error { color: var(--danger); }
+    .fallback-panel { margin-top: 8px; }
+    .fallback-panel summary {
+      cursor: pointer; font-size: 16px; font-weight: 800; color: #294e7a;
+    }
+    .fallback-panel summary:focus-visible { outline: 3px solid rgba(41, 78, 122, .35); outline-offset: 3px; }
+    #share-button:not(:disabled) {
+      color: #294e7a; background: #f6f9fd; border-color: #678bb6;
+    }
+    #share-button:not(:disabled):hover { background: #e5eef8; }
+    @media (max-width: 380px) {
+      .submit-dock { margin-left: -12px; margin-right: -12px; }
+    }
   </style>
 </head>
 <body>
@@ -227,7 +251,7 @@
         <button id="language-toggle" class="language-toggle" type="button" aria-label="Switch language">English</button>
       </div>
       <h1 id="page-title">填寫你的認領</h1>
-      <p id="page-intro">在每項填入你認領的份數，填好後把回覆自行傳回發起人即可。你唔需要 API 鎖匙，亦唔使登入。</p>
+      <p id="page-intro">在每項填入你認領的份數，然後按「交返發起人」。你唔需要 API 鎖匙，亦唔使登入。</p>
     </header>
 
     <main>
@@ -256,25 +280,31 @@
           <section id="item-list" class="item-list" aria-label="帳單項目"></section>
           <p id="form-feedback" class="form-feedback" role="status" aria-live="polite"></p>
 
-          <section class="panel preview-panel">
+          <details id="fallback-panel" class="panel preview-panel fallback-panel">
+            <summary id="fallback-summary">WhatsApp 後備：分享或複製回覆</summary>
             <h2 id="preview-title" class="preview-title">認領回覆預覽</h2>
-            <p id="preview-subtitle" class="preview-subtitle">會列出項目名稱、編號和認領數量，並沿用原程式的 WhatsApp 排版，方便發起人核對。</p>
+            <p id="preview-subtitle" class="preview-subtitle">這是後備。分享或複製之後，仍要你自己在 WhatsApp 發送。按「交返發起人」就不用這步。</p>
             <textarea id="reply-preview" class="preview" readonly aria-label="認領回覆文字預覽" placeholder="先填姓名和至少一項數量，回覆文字便會顯示在這裡。"></textarea>
             <div class="actions">
-              <button id="share-button" class="button primary" type="button" disabled>分享回覆</button>
+              <button id="share-button" class="button" type="button" disabled>分享回覆</button>
               <span id="reply-choice-divider" class="reply-choice-divider">或</span>
               <button id="copy-button" class="button" type="button" disabled>複製回覆文字</button>
             </div>
             <p id="share-help" class="share-help">按「分享回覆」後，在手機分享清單選 WhatsApp、選擇發起人，再自行按發送。亦可先複製文字，再貼到 WhatsApp。</p>
-          </section>
+          </details>
         </form>
       </div>
     </main>
 
-    <footer id="footer" class="footer">此頁不會自動發送訊息或收集回覆。認領資料只在你的瀏覽器內整理；項目名稱已包含在邀請連結中。你唔需要 API 鎖匙。</footer>
+    <footer id="footer" class="footer">按「交返發起人」會把加密認領送到免費公開轉送（ntfy.sh），發起人嘅分帳頁會收到。轉送服務只見到密文，見唔到姓名同數量；項目名稱仍在邀請連結入面。WhatsApp 分享唔會自動發送。你唔需要 API 鎖匙。</footer>
+    <div id="submit-dock" class="submit-dock" hidden>
+      <button id="submit-button" class="button primary submit-main" type="button" disabled>交返發起人</button>
+      <p id="submit-status" class="submit-status" role="status" aria-live="polite"></p>
+    </div>
   </div>
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
+  <script src="./claim-relay.js"></script>
   <script>
     (() => {
       const loadError = document.getElementById('load-error');
@@ -287,10 +317,16 @@
       const preview = document.getElementById('reply-preview');
       const shareButton = document.getElementById('share-button');
       const copyButton = document.getElementById('copy-button');
+      const submitButton = document.getElementById('submit-button');
+      const submitStatus = document.getElementById('submit-status');
+      const submitDock = document.getElementById('submit-dock');
+      const fallbackPanel = document.getElementById('fallback-panel');
       const toastElement = document.getElementById('toast');
       const languageButton = document.getElementById('language-toggle');
       let toastTimer;
       let items = [];
+      let relayRoom = null;
+      let submitting = false;
       const unitOptions = [
         { id: 'portion', zh: '份', en: 'portions', aliases: ['份', 'portion', 'portions', 'share', 'shares', 'serving', 'servings', 'serving(s)'] },
         { id: 'cup', zh: '杯', en: 'cups', aliases: ['杯', 'cup', 'cups', 'cup(s)'] },
@@ -309,14 +345,22 @@
       };
       const messages = {
         'zh-HK': {
-          title: '填寫你的認領', intro: '在每項填入你認領的份數，填好後把回覆自行傳回發起人即可。你唔需要 API 鎖匙，亦唔使登入。',
+          title: '填寫你的認領', intro: '在每項填入你認領的份數，然後按「交返發起人」。你唔需要 API 鎖匙，亦唔使登入。',
           errorTitle: '打不開這份認領表', errorDescription: '連結資料不完整或格式不正確。請向發起人索取最新的認領連結。',
           noticeLabel: '填寫說明', noticeTitle: '數字本身就是份數。', noticeCopy: '例如 0.5＝半份、1＝一份、2＝兩份；留空或填 0 代表沒有認領。',
           personLabel: '你的姓名', namePlaceholder: '例如：阿明', nameHint: '請用發起人認得的名字，回覆會用這個名字標示。',
-          items: '帳單項目', preview: '認領回覆預覽', previewSubtitle: '會列出項目名稱、編號和認領數量，並沿用原程式的 WhatsApp 排版，方便發起人核對。',
+          items: '帳單項目', preview: '認領回覆預覽', previewSubtitle: '這是後備。分享或複製之後，仍要你自己在 WhatsApp 發送。按「交返發起人」就不用這步。',
           previewPlaceholder: '先填姓名和至少一項數量，回覆文字便會顯示在這裡。', previewLabel: '認領回覆文字預覽',
           or: '或', share: '分享回覆', copy: '複製回覆文字', shareHelp: '按「分享回覆」後，在手機分享清單選 WhatsApp、選擇發起人，再自行按發送。亦可先複製文字，再貼到 WhatsApp。',
-          footer: '此頁不會自動發送訊息或收集回覆。認領資料只在你的瀏覽器內整理；項目名稱已包含在邀請連結中。你唔需要 API 鎖匙。',
+          fallbackSummary: 'WhatsApp 後備：分享或複製回覆',
+          submit: '交返發起人', submitting: '正在交返…', submittedToast: '已交返發起人',
+          submitted: '已交返發起人。對方打開分帳頁就會收到；如果對方暫時未開，12 小時內打開仍可收到。可以再按一次更新。',
+          submitFail: '而家交唔到。請檢查網絡再按一次，或展開下面用 WhatsApp 後備。',
+          rateLimit: '而家交返的人太多，請稍後再按，或用 WhatsApp 後備。',
+          tooLarge: '認領太長，交唔到。請改用 WhatsApp 後備。',
+          noRoom: '這條連結未開通一按交返。請向發起人索取新連結，或用下面 WhatsApp 後備。',
+          noCrypto: '請用 https 開啟這條連結，先可以一按交返。',
+          footer: '按「交返發起人」會把加密認領送到免費公開轉送（ntfy.sh），發起人嘅分帳頁會收到。轉送服務只見到密文，見唔到姓名同數量；項目名稱仍在邀請連結入面。WhatsApp 分享唔會自動發送。你唔需要 API 鎖匙。',
           itemCount: n => `${n} 項`, original: text => `單據原文：${text}`, total: (n, unit) => `單據共 ${n} ${unit}`,
           unitLabel: '可選單位', noUnit: '不選單位', qtyLabel: '認領份數', qtyPlaceholder: '例如：0.5、1、2', qtyAria: (id, name) => `${id} ${name} 認領份數`,
           qtyHint: (item) => item.totalQty && item.unit
@@ -331,14 +375,22 @@
           quantityCount: n => `數量：${n}`
         },
         en: {
-          title: 'Claim your items', intro: 'Enter how much you are claiming for each item, then send the reply back to the organizer. You do not need an API key or an account.',
+          title: 'Claim your items', intro: 'Enter how much you are claiming for each item, then tap Send to organizer. You do not need an API key or an account.',
           errorTitle: 'This claim form could not be opened', errorDescription: 'The link is incomplete or invalid. Please ask the organizer for a new claim link.',
           noticeLabel: 'Instructions', noticeTitle: 'The number is the number of portions.', noticeCopy: 'For example, 0.5 = half a portion, 1 = one portion, and 2 = two portions. Leave blank or enter 0 for no claim.',
           personLabel: 'Your name', namePlaceholder: 'For example: Alex', nameHint: 'Use a name the organizer will recognize; it will identify your reply.',
-          items: 'Bill items', preview: 'Claim reply preview', previewSubtitle: 'The reply includes item names, IDs, and quantities in a WhatsApp-friendly format for the organizer to check.',
+          items: 'Bill items', preview: 'Claim reply preview', previewSubtitle: 'This is the fallback. After you share or copy, you still send it yourself in WhatsApp. Send to organizer skips this step.',
           previewPlaceholder: 'Enter your name and at least one quantity to see the reply here.', previewLabel: 'Claim reply text preview',
           or: 'or', share: 'Share reply', copy: 'Copy reply text', shareHelp: 'Tap “Share reply”, choose WhatsApp and the organizer from your phone’s share menu, then send it yourself. Or copy the text and paste it into WhatsApp.',
-          footer: 'This page does not send messages or collect replies automatically. Your claims are prepared only in your browser; item names are included in the invitation link. You do not need an API key.',
+          fallbackSummary: 'WhatsApp fallback: share or copy the reply',
+          submit: 'Send to organizer', submitting: 'Sending…', submittedToast: 'Sent to the organizer',
+          submitted: 'Sent to the organizer. They will see it when their bill page is open. If it is closed, opening it within 12 hours still receives this claim. Tap again to update it.',
+          submitFail: 'Could not send just now. Check your connection and tap again, or open the WhatsApp fallback below.',
+          rateLimit: 'Too many claims are being sent right now. Wait and tap again, or use the WhatsApp fallback.',
+          tooLarge: 'This claim is too long to send. Use the WhatsApp fallback.',
+          noRoom: 'This link cannot send claims in one tap. Ask the organizer for a new link, or use the WhatsApp fallback below.',
+          noCrypto: 'Open this link with https before sending a claim in one tap.',
+          footer: 'Send to organizer delivers an encrypted claim through the free public relay ntfy.sh, and the organizer’s bill page receives it. The relay stores ciphertext only, not your name or quantities. Item names remain in the invitation link. WhatsApp sharing is never sent automatically. You do not need an API key.',
           itemCount: n => `${n} ${n === 1 ? 'item' : 'items'}`, original: text => `Receipt text: ${text}`, total: (n, unit) => `Receipt total ${n} ${unit}`,
           unitLabel: 'Optional unit', noUnit: 'No unit', qtyLabel: 'Quantity to claim', qtyPlaceholder: 'For example: 0.5, 1, 2', qtyAria: (id, name) => `${id} ${name} quantity to claim`,
           qtyHint: item => item.totalQty && item.unit
@@ -403,8 +455,8 @@
         document.documentElement.lang = language;
         document.title = language === 'en' ? 'Claim items | Bill Splitter AI' : '帳單認領｜分帳管家 AI';
         document.querySelector('meta[name="description"]').content = language === 'en'
-          ? 'Claim bill items on your phone, then send your reply to the organizer.'
-          : '在手機上填寫帳單項目認領，完成後自行透過 WhatsApp 傳回。';
+          ? 'Claim bill items on your phone, then send them to the organizer in one tap.'
+          : '在手機上填寫帳單項目認領，按一下就交返發起人。';
         document.getElementById('language-toggle').textContent = language === 'en' ? '繁體中文' : 'English';
         languageButton.setAttribute('aria-label', language === 'en' ? 'Switch to Traditional Chinese' : '切換至 English');
         document.getElementById('brand-name').textContent = language === 'en' ? 'Bill Splitter AI' : '分帳管家 AI';
@@ -426,6 +478,8 @@
         preview.setAttribute('aria-label', text.previewLabel);
         shareButton.textContent = text.share;
         copyButton.textContent = text.copy;
+        document.getElementById('fallback-summary').textContent = text.fallbackSummary;
+        if (submitButton.dataset.busy !== '1') submitButton.textContent = text.submit;
         document.getElementById('reply-choice-divider').textContent = text.or;
         document.getElementById('share-help').textContent = text.shareHelp;
         document.getElementById('footer').textContent = text.footer;
@@ -503,6 +557,7 @@
           ? ['🧾 *Bill Split Claim Reply* 🧾', `👤 Name: ${person}`, '━━━━━━━━━━━━━━', '🍽️ *My claimed items*']
           : ['🧾 *分帳認領回覆* 🧾', `👤 姓名：${person}`, '━━━━━━━━━━━━━━', '🍽️ *我認領的項目*'];
         let claims = 0;
+        const structured = [];
         for (const card of itemList.querySelectorAll('.item-card')) {
           const input = card.querySelector('.qty-input');
           const raw = input.value.trim();
@@ -553,13 +608,19 @@
           lines.push(language === 'en'
             ? `🔶 *${item.id} ${safeDisplayName}*　👉🏻 ${quantity}`
             : `🔶 *${item.id} ${safeDisplayName}*　👉🏻 ${quantity}`);
+          structured.push({
+            id: item.id,
+            qty: Number(normalized),
+            unit: enteredUnit ? String(item.unit || '') : '',
+            displayUnit: !enteredUnit && displayOnlyUnit ? displayOnlyUnit : ''
+          });
           claims++;
         }
         if (!claims) return { text: '', error: text.needClaim, complete: false };
         lines.push('━━━━━━━━━━━━━━', language === 'en'
           ? '✅ *Complete — please send this back to the organizer.*'
           : '✅ *已填妥，請發回給發起人。*');
-        return { text: lines.join('\n'), error: '', complete: true };
+        return { text: lines.join('\n'), error: '', complete: true, person, claims: structured };
       }
 
       function updatePreview() {
@@ -568,6 +629,7 @@
         feedback.textContent = result.error;
         shareButton.disabled = !result.complete;
         copyButton.disabled = !result.complete;
+        submitButton.disabled = submitting || !relayRoom || !result.complete;
       }
 
       function showToast(message) {
@@ -591,9 +653,10 @@
         return copied;
       }
 
-      nameInput.addEventListener('input', updatePreview);
-      itemList.addEventListener('input', updatePreview);
-      itemList.addEventListener('change', updatePreview);
+      const clearSubmitStatus = () => { submitStatus.textContent = ''; submitStatus.classList.remove('error'); };
+      nameInput.addEventListener('input', () => { clearSubmitStatus(); updatePreview(); });
+      itemList.addEventListener('input', event => { if (event.target.matches('.qty-input, .unit-select')) clearSubmitStatus(); updatePreview(); });
+      itemList.addEventListener('change', () => { clearSubmitStatus(); updatePreview(); });
       languageButton.addEventListener('click', () => {
         const nextLanguage = language === 'en' ? 'zh-HK' : 'en';
         try { localStorage.setItem('billSplitterLanguage', nextLanguage); } catch (_) {}
@@ -621,12 +684,59 @@
           if (error?.name !== 'AbortError') showToast(text.shareCancelled);
         }
       });
+      submitButton.addEventListener('click', async () => {
+        const result = getReply();
+        const text = messages[language];
+        if (!result.complete) { updatePreview(); return; }
+        submitStatus.classList.remove('error');
+        if (!window.crypto?.subtle) {
+          submitStatus.textContent = text.noCrypto;
+          submitStatus.classList.add('error');
+          fallbackPanel.open = true;
+          return;
+        }
+        if (!relayRoom || !window.ClaimRelay) {
+          submitStatus.textContent = text.noRoom;
+          submitStatus.classList.add('error');
+          fallbackPanel.open = true;
+          return;
+        }
+        submitting = true;
+        submitButton.dataset.busy = '1';
+        submitButton.disabled = true;
+        submitButton.textContent = text.submitting;
+        submitStatus.textContent = '';
+        try {
+          await window.ClaimRelay.publishClaim(relayRoom, { v: 1, name: result.person, claims: result.claims });
+          submitStatus.classList.remove('error');
+          submitStatus.textContent = text.submitted;
+          showToast(text.submittedToast);
+        } catch (error) {
+          const code = error && error.code;
+          submitStatus.textContent = code === 'too-large' ? text.tooLarge : code === 'rate-limit' ? text.rateLimit : text.submitFail;
+          submitStatus.classList.add('error');
+          fallbackPanel.open = true;
+          showToast(submitStatus.textContent);
+        } finally {
+          submitting = false;
+          submitButton.dataset.busy = '';
+          submitButton.textContent = text.submit;
+          updatePreview();
+        }
+      });
 
       applyLanguage(language);
       try {
         items = loadItems();
+        relayRoom = window.ClaimRelay ? window.ClaimRelay.readRoomFromHash(window.location.hash) : null;
         renderItems();
         content.hidden = false;
+        submitDock.hidden = false;
+        if (!relayRoom) {
+          fallbackPanel.open = true;
+          submitStatus.textContent = messages[language].noRoom;
+          submitStatus.classList.add('error');
+        }
         updatePreview();
       } catch (_) {
         loadError.hidden = false;
@@ -683,9 +793,13 @@
 
         const view = visibleViewport();
         const viewBottom = view.top + view.height;
+        const dock = document.getElementById('submit-dock');
+        const dockTop = dock && !dock.hidden ? dock.getBoundingClientRect().top : viewBottom;
+        const usableBottom = Math.min(viewBottom, dockTop) - 12;
         const currentRect = input.getBoundingClientRect();
         const nextBottom = nextInput.getBoundingClientRect().bottom;
-        const needed = Math.max(0, nextBottom - (viewBottom - 12));
+        const currentOverlap = Math.max(0, currentRect.bottom - usableBottom);
+        const needed = Math.max(currentOverlap, nextBottom - usableBottom);
         // Keep the currently focused field fully visible while moving only as far as needed.
         const allowed = Math.max(0, currentRect.top - view.top - 2);
         const distance = Math.min(needed, allowed);

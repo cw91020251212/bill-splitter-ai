@@ -77,12 +77,13 @@
     ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
     ::-webkit-scrollbar-thumb:hover { background: #64748b; }
   </style>
-  <link rel="stylesheet" href="./theme.css?v=v65-grey-step-progress">
+  <link rel="stylesheet" href="./theme.css?v=v66-one-tap-claim">
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
 
   <script src="./i18n.js"></script>
+  <script src="./claim-relay.js"></script>
   <script type="text/babel">
     const { useState, useRef, useEffect, useMemo } = React;
     const tr = value => window.BillI18n.t(value);
@@ -1043,6 +1044,16 @@
       const editKeyRef = useRef('');
 
       const [claimInfo, setClaimInfo] = useState(null);
+      const [claimRoom, setClaimRoom] = useState(null);
+      const [claimInboxSeen, setClaimInboxSeen] = useState([]);
+      const [inboxPhase, setInboxPhase] = useState('idle');
+      const [inboxNote, setInboxNote] = useState('');
+      const claimRoomRef = useRef(null);
+      const claimInboxSeenRef = useRef([]);
+      const inboxGenerationRef = useRef(0);
+      const pullLockRef = useRef(false);
+      const itemsRef = useRef([]);
+      const pullClaimsRef = useRef(async () => {});
       const [claimAttachments, setClaimAttachments] = useState([]);
       const claimAttachmentInputRef = useRef(null);
       const [showClaimShareDialog, setShowClaimShareDialog] = useState(false);
@@ -1088,13 +1099,15 @@
           attachments: claimAttachments
         };
       }, [lastImageData, claimAttachments]);
+      itemsRef.current = items;
       const hasDraftWork = Boolean(items.length || friendsReplies.trim() || results || lastImageData.length || claimAttachments.length || draftAssets.unavailable);
       const hasDraftAssets = Boolean(lastImageData.length || claimAttachments.length);
       draftSnapshotRef.current = {
         ready: draftReady, hasWork: hasDraftWork, schema: 1,
         assetRevision: draftAssets.revision, hasAssets: hasDraftAssets || draftAssets.unavailable,
         data: { step, items, taxAmount, taxNote, friendsReplies, payer, detectedCurrency, currency,
-          taxSplitMethod, paymentMethods, results, reconciliation, isSaved, includeReceiptImages, detailLang, pendingReceiptShare }
+          taxSplitMethod, paymentMethods, results, reconciliation, isSaved, includeReceiptImages, detailLang, pendingReceiptShare,
+          claimRoom, claimInboxSeen }
       };
       const persistActiveDraft = () => {
         const snapshot = draftSnapshotRef.current;
@@ -1173,6 +1186,12 @@
             setIsSaved(Boolean(data.isSaved));
             setDetailLang(data.detailLang === 'full' ? 'full' : 'zh');
             setLastImageData(images); setClaimAttachments(attachments);
+            const restoredRoom = data.claimRoom && window.ClaimRelay?.isRoom(data.claimRoom) ? data.claimRoom : null;
+            claimRoomRef.current = restoredRoom;
+            setClaimRoom(restoredRoom);
+            const restoredSeen = Array.isArray(data.claimInboxSeen) ? data.claimInboxSeen.filter(id => typeof id === 'string').slice(-500) : [];
+            claimInboxSeenRef.current = restoredSeen;
+            setClaimInboxSeen(restoredSeen);
             setIncludeReceiptImages(Boolean((data.includeReceiptImages || data.pendingReceiptShare) && images.length));
             const pending = Boolean(data.pendingReceiptShare && restoredResults);
             pendingReceiptShareRef.current = pending;
@@ -1199,7 +1218,7 @@
         if (!draftReady) return;
         persistActiveDraft();
       }, [draftReady, step, items, taxAmount, taxNote, friendsReplies, payer, detectedCurrency, currency,
-        taxSplitMethod, paymentMethods, results, reconciliation, isSaved, includeReceiptImages, detailLang, pendingReceiptShare, draftAssets]);
+        taxSplitMethod, paymentMethods, results, reconciliation, isSaved, includeReceiptImages, detailLang, pendingReceiptShare, draftAssets, claimRoom, claimInboxSeen]);
 
       useEffect(() => {
         if (!draftReady) return;
@@ -1225,6 +1244,62 @@
           window.removeEventListener('focus', requestReceiptShareNudge);
         };
       }, [draftReady]);
+
+      useEffect(() => {
+        if (!draftReady || !claimRoom || !window.ClaimRelay?.isRoom(claimRoom)) return undefined;
+        let stopped = false;
+        let timer = 0;
+        const pull = async (manual) => {
+          const room = claimRoomRef.current;
+          if (stopped || !room || !window.ClaimRelay?.isRoom(room)) return;
+          if (pullLockRef.current) return;
+          if (!navigator.onLine) { setInboxPhase('offline'); return; }
+          pullLockRef.current = true;
+          const generation = inboxGenerationRef.current;
+          if (manual) setInboxPhase('receiving');
+          try {
+            const messages = await window.ClaimRelay.pullMessages(room.topic);
+            if (stopped || generation !== inboxGenerationRef.current) return;
+            const previousSeen = claimInboxSeenRef.current;
+            const result = await window.ClaimRelay.claimsFromMessages(messages, room, previousSeen);
+            if (stopped || generation !== inboxGenerationRef.current) return;
+            const seenChanged = result.seenIds.length !== previousSeen.length || result.seenIds.some((id, index) => id !== previousSeen[index]);
+            claimInboxSeenRef.current = result.seenIds;
+            if (seenChanged) setClaimInboxSeen(result.seenIds);
+            if (result.updates.length) {
+              setFriendsReplies(current => window.ClaimRelay.applyClaimUpdates(current, result.updates, itemsRef.current));
+              setReconciliation(null);
+              setStepError('');
+              const names = result.updates.map(update => update.name).filter((name, index, all) => all.indexOf(name) === index);
+              setInboxNote(names.join('、'));
+              toast(bi(`${names.join('、')} 已交返認領`, `${names.join(', ')} sent a claim`));
+            }
+            setInboxPhase('live');
+          } catch (_) {
+            if (!stopped && generation === inboxGenerationRef.current) setInboxPhase(navigator.onLine ? 'error' : 'offline');
+          } finally {
+            pullLockRef.current = false;
+          }
+        };
+        pullClaimsRef.current = pull;
+        const loop = async () => {
+          if (stopped) return;
+          if (document.visibilityState === 'visible') await pull();
+          if (stopped) return;
+          timer = window.setTimeout(loop, 7000);
+        };
+        loop();
+        const onVisible = () => { if (document.visibilityState === 'visible') pull(); };
+        document.addEventListener('visibilitychange', onVisible);
+        window.addEventListener('focus', onVisible);
+        return () => {
+          stopped = true;
+          window.clearTimeout(timer);
+          document.removeEventListener('visibilitychange', onVisible);
+          window.removeEventListener('focus', onVisible);
+          if (pullClaimsRef.current === pull) pullClaimsRef.current = async () => {};
+        };
+      }, [draftReady, claimRoom]);
 
       useEffect(() => {
         if (!draftReady) return;
@@ -1657,6 +1732,9 @@
         setIsAnalyzing(false); setProgress(0); setProgressText('');
         setIsSaved(false); setIncludeReceiptImages(false); setLastImageData([]); setTaxAmount(''); setTaxNote('');
         setClaimAttachments([]); setClaimInfo(null); setShowClaimShareDialog(false);
+        inboxGenerationRef.current += 1;
+        claimRoomRef.current = null; claimInboxSeenRef.current = [];
+        setClaimRoom(null); setClaimInboxSeen([]); setInboxPhase('idle'); setInboxNote('');
         [fileInputRef, cameraInputRef, claimAttachmentInputRef].forEach(ref => { if (ref.current) ref.current.value = ''; });
         closeCamera(); setRedactionDrawingMode(false); setShowRedaction(false);
         setPendingRedactionImages([]); setRedactionMasks([]); setRedactionIndex(0);
@@ -2253,6 +2331,23 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
         return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
       };
 
+      const rememberClaimRoom = (room) => {
+        claimRoomRef.current = room;
+        setClaimRoom(room);
+        if (draftSnapshotRef.current?.data) {
+          draftSnapshotRef.current.data = { ...draftSnapshotRef.current.data, claimRoom: room };
+        }
+        persistActiveDraft();
+      };
+
+      const ensureClaimRoom = () => {
+        if (window.ClaimRelay?.isRoom(claimRoomRef.current)) return claimRoomRef.current;
+        if (!window.ClaimRelay?.createRoom) return null;
+        const room = window.ClaimRelay.createRoom();
+        rememberClaimRoom(room);
+        return room;
+      };
+
       const buildFriendClaimLink = (lang = uiLang) => {
         if (!items.length) { setStepError('⚠️ 請先新增至少一個帳單項目。'); return null; }
         const invalidIndex = items.findIndex(item => !String(item.name || '').trim());
@@ -2269,10 +2364,16 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
           totalQty: toNum(item.totalQty) > 0 ? toNum(item.totalQty) : null,
           unit: String(item.unit || '').trim()
         }));
+        const room = ensureClaimRoom();
         const link = new URL('./claim.html', window.location.href);
         link.searchParams.set('lang', lang === 'en' ? 'en' : 'zh-HK');
-        link.hash = `data=${encodeClaimLinkPayload(payload)}`;
-        return link.toString();
+        link.hash = window.ClaimRelay
+          ? window.ClaimRelay.buildHash(encodeClaimLinkPayload(payload), room)
+          : `data=${encodeClaimLinkPayload(payload)}`;
+        const href = link.toString();
+        const node = document.querySelector('[data-testid="claim-link-actions"]');
+        if (node) node.dataset.claimLink = href;
+        return href;
       };
 
       const generateFriendClaimLink = () => {
@@ -2304,8 +2405,8 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
         if (!link) return;
         if (!ensureDraftSavedForSharing()) return;
         const message = uiLang === 'en'
-          ? `Please open this link to fill in the mobile claim form. No API key is needed:\n${link}`
-          : `請打開以下連結填寫手機認領表（唔使 API 鎖匙）：\n${link}`;
+          ? `Open this link, fill in your claims, then tap “Send to organizer”. No API key is needed:\n${link}`
+          : `請打開以下連結填寫認領，填好按「交返發起人」（唔使 API 鎖匙）：\n${link}`;
         shareTextWithFiles(message, [], '手機認領連結');
       };
 
@@ -2533,6 +2634,16 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
       const paymentOptions = ['轉數快 (FPS)', 'PayMe', '現金', '銀行轉帳', 'Alipay'];
       const displayCurrencies = Array.from(new Set([detectedCurrency, 'HKD', 'JPY', 'TWD', 'THB', 'KRW', 'USD', 'MOP', 'GBP', 'EUR'])).filter(Boolean).slice(0, 9);
 
+      const inboxPeople = useMemo(() => {
+        const names = [];
+        String(friendsReplies || '').split('\n').forEach(line => {
+          if (!/(?:👤|姓名|Name)/.test(line) || !/[:：=＝]/.test(line)) return;
+          const name = line.split(/[:：=＝]/).slice(1).join(':').replace(/\*/g, '').trim();
+          if (name && !names.includes(name)) names.push(name);
+        });
+        return names;
+      }, [friendsReplies]);
+
       // ── 智能提示欄邏輯 (StatusBar) ──
       const statuses = useMemo(() => {
         const list = [];
@@ -2546,7 +2657,7 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
             if (emptyNameIdx !== -1) push(2, 'S2', `項目 ${items[emptyNameIdx].id} 未填寫名稱`, '請填寫名稱以便認領', { label: '填寫', run: () => focusField(`item-name-${emptyNameIdx}`) });
         }
         if (step > 2 && items.length === 0) push(2, 'S3', '請至少新增一個項目', '', { label: '新增', run: () => { setStep(2); addItemAndFocus(); } });
-        if (step === 2 && !friendsReplies.trim() && items.length > 0) push(2, 'S4', '尚未貼上朋友的認領回覆', '收集後貼上才能進行運算', { label: '前往貼上', run: () => focusField('replies') });
+        if (step === 2 && !friendsReplies.trim() && items.length > 0) push(2, 'S4', '尚未收到朋友的認領', '等朋友按「交返發起人」，或貼上 WhatsApp 後備', { label: '前往認領', run: () => focusField('replies') });
 
         if (step === 2 && claimInfo && claimInfo.issues.length > 0) {
             const firstIssue = claimInfo.issues[0];
@@ -2573,7 +2684,7 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
         else if (step === 2 && items.length > 0 && friendsReplies.trim() && (!claimInfo || claimInfo.issues.length === 0)) {
             push(5, 'G2', '認領資料準備就緒', '下一步先填墊支人，再計算', { label: '下一步', run: goToPayerStep });
         }
-        if (list.length === 0 && step >= 2) push(6, 'I1', '貼上回覆時可以連續貼幾份，系統會自動加分隔線。', '', null);
+        if (list.length === 0 && step >= 2) push(6, 'I1', '朋友可一按交返；WhatsApp 回覆仍可連續貼上。', '', null);
 
         return list.sort((a, b) => a.level - b.level);
       }, [isOnline, uploadError, lastImageData, apiKey, step, showSettings, showTutorial, showHistory, payer, items, friendsReplies, claimInfo, isAnalyzing, progressText, currency, uiLang]);
@@ -2980,7 +3091,7 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
                 <div className="border-t border-slate-400 my-6 pt-6 space-y-6">
                   <div>
                     <Label className="flex items-center justify-between mb-3"><span>{tr("1. 產生手機認領連結發送給朋友")}</span></Label>
-                    <p className="text-xs text-slate-500 mb-3">{tr("朋友在手機瀏覽器填寫後，可自行透過 WhatsApp 分享回覆；中文名稱及有提供的單據原文會包含在連結內，方便核對。")}</p>
+                    <p className="text-base text-slate-700 mb-3 leading-relaxed">{tr("朋友在手機填好後，按「交返發起人」就會交回這部機；WhatsApp 分享只作後備。請重新分享新連結，舊連結沒有一按交返。中文名稱及有提供的單據原文會包含在連結內。")}</p>
                     <p className="text-base text-slate-700 mb-3 leading-relaxed">{bi('朋友唔需要 API 鎖匙，亦唔好把你的鎖匙發俾佢哋。', 'Friends do not need an API key. Do not send them yours.')}</p>
                     <p className="text-xs text-slate-600 mb-2">{bi('以下方式擇一即可，毋須兩個都按。', 'Choose either option below; you do not need to tap both.')}</p>
                     <div data-testid="claim-link-actions" className="flex flex-col gap-3">
@@ -3035,13 +3146,30 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
                   </div>
 
                   <div>
+                    <Card data-testid="claim-inbox" className="!p-4 mb-4 border-brand-600">
+                      <h3 className="text-lg font-extrabold text-slate-800">{bi('朋友一按交返', 'One-tap claims')}</h3>
+                      <p className="text-base text-slate-700 mt-2 leading-relaxed">{bi('新連結的朋友按「交返發起人」後，認領會自動出現在下面，唔使貼上 WhatsApp。同一位朋友再交一次，會取代佢舊的認領。幾位朋友都可以交。', 'After a friend taps Send to organizer on a new link, the claim appears below without a WhatsApp paste. If the same friend sends again, their previous claim is replaced. Several friends can send.')}</p>
+                      <p className="text-base text-slate-700 mt-2 leading-relaxed">{bi('免費經 ntfy.sh 加密轉送，大約保留 12 小時，唔使付費或 API 鎖匙。收到之後只存在這部機。', 'Claims travel encrypted through free ntfy.sh for about 12 hours. No paid plan or API key. After they arrive, they stay only on this device.')}</p>
+                      <p data-testid="claim-inbox-status" className="mt-3 text-base font-bold leading-relaxed text-slate-800" role="status">
+                        {!claimRoom && bi('先按上面「複製認領連結」或「分享」，先會開通一按交返。', 'Copy or share the claim link above to open the one-tap return channel.')}
+                        {claimRoom && inboxPhase === 'receiving' && bi('正在接收…', 'Receiving…')}
+                        {claimRoom && inboxPhase === 'error' && bi('暫時連不上免費收件服務。請按「重新接收」，或叫朋友改用 WhatsApp 後備。', 'The free inbox is unreachable. Tap Check again, or ask friends to use the WhatsApp fallback.')}
+                        {claimRoom && inboxPhase === 'offline' && bi('而家離線，未能接收。連線後會再試。', 'You are offline, so claims cannot arrive. This page will try again once you are online.')}
+                        {claimRoom && inboxPhase !== 'receiving' && inboxPhase !== 'error' && inboxPhase !== 'offline' && (inboxPeople.length
+                          ? bi(`已收到 ${inboxPeople.length} 位：${inboxPeople.join('、')}`, `Received ${inboxPeople.length}: ${inboxPeople.join(', ')}`)
+                          : bi('已開通，正在等候朋友交返。這頁開住時會自動接收；收埋之後再打開，或按「重新接收」。', 'The channel is open and waiting. This page receives claims while it is open. Reopen it, or tap Check again, to catch up.'))}
+                      </p>
+                      {inboxNote && claimRoom && <p className="mt-2 text-base font-semibold text-brand-800">{bi(`最新交到：${inboxNote}`, `Latest: ${inboxNote}`)}</p>}
+                      <Button data-testid="claim-inbox-refresh" variant="outline" className="!w-full mt-3" disabled={!claimRoom || inboxPhase === 'receiving'} onClick={() => pullClaimsRef.current(true)}>{bi('重新接收', 'Check again')}</Button>
+                    </Card>
                     <Label required={friendsReplies.length === 0} className="flex items-center justify-between mb-3">
-                      <span>{tr("2. 貼上朋友透過 WhatsApp 傳回的回覆")}</span>
+                      <span>{tr("2. 朋友交返的認領")}</span>
                     </Label>
                     <textarea
+                      data-testid="claim-replies"
                       ref={el => fieldRefs.current.replies = el} value={friendsReplies} onChange={(e) => {setFriendsReplies(e.target.value); setReconciliation(null); setStepError('');}} onPaste={handlePasteReplies} onFocus={onFocusReplies} onBlur={onBlurReplies}
-                      placeholder={tr("在此處貼上朋友透過 WhatsApp 傳回的認領內容... (支援連續貼上多份回覆)")}
-                      className="w-full h-48 bg-white border border-slate-500 rounded-xl p-4 text-sm font-mono text-slate-700 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none resize-y shadow-inner leading-relaxed">
+                      placeholder={tr("認領會自動出現在這裡。亦可以貼上 WhatsApp 後備回覆，支援連續貼上多份。")}
+                      className="w-full h-48 bg-white border border-slate-500 rounded-xl p-4 text-base font-mono text-slate-700 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none resize-y shadow-inner leading-relaxed">
                     </textarea>
                   </div>
                 </div>
@@ -3274,7 +3402,7 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
                   <div className="guide-flow p-5 space-y-4">
                     {[
                       ['1', tr("睇單"), bi('影相或揀圖，讀出項目、價錢同稅費。', 'Take or choose a photo to read items, prices, and tax.')],
-                      ['2', tr("認領"), tr("複製「認領表」發到 WhatsApp 群組；只填數字係份數比例，數字加單位就係實際食用數量。")],
+                      ['2', tr("認領"), tr("把認領連結發到群組。朋友按「交返發起人」交回；只填數字係份數比例，數字加單位就係實際數量。WhatsApp 只作後備。")],
                       ['3', tr("運算"), tr("填墊支人姓名、確認自動偵測的貨幣、付款方式。")],
                       ['4', tr("結果"), tr("得出「追數版」同「詳細版」，複製後發返群組。")],
                     ].map(([n, t, d]) => (
