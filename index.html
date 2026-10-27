@@ -3122,15 +3122,31 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
 
                   <div>
                     <Label className="text-lg mb-3">{tr("收款方式 (Payment Method，可多選)")}</Label>
-                    <div className="flex flex-wrap gap-2.5">
-                      {paymentOptions.map(pm => (
-                        <button
-                          key={tr(pm)} onClick={() => setPaymentMethods(current => current.includes(pm) ? current.filter(method => method !== pm) : [...current, pm])} aria-pressed={paymentMethods.includes(pm)}
-                          className={`px-4 py-2.5 rounded-xl border font-bold text-sm transition-all outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 ${paymentMethods.includes(pm) ? 'border-brand-600 bg-brand-50 text-brand-700 shadow-sm' : 'border-slate-500 bg-white text-slate-600 hover:bg-slate-50'}`}
-                        >
-                          {tr(pm)}
-                        </button>
-                      ))}
+                    <div data-testid="payment-methods" className="flex flex-wrap gap-2.5">
+                      {paymentOptions.map(pm => {
+                        const selected = Array.isArray(paymentMethods) && paymentMethods.includes(pm);
+                        return (
+                          <label
+                            key={pm}
+                            data-testid="payment-method"
+                            data-payment-method={pm}
+                            className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border font-bold text-sm cursor-pointer transition-all ${selected ? 'border-brand-600 bg-brand-50 text-brand-700 shadow-sm' : 'border-slate-500 bg-white text-slate-600 hover:bg-slate-50'}`}
+                          >
+                            <input
+                              type="checkbox"
+                              name="paymentMethods"
+                              value={pm}
+                              checked={selected}
+                              onChange={() => setPaymentMethods(current => {
+                                const list = Array.isArray(current) ? current : [];
+                                return list.includes(pm) ? list.filter(method => method !== pm) : [...list, pm];
+                              })}
+                              className="w-5 h-5 shrink-0 text-brand-600 focus:ring-brand-500"
+                            />
+                            {tr(pm)}
+                          </label>
+                        );
+                      })}
                     </div>
                   </div>
 
