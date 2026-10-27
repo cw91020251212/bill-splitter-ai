@@ -156,6 +156,7 @@
   "正在整理識別結果...": "Organizing the recognized items...",
   "未設定 API 鎖匙。用相自動填先要你自己的免費 OpenRouter 鎖匙；手動分帳同朋友認領都唔使鎖匙。": "No API key yet. Photo fill-in needs your own free OpenRouter key. Manual splits and friend claims do not.",
   "鎖匙被拒（401）。請檢查有冇漏字或黏埋舊鎖匙。手動分帳同朋友認領都唔使鎖匙。": "Key rejected (401). Check for missing characters or two keys pasted together. Manual splits and friend claims do not need a key.",
+  "鎖匙被拒（401）。請檢查有冇漏字。": "Key rejected (401). Check for missing characters.",
   "此模型需要付費額度（402）。請改回免費模型；免費使用唔使充值。": "This model needs paid credit (402). Switch back to a free model. Free use does not need a top-up.",
   "OpenRouter 拒絕這次請求（403）。如果揀了進階模型，可能係未有付費額度；免費模型唔使充值。": "OpenRouter refused this request (403). A paid model may need credit. Free models do not need a top-up.",
   "請求太密或免費額度暫時用盡（429）。請稍後再試，或改用手動輸入。免費模型唔使充值。": "Too many requests, or the free quota is used up for now (429). Try again later, or enter items manually. Free models do not need a top-up.",

@@ -25,7 +25,7 @@
       --muted: #61716b;
       --line: #d5e0da;
       --paper: #fff;
-      --page: #f3f7f4;
+      --page: #c8ced6;
       --danger: #b42318;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans HK", "PingFang HK", sans-serif;
     }
@@ -96,7 +96,7 @@
       --muted: #4d5a53;
       --line: #5a9271;
       --paper: #fff;
-      --page: #f8f8f8;
+      --page: #c8ced6;
     }
     html, body { background: var(--page); }
     body { color: var(--ink); }
@@ -251,7 +251,6 @@
         <button id="language-toggle" class="language-toggle" type="button" aria-label="Switch language">English</button>
       </div>
       <h1 id="page-title">填寫你的認領</h1>
-      <p id="page-intro">在每項填入你認領的份數，然後按「交返發起人」。你唔需要 API 鎖匙，亦唔使登入。</p>
     </header>
 
     <main>
@@ -261,11 +260,6 @@
       </section>
 
       <div id="claim-content" hidden>
-        <section id="notice" class="panel notice" aria-label="填寫說明">
-          <span class="icon" aria-hidden="true">ℹ️</span>
-          <div><strong id="notice-title">數字本身就是份數。</strong><span id="notice-copy">例如 0.5＝半份、1＝一份、2＝兩份；留空或填 0 代表沒有認領。</span></div>
-        </section>
-
         <form id="claim-form" novalidate>
           <section class="panel">
             <label id="person-label" class="field-label" for="person-name">你的姓名</label>
@@ -283,20 +277,19 @@
           <details id="fallback-panel" class="panel preview-panel fallback-panel">
             <summary id="fallback-summary">WhatsApp 後備：分享或複製回覆</summary>
             <h2 id="preview-title" class="preview-title">認領回覆預覽</h2>
-            <p id="preview-subtitle" class="preview-subtitle">這是後備。分享或複製之後，仍要你自己在 WhatsApp 發送。按「交返發起人」就不用這步。</p>
+            <p id="preview-subtitle" class="preview-subtitle">後備用。分享或複製後，仍要你自己在 WhatsApp 發送。</p>
             <textarea id="reply-preview" class="preview" readonly aria-label="認領回覆文字預覽" placeholder="先填姓名和至少一項數量，回覆文字便會顯示在這裡。"></textarea>
             <div class="actions">
               <button id="share-button" class="button" type="button" disabled>分享回覆</button>
               <span id="reply-choice-divider" class="reply-choice-divider">或</span>
               <button id="copy-button" class="button" type="button" disabled>複製回覆文字</button>
             </div>
-            <p id="share-help" class="share-help">按「分享回覆」後，在手機分享清單選 WhatsApp、選擇發起人，再自行按發送。亦可先複製文字，再貼到 WhatsApp。</p>
+            <p id="share-help" class="share-help">選 WhatsApp 同發起人，再自己按發送。</p>
           </details>
         </form>
       </div>
     </main>
 
-    <footer id="footer" class="footer">按「交返發起人」會把加密認領送到免費公開轉送（ntfy.sh），發起人嘅分帳頁會收到。轉送服務只見到密文，見唔到姓名同數量；項目名稱仍在邀請連結入面。WhatsApp 分享唔會自動發送。你唔需要 API 鎖匙。</footer>
     <div id="submit-dock" class="submit-dock" hidden>
       <button id="submit-button" class="button primary submit-main" type="button" disabled>交返發起人</button>
       <p id="submit-status" class="submit-status" role="status" aria-live="polite"></p>
@@ -345,27 +338,25 @@
       };
       const messages = {
         'zh-HK': {
-          title: '填寫你的認領', intro: '在每項填入你認領的份數，然後按「交返發起人」。你唔需要 API 鎖匙，亦唔使登入。',
+          title: '填寫你的認領',
           errorTitle: '打不開這份認領表', errorDescription: '連結資料不完整或格式不正確。請向發起人索取最新的認領連結。',
-          noticeLabel: '填寫說明', noticeTitle: '數字本身就是份數。', noticeCopy: '例如 0.5＝半份、1＝一份、2＝兩份；留空或填 0 代表沒有認領。',
           personLabel: '你的姓名', namePlaceholder: '例如：阿明', nameHint: '請用發起人認得的名字，回覆會用這個名字標示。',
-          items: '帳單項目', preview: '認領回覆預覽', previewSubtitle: '這是後備。分享或複製之後，仍要你自己在 WhatsApp 發送。按「交返發起人」就不用這步。',
+          items: '帳單項目', preview: '認領回覆預覽', previewSubtitle: '後備用。分享或複製後，仍要你自己在 WhatsApp 發送。',
           previewPlaceholder: '先填姓名和至少一項數量，回覆文字便會顯示在這裡。', previewLabel: '認領回覆文字預覽',
-          or: '或', share: '分享回覆', copy: '複製回覆文字', shareHelp: '按「分享回覆」後，在手機分享清單選 WhatsApp、選擇發起人，再自行按發送。亦可先複製文字，再貼到 WhatsApp。',
+          or: '或', share: '分享回覆', copy: '複製回覆文字', shareHelp: '選 WhatsApp 同發起人，再自己按發送。',
           fallbackSummary: 'WhatsApp 後備：分享或複製回覆',
           submit: '交返發起人', submitting: '正在交返…', submittedToast: '已交返發起人',
-          submitted: '已交返發起人。對方打開分帳頁就會收到；如果對方暫時未開，12 小時內打開仍可收到。可以再按一次更新。',
+          submitted: '已交返。對方開住分帳頁就會收到；12 小時內打開都收得到。可以再按一次更新。',
           submitFail: '而家交唔到。請檢查網絡再按一次，或展開下面用 WhatsApp 後備。',
           rateLimit: '而家交返的人太多，請稍後再按，或用 WhatsApp 後備。',
           tooLarge: '認領太長，交唔到。請改用 WhatsApp 後備。',
-          noRoom: '這條連結未開通一按交返。請向發起人索取新連結，或用下面 WhatsApp 後備。',
-          noCrypto: '請用 https 開啟這條連結，先可以一按交返。',
-          footer: '按「交返發起人」會把加密認領送到免費公開轉送（ntfy.sh），發起人嘅分帳頁會收到。轉送服務只見到密文，見唔到姓名同數量；項目名稱仍在邀請連結入面。WhatsApp 分享唔會自動發送。你唔需要 API 鎖匙。',
+          noRoom: '這條連結交唔到。請向發起人要連結，或用下面 WhatsApp 後備。',
+          noCrypto: '請用 https 開啟這條連結，先可以交返。',
           itemCount: n => `${n} 項`, original: text => `單據原文：${text}`, total: (n, unit) => `單據共 ${n} ${unit}`,
           unitLabel: '可選單位', noUnit: '不選單位', qtyLabel: '認領份數', qtyPlaceholder: '例如：0.5、1、2', qtyAria: (id, name) => `${id} ${name} 認領份數`,
           qtyHint: (item) => item.totalQty && item.unit
-            ? `數字直接代表份數：0.5 是半份，2 是兩份。單位可不選；如要按實際數量計，可用右邊箭頭選「${unitLabel(item.unit)}」。留空或 0 代表不認領。`
-            : '數字直接代表份數：0.5 是半份，1 是一份，2 是兩份。右邊單位可不選；單據未列總量時仍按份數分攤。留空或 0 代表不認領。',
+            ? `0.5＝半份，1＝一份。右邊可選「${unitLabel(item.unit)}」計實際數量。留空或 0＝不認領。`
+            : '0.5＝半份，1＝一份，2＝兩份。單位可不選。留空或 0＝不認領。',
           needName: '請先填寫你的姓名。', badName: '姓名請勿包含冒號或等號。',
           invalidNumber: name => `「${name}」請輸入數字，例如 0.5、1 或 2。`, negative: '數量不能是負數，請檢查輸入。',
           digitsOnly: name => `「${name}」請只填數字份數。`, wrongUnit: (name, unit) => `「${name}」的單位請填「${unit}」，或只填數字代表份數。`,
@@ -375,27 +366,25 @@
           quantityCount: n => `數量：${n}`
         },
         en: {
-          title: 'Claim your items', intro: 'Enter how much you are claiming for each item, then tap Send to organizer. You do not need an API key or an account.',
-          errorTitle: 'This claim form could not be opened', errorDescription: 'The link is incomplete or invalid. Please ask the organizer for a new claim link.',
-          noticeLabel: 'Instructions', noticeTitle: 'The number is the number of portions.', noticeCopy: 'For example, 0.5 = half a portion, 1 = one portion, and 2 = two portions. Leave blank or enter 0 for no claim.',
+          title: 'Claim your items',
+          errorTitle: 'This claim form could not be opened', errorDescription: 'The link is incomplete or invalid. Please ask the organizer for a claim link.',
           personLabel: 'Your name', namePlaceholder: 'For example: Alex', nameHint: 'Use a name the organizer will recognize; it will identify your reply.',
-          items: 'Bill items', preview: 'Claim reply preview', previewSubtitle: 'This is the fallback. After you share or copy, you still send it yourself in WhatsApp. Send to organizer skips this step.',
+          items: 'Bill items', preview: 'Claim reply preview', previewSubtitle: 'Backup only. After you share or copy, you still send it yourself in WhatsApp.',
           previewPlaceholder: 'Enter your name and at least one quantity to see the reply here.', previewLabel: 'Claim reply text preview',
-          or: 'or', share: 'Share reply', copy: 'Copy reply text', shareHelp: 'Tap “Share reply”, choose WhatsApp and the organizer from your phone’s share menu, then send it yourself. Or copy the text and paste it into WhatsApp.',
+          or: 'or', share: 'Share reply', copy: 'Copy reply text', shareHelp: 'Choose WhatsApp and the organizer, then send it yourself.',
           fallbackSummary: 'WhatsApp fallback: share or copy the reply',
           submit: 'Send to organizer', submitting: 'Sending…', submittedToast: 'Sent to the organizer',
-          submitted: 'Sent to the organizer. They will see it when their bill page is open. If it is closed, opening it within 12 hours still receives this claim. Tap again to update it.',
+          submitted: 'Sent. They will see it while their bill page is open, or if they open it within 12 hours. Tap again to update.',
           submitFail: 'Could not send just now. Check your connection and tap again, or open the WhatsApp fallback below.',
           rateLimit: 'Too many claims are being sent right now. Wait and tap again, or use the WhatsApp fallback.',
           tooLarge: 'This claim is too long to send. Use the WhatsApp fallback.',
-          noRoom: 'This link cannot send claims in one tap. Ask the organizer for a new link, or use the WhatsApp fallback below.',
-          noCrypto: 'Open this link with https before sending a claim in one tap.',
-          footer: 'Send to organizer delivers an encrypted claim through the free public relay ntfy.sh, and the organizer’s bill page receives it. The relay stores ciphertext only, not your name or quantities. Item names remain in the invitation link. WhatsApp sharing is never sent automatically. You do not need an API key.',
+          noRoom: 'This link cannot send the claim. Ask the organizer for a link, or use the WhatsApp backup below.',
+          noCrypto: 'Open this link with https before sending the claim.',
           itemCount: n => `${n} ${n === 1 ? 'item' : 'items'}`, original: text => `Receipt text: ${text}`, total: (n, unit) => `Receipt total ${n} ${unit}`,
           unitLabel: 'Optional unit', noUnit: 'No unit', qtyLabel: 'Quantity to claim', qtyPlaceholder: 'For example: 0.5, 1, 2', qtyAria: (id, name) => `${id} ${name} quantity to claim`,
           qtyHint: item => item.totalQty && item.unit
-            ? `Numbers mean portions: 0.5 is half a portion and 2 is two portions. The unit is optional; use the arrow to choose ${unitLabel(item.unit)} for an actual quantity. Leave blank or enter 0 for no claim.`
-            : 'Numbers mean portions: 0.5 is half a portion, 1 is one portion, and 2 is two portions. Units are optional; without a receipt total, the same portion split applies. Leave blank or enter 0 for no claim.',
+            ? `0.5 = half, 1 = one portion. Use the arrow to choose ${unitLabel(item.unit)} for an actual quantity. Blank or 0 means no claim.`
+            : '0.5 = half, 1 = one portion, 2 = two. The unit is optional. Blank or 0 means no claim.',
           needName: 'Please enter your name first.', badName: 'Your name cannot contain a colon or equals sign.',
           invalidNumber: name => `Enter a number for “${name}”, such as 0.5, 1, or 2.`, negative: 'Quantity cannot be negative. Please check your entry.',
           digitsOnly: name => `Enter a number of portions only for “${name}”.`, wrongUnit: (name, unit) => `For “${name}”, enter “${unit}” as the unit or enter a number of portions only.`,
@@ -461,12 +450,8 @@
         languageButton.setAttribute('aria-label', language === 'en' ? 'Switch to Traditional Chinese' : '切換至 English');
         document.getElementById('brand-name').textContent = language === 'en' ? 'Bill Splitter AI' : '分帳管家 AI';
         document.getElementById('page-title').textContent = text.title;
-        document.getElementById('page-intro').textContent = text.intro;
         document.getElementById('error-title').textContent = text.errorTitle;
         document.getElementById('error-description').textContent = text.errorDescription;
-        document.getElementById('notice').setAttribute('aria-label', text.noticeLabel);
-        document.getElementById('notice-title').textContent = text.noticeTitle + (language === 'en' ? ' ' : '');
-        document.getElementById('notice-copy').textContent = text.noticeCopy;
         document.getElementById('person-label').textContent = text.personLabel;
         nameInput.placeholder = text.namePlaceholder;
         document.getElementById('person-hint').textContent = text.nameHint;
@@ -482,7 +467,6 @@
         if (submitButton.dataset.busy !== '1') submitButton.textContent = text.submit;
         document.getElementById('reply-choice-divider').textContent = text.or;
         document.getElementById('share-help').textContent = text.shareHelp;
-        document.getElementById('footer').textContent = text.footer;
         renderItems();
         updatePreview();
       }

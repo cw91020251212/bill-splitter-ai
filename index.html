@@ -77,7 +77,7 @@
     ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
     ::-webkit-scrollbar-thumb:hover { background: #64748b; }
   </style>
-  <link rel="stylesheet" href="./theme.css?v=v67-free-scan-cascade">
+  <link rel="stylesheet" href="./theme.css?v=v68-claim-cleanup">
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
@@ -2371,8 +2371,8 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
         if (!link) return;
         if (!ensureDraftSavedForSharing()) return;
         const message = uiLang === 'en'
-          ? `Open this link, fill in your claims, then tap “Send to organizer”. No API key is needed:\n${link}`
-          : `請打開以下連結填寫認領，填好按「交返發起人」（唔使 API 鎖匙）：\n${link}`;
+          ? `Open this link, enter your shares, then tap “Send to organizer”:\n${link}`
+          : `請打開連結填份數，填好按「交返發起人」：\n${link}`;
         shareTextWithFiles(message, [], '手機認領連結');
       };
 
@@ -2650,8 +2650,6 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
         else if (step === 2 && items.length > 0 && friendsReplies.trim() && (!claimInfo || claimInfo.issues.length === 0)) {
             push(5, 'G2', '認領資料準備就緒', '下一步先填墊支人，再計算', { label: '下一步', run: goToPayerStep });
         }
-        if (list.length === 0 && step >= 2) push(6, 'I1', '朋友可一按交返；WhatsApp 回覆仍可連續貼上。', '', null);
-
         return list.sort((a, b) => a.level - b.level);
       }, [isOnline, uploadError, lastImageData, apiKey, step, showSettings, showTutorial, showHistory, payer, items, friendsReplies, claimInfo, isAnalyzing, progressText, currency, uiLang]);
 
@@ -2797,7 +2795,7 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
                 {draftNotice && <p className="font-semibold mb-1">{tr(draftNotice)}</p>}
                 {draftSaveError || ((hasDraftAssets || draftAssets.unavailable) && draftAssetStatus === 'error') ? (
                   <p role="alert" className="font-semibold text-red-700">{draftSaveError || tr("本機附件草稿未能保存，暫不切換 App；請檢查網站儲存權限及剩餘空間。")}</p>
-                ) : <p>{hasDraftAssets && draftAssetStatus === 'saving' ? tr("正在保存本機圖片／附件，完成後才可分享…") : tr("草稿已自動保存於本機。切換 App 後請回到同一瀏覽器、同一網址繼續；清除網站資料會刪除草稿。")}</p>}
+                ) : <p>{hasDraftAssets && draftAssetStatus === 'saving' ? tr("正在保存本機圖片／附件，完成後才可分享…") : bi('草稿已保存在這部機。', 'Draft saved on this device.')}</p>}
               </div>
             )}
 
@@ -2814,8 +2812,8 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
                     </div>
 
                     <div className="rounded-xl border border-amber-500 bg-amber-50 p-3 mb-4">
-                      <p className="text-sm font-semibold text-amber-900">{bi('如需遮蓋電話、卡號或會員號，先按下方筆鍵，再拖動框選。未啟用時，滑動只會瀏覽圖片。', 'To hide a phone, card or membership number, enable the pen below, then drag a box. With the pen off, swiping only scrolls.')}</p>
-                      <p className="text-xs text-amber-900 mt-1.5 leading-relaxed">{tr("請保留菜名、價格、稅費和日期。只有黑框內像素會被永久移除；框外內容仍會隨遮蓋版送到你設定的 AI 服務作 OCR。原圖不會用於 OCR、歷史儲存或分享。")}</p>
+                      <p className="text-sm font-semibold text-amber-900">{bi('要遮電話、卡號或會員號，先開筆再拖框。', 'To hide a phone, card or membership number, turn on the pen and drag a box.')}</p>
+                      <p className="text-xs text-amber-900 mt-1.5 leading-relaxed">{bi('請留低菜名、價錢同日期。黑框會遮走。', 'Keep item names, prices and the date. Black boxes are covered.')}</p>
                     </div>
 
                     <div className="flex items-start gap-3 mb-4">
@@ -2868,7 +2866,7 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
 
                     <div className="flex flex-col gap-2">
                       <button type="button" data-testid="redaction-recognize-now" onClick={startOcrWithRedactedImages} disabled={isPreparingRedacted} className="px-3 py-3 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-sm shadow-sm disabled:opacity-60">{isPreparingRedacted ? bi('正在準備圖片…', 'Preparing images…') : bi('直接識別', 'Recognize now')}</button>
-                      <p className="text-base text-slate-700 leading-relaxed">{bi('可以直接識別，遮蓋係可選。已畫的黑框仍會遮走；未畫的位置會一併送去識別。手動輸入不會出現這個畫面。', 'You can recognize now. Redaction is optional. Boxes you already drew stay covered; everything else is sent. Manual entry never shows this screen.')}</p>
+                      <p className="text-base text-slate-700 leading-relaxed">{bi('遮蓋可選。已畫的黑框會遮走。', 'Redaction is optional. Boxes you drew stay covered.')}</p>
                       <div className="grid grid-cols-2 gap-2">
                         <button type="button" onClick={cancelReceiptRedaction} disabled={isPreparingRedacted} className="px-3 py-3 rounded-xl border border-slate-400 bg-white text-slate-700 font-bold text-sm disabled:opacity-50">{tr("取消此次掃描")}</button>
                         <button type="button" onClick={() => redactionIndex < pendingRedactionImages.length - 1 ? setRedactionIndex(index => index + 1) : startOcrWithRedactedImages()} disabled={isPreparingRedacted} className="px-3 py-3 rounded-xl border border-brand-600 bg-white text-brand-800 font-bold text-sm disabled:opacity-60">{isPreparingRedacted ? bi('正在準備圖片…', 'Preparing images…') : redactionIndex < pendingRedactionImages.length - 1 ? tr("下一張圖片") : tr("遮蓋完成，開始識別")}</button>
@@ -2943,7 +2941,7 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
                     <div className="flex flex-col items-center max-w-md mx-auto">
                       <div className="w-20 h-20 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center mb-4 shadow-sm border border-amber-300"><Icon path={icons.alert} size={36} /></div>
                       <h3 className="text-lg font-bold text-slate-800">{tr("今次未能完整讀取單據")}</h3>
-                      <p className="text-base font-medium text-slate-700 mt-2">{tr("AI 偶爾第一次未能成功辨識，未必係張相有問題；可以用同一張圖片即時再試一次。")}</p>
+                      <p className="text-base font-medium text-slate-700 mt-2">{bi('今次讀唔到。可以用同一張圖再試。', 'Could not read it this time. Try the same image again.')}</p>
                       {uploadError.sub && <p className="text-base text-slate-700 mt-2 break-words">{tr(uploadError.sub)}</p>}
                       {uploadError.detail && <p className="text-base text-slate-600 mt-1 break-words">{uploadError.detail}</p>}
                       {lastImageData.length ? (
@@ -2982,7 +2980,7 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
                   <span className="w-8 h-8 rounded-full bg-brand-100 border border-brand-500 text-brand-700 flex items-center justify-center font-bold">2</span>
                   <h2 className="text-2xl font-bold text-slate-800 tracking-tight">{items.length === 0 ? bi('新增項目', 'Add items') : tr("核對項目與朋友認領")}</h2>
                 </div>
-                {items.length === 0 && <p className="text-base text-slate-700 leading-relaxed">{bi('影相讀單之後，喺度核對同改。識別唔到先手動加。有項目之後先會出現認領連結。', 'After a photo scan, check and edit the items here. Add them manually if recognition fails. The claim link appears once an item exists.')}</p>}
+                {items.length === 0 && <p className="text-base text-slate-700 leading-relaxed">{bi('有項目之後，先會出現認領連結。', 'The claim link appears once there is an item.')}</p>}
 
                 <div className="space-y-4">
                   <div className="flex justify-between items-end mb-1">
@@ -2993,7 +2991,7 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
                   {items.length === 0 && (
                     <Card data-testid="manual-empty-state" className="text-center !py-8">
                       <h3 className="text-lg font-bold text-slate-800">{bi('未有項目', 'No items yet')}</h3>
-                      <p className="text-base text-slate-700 mt-2 leading-relaxed">{bi('返回影相，讀日韓等外語單據。手動輸入留俾改錯或識別失敗。', 'Go back and photograph the receipt so Japanese, Korean, and other foreign bills can be read. Manual entry is for corrections or a failed scan.')}</p>
+                      <p className="text-base text-slate-700 mt-2 leading-relaxed">{bi('返回影相讀單，或手動加項目。', 'Go back to scan, or add items manually.')}</p>
                       <Button data-testid="open-ai-scan" variant="primary" className="w-full mt-4" onClick={openAiScan}>{bi('返回影相讀單', 'Back to photo scan')}</Button>
                       <Button data-testid="add-item-primary" variant="secondary" className="w-full mt-3 border-slate-500" onClick={addItemAndFocus}><Icon path={icons.plus} size={18}/>{bi('手動新增項目', 'Add an item manually')}</Button>
                     </Card>
@@ -3055,9 +3053,7 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
                 <div className="border-t border-slate-400 my-6 pt-6 space-y-6">
                   <div>
                     <Label className="flex items-center justify-between mb-3"><span>{tr("1. 產生手機認領連結發送給朋友")}</span></Label>
-                    <p className="text-base text-slate-700 mb-3 leading-relaxed">{tr("朋友在手機填好後，按「交返發起人」就會交回這部機；WhatsApp 分享只作後備。請重新分享新連結，舊連結沒有一按交返。中文名稱及有提供的單據原文會包含在連結內。")}</p>
-                    <p className="text-base text-slate-700 mb-3 leading-relaxed">{bi('朋友唔需要 API 鎖匙，亦唔好把你的鎖匙發俾佢哋。', 'Friends do not need an API key. Do not send them yours.')}</p>
-                    <p className="text-xs text-slate-600 mb-2">{bi('以下方式擇一即可，毋須兩個都按。', 'Choose either option below; you do not need to tap both.')}</p>
+                    <p className="text-base text-slate-700 mb-3 leading-relaxed">{bi('複製連結畀朋友填份數，填完撳交返發起人。', 'Copy the link. Friends enter their shares, then tap Send to organizer.')}</p>
                     <div data-testid="claim-link-actions" className="flex flex-col gap-3">
                       <Button variant="secondary" onClick={generateFriendClaimLink} className="!w-full text-sm bg-white hover:bg-slate-50 border-slate-500">
                         <Icon path={icons.copy} size={18} className="text-slate-600"/>{tr(" 複製認領連結")}</Button>
@@ -3065,7 +3061,6 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
                       <Button variant="primary" onClick={openClaimShareDialog} className="!w-full text-sm">
                         <Icon path={icons.share} size={18}/>{tr(" 分享認領連結＋（單據圖片）")}</Button>
                     </div>
-                    <p className="text-xs text-slate-500 mt-2 leading-relaxed">{tr("只需網址請按複製；按分享後先發一個認領連結。如有多張單據，再另外分享整批附件，不會把相同連結附到每張圖片。")}</p>
                     {showClaimShareDialog && (
                     <dialog ref={claimShareDialogRef} onCancel={() => setShowClaimShareDialog(false)} aria-labelledby="claim-share-title" className="m-auto max-w-lg rounded-2xl border border-slate-400 bg-white p-4 text-slate-800 shadow-xl overflow-y-auto backdrop:bg-slate-950/60" style={{ width: 'calc(100% - 2rem)', maxHeight: '85dvh' }}>
                       <div className="flex items-center justify-between gap-2 mb-3">
@@ -3082,7 +3077,7 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
                         ref={claimAttachmentInputRef}
                         onChange={handleClaimAttachmentSelection}
                       />
-                      <p className="text-xs text-slate-500 mt-2 leading-relaxed">{tr("合併的所有項目共用一個認領連結。為免 WhatsApp 在每張圖片重複顯示連結，請先完成第 1 步，再返回此視窗完成第 2 步；每次都自行選同一位朋友或群組並確認，不會自動接續發送。附件不會寫入網址或朋友的認領頁；最多 10 個檔案，合共 20 MB。")}</p>
+                      <p className="text-xs text-slate-500 mt-2 leading-relaxed">{bi('先分享連結，再另分享附件。最多 10 個檔，合共 20 MB。', 'Share the link first, then the attachments. Up to 10 files, 20 MB total.')}</p>
                       {claimAttachments.length > 0 && (
                         <div className="mt-3 border-t border-slate-300 pt-3">
                           <div className="flex items-center justify-between gap-2 mb-2">
@@ -3111,17 +3106,16 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
 
                   <div>
                     <Card data-testid="claim-inbox" className="!p-4 mb-4 border-brand-600">
-                      <h3 className="text-lg font-extrabold text-slate-800">{bi('朋友一按交返', 'One-tap claims')}</h3>
-                      <p className="text-base text-slate-700 mt-2 leading-relaxed">{bi('新連結的朋友按「交返發起人」後，認領會自動出現在下面，唔使貼上 WhatsApp。同一位朋友再交一次，會取代佢舊的認領。幾位朋友都可以交。', 'After a friend taps Send to organizer on a new link, the claim appears below without a WhatsApp paste. If the same friend sends again, their previous claim is replaced. Several friends can send.')}</p>
-                      <p className="text-base text-slate-700 mt-2 leading-relaxed">{bi('免費經 ntfy.sh 加密轉送，大約保留 12 小時，唔使付費或 API 鎖匙。收到之後只存在這部機。', 'Claims travel encrypted through free ntfy.sh for about 12 hours. No paid plan or API key. After they arrive, they stay only on this device.')}</p>
+                      <h3 className="text-lg font-extrabold text-slate-800">{bi('朋友一按交返', 'Friends send claims back')}</h3>
+                      <p className="text-base text-slate-700 mt-2 leading-relaxed">{bi('朋友撳「交返發起人」後，認領會出現在下面。', 'After a friend taps Send to organizer, the claim appears below.')}</p>
                       <p data-testid="claim-inbox-status" className="mt-3 text-base font-bold leading-relaxed text-slate-800" role="status">
-                        {!claimRoom && bi('先按上面「複製認領連結」或「分享」，先會開通一按交返。', 'Copy or share the claim link above to open the one-tap return channel.')}
+                        {!claimRoom && bi('先複製或分享上面的連結。', 'Copy or share the link above first.')}
                         {claimRoom && inboxPhase === 'receiving' && bi('正在接收…', 'Receiving…')}
-                        {claimRoom && inboxPhase === 'error' && bi('暫時連不上免費收件服務。請按「重新接收」，或叫朋友改用 WhatsApp 後備。', 'The free inbox is unreachable. Tap Check again, or ask friends to use the WhatsApp fallback.')}
-                        {claimRoom && inboxPhase === 'offline' && bi('而家離線，未能接收。連線後會再試。', 'You are offline, so claims cannot arrive. This page will try again once you are online.')}
+                        {claimRoom && inboxPhase === 'error' && bi('暫時收唔到。請再按，或用 WhatsApp 後備。', 'Could not receive just now. Tap again, or use the WhatsApp backup.')}
+                        {claimRoom && inboxPhase === 'offline' && bi('而家離線，連線後會再試。', 'You are offline. This page will try again once you are online.')}
                         {claimRoom && inboxPhase !== 'receiving' && inboxPhase !== 'error' && inboxPhase !== 'offline' && (inboxPeople.length
                           ? bi(`已收到 ${inboxPeople.length} 位：${inboxPeople.join('、')}`, `Received ${inboxPeople.length}: ${inboxPeople.join(', ')}`)
-                          : bi('已開通，正在等候朋友交返。這頁開住時會自動接收；收埋之後再打開，或按「重新接收」。', 'The channel is open and waiting. This page receives claims while it is open. Reopen it, or tap Check again, to catch up.'))}
+                          : bi('等候朋友交返。', 'Waiting for friends.'))}
                       </p>
                       {inboxNote && claimRoom && <p className="mt-2 text-base font-semibold text-brand-800">{bi(`最新交到：${inboxNote}`, `Latest: ${inboxNote}`)}</p>}
                       <Button data-testid="claim-inbox-refresh" variant="outline" className="!w-full mt-3" disabled={!claimRoom || inboxPhase === 'receiving'} onClick={() => pullClaimsRef.current(true)}>{bi('重新接收', 'Check again')}</Button>
@@ -3132,7 +3126,7 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
                     <textarea
                       data-testid="claim-replies"
                       ref={el => fieldRefs.current.replies = el} value={friendsReplies} onChange={(e) => {setFriendsReplies(e.target.value); setReconciliation(null); setStepError('');}} onPaste={handlePasteReplies} onFocus={onFocusReplies} onBlur={onBlurReplies}
-                      placeholder={tr("認領會自動出現在這裡。亦可以貼上 WhatsApp 後備回覆，支援連續貼上多份。")}
+                      placeholder={bi('認領會出現在這裡，亦可以貼上 WhatsApp 後備。', 'Claims appear here. You can also paste a WhatsApp backup.')}
                       className="w-full h-48 bg-white border border-slate-500 rounded-xl p-4 text-base font-mono text-slate-700 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none resize-y shadow-inner leading-relaxed">
                     </textarea>
                   </div>
@@ -3274,7 +3268,7 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
                       <input type="checkbox" checked={includeReceiptImages} onChange={event => { const checked = event.target.checked; setIncludeReceiptImages(checked); if (!checked) { updatePendingReceiptShare(false); setReceiptShareNudge(0); } }} className="w-5 h-5 mt-0.5 text-brand-600 focus:ring-brand-500" />
                       <div>
                         <div className="font-bold text-slate-800">{tr("需要另外分享實體單副本（")}{lastImageData.length}{tr(" 張）")}</div>
-                        <p className="text-sm text-slate-700 mt-1 leading-relaxed">{tr("先發純文字報告，返回後按「分享單據圖片」，一次分享全部圖片，不需複製或貼上。")}</p>
+                        <p className="text-sm text-slate-700 mt-1 leading-relaxed">{bi('先發文字，返回後再分享圖片。', 'Send the text first, then share the images when you return.')}</p>
                       </div>
                     </label>
                   </Card>
@@ -3290,7 +3284,7 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
                         <ChoiceDivider inline />
                         <Button onClick={() => copyCurrentReport(getSimplifiedResult(), tr("追數版"))} variant="outline" className="flex-1 !w-auto !px-2 !py-2 text-sm bg-white hover:bg-brand-50 border-slate-500 text-slate-700 hover:text-brand-700 hover:border-brand-500"><Icon path={icons.copy} size={16}/>{tr(" 複製文字")}</Button>
                       </div>
-                      {includeReceiptImages && lastImageData.length > 0 && <p className="mt-3 rounded-lg border-l-4 border-amber-600 bg-amber-50 p-3 text-sm leading-relaxed text-amber-950"><strong>{tr("這一步只有文字，不附圖片。")}</strong>{tr("返回後會自動帶你到")}<a href="#receipt-share-step" className="font-bold underline underline-offset-2">{tr("第 2 步分享單據圖片（")}{lastImageData.length}{tr(" 張）")}</a>{tr("，毋須自行尋找。")}</p>}
+                      {includeReceiptImages && lastImageData.length > 0 && <p className="mt-3 rounded-lg border-l-4 border-amber-600 bg-amber-50 p-3 text-sm leading-relaxed text-amber-950"><strong>{tr("這一步只有文字，不附圖片。")}</strong>{tr("返回後會自動帶你到")}<a href="#receipt-share-step" className="font-bold underline underline-offset-2">{tr("第 2 步分享單據圖片（")}{lastImageData.length}{tr(" 張）")}</a>{bi('。', '.')}</p>}
                     </div>
                     <div data-testid="final-summary-preview" className="p-4 bg-white font-sans text-sm text-slate-700 whitespace-pre-wrap break-words leading-relaxed selection:bg-brand-100">{getSimplifiedResult()}</div>
                   </Card>
@@ -3307,7 +3301,7 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
                       <ChoiceDivider inline />
                       <Button onClick={() => copyCurrentReport(getDetailedResult(detailLang), tr("詳細版"))} variant="secondary" className="flex-1 !w-auto !px-2 !py-2 text-sm bg-white border-slate-500"><Icon path={icons.copy} size={16}/>{tr(" 複製文字")}</Button>
                     </div>
-                    {includeReceiptImages && lastImageData.length > 0 && <p className="mb-4 rounded-lg border-l-4 border-amber-600 bg-amber-50 p-3 text-sm leading-relaxed text-amber-950"><strong>{tr("這一步只有文字，不附圖片。")}</strong>{tr("返回後會自動帶你到")}<a href="#receipt-share-step" className="font-bold underline underline-offset-2">{tr("第 2 步分享單據圖片（")}{lastImageData.length}{tr(" 張）")}</a>{tr("，毋須自行尋找。")}</p>}
+                    {includeReceiptImages && lastImageData.length > 0 && <p className="mb-4 rounded-lg border-l-4 border-amber-600 bg-amber-50 p-3 text-sm leading-relaxed text-amber-950"><strong>{tr("這一步只有文字，不附圖片。")}</strong>{tr("返回後會自動帶你到")}<a href="#receipt-share-step" className="font-bold underline underline-offset-2">{tr("第 2 步分享單據圖片（")}{lastImageData.length}{tr(" 張）")}</a>{bi('。', '.')}</p>}
                     <p className="text-xs text-slate-600 mb-2">{bi('菜名顯示方式（擇一）', 'Item name display (choose one)')}</p>
                     <div className="flex bg-slate-200/60 p-1 rounded-lg border border-slate-400">
                       <button onClick={() => setDetailLang('zh')} aria-pressed={detailLang === 'zh'} className={`flex-1 py-1.5 rounded-md text-xs font-bold transition-all ${detailLang === 'zh' ? 'bg-white text-slate-800 shadow border border-slate-300' : 'text-slate-600 hover:text-slate-800'}`}>{bi('中文菜名版', 'Item names only')}</button>
@@ -3323,13 +3317,13 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
                       <span aria-hidden="true" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-amber-900 text-2xl font-bold text-white">2</span>
                       <div className="min-w-0">
                         <h3 id="receipt-share-heading" className="text-2xl font-extrabold leading-snug text-amber-950">{tr("第 2 步：分享單據圖片")}</h3>
-                        <p className="mt-2 text-base font-semibold leading-relaxed text-amber-950">{tr("按一下，選 WhatsApp 和收件人，再手動發送全部 ")}{lastImageData.length}{tr(" 張圖片。")}</p>
+                        <p className="mt-2 text-base font-semibold leading-relaxed text-amber-950">{bi('選 WhatsApp 同收件人，再自己發送全部 ', 'Choose WhatsApp and a recipient, then send all ')}{lastImageData.length}{bi(' 張圖片。', ' images yourself.')}</p>
                       </div>
                     </div>
-                    {pendingReceiptShare && <p role="status" className="mt-4 rounded-xl border-2 border-amber-800 bg-white p-3 text-base font-bold leading-relaxed text-amber-950">{tr("文字報告不會自動附圖。請先確認文字已發出，再分享單據。")}</p>}
+                    {pendingReceiptShare && <p role="status" className="mt-4 rounded-xl border-2 border-amber-800 bg-white p-3 text-base font-bold leading-relaxed text-amber-950">{bi('文字唔會附圖。確認發出後再分享圖片。', 'The text has no images. After it is sent, share the pictures.')}</p>}
                     {!lastImageData.length && <p role="alert" className="mt-4 font-bold text-amber-950">{tr("本機圖片暫未能載入。請重新開啟同一網址重試讀取草稿，勿重設帳單。")}</p>}
                     <Button onClick={shareCurrentReceipts} disabled={!lastImageData.length} variant="primary" className="mt-4 !w-full !bg-amber-900 hover:!bg-amber-950 !text-white !border-amber-950 !py-4 !font-bold disabled:!opacity-100 disabled:!bg-slate-700"><Icon path={icons.share} size={20}/>{tr(" 分享單據圖片（")}{lastImageData.length}{tr(" 張）")}</Button>
-                    <p className="mt-3 text-sm leading-relaxed text-amber-950">{tr("只分享圖片，不會重發文字報告；是否送出請在 WhatsApp 確認。")}</p>
+                    <p className="mt-3 text-sm leading-relaxed text-amber-950">{bi('只發圖片，唔會重發文字。', 'Images only. The text is not sent again.')}</p>
                   </section>
                 )}
 
@@ -3337,7 +3331,7 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
                   <Button onClick={saveCurrentRecord} disabled={isSaved || isSavingRecord} variant={isSaved ? 'secondary' : 'primary'} className={`w-full ${isSaved ? '!bg-emerald-50 !text-emerald-900 !border-emerald-700 disabled:!opacity-100 disabled:!cursor-default !shadow-none !transition-none' : ''}`}>
                     {isSavingRecord ? tr("正在儲存…") : isSaved ? <><Icon path={icons.check} size={20}/> {lastImageData.length ? tf("紀錄及 {0} 張單據已儲存在本機", [lastImageData.length]) : tr("紀錄已儲存")}</> : <><Icon path={icons.save} size={20}/> {lastImageData.length ? tf("儲存分帳紀錄及 {0} 張實體單", [lastImageData.length]) : tr("儲存此分帳紀錄")}</>}
                   </Button>
-                  {lastImageData.length > 0 && <p className="text-xs text-slate-500 text-center mt-2">{tr("收據圖片只保存在這部裝置；不會上傳到伺服器。儲存紀錄後，可到「歷史紀錄」再次分享。")}</p>}
+                  {lastImageData.length > 0 && <p className="text-xs text-slate-500 text-center mt-2">{bi('圖片只留在這部機。', 'Images stay on this device.')}</p>}
                 </div>
 
                 <div className="flex gap-3 pt-2">
@@ -3356,7 +3350,7 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
                     </div>
                     <h2 className="text-xl font-bold text-slate-800 tracking-tight">{tr("新手教學")}</h2>
                   </div>
-                  <p className="text-sm mt-1 leading-relaxed text-slate-700">{tr("第一次用？睇完以下幾點就上手。")}<br/>{tr("最重要的是第 2 節「份數定實際單位」——填法會直接影響分攤結果。")}</p>
+                  <p className="text-sm mt-1 leading-relaxed text-slate-700">{bi('數字係份數；加單位先係實際數量。', 'A number is a share. Add a unit only for an actual quantity.')}</p>
                 </Card>
 
                 <Card className="p-0 overflow-hidden border-slate-500">
@@ -3366,7 +3360,7 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
                   <div className="guide-flow p-5 space-y-4">
                     {[
                       ['1', tr("睇單"), bi('影相或揀圖，讀出項目、價錢同稅費。', 'Take or choose a photo to read items, prices, and tax.')],
-                      ['2', tr("認領"), tr("把認領連結發到群組。朋友按「交返發起人」交回；只填數字係份數比例，數字加單位就係實際數量。WhatsApp 只作後備。")],
+                      ['2', tr("認領"), bi('發連結。朋友填份數後撳「交返發起人」。', 'Send the link. Friends enter shares, then tap Send to organizer.')],
                       ['3', tr("運算"), tr("填墊支人姓名、確認自動偵測的貨幣、付款方式。")],
                       ['4', tr("結果"), tr("得出「追數版」同「詳細版」，複製後發返群組。")],
                     ].map(([n, t, d]) => (
@@ -3377,6 +3371,18 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
                     ))}
                   </div>
                 </Card>
+
+                <Accordion title={bi('朋友點樣交返', 'How friends send claims back')} tone="slate" defaultOpen={true} icon={icons.send}>
+                  <ul className="list-disc space-y-2 pl-5">
+                    <li>{bi('複製或分享認領連結。', 'Copy or share the claim link.')}</li>
+                    <li>{bi('朋友填份數，再撳「交返發起人」。認領會出現在下面。', 'Friends enter their shares, then tap Send to organizer. The claim appears below.')}</li>
+                    <li>{bi('同一位再交會更新；幾位朋友都可以交。', 'If the same friend sends again, their claim is updated. Several friends can send.')}</li>
+                    <li>{bi('朋友唔使 API 鎖匙，亦唔好把你的鎖匙發出去。', 'Friends do not need an API key. Do not send them yours.')}</li>
+                    <li>{bi('交返大約保留 12 小時。這頁開住會自動收到；未見到就按「重新接收」。', 'A claim is kept for about 12 hours. This page receives it while open. If it is missing, tap Check again.')}</li>
+                    <li>{bi('WhatsApp 分享或複製只係後備，要自己發送。', 'WhatsApp share or copy is only a backup. You still send it yourself.')}</li>
+                    <li>{bi('有單據圖片就先發連結，再另外分享圖片。', 'If there are receipt images, share the link first, then share the images separately.')}</li>
+                  </ul>
+                </Accordion>
 
                 <Accordion title={tr("⭐ 2. 填「份數」定「實際單位」？（最重要）")} tone="amber" defaultOpen={true} icon={icons.help}>
                   <div className="bg-amber-50/50 border border-amber-500 rounded-xl p-4 mb-3">
@@ -3398,10 +3404,10 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
                 </Accordion>
 
                 <Accordion title={tr("🔑 6. AI 設定與鎖匙")} tone="slate" icon={icons.key}>
-                  <p className="text-sm text-slate-800 leading-relaxed mb-3">{bi('讀外語單據要用你自己的免費 OpenRouter 鎖匙。預設免費。鎖匙只留在這部機，請勿發俾朋友。', 'Foreign receipts need your own free OpenRouter key. The default is free. The key stays on this device. Do not send it to friends.')}</p>
+                  <p className="text-sm text-slate-800 leading-relaxed mb-3">{bi('讀外語單據要用你自己的免費鎖匙。鎖匙只留在這部機，唔好發出去。', 'Foreign receipts need your own free key. It stays on this device. Do not send it out.')}</p>
                   <div className="bg-slate-50 border border-slate-400 rounded-xl p-3 text-sm space-y-1.5">
                     <p className="font-bold text-slate-800">{tr("記住我的鎖匙（免每次重輸）")}</p>
-                    <p className="text-slate-600 text-xs">{tr("在設定勾選「記住鎖匙」，只存本機，唔會上傳。共用電腦請勿勾選。")}</p>
+                    <p className="text-slate-600 text-xs">{bi('在設定勾選記住鎖匙，只存在這部機。', 'In Settings, choose to remember the key. It stays on this device.')}</p>
                   </div>
                 </Accordion>
 
@@ -3454,8 +3460,7 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
                         {Number(record.receiptImageCount) > 0 && (
                           <div className="px-4 pb-4">
                             <p className="text-xs text-slate-600 mb-2">{tr("📎 本機收據副本：")}{record.receiptImageCount}{tr(" 張")}</p>
-                            <p className="text-xs text-slate-600 mb-2">{tr("先分享一款純文字報告，再另分享圖片；每次自行在 WhatsApp 選同一收件人並確認。")}</p>
-                            <p className="text-xs text-slate-600 mb-2">{bi('文字報告可選追數版或詳細版，毋須兩款都發。', 'Choose the summary or detailed text report; you do not need to send both.')}</p>
+                            <p className="text-xs text-slate-600 mb-2">{bi('先發一款文字，再另發圖片。', 'Send one text report, then share the images separately.')}</p>
                             <div className="grid grid-cols-2 gap-2">
                               <Button variant="outline" className="!w-auto !py-2 !px-2 !text-xs bg-white" onClick={() => shareSavedRecord(record, 'simplified')}>{tr("分享追數版（純文字）")}</Button>
                               <Button variant="secondary" className="!w-auto !py-2 !px-2 !text-xs bg-white" onClick={() => shareSavedRecord(record, 'detailed')}>{tr("分享詳細版（純文字）")}</Button>
@@ -3505,8 +3510,8 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
                           )}
                         </select>
                         <p className="text-base text-slate-700 mt-2 leading-relaxed">{!modelUsesFreeTier(apiModel, allowPaidModels)
-                          ? bi('你已揀進階模型，可能產生費用。改回免費模型就唔使充值。', 'You selected an advanced model, which may cost money. Switch back to a free model and you do not need to top up.')
-                          : bi('而家用免費模型。讀唔到會自動改試清單入面其他免費模型，唔使自己轉，亦唔使充值。', 'A free model is selected. If it cannot read the receipt, the app tries the other free models automatically. You do not switch models, and you do not need to top up.')}</p>
+                          ? bi('你已揀進階模型，可能會收費。', 'You selected an advanced model. It may cost money.')
+                          : bi('而家用免費模型。讀唔到會自動改試其他免費模型。', 'A free model is selected. If it cannot read the receipt, the app tries the other free models.')}</p>
                       </div>
 
                       <label className="flex items-start gap-3 p-4 bg-amber-50 rounded-xl border border-amber-400 cursor-pointer">
@@ -3524,7 +3529,7 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
                         />
                         <div>
                           <div className="font-bold text-slate-800 text-base">{bi('進階／可能產生費用', 'Advanced / may cost money')}</div>
-                          <p className="text-base text-slate-700 mt-1 leading-relaxed">{bi('預設關閉。開啟後先可以揀較快的付費模型，可能會用到你 OpenRouter 帳戶的付費額度。保持關閉就只會用免費模型，唔使充值。', 'Off by default. Turn this on before you can choose a faster paid model. That may use paid credit on your OpenRouter account. Leave it off and only free models are used, with no top-up.')}</p>
+                          <p className="text-base text-slate-700 mt-1 leading-relaxed">{bi('預設關閉。開啟後可能會收費。', 'Off by default. Turning this on may cost money.')}</p>
                         </div>
                       </label>
 
@@ -3578,7 +3583,7 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
                         }} className="w-5 h-5 mt-0.5 text-brand-600 focus:ring-brand-500 rounded" />
                         <div>
                           <div className="font-bold text-slate-800 text-base">{tr("將金鑰永久儲存於此瀏覽器（建議保持勾選）")}</div>
-                          <div className="text-base text-slate-700 mt-1 font-medium leading-relaxed">{tr("按「儲存並驗證」會永久保存在本機端，唔會上傳至任何伺服器。取消勾選只適合公用電腦。")}</div>
+                          <div className="text-base text-slate-700 mt-1 font-medium leading-relaxed">{bi('只存在這部機，不會上傳。', 'Stored only on this device. It is not uploaded.')}</div>
                         </div>
                       </label>
                     </div>
