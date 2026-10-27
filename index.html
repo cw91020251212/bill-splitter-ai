@@ -77,7 +77,7 @@
     ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
     ::-webkit-scrollbar-thumb:hover { background: #64748b; }
   </style>
-  <link rel="stylesheet" href="./theme.css?v=v68-claim-cleanup">
+  <link rel="stylesheet" href="./theme.css?v=v69-bottom-tip">
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
@@ -2622,7 +2622,7 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
             const emptyNameIdx = items.findIndex(i => !i.name.trim());
             if (emptyNameIdx !== -1) push(2, 'S2', `項目 ${items[emptyNameIdx].id} 未填寫名稱`, '請填寫名稱以便認領', { label: '填寫', run: () => focusField(`item-name-${emptyNameIdx}`) });
         }
-        if (step > 2 && items.length === 0) push(2, 'S3', '請至少新增一個項目', '', { label: '新增', run: () => { setStep(2); addItemAndFocus(); } });
+        if (step >= 2 && items.length === 0) push(2, 'S3', '請至少新增一個項目', '', { label: '新增', run: () => { setStep(2); addItemAndFocus(); } });
         if (step === 2 && !friendsReplies.trim() && items.length > 0) push(2, 'S4', '尚未收到朋友的認領', '等朋友按「交返發起人」，或貼上 WhatsApp 後備', { label: '前往認領', run: () => focusField('replies') });
 
         if (step === 2 && claimInfo && claimInfo.issues.length > 0) {
@@ -2650,8 +2650,20 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
         else if (step === 2 && items.length > 0 && friendsReplies.trim() && (!claimInfo || claimInfo.issues.length === 0)) {
             push(5, 'G2', '認領資料準備就緒', '下一步先填墊支人，再計算', { label: '下一步', run: goToPayerStep });
         }
+
+        if (step === 1 && !isAnalyzing && !showSettings && !showTutorial && !showHistory && list.length === 0) {
+            push(5, 'G1', '請上傳單據照片，讓 AI 幫你讀取', '或手動建立項目', { label: '手動輸入', run: () => { setShowSettings(false); startManualEntry(); } });
+        }
+        if (step === 3 && payer.trim() && items.length > 0) {
+            const issues = reconciliation?.issues || [];
+            if (issues.some(issue => issue.difference < 0)) push(2, 'C3', '認領數量超過單據總量', '返回修改後再計算', { label: '上一步', run: () => setStep(2) });
+            else if (issues.length && !reconciliation.policy) push(3, 'C3', '實際數量未完全核對', '先揀邊個承擔剩餘數量', null);
+            else push(5, 'G3', '可以產生分帳報告', '確認墊支人同收款方式', { label: '產生報告', run: calculateSplit });
+        }
+        if (step === 4) push(5, 'G4', '報告已準備好', '可以分享或儲存', { label: '查看', run: () => document.getElementById('report-share-step')?.scrollIntoView({ behavior: 'smooth', block: 'center' }) });
+
         return list.sort((a, b) => a.level - b.level);
-      }, [isOnline, uploadError, lastImageData, apiKey, step, showSettings, showTutorial, showHistory, payer, items, friendsReplies, claimInfo, isAnalyzing, progressText, currency, uiLang]);
+      }, [isOnline, uploadError, lastImageData, apiKey, step, showSettings, showTutorial, showHistory, payer, items, friendsReplies, claimInfo, reconciliation, isAnalyzing, progressText, currency, uiLang]);
 
       const StatusBar = ({ statuses, expanded, setExpanded, kbOpen }) => {
           if (!statuses.length) return null;
