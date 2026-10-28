@@ -13,7 +13,7 @@
  * Bump CACHE_VERSION whenever you edit index.html so returning users get the
  * new build instead of the cached one.
  */
-const CACHE_VERSION = 'v83-cantonese-tutorial-video';
+const CACHE_VERSION = 'v86-free-models-only';
 const SHELL_CACHE = `bill-splitter-shell-${CACHE_VERSION}`;
 const ASSET_CACHE = `bill-splitter-assets-${CACHE_VERSION}`;
 const CDN_CACHE = `bill-splitter-cdn-${CACHE_VERSION}`;
@@ -29,14 +29,6 @@ const SHELL_URLS = [
   './theme.css',
   './tutorial.js',
   './tutorial.css',
-  './openrouter-key-guide.html',
-  './assets/openrouter-guide-step-1-google.png',
-  './assets/openrouter-guide-step-2-new-key.png',
-  './assets/openrouter-guide-step-3-expiry-focus.png',
-  './assets/openrouter-guide-step-4-limit-focus.png',
-  './assets/openrouter-guide-step-5-create-focus.png',
-  './assets/openrouter-guide-step-6-original.jpg',
-  './assets/openrouter-guide-step-7-app-field-crop.png',
   './manifest.webmanifest',
   './icons/icon.svg',
   './icons/favicon.ico',
@@ -144,9 +136,7 @@ self.addEventListener('fetch', (event) => {
           const requestPath = new URL(request.url).pathname;
           const requestedPage = requestPath.endsWith('/claim.html')
             ? new URL('./claim.html', self.location).toString()
-            : requestPath.endsWith('/openrouter-key-guide.html')
-              ? new URL('./openrouter-key-guide.html', self.location).toString()
-              : new URL('./index.html', self.location).toString();
+            : new URL('./index.html', self.location).toString();
           return (
             (await cache.match(requestedPage)) ||
             (await cache.match('./index.html')) ||

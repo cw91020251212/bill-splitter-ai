@@ -77,8 +77,8 @@
     ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
     ::-webkit-scrollbar-thumb:hover { background: #64748b; }
   </style>
-  <link rel="stylesheet" href="./theme.css?v=v81-openrouter-screenshot-guide">
-  <link rel="stylesheet" href="./tutorial.css?v=v81-openrouter-screenshot-guide">
+  <link rel="stylesheet" href="./theme.css?v=v86-free-models-only">
+  <link rel="stylesheet" href="./tutorial.css?v=v86-free-models-only">
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
@@ -86,7 +86,7 @@
   <script src="./i18n.js"></script>
   <script src="./claim-relay.js"></script>
   <script src="./ocr-cascade.js"></script>
-  <script src="./tutorial.js?v=v81-openrouter-screenshot-guide"></script>
+  <script src="./tutorial.js?v=v86-free-models-only"></script>
   <script type="text/babel">
     const { useState, useRef, useEffect, useLayoutEffect, useMemo } = React;
     const tr = value => window.BillI18n.t(value);
@@ -187,11 +187,10 @@
       );
     };
 
-    // Free vision cascade lives in ocr-cascade.js. Paid models stay opt-in.
+    // Free vision cascade lives in ocr-cascade.js. This app only offers free models.
     const Ocr = window.OcrCascade;
     const DEFAULT_FREE_MODEL = Ocr.DEFAULT_FREE_MODEL;
     const FREE_MODELS = Ocr.FREE_MODELS;
-    const PAID_MODELS = Ocr.PAID_MODELS;
     const resolveBillModel = Ocr.resolveBillModel;
     const modelUsesFreeTier = Ocr.modelUsesFreeTier;
     const describeOpenRouterFailure = Ocr.describeOpenRouterFailure;
@@ -1010,8 +1009,21 @@
       const [showHistory, setShowHistory] = useState(false);
       const [showSettings, setShowSettings] = useState(false);
       const [showTutorial, setShowTutorial] = useState(false);
-      const [showTutorialMenu, setShowTutorialMenu] = useState(false);
       const tutorialMenuOrigin = useRef(null);
+      const firstVisitStateRef = useRef(null);
+      const firstVisitPromptCheckedRef = useRef(false);
+      if (!tutorialDemo && firstVisitStateRef.current === null) {
+        let seen = false;
+        let hasPriorUse = false;
+        try { seen = localStorage.getItem('billSplitterFirstVisitVideoHubSeenV1') === '1' || sessionStorage.getItem('billSplitterFirstVisitVideoHubSeenV1') === '1'; } catch (e) {}
+        try { hasPriorUse = Boolean(localStorage.getItem(ACTIVE_DRAFT_KEY)); } catch (e) {}
+        try { hasPriorUse = hasPriorUse || Boolean(localStorage.getItem('billSplitterApiConfig') || sessionStorage.getItem('billSplitterApiConfig')); } catch (e) {}
+        try {
+          const storedHistory = JSON.parse(localStorage.getItem('billSplitterHistory') || '[]');
+          hasPriorUse = hasPriorUse || (Array.isArray(storedHistory) && storedHistory.length > 0);
+        } catch (e) {}
+        firstVisitStateRef.current = { seen, hasPriorUse };
+      }
       const [isSaved, setIsSaved] = useState(false);
       const [isSavingRecord, setIsSavingRecord] = useState(false);
       const [savedReceiptFiles, setSavedReceiptFiles] = useState({});
@@ -1022,7 +1034,7 @@
       const [apiKey, setApiKey] = useState('');
 
       const [apiModel, setApiModel] = useState(DEFAULT_FREE_MODEL);
-      const [allowPaidModels, setAllowPaidModels] = useState(false);
+      const allowPaidModels = false;
       // API keys are user settings: a normal save must survive closing/reopening
       // the app. Keep sessionStorage only as a same-tab fallback.
       const [rememberKey, setRememberKey] = useState(true);
@@ -1220,6 +1232,19 @@
         restore();
         return () => { cancelled = true; };
       }, []);
+
+      useEffect(() => {
+        if (tutorialDemo || !draftReady || firstVisitPromptCheckedRef.current) return;
+        firstVisitPromptCheckedRef.current = true;
+        const firstVisitState = firstVisitStateRef.current || { seen: false, hasPriorUse: false };
+        if (!firstVisitState.seen) {
+          try { localStorage.setItem('billSplitterFirstVisitVideoHubSeenV1', '1'); }
+          catch (e) { try { sessionStorage.setItem('billSplitterFirstVisitVideoHubSeenV1', '1'); } catch (sessionError) {} }
+        }
+        if (firstVisitState.seen || firstVisitState.hasPriorUse) return;
+        tutorialMenuOrigin.current = { x: window.scrollX, y: window.scrollY };
+        setShowTutorial(true);
+      }, [tutorialDemo, draftReady]);
 
       useEffect(() => {
         if (tutorialDemo || !draftReady) return;
@@ -1496,22 +1521,22 @@
               setApiKey(savedOpenRouterKey);
               setIsEditingKey(false);
             }
-            const allowPaid = cfg.allowPaidModels === true;
+            const allowPaid = false;
             const resolvedModel = resolveBillModel(cfg.model, allowPaid);
-            setAllowPaidModels(allowPaid);
             setApiModel(resolvedModel);
+            let normalizedConfig = persisted;
             if (cfg.model !== resolvedModel || cfg.allowPaidModels !== allowPaid) {
-              const nextPayload = JSON.stringify({ ...cfg, engine: 'openrouter', model: resolvedModel, allowPaidModels: allowPaid });
+              normalizedConfig = JSON.stringify({ ...cfg, engine: 'openrouter', model: resolvedModel, allowPaidModels: false });
               try {
-                if (durable) localStorage.setItem('billSplitterApiConfig', nextPayload);
-                sessionStorage.setItem('billSplitterApiConfig', nextPayload);
+                if (durable) localStorage.setItem('billSplitterApiConfig', normalizedConfig);
+                sessionStorage.setItem('billSplitterApiConfig', normalizedConfig);
               } catch (e) {}
             }
             if (durable) {
               setRememberKey(true);
             } else if (temporary) {
               try {
-                localStorage.setItem('billSplitterApiConfig', persisted);
+                localStorage.setItem('billSplitterApiConfig', normalizedConfig);
                 setRememberKey(true);
               } catch (e) {
                 // Private browsing/storage restrictions may prevent promotion;
@@ -1526,7 +1551,7 @@
       useEffect(() => {
         const resolved = resolveBillModel(apiModel, allowPaidModels);
         if (resolved !== apiModel) setApiModel(resolved);
-      }, [apiModel, allowPaidModels]);
+      }, [apiModel]);
 
       useEffect(() => {
         if (tutorialDemo) return;
@@ -1721,7 +1746,7 @@
         if (tutorialDemo) return;
         if(window.confirm(tr("確定要清除鎖匙嗎？這將會刪除您本機上的設定。"))) {
           try { localStorage.removeItem('billSplitterApiConfig'); sessionStorage.removeItem('billSplitterApiConfig'); } catch(e) {}
-          setApiKey(''); setIsEditingKey(true); setRememberKey(false); setAllowPaidModels(false); setApiModel(DEFAULT_FREE_MODEL);
+          setApiKey(''); setIsEditingKey(true); setRememberKey(false); setApiModel(DEFAULT_FREE_MODEL);
           toast('🗑️ 已清除鎖匙', 'error');
         }
       };
@@ -3007,19 +3032,14 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
                 <button type="button" data-testid="header-language-toggle" data-ui-language={uiLang === 'en' ? 'zh-HK' : 'en'} onClick={() => changeUiLanguage(uiLang === 'en' ? 'zh-HK' : 'en')} title={uiLang === 'en' ? 'Switch to Traditional Chinese' : '切換至 English'} aria-label={uiLang === 'en' ? 'Switch to Traditional Chinese' : '切換至 English'} className="header-language-button flex items-center justify-center px-2.5 py-2 bg-slate-100 text-slate-700 border border-slate-400 rounded-lg text-xs font-bold transition-colors">
                   <span className="language-divider" aria-hidden="true"></span><span className="language-zh" lang="zh-HK">中</span><span className="language-en" lang="en">Eng</span>
                 </button>
-                {(showHistory || showSettings || showTutorial || showTutorialMenu) ? (
+                {(showHistory || showSettings || showTutorial) ? (
                   <button onClick={() => {
-                    if (showTutorial) { setShowTutorial(false); setShowTutorialMenu(true); return; }
-                    if (showTutorialMenu) {
-                      setShowTutorialMenu(false);
-                      const origin = tutorialMenuOrigin.current;
-                      requestAnimationFrame(() => {
-                        document.querySelector('[data-testid="start-tutorial"]')?.focus({ preventScroll: true });
-                        if (origin) window.scrollTo({ left: origin.x, top: origin.y, behavior: 'instant' });
-                      });
-                      return;
-                    }
-                    setShowHistory(false); setShowSettings(false);
+                    setShowHistory(false); setShowSettings(false); setShowTutorial(false);
+                    const origin = tutorialMenuOrigin.current;
+                    requestAnimationFrame(() => {
+                      document.querySelector('[data-testid="start-tutorial"]')?.focus({ preventScroll: true });
+                      if (origin) window.scrollTo({ left: origin.x, top: origin.y, behavior: 'instant' });
+                    });
                   }} className="header-back-button flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-semibold transition-colors border border-slate-400">
                     <Icon path={icons.arrowLeft} size={16}/>{tr(" 返回")}</button>
                 ) : (
@@ -3027,7 +3047,7 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
                     <button data-testid="start-tutorial" disabled={!draftReady || isAnalyzing || isSavingRecord} onClick={event => {
                       event.currentTarget.focus({ preventScroll: true });
                       tutorialMenuOrigin.current = { x: window.scrollX, y: window.scrollY };
-                      setShowTutorialMenu(true);
+                      setShowTutorial(true);
                       requestAnimationFrame(() => window.scrollTo({ left: 0, top: 0, behavior: 'smooth' }));
                     }} title={bi('教學方式選擇', 'Choose a tutorial')} className="guide-button flex items-center gap-1.5 px-3 py-2 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-500 rounded-lg text-sm font-semibold transition-colors">
                       <Icon path={icons.bookOpen} size={16}/> <span className="guide-label">{tr("教學")}</span>
@@ -3047,7 +3067,7 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
             </div>
 
             {/* Steps Indicator */}
-            {(!showHistory && !showSettings && !showTutorial && !showTutorialMenu) && (
+            {(!showHistory && !showSettings && !showTutorial) && (
               <div className="stepper-panel bg-slate-50/80 px-4 py-3 border-t border-slate-400 max-w-2xl mx-auto">
                 <div className="step-progress mb-2.5" data-testid="step-progress" data-step={step} role="progressbar" aria-valuemin={1} aria-valuemax={4} aria-valuenow={step} aria-valuetext={bi(`第 ${step} 步，共 4 步`, `Step ${step} of 4`)}>
                   <div className="step-progress-fill" style={{ width: `${(step / 4) * 100}%` }}></div>
@@ -3161,32 +3181,10 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
               </div>
             )}
 
-            {showTutorialMenu && (
-              <div data-testid="tutorial-mode-picker" className="space-y-4 animate-in fade-in duration-300" aria-labelledby="tutorial-mode-title">
-                <Card className="bg-gradient-to-br from-amber-50 to-white border-amber-500 shadow-sm">
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="w-10 h-10 bg-amber-500 text-white rounded-xl flex items-center justify-center shadow-sm shrink-0"><Icon path={icons.bookOpen} size={22}/></div>
-                    <h2 id="tutorial-mode-title" className="text-xl font-bold text-slate-800">{bi('你想睇邊種教學？', 'Choose a guide')}</h2>
-                  </div>
-                  <p className="text-sm leading-relaxed text-slate-700">{bi('互動導覽會逐步帶你試用；文字新手教學可以一次過閱讀流程和 OpenRouter 實際畫面。', 'The interactive tour walks you through the app. The text guide lets you read the workflow and OpenRouter screenshots at your own pace.')}</p>
-                </Card>
-                <button type="button" data-testid="tutorial-mode-interactive" onClick={() => {
-                  setShowTutorialMenu(false);
-                  if (onStartTutorial && typeof window.BillTutorial === 'function') onStartTutorial(() => { setShowTutorialMenu(false); setShowTutorial(true); }, tutorialMenuOrigin.current);
-                  else setShowTutorial(true);
-                }} className="w-full min-h-[84px] text-left rounded-2xl border border-slate-500 bg-white p-5 shadow-sm transition-colors hover:border-brand-600 hover:bg-brand-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-700">
-                  <span className="block text-base font-bold text-slate-800">{bi('互動步驟導覽', 'Interactive walkthrough')}</span>
-                  <span className="block mt-1 text-sm leading-relaxed text-slate-600">{bi('跟住畫面逐步操作，約 16 個步驟。', 'Follow the on-screen walkthrough, about 16 steps.')}</span>
-                </button>
-                <button type="button" data-testid="tutorial-mode-text" onClick={() => { setShowTutorialMenu(false); setShowTutorial(true); }} className="w-full min-h-[84px] text-left rounded-2xl border border-slate-500 bg-white p-5 shadow-sm transition-colors hover:border-brand-600 hover:bg-brand-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-700">
-                  <span className="block text-base font-bold text-slate-800">{bi('文字新手教學（流程＋實際截圖）', 'Text guide (workflow + real screenshots)')}</span>
-                  <span className="block mt-1 text-sm leading-relaxed text-slate-600">{bi('直接閱讀說明，不用逐頁撳「下一步」。', 'Read the instructions directly without advancing screen by screen.')}</span>
-                </button>
-              </div>
-            )}
+
 
             {/* Step 1: Photo scan is the main path; manual entry is the fallback */}
-            {step === 1 && !showSettings && !showHistory && !showTutorial && !showTutorialMenu && (
+            {step === 1 && !showSettings && !showHistory && !showTutorial && (
               <div data-testid="scan-start" className={`space-y-6 animate-in fade-in duration-500${isAnalyzing ? ' is-analyzing' : ''}`}>
                 <div className="page-section-heading flex items-center gap-2 mb-2">
                   <span className="w-8 h-8 rounded-full bg-brand-100 border border-brand-500 text-brand-700 flex items-center justify-center font-bold">1</span>
@@ -3282,7 +3280,7 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
             )}
 
             {/* Step 2: Items & Claims */}
-            {step === 2 && !showHistory && !showSettings && !showTutorial && !showTutorialMenu && (
+            {step === 2 && !showHistory && !showSettings && !showTutorial && (
               <div data-testid="items-step" className="space-y-6 animate-in fade-in duration-500">
                 <div className="page-section-heading flex items-start gap-2 mb-2">
                   <span className="w-8 h-8 rounded-full bg-brand-100 border border-brand-500 text-brand-700 flex items-center justify-center font-bold">2</span>
@@ -3483,7 +3481,7 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
             )}
 
             {/* Step 3: Calculation Settings */}
-            {step === 3 && !showHistory && !showSettings && !showTutorial && !showTutorialMenu && (
+            {step === 3 && !showHistory && !showSettings && !showTutorial && (
               <div className="space-y-6 animate-in fade-in duration-500">
                 <div className="page-section-heading flex items-center gap-2 mb-2">
                   <span className="w-8 h-8 rounded-full bg-brand-100 border border-brand-500 text-brand-700 flex items-center justify-center font-bold">3</span>
@@ -3597,7 +3595,7 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
             )}
 
             {/* Step 4: Results */}
-            {step === 4 && results && !showHistory && !showSettings && !showTutorial && !showTutorialMenu && (
+            {step === 4 && results && !showHistory && !showSettings && !showTutorial && (
               <div className="space-y-6 animate-in fade-in duration-500">
                 <div className="page-section-heading flex items-center gap-2 mb-2">
                   <span className="w-8 h-8 rounded-full bg-brand-600 text-white flex items-center justify-center font-bold"><Icon path={icons.check} size={18}/></span>
@@ -3684,87 +3682,56 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
             )}
 
             {showTutorial && (
-              <div className="space-y-6 animate-in fade-in duration-500">
-                <Card className="bg-gradient-to-br from-amber-50 to-white border-amber-500 shadow-sm">
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="w-10 h-10 bg-amber-500 text-white rounded-xl flex items-center justify-center shadow-sm shrink-0">
-                      <Icon path={icons.book} size={22}/>
+              <div data-testid="tutorial-hub" className="space-y-5 animate-in fade-in duration-500">
+                <Card data-testid="tutorial-hub-intro" className="bg-gradient-to-br from-amber-50 to-white border-amber-500 shadow-sm">
+                  <div className="flex items-start gap-3 mb-3">
+                    <div className="w-10 h-10 bg-amber-500 text-white rounded-xl flex items-center justify-center shadow-sm shrink-0"><Icon path={icons.bookOpen} size={22}/></div>
+                    <div>
+                      <h2 className="text-xl font-bold text-slate-800 tracking-tight">{bi('教學中心', 'Tutorials')}</h2>
                     </div>
-                    <h2 className="text-xl font-bold text-slate-800 tracking-tight">{tr("新手教學")}</h2>
                   </div>
-                  <p className="text-sm mt-1 leading-relaxed text-slate-700">{bi('數字係份數；加單位先係實際數量。', 'A number is a share. Add a unit only for an actual quantity.')}</p>
-                  <a href="#openrouter-guide" className="inline-flex mt-3 text-sm font-bold text-brand-700 underline underline-offset-2">{bi('直接看 OpenRouter 金鑰畫面圖解 ↓', 'Jump to the OpenRouter key screenshots ↓')}</a>
+                  <Button data-testid="skip-tutorials" variant="secondary" className="w-full border-slate-500" onClick={() => setShowTutorial(false)}>{bi('略過教學，直接開始使用', 'Skip tutorials and use the app')}</Button>
                 </Card>
 
-                <Card data-testid="tutorial-video-card" className="p-0 overflow-hidden border-brand-600 bg-white shadow-sm">
-                  <div className="px-5 pt-4 pb-3">
-                    <h3 className="text-base font-bold text-slate-800">{bi('觀看分帳操作短片', 'Watch the bill-splitting video')}</h3>
-                    <p className="mt-2 text-sm leading-relaxed text-slate-700">{bi('約 1 分鐘，示範由入單、朋友認帳到分享結算結果。第一次用 AI 讀單前，請先設定 API Key；設定步驟請看下方獨立的 OpenRouter 七步圖解。', 'About one minute: see receipt entry, friends’ claims, and sharing the split. Set up your API key before AI receipt scanning; setup steps are in the separate OpenRouter guide below.')}</p>
-                  </div>
-                  <video data-testid="tutorial-operation-video" controls playsInline preload="metadata" aria-label={bi('分帳操作廣東話示範短片', 'Cantonese bill-splitting tutorial video')} className="mx-auto mb-4 block max-h-[68dvh] w-auto max-w-full rounded-xl bg-black">
-                    <source src="./assets/bill-splitter-operation-cantonese.mp4" type="video/mp4" />
-                    {bi('你的瀏覽器未能播放 MP4 影片。', 'Your browser cannot play this MP4 video.')}
-                  </video>
-                </Card>
+                <section data-testid="video-lessons-directory" aria-labelledby="video-lessons-title" className="space-y-3">
+                  <Card className="p-0 overflow-hidden border-brand-600 bg-white shadow-sm">
+                    <div className="px-5 pt-4 pb-3">
+                      <h2 id="video-lessons-title" className="text-lg font-extrabold text-slate-800">{bi('👍 必看影片教學', '👍 Must-watch video lessons')}</h2>
+                    </div>
+                    <div className="space-y-4 px-4 pb-4">
+                      <article data-testid="openrouter-video-card" className="rounded-xl border border-slate-400 bg-slate-50 p-3">
+                        <h3 className="text-base font-bold text-slate-800">{bi('1. OpenRouter API Key 設定教學', '1. OpenRouter API key setup')}</h3>
+                        <p className="mt-1 mb-3 text-sm leading-relaxed text-slate-700">{bi('示範申請及設定 OpenRouter API Key。', 'Create and add an OpenRouter API key.')}</p>
+                        <video data-testid="tutorial-openrouter-video" controls playsInline preload="none" aria-label={bi('OpenRouter API Key 設定影片', 'OpenRouter API key setup video')} className="mx-auto block max-h-[56dvh] w-auto max-w-full rounded-xl bg-black">
+                          <source src="./assets/OpenRouter_API_Key_Tutorial_Preview_Revised.mp4" type="video/mp4" />
+                          {bi('你的瀏覽器未能播放 MP4 影片。', 'Your browser cannot play this MP4 video.')}
+                        </video>
+                      </article>
 
-                <Card className="p-0 overflow-hidden border-slate-500">
-                  <div className="bg-slate-50 px-5 py-4 border-b border-slate-400">
-                    <h3 className="font-bold text-slate-800 text-base flex items-center gap-2">{tr("🗺️ 整個流程（4 步）")}</h3>
-                  </div>
-                  <div className="guide-flow p-5 space-y-4">
-                    {[
-                      ['1', tr("睇單"), bi('影相或揀圖，讀出項目、價錢同稅費。', 'Take or choose a photo to read items, prices, and tax.')],
-                      ['2', tr("各自認帳"), bi('發連結。朋友填份數後撳「交返發起人」。', 'Send the link. Friends enter shares, then tap Send to organizer.')],
-                      ['3', tr("運算"), tr("填墊支人姓名、確認自動偵測的貨幣、付款方式。")],
-                      ['4', tr("結果"), tr("得出「追數版」同「詳細版」，複製後發返群組。")],
-                    ].map(([n, t, d]) => (
-                      <div key={n} className="flex gap-4 items-start">
-                        <span className="w-6 h-6 shrink-0 bg-brand-100 text-brand-700 border border-brand-500 rounded-full flex items-center justify-center text-xs font-bold mt-0.5">{n}</span>
-                        <div><span className="font-bold text-slate-800 block mb-0.5">{t}</span><span className="text-slate-600 text-sm leading-relaxed">{d}</span></div>
-                      </div>
-                    ))}
-                  </div>
-                </Card>
+                      <article data-testid="operation-video-card" className="rounded-xl border border-slate-400 bg-slate-50 p-3">
+                        <h3 className="text-base font-bold text-slate-800">{bi('2. 分帳操作示範', '2. Bill-splitting walkthrough')}</h3>
+                        <p className="mt-1 mb-3 text-sm leading-relaxed text-slate-700">{bi('約 1 分鐘示範分帳流程。', 'A one-minute bill-splitting walkthrough.')}</p>
+                        <video data-testid="tutorial-operation-video" controls playsInline preload="none" aria-label={bi('分帳操作廣東話示範短片', 'Cantonese bill-splitting tutorial video')} className="mx-auto block max-h-[56dvh] w-auto max-w-full rounded-xl bg-black">
+                          <source src="./assets/bill-splitter-operation-cantonese.mp4" type="video/mp4" />
+                          {bi('你的瀏覽器未能播放 MP4 影片。', 'Your browser cannot play this MP4 video.')}
+                        </video>
+                      </article>
+                    </div>
+                  </Card>
+                </section>
 
-                <div id="openrouter-guide" className="scroll-mt-24">
-                  <Accordion title={bi('🔑 OpenRouter 七步圖解', '🔑 OpenRouter 7-step guide')} tone="slate" icon={icons.key} defaultOpen={true}>
-                    <a data-testid="openrouter-key-guide-link" href="./openrouter-key-guide.html" target="_blank" rel="noopener noreferrer" className="inline-flex min-h-[44px] items-center rounded-xl border border-brand-600 bg-brand-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-brand-700">{bi('開啟七步圖解 ↗', 'Open the seven-step guide ↗')}</a>
-                  </Accordion>
-                </div>
-
-                <Accordion title={bi('朋友點樣交返', 'How friends send their share')} tone="slate" defaultOpen={true} icon={icons.send}>
-                  <ul className="list-disc space-y-2 pl-5">
-                    <li>{bi('複製或分享認帳連結。', 'Copy or share the link.')}</li>
-                    <li>{bi('朋友填份數，再撳「交返發起人」。認帳會出現在下面。', 'Friends enter their shares, then tap Send to organizer. It appears below.')}</li>
-                    <li>{bi('同一位再交會更新；幾位朋友都可以交。', 'If the same friend sends again, their share is updated. Several friends can send.')}</li>
-                    <li>{bi('朋友唔使 API 鎖匙，亦唔好把你的鎖匙發出去。', 'Friends do not need an API key. Do not send them yours.')}</li>
-                    <li>{bi('交返大約保留 12 小時。這頁開住會自動收到；未見到就按「重新接收」。', 'A reply is kept for about 12 hours. This page receives it while open. If it is missing, tap Check again.')}</li>
-                    <li>{bi('WhatsApp 分享或複製只係後備，要自己發送。', 'WhatsApp share or copy is only a backup. You still send it yourself.')}</li>
-                    <li>{bi('有單據圖片就先發連結，再另外分享圖片。', 'If there are receipt images, share the link first, then share the images separately.')}</li>
-                  </ul>
-                </Accordion>
-
-                <Accordion title={tr("⭐ 2. 填「份數」定「實際單位」？（最重要）")} tone="amber" defaultOpen={true} icon={icons.help}>
-                  <div className="bg-amber-50/50 border border-amber-500 rounded-xl p-4 mb-3">
-                    <p className="font-bold text-amber-900 text-sm mb-1.5">{tr("一句話核心：")}</p>
-                    <p className="text-amber-800 text-sm leading-relaxed"><strong className="font-extrabold underline decoration-amber-500 underline-offset-2">{tr("只填數字＝份數比例")}</strong>{tr("；數字後面加單位＝實際單位數量。系統會按填法自動選擇計算方式。")}</p>
-                  </div>
-                  <p className="font-bold text-slate-800 pt-1 mb-2">{tr("例子一：按份數比例分一項 $120 食物")}</p>
-                  <div className="bg-slate-50 border border-slate-400 rounded-xl p-4 text-sm space-y-3">
-                    <p className="text-slate-800">{tr("阿明填 ")}<strong className="text-brand-700 bg-brand-100 border border-brand-500 px-1.5 py-0.5 rounded">2</strong>{tr("，Cathy 填 ")}<strong className="text-brand-700 bg-brand-100 border border-brand-500 px-1.5 py-0.5 rounded">1</strong>{tr("，即合共 3 份。")}</p>
-                    <div className="bg-white border border-slate-400 rounded-lg p-3 text-xs text-slate-600 font-mono shadow-sm">{tr("系統自動計：每份 $40。")}<br/>{tr("阿明 $80，Cathy $40。")}</div>
-                    <p className="text-brand-700 font-bold flex items-center gap-1.5 mt-2"><Icon path={icons.check} size={16}/>{tr(" 唔需要知道實際有幾件，填幾多份就按比例分。")}</p>
-                  </div>
-                  <p className="font-bold text-slate-800 pt-1 mb-2">{tr("例子二：按實際單位分一項 $120 食物")}</p>
-                  <div className="bg-slate-50 border border-slate-400 rounded-xl p-4 text-sm space-y-3">
-                    <p className="text-slate-800">{tr("單據寫明共 8 件。阿明填 ")}<strong className="text-brand-700 bg-brand-100 border border-brand-500 px-1.5 py-0.5 rounded">{tr("3 件")}</strong>{tr("，即係食咗 3 件。")}</p>
-                    <div className="bg-white border border-slate-400 rounded-lg p-3 text-xs text-slate-600 font-mono shadow-sm">{tr("每件 $120 ÷ 8 = $15")}<br/>{tr("阿明應付 3 × $15 = $45。")}</div>
-                    <p className="text-slate-600 text-xs font-medium">{tr("如果同一項目有人填「1」而冇寫單位，嗰個人會以剩餘金額按份數比例分攤。")}</p>
-                  </div>
-                </Accordion>
-
-                <Button className="w-full mt-2" onClick={() => setShowTutorial(false)}>
-                  <Icon path={icons.check} size={18}/>{bi(' 我明白了，去影單據', ' Got it — scan a receipt')}</Button>
+                <section data-testid="interactive-guide-directory" aria-labelledby="interactive-guide-title">
+                  <Card className="border-slate-500 bg-white shadow-sm">
+                    <h2 id="interactive-guide-title" className="text-lg font-extrabold text-slate-800">{bi('16 步互動教學', '16-step interactive guide')}</h2>
+                    <p className="mt-1 mb-4 text-sm leading-relaxed text-slate-700">{bi('跟隨 16 步操作示範，不會修改你的帳單。', 'Try 16 steps with sample data; your bill stays unchanged.')}</p>
+                    <Button data-testid="start-interactive-tutorial" className="w-full" onClick={() => {
+                      if (!onStartTutorial || typeof window.BillTutorial !== 'function') return;
+                      const origin = tutorialMenuOrigin.current || { x: window.scrollX, y: window.scrollY };
+                      setShowTutorial(false);
+                      onStartTutorial(() => setShowTutorial(true), origin);
+                    }}>{bi('開始 16 步互動教學', 'Start the 16-step guide')}</Button>
+                  </Card>
+                </section>
               </div>
             )}
 
@@ -3842,7 +3809,7 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
 
                     <div className="border-t border-slate-400 pt-6 space-y-5">
                       <div>
-                        <Label className="text-base">{bi('識別模型（預設免費）', 'Recognition model (free by default)')}</Label>
+                          <Label className="text-base">{bi('免費識別模型', 'Free recognition model')}</Label>
                         <select
                           data-testid="model-select"
                           value={resolveBillModel(apiModel, allowPaidModels)}
@@ -3855,35 +3822,9 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
                           <optgroup label={bi('免費模型', 'Free models')}>
                             {FREE_MODELS.map(([id, zh, en]) => <option key={id} value={id}>{bi(zh, en)}</option>)}
                           </optgroup>
-                          {allowPaidModels && (
-                            <optgroup label={bi('進階／可能產生費用', 'Advanced / may cost money')}>
-                              {PAID_MODELS.map(([id, zh, en]) => <option key={id} value={id}>{bi(zh, en)}</option>)}
-                            </optgroup>
-                          )}
                         </select>
-                        <p className="text-base text-slate-700 mt-2 leading-relaxed">{!modelUsesFreeTier(apiModel, allowPaidModels)
-                          ? bi('你已揀進階模型，可能會收費。', 'You selected an advanced model. It may cost money.')
-                          : bi('而家用免費模型。讀唔到會自動改試其他免費模型。', 'A free model is selected. If it cannot read the receipt, the app tries the other free models.')}</p>
+                        <p className="text-base text-slate-700 mt-2 leading-relaxed">{bi('讀唔到時會自動改試其他免費模型。', 'If it cannot read the receipt, the app tries other free models.')}</p>
                       </div>
-
-                      <label className="flex items-start gap-3 p-4 bg-amber-50 rounded-xl border border-amber-400 cursor-pointer">
-                        <input
-                          data-testid="paid-models-opt-in"
-                          type="checkbox"
-                          checked={allowPaidModels}
-                          onChange={(event) => {
-                            const enabled = event.target.checked;
-                            const nextModel = resolveBillModel(apiModel, enabled);
-                            setAllowPaidModels(enabled);
-                            setApiModel(nextModel);
-                          }}
-                          className="w-5 h-5 mt-0.5 text-brand-600 focus:ring-brand-500 rounded"
-                        />
-                        <div>
-                          <div className="font-bold text-slate-800 text-base">{bi('進階／可能產生費用', 'Advanced / may cost money')}</div>
-                          <p className="text-base text-slate-700 mt-1 leading-relaxed">{bi('預設關閉。開啟後可能會收費。', 'Off by default. Turning this on may cost money.')}</p>
-                        </div>
-                      </label>
 
                       <div>
                         <Label className="text-base flex justify-between items-center">{bi('免費 API 金鑰', 'Free API key')}<a href="https://openrouter.ai/settings/keys" target="_blank" rel="noreferrer" className="text-sm text-brand-700 hover:text-brand-800 underline font-semibold">{bi('取得免費金鑰 ↗', 'Get a free key ↗')}</a>

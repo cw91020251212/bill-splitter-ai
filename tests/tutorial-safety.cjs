@@ -45,8 +45,9 @@ async function assertTargetGating(page, i, label) {
   assert.deepEqual(outside, [], label + ': other controls remain keyboard-accessible');
 }
 async function walkTutorial(page, label) {
+  if (await page.getByTestId('tutorial-hub').count()) await page.getByTestId('skip-tutorials').click();
   await page.getByTestId('start-tutorial').click();
-  await page.getByTestId('tutorial-mode-interactive').click(); await waitStage(page, 'upload');
+  await page.getByTestId('start-interactive-tutorial').click(); await waitStage(page, 'upload');
   for (let i = 0; i < stages.length; i++) {
     await waitStage(page, stages[i]);
     await target(page, i).waitFor({ state: 'visible' });
@@ -97,37 +98,20 @@ async function walkTutorial(page, label) {
     const precache = await offline.evaluate(async () => {
       const names = await caches.keys(); const shell = await caches.open(names.find(n => n.startsWith('bill-splitter-shell-')));
       const js = await shell.match('./tutorial.js'); const css = await shell.match('./tutorial.css');
-      const guidePage = await shell.match('./openrouter-key-guide.html');
-      const guideImages = await Promise.all(Array.from({ length: 7 }, (_, i) => shell.match(`./assets/openrouter-guide-step-${i + 1}-` + ['google.png', 'new-key.png', 'expiry-focus.png', 'limit-focus.png', 'create-focus.png', 'original.jpg', 'app-field-crop.png'][i])));
-      for (const name of names.filter(n => n.startsWith('bill-splitter-assets-'))) {
-        const cache = await caches.open(name);
-        for (const request of await cache.keys()) if (/\/tutorial\.(js|css)/.test(request.url)) await cache.delete(request);
-      }
-      return { js: js?.status, css: css?.status, guidePage: guidePage?.status, guideImages: guideImages.map(response => response?.status) };
+      const oldGuide = await shell.match('./openrouter-key-guide.html');
+      return { js: js?.status, css: css?.status, oldGuide: oldGuide?.status ?? null };
     });
-    assert.deepEqual(precache, { js: 200, css: 200, guidePage: 200, guideImages: Array(7).fill(200) });
+    assert.deepEqual(precache, { js: 200, css: 200, oldGuide: null });
     await offlineContext.setOffline(true);
     await offline.reload({ waitUntil: 'domcontentloaded' }); await offline.getByTestId('start-tutorial').waitFor({ timeout: 30000 });
     await walkTutorial(offline, 'offline');
-    await offline.getByTestId('start-tutorial').click(); await offline.getByTestId('tutorial-mode-text').click();
-    const guideLink = offline.getByTestId('openrouter-key-guide-link');
-    const [guide] = await Promise.all([offline.waitForEvent('popup'), guideLink.click()]);
-    guide.on('pageerror', e => offlineErrors.push(e.message));
-    await guide.waitForLoadState('domcontentloaded');
-    for (let i = 0; i < 7; i++) {
-      const card = guide.locator(`[data-guide-step="${i}"]`);
-      await card.waitFor({ state: 'visible' });
-      const image = card.locator('img');
-      await image.scrollIntoViewIfNeeded();
-      await guide.waitForFunction(index => {
-        const image = document.querySelector(`[data-guide-step="${index}"] img`);
-        return image && image.complete && image.naturalWidth > 0;
-      }, i);
-      if (i < 6) await guide.locator('#nextButton').click();
-    }
-    await guide.close();
+    await offline.getByTestId('start-tutorial').click();
+    await offline.getByTestId('tutorial-hub').waitFor({ state: 'visible' });
+    assert.equal(await offline.getByTestId('tutorial-openrouter-video').getAttribute('preload'), 'none');
+    assert.equal(await offline.getByTestId('tutorial-operation-video').getAttribute('preload'), 'none');
+    await offline.getByTestId('skip-tutorials').click();
     assert.deepEqual(offlineErrors, [], 'offline browser exceptions');
-    results.push({ label: 'registered-SW-offline-guide-and-seven-image-precache', passed: true }); console.log('PASS registered-SW-offline-guide-and-seven-image-precache');
+    results.push({ label: 'registered-SW-offline-video-hub-is-optional', passed: true }); console.log('PASS registered-SW-offline-video-hub-is-optional');
     await offlineContext.close();
     fs.mkdirSync(out, { recursive: true }); fs.writeFileSync(path.join(out, 'safety-results.json'), JSON.stringify({ passed: true, cases: results }, null, 2) + '\n');
   } finally { await browser.close(); }

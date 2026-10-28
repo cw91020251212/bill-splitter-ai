@@ -15,7 +15,7 @@ python3 -m http.server 4178
 ```sh
 node tests/tutorial-ui.cjs
 node tests/tutorial-safety.cjs
-node tests/openrouter-key-guide.cjs
+node tests/settings-free-models.cjs
 ```
 
 若 Playwright 或 Chromium 不在預設路徑，可用環境變數指定：
@@ -27,19 +27,22 @@ TEST_OUTPUT_DIR=/tmp/bill-tutorial-qa \
 node tests/tutorial-ui.cjs
 ```
 
-`BASE_URL` 預設為 `http://127.0.0.1:4178/`。三個測試都會拒絕公開網站，只允許 localhost／127.0.0.1；測試不需要 API 鎖匙。UI 測試建立本身的草稿及 IndexedDB 圖片／附件樣本，並比較教學前後原有 DOM、表單、localStorage、IndexedDB、捲動位置和焦點。
+`BASE_URL` 預設為 `http://127.0.0.1:4178/`。瀏覽器測試只允許 localhost／127.0.0.1；測試不需要 API 鎖匙。UI 測試建立本身的草稿及 IndexedDB 圖片／附件樣本，並比較教學前後原有 DOM、表單、localStorage、IndexedDB、捲動位置和焦點。
 
 ## 覆蓋範圍
 
-- 教學入口保留互動導覽／文字新手教學選擇；文字教學連到獨立七步 OpenRouter 手機截圖頁，核對雙語文案、七張實際截圖、空白本機 Key 欄及完整遮蓋的 Key 畫面。
+- 新瀏覽器首次開啟只出現一次教學引導；用家可略過，重新載入後不會重複出現；往後可自行從「教學」重開。
+- 教學中心只有兩個目錄，影片教學排第一、16 步互動教學排第二；影片次序為 OpenRouter API Key 設定、分帳操作示範。
+- 兩支影片都有原生播放控制、使用 `preload="none"`，不帶 `autoplay`，初始維持暫停。
+- 設定頁不再提供付費模型選項；模型清單只列免費模型，舊版 localStorage／sessionStorage 的付費選擇會自動遷回免費模型。
 - 香港繁體中文及英文介面；320×640、390×844、768×1024、1280×800 及 844×390 五種視窗。
 - 16 個互動停留點：`upload`、`manual`、`verify`、`items`、`fee`、`share`、`share-options`、`replies`、`payer`、`currency`、`payment`、`tax-method`、`calculate`、`report`、`report-share`、`detail`；並核對其對應的四個 App 步驟。
 - 目標高亮、卡片不遮擋目標、無橫向溢出、卡片不超過 340px、非模態對話框及示範 App 保持可互動；目前目標以外的控制不可鍵盤操作。
 - 點擊影相／上載示範目標、核對後進入編輯、手動輸入捷徑、開啟認帳分享選項及模擬送出回覆。
 - 實際修改示範單價及附加費，按 2:1 認帳比例計算 Cathy 的分帳；另核對按比例及平均分攤的結果。
-- 報告分享／複製按鈕只顯示教學提示，不呼叫系統分享或剪貼簿；亦不開相機、檔案選擇器、寫入瀏覽器儲存，或請求 OpenRouter／ntfy。
+- 報告分享／複製按鈕只顯示教學提示，不呼叫系統分享或剪貼簿；亦不開相機、檔案選擇器、寫入示範資料，或請求 OpenRouter／ntfy。
 - 從原本 App 第 1–4 步進入、關閉、按 Escape、完成及重新開始後，逐項核對原有 DOM、輸入、localStorage、IndexedDB 圖片與附件、捲動位置及焦點。
-- 安全測試保留空白帳單及離線驗收：註冊 Service Worker、確認教學 JS/CSS、七步教學 HTML 與七張截圖 precache，再移除 runtime cache、離線走完 16 個停留點並逐張載入截圖。
+- 安全測試確認新 Service Worker 不再預快取舊七步截圖頁，並在離線狀態走完 16 個互動停留點。
 
 Chromium 自動測試不代表已在真實 iPhone Safari／Android WebView 或軟鍵盤上驗收。
 
