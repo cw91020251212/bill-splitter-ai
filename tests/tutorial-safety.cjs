@@ -97,25 +97,37 @@ async function walkTutorial(page, label) {
     const precache = await offline.evaluate(async () => {
       const names = await caches.keys(); const shell = await caches.open(names.find(n => n.startsWith('bill-splitter-shell-')));
       const js = await shell.match('./tutorial.js'); const css = await shell.match('./tutorial.css');
-      const keysPage = await shell.match('./images/openrouter-api-keys-page.webp');
-      const createKey = await shell.match('./images/openrouter-create-key.webp');
+      const guidePage = await shell.match('./openrouter-key-guide.html');
+      const guideImages = await Promise.all(Array.from({ length: 7 }, (_, i) => shell.match(`./assets/openrouter-guide-step-${i + 1}-` + ['signup.png', 'new-key.png', 'expiry.png', 'limit.png', 'create.png', 'copy.png', 'app-field.png'][i])));
       for (const name of names.filter(n => n.startsWith('bill-splitter-assets-'))) {
         const cache = await caches.open(name);
         for (const request of await cache.keys()) if (/\/tutorial\.(js|css)/.test(request.url)) await cache.delete(request);
       }
-      return { js: js?.status, css: css?.status, keysPage: keysPage?.status, createKey: createKey?.status };
+      return { js: js?.status, css: css?.status, guidePage: guidePage?.status, guideImages: guideImages.map(response => response?.status) };
     });
-    assert.deepEqual(precache, { js: 200, css: 200, keysPage: 200, createKey: 200 });
+    assert.deepEqual(precache, { js: 200, css: 200, guidePage: 200, guideImages: Array(7).fill(200) });
     await offlineContext.setOffline(true);
     await offline.reload({ waitUntil: 'domcontentloaded' }); await offline.getByTestId('start-tutorial').waitFor({ timeout: 30000 });
     await walkTutorial(offline, 'offline');
     await offline.getByTestId('start-tutorial').click(); await offline.getByTestId('tutorial-mode-text').click();
-    await offline.locator('#openrouter-guide img[src*="openrouter-api-keys-page"]').scrollIntoViewIfNeeded();
-    await offline.locator('#openrouter-guide img[src*="openrouter-create-key"]').scrollIntoViewIfNeeded();
-    await offline.waitForFunction(() => [...document.querySelectorAll('#openrouter-guide img[src*="openrouter-"]')].length === 2 && [...document.querySelectorAll('#openrouter-guide img[src*="openrouter-"]')].every(image => image.complete && image.naturalWidth > 0));
-    assert.equal(await offline.locator('#openrouter-guide svg ellipse').count(), 5, 'offline OpenRouter images should retain their red-circle annotations');
+    const guideLink = offline.getByTestId('openrouter-key-guide-link');
+    const [guide] = await Promise.all([offline.waitForEvent('popup'), guideLink.click()]);
+    guide.on('pageerror', e => offlineErrors.push(e.message));
+    await guide.waitForLoadState('domcontentloaded');
+    for (let i = 0; i < 7; i++) {
+      const card = guide.locator(`[data-guide-step="${i}"]`);
+      await card.waitFor({ state: 'visible' });
+      const image = card.locator('img');
+      await image.scrollIntoViewIfNeeded();
+      await guide.waitForFunction(index => {
+        const image = document.querySelector(`[data-guide-step="${index}"] img`);
+        return image && image.complete && image.naturalWidth > 0;
+      }, i);
+      if (i < 6) await guide.locator('#nextButton').click();
+    }
+    await guide.close();
     assert.deepEqual(offlineErrors, [], 'offline browser exceptions');
-    results.push({ label: 'registered-SW-offline-16-stop-precache-fallback', passed: true }); console.log('PASS registered-SW-offline-16-stop-precache-fallback');
+    results.push({ label: 'registered-SW-offline-guide-and-seven-image-precache', passed: true }); console.log('PASS registered-SW-offline-guide-and-seven-image-precache');
     await offlineContext.close();
     fs.mkdirSync(out, { recursive: true }); fs.writeFileSync(path.join(out, 'safety-results.json'), JSON.stringify({ passed: true, cases: results }, null, 2) + '\n');
   } finally { await browser.close(); }

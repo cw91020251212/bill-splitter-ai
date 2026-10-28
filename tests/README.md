@@ -15,6 +15,7 @@ python3 -m http.server 4178
 ```sh
 node tests/tutorial-ui.cjs
 node tests/tutorial-safety.cjs
+node tests/openrouter-key-guide.cjs
 ```
 
 若 Playwright 或 Chromium 不在預設路徑，可用環境變數指定：
@@ -26,11 +27,11 @@ TEST_OUTPUT_DIR=/tmp/bill-tutorial-qa \
 node tests/tutorial-ui.cjs
 ```
 
-`BASE_URL` 預設為 `http://127.0.0.1:4178/`。兩個測試都會拒絕公開網站，只允許 localhost／127.0.0.1；測試不需要 API 鎖匙。UI 測試建立本身的草稿及 IndexedDB 圖片／附件樣本，並比較教學前後原有 DOM、表單、localStorage、IndexedDB、捲動位置和焦點。
+`BASE_URL` 預設為 `http://127.0.0.1:4178/`。三個測試都會拒絕公開網站，只允許 localhost／127.0.0.1；測試不需要 API 鎖匙。UI 測試建立本身的草稿及 IndexedDB 圖片／附件樣本，並比較教學前後原有 DOM、表單、localStorage、IndexedDB、捲動位置和焦點。
 
 ## 覆蓋範圍
 
-- 教學入口先提供互動導覽／文字新手教學選擇；文字教學驗證兩張 OpenRouter 圖片載入、五個紅圈標註及返回流程。
+- 教學入口保留互動導覽／文字新手教學選擇；文字教學連到獨立七步 OpenRouter 手機截圖頁，核對雙語文案、七張實際截圖、空白本機 Key 欄及完整遮蓋的 Key 畫面。
 - 香港繁體中文及英文介面；320×640、390×844、768×1024、1280×800 及 844×390 五種視窗。
 - 16 個互動停留點：`upload`、`manual`、`verify`、`items`、`fee`、`share`、`share-options`、`replies`、`payer`、`currency`、`payment`、`tax-method`、`calculate`、`report`、`report-share`、`detail`；並核對其對應的四個 App 步驟。
 - 目標高亮、卡片不遮擋目標、無橫向溢出、卡片不超過 340px、非模態對話框及示範 App 保持可互動；目前目標以外的控制不可鍵盤操作。
@@ -38,7 +39,7 @@ node tests/tutorial-ui.cjs
 - 實際修改示範單價及附加費，按 2:1 認帳比例計算 Cathy 的分帳；另核對按比例及平均分攤的結果。
 - 報告分享／複製按鈕只顯示教學提示，不呼叫系統分享或剪貼簿；亦不開相機、檔案選擇器、寫入瀏覽器儲存，或請求 OpenRouter／ntfy。
 - 從原本 App 第 1–4 步進入、關閉、按 Escape、完成及重新開始後，逐項核對原有 DOM、輸入、localStorage、IndexedDB 圖片與附件、捲動位置及焦點。
-- 安全測試保留空白帳單及離線驗收：註冊 Service Worker、確認教學 JS/CSS 和 OpenRouter 截圖 precache，再移除 runtime cache 並離線走完 16 個停留點。
+- 安全測試保留空白帳單及離線驗收：註冊 Service Worker、確認教學 JS/CSS、七步教學 HTML 與七張截圖 precache，再移除 runtime cache、離線走完 16 個停留點並逐張載入截圖。
 
 Chromium 自動測試不代表已在真實 iPhone Safari／Android WebView 或軟鍵盤上驗收。
 

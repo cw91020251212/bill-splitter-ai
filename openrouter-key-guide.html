@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="zh-HK">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f5f7fb">
+  <title>OpenRouter key 圖解｜分帳管家</title>
+  <style>
+    :root { color-scheme: light; --ink:#202633; --muted:#566174; --line:#dce2ea; --blue:#3265d7; --blue-dark:#214aa6; --red:#d92d20; --paper:#f5f7fb; --gold:#e8b341; }
+    * { box-sizing:border-box; }
+    html { scroll-behavior:smooth; }
+    body { margin:0; padding:0; background:var(--paper); color:var(--ink); font:16px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif; }
+    a { color:#2456b8; text-underline-offset:2px; }
+    .shell { width:min(calc(100% - 24px),720px); margin:auto; padding:12px 0 28px; }
+    .topbar { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:12px; }
+    .brand { font-size:14px; font-weight:800; color:#354056; }
+    .top-actions { display:flex; gap:7px; align-items:center; }
+    .top-actions a,.lang-toggle { min-height:40px; display:inline-flex; align-items:center; justify-content:center; border:1px solid #c8d1de; border-radius:11px; background:#fff; padding:7px 10px; color:#344055; font:inherit; font-size:12px; font-weight:750; text-decoration:none; cursor:pointer; }
+    .hero { padding:17px 17px 15px; border:1px solid #d6e0f3; border-radius:18px; background:linear-gradient(140deg,#eaf1ff,#fff 78%); box-shadow:0 8px 22px #273d6a0d; }
+    .eyebrow { color:var(--blue); font-size:11px; font-weight:850; letter-spacing:.06em; text-transform:uppercase; }
+    h1 { margin:4px 0 5px; font-size:clamp(24px,6vw,34px); line-height:1.22; letter-spacing:-.02em; }
+    .hero p { margin:5px 0 0; color:#44516a; font-size:14px; }
+    .truth { margin:10px 0 13px; padding:9px 12px; border:1px solid #eadba9; border-left:4px solid var(--gold); border-radius:12px; background:#fffaf0; color:#514827; font-size:13px; }
+    .progress { display:flex; align-items:center; gap:10px; margin:0 2px 10px; }
+    .count { flex:none; min-width:80px; color:#47556d; font-size:12px; font-weight:850; }
+    .track { height:7px; flex:1; overflow:hidden; border-radius:99px; background:#dce3ef; }
+    .fill { width:14.2857%; height:100%; border-radius:inherit; background:linear-gradient(90deg,#5d8bf0,#3265d7); transition:width .2s ease; }
+    .card { overflow:hidden; border:1px solid var(--line); border-radius:18px; background:#fff; box-shadow:0 9px 28px #26354d10; }
+    .card[hidden] { display:none; }
+    .card-head { display:flex; align-items:flex-start; gap:11px; padding:17px 17px 7px; }
+    .badge { flex:none; width:38px; height:38px; display:grid; place-items:center; border-radius:50%; background:#eaf0ff; color:var(--blue-dark); font-size:18px; font-weight:900; }
+    h2 { margin:0; font-size:20px; line-height:1.3; }
+    .lead { margin:0; padding:0 17px; color:#465267; font-size:15px; }
+    .figure-wrap { padding:12px 10px 4px; }
+    figure { width:min(100%,390px); margin:0 auto; }
+    figure img { display:block; width:100%; height:auto; border:1px solid #d8dee8; border-radius:12px; background:#fff; box-shadow:0 5px 16px #22304414; }
+    figcaption { margin:7px auto 0; color:#586477; font-size:12px; line-height:1.45; }
+    .note { margin:10px 17px 16px; padding:10px 12px; border:1px solid #dce4f1; border-radius:11px; background:#f5f8ff; color:#46536b; font-size:13px; }
+    .note.warn { border-color:#edd5cc; background:#fff5f1; color:#633d32; }
+    .controls { display:flex; justify-content:space-between; gap:10px; width:min(calc(100% - 24px),696px); margin:12px auto calc(18px + env(safe-area-inset-bottom)); padding:0; }
+    .controls button,.controls a { min-height:44px; display:inline-flex; align-items:center; justify-content:center; border:1px solid #c2ccdb; border-radius:12px; padding:8px 17px; background:#fff; color:#344156; font:inherit; font-size:14px; font-weight:800; text-decoration:none; cursor:pointer; }
+    .controls .next { margin-left:auto; border-color:var(--blue-dark); background:var(--blue); color:#fff; }
+    .controls button:disabled { opacity:.45; cursor:not-allowed; }
+    .sources { margin-top:13px; color:#687386; font-size:11px; }
+    body[data-lang="en"] .zh, body[data-lang="zh"] .en { display:none !important; }
+    :focus-visible { outline:3px solid #e5ad33; outline-offset:2px; }
+    @media (max-width:380px) {
+      .shell { width:min(calc(100% - 18px),720px); padding-top:9px; }
+      .hero { padding:14px 13px; }
+      .card-head { padding:14px 13px 6px; }
+      .lead { padding:0 13px; font-size:14px; }
+      figure img { border-radius:10px; }
+      .note { margin-left:13px; margin-right:13px; }
+      .controls button,.controls a { padding-inline:13px; }
+    }
+    @media (prefers-reduced-motion:reduce) { html { scroll-behavior:auto; } .fill { transition:none; } }
+  </style>
+</head>
+<body data-lang="zh">
+  <div class="shell">
+    <header class="topbar">
+      <div class="brand"><span class="zh">分帳管家 · OpenRouter 鎖匙</span><span class="en">Bill Splitter · OpenRouter key</span></div>
+      <div class="top-actions">
+        <a href="./index.html"><span class="zh">返回 App</span><span class="en">Back to app</span></a>
+        <button class="lang-toggle" id="langToggle" type="button" aria-label="Switch to English">中 / Eng</button>
+      </div>
+    </header>
+    <main>
+      <section class="hero" aria-labelledby="guideTitle">
+        <div class="eyebrow"><span class="zh">七步圖解</span><span class="en">7 illustrated steps</span></div>
+        <h1 id="guideTitle"><span class="zh">OpenRouter key，簡單設定</span><span class="en">Set up your OpenRouter key</span></h1>
+        <p class="zh">通常設定一次就夠；同一瀏覽器記住後，影每張單都唔使重貼。</p>
+        <p class="en">Usually a one-time setup. Once remembered in this browser, you need not paste it for every receipt.</p>
+      </section>
+      <aside class="truth"><span class="zh">只有照片讀單需要 key；手動輸入、朋友認帳同分帳計算都唔需要。只用自己的 key。</span><span class="en">Only photo scanning needs a key. Manual entry, friends’ claims, and splitting do not. Use your own key.</span></aside>
+      <div class="progress" aria-label="Guide progress">
+        <span class="count" id="stepCount" aria-live="polite">第 1 步／共 7 步</span>
+        <div class="track" aria-hidden="true"><div class="fill" id="progressFill"></div></div>
+      </div>
+
+      <section class="card" data-guide-step="0" aria-labelledby="step1title">
+        <div class="card-head"><span class="badge">1</span><h2 id="step1title"><span class="zh">登入或註冊</span><span class="en">Sign in or sign up</span></h2></div>
+        <p class="lead zh">已有帳戶就登入；未有帳戶就按圖中圈住的 Sign Up。從 <a href="https://openrouter.ai/keys" target="_blank" rel="noopener noreferrer">OpenRouter 官方 Keys 頁</a>開始。</p>
+        <p class="lead en">Sign in if you have an account; otherwise tap the circled Sign Up. Start at the <a href="https://openrouter.ai/keys" target="_blank" rel="noopener noreferrer">official OpenRouter Keys page</a>.</p>
+        <div class="figure-wrap"><figure>
+          <img src="./assets/openrouter-guide-step-1-signup.png" alt="OpenRouter 手機登入畫面；紅圈標示實際可見的 Sign Up 按鈕">
+          <figcaption class="zh">紅圈只標示截圖內看得到的 Sign Up。</figcaption><figcaption class="en">The circle marks only the visible Sign Up button.</figcaption>
+        </figure></div>
+      </section>
+
+      <section class="card" data-guide-step="1" aria-labelledby="step2title" hidden>
+        <div class="card-head"><span class="badge">2</span><h2 id="step2title"><span class="zh">開 Keys，按 New key</span><span class="en">Open Keys and tap New key</span></h2></div>
+        <p class="lead zh">登入後到 API keys 頁，按圈住的 New key。</p>
+        <p class="lead en">After signing in, open the API keys page and tap the circled New key.</p>
+        <div class="figure-wrap"><figure>
+          <img src="./assets/openrouter-guide-step-2-new-key.png" alt="OpenRouter 手機 API keys 頁；紅圈標示畫面中實際可見的 New key 按鈕">
+          <figcaption class="zh">帳戶標記已遮去，現有 Key 清單已裁走；只保留要按的入口。</figcaption><figcaption class="en">The account label is masked and the existing-key list is cropped out; only the relevant entry remains.</figcaption>
+        </figure></div>
+      </section>
+
+      <section class="card" data-guide-step="2" aria-labelledby="step3title" hidden>
+        <div class="card-head"><span class="badge">3</span><h2 id="step3title"><span class="zh">選到期日</span><span class="en">Choose an expiry</span></h2></div>
+        <p class="lead zh">揀你需要的期限；圖中以 1 year 作例子。除非有意，避免 No expiration。</p>
+        <p class="lead en">Choose a term that suits you; this example marks 1 year. Avoid No expiration unless you intend it.</p>
+        <div class="figure-wrap"><figure>
+          <img src="./assets/openrouter-guide-step-3-expiry.png" alt="OpenRouter 手機到期日清單；紅圈只標示實際顯示的 1 year 選項">
+          <figcaption class="zh">紅圈標示清單中看得到的 1 year 選項。</figcaption><figcaption class="en">The circle marks the visible 1 year option.</figcaption>
+        </figure></div>
+      </section>
+
+      <section class="card" data-guide-step="3" aria-labelledby="step4title" hidden>
+        <div class="card-head"><span class="badge">4</span><h2 id="step4title"><span class="zh">設定額度上限</span><span class="en">Set a credit limit</span></h2></div>
+        <p class="lead zh">揀自己能接受的上限；想自訂就按圈住的 Custom amount。除非你有意，避免 No limit。</p>
+        <p class="lead en">Choose a limit you are comfortable with. Tap Custom amount to set your own; avoid No limit unless intended.</p>
+        <div class="figure-wrap"><figure>
+          <img src="./assets/openrouter-guide-step-4-limit.png" alt="OpenRouter 手機額度清單；紅圈只標示實際顯示的 Custom amount 選項">
+          <figcaption class="zh">紅圈標示畫面內可見的 Custom amount。</figcaption><figcaption class="en">The circle marks the visible Custom amount option.</figcaption>
+        </figure></div>
+      </section>
+
+      <section class="card" data-guide-step="4" aria-labelledby="step5title" hidden>
+        <div class="card-head"><span class="badge">5</span><h2 id="step5title"><span class="zh">填名稱，再按 Create</span><span class="en">Name it, then tap Create</span></h2></div>
+        <p class="lead zh">填個容易認的名稱，確認到期日和額度後按 Create。圖中只標出按鈕；「test」只是示例名稱。</p>
+        <p class="lead en">Enter a name, confirm your expiry and limit, then tap Create. The screenshot marks only the button; “test” is just a sample name.</p>
+        <div class="figure-wrap"><figure>
+          <img src="./assets/openrouter-guide-step-5-create.png" alt="OpenRouter 手機建立 key 表格；紅圈標示實際可見的 Create 按鈕">
+          <figcaption class="zh">截圖顯示真實 Create 按鈕；其他欄位請按你自己的選擇完成。</figcaption><figcaption class="en">The real Create button is shown; complete the other fields with your own choices.</figcaption>
+        </figure></div>
+      </section>
+
+      <section class="card" data-guide-step="5" aria-labelledby="step6title" hidden>
+        <div class="card-head"><span class="badge">6</span><h2 id="step6title"><span class="zh">即時複製，妥善保管</span><span class="en">Copy it and keep it private</span></h2></div>
+        <p class="lead zh">按圈住的複製掣。Key 通常只顯示一次，唔好分享或截圖。</p>
+        <p class="lead en">Tap the circled Copy button. The key is usually shown only once; do not share or screenshot it.</p>
+        <div class="figure-wrap"><figure>
+          <img src="./assets/openrouter-guide-step-6-copy.png" alt="OpenRouter 顯示新 key 的畫面；紅圈標示 Copy 按鈕，整個 key 欄位已不透明遮蓋">
+          <figcaption class="zh">隱私處理：Key 欄位已用不透明色塊完整遮蓋；紅圈只標示複製按鈕。</figcaption><figcaption class="en">Privacy: the entire key field is covered by an opaque block; the circle marks only Copy.</figcaption>
+        </figure></div>
+        <p class="note warn"><span class="zh">只把 key 貼入自己信任的裝置；不要放到聊天、公開 repo 或圖片。</span><span class="en">Paste the key only on a device you trust. Never put it in chat, a public repo, or an image.</span></p>
+      </section>
+
+      <section class="card" data-guide-step="6" aria-labelledby="step7title" hidden>
+        <div class="card-head"><span class="badge">7</span><h2 id="step7title"><span class="zh">貼入 App，完成一次設定</span><span class="en">Paste it into the app</span></h2></div>
+        <p class="lead zh">貼入圈住的「免費 API 金鑰」，按「儲存並驗證」。同一瀏覽器保持「永久儲存」勾選，通常每張單都唔使再貼。</p>
+        <p class="lead en">Paste into the circled Free API key field and tap Save &amp; Verify. Leave “Remember” checked in this browser, and you usually will not need to paste it again for each receipt.</p>
+        <div class="figure-wrap"><figure>
+          <img src="./assets/openrouter-guide-step-7-app-field.png" alt="分帳管家目前設定畫面，空白 API key 欄位以紅圈標示">
+          <figcaption class="zh">本 App 目前設定畫面；欄位是空白，沒有放入或測試任何真實 Key。</figcaption><figcaption class="en">Current app Settings screen; the field is empty. No real key was entered or tested.</figcaption>
+        </figure></div>
+        <p class="note"><span class="zh">「儲存並驗證」會檢查格式並保存於本機；要試連線另按「測試連線」。照片讀單會向 OpenRouter 發出請求並使用這條 key。</span><span class="en">“Save &amp; Verify” checks the format and saves it locally. Use “Test connection” separately. Photo scanning sends a request to OpenRouter using this key.</span></p>
+      </section>
+      <p class="sources zh">圖像來源：你提供的 OpenRouter 手機截圖；貼上頁使用目前 App 的空白設定畫面。紅圈只標示截圖中實際可見的控制，畫面以外的流程只用文字說明。</p>
+      <p class="sources en">Images: your OpenRouter phone screenshots and the current app’s empty Settings screen. Circles mark only visible controls; steps outside the frame are described in text.</p>
+    </main>
+  </div>
+  <nav class="controls" aria-label="Guide navigation">
+    <button id="prevButton" type="button" disabled><span class="zh">上一步</span><span class="en">Back</span></button>
+    <button id="nextButton" class="next" type="button"><span class="zh">下一步</span><span class="en">Next</span></button>
+  </nav>
+  <script>
+    (function () {
+      'use strict';
+      var cards = Array.prototype.slice.call(document.querySelectorAll('[data-guide-step]'));
+      var count = document.getElementById('stepCount');
+      var fill = document.getElementById('progressFill');
+      var prev = document.getElementById('prevButton');
+      var next = document.getElementById('nextButton');
+      var index = 0;
+      var english = false;
+      function render() {
+        cards.forEach(function (card, i) { card.hidden = i !== index; });
+        count.textContent = english ? ('Step ' + (index + 1) + ' of ' + cards.length) : ('第 ' + (index + 1) + ' 步／共 ' + cards.length + ' 步');
+        fill.style.width = (((index + 1) / cards.length) * 100) + '%';
+        prev.disabled = index === 0;
+        if (index === cards.length - 1) {
+          next.innerHTML = english ? 'Back to app' : '返回 App';
+          next.onclick = function () { location.href = './index.html'; };
+        } else {
+          next.innerHTML = english ? 'Next' : '下一步';
+          next.onclick = function () { index += 1; render(); window.scrollTo(0, 0); };
+        }
+        document.title = english ? 'OpenRouter key guide | Bill Splitter' : 'OpenRouter key 圖解｜分帳管家';
+        document.documentElement.lang = english ? 'en' : 'zh-HK';
+      }
+      prev.addEventListener('click', function () { index = Math.max(0, index - 1); render(); window.scrollTo(0, 0); });
+      document.getElementById('langToggle').addEventListener('click', function () {
+        english = !english;
+        document.body.dataset.lang = english ? 'en' : 'zh';
+        this.setAttribute('aria-label', english ? 'Switch to Traditional Chinese' : 'Switch to English');
+        render();
+      });
+      render();
+    })();
+  </script>
+</body>
+</html>

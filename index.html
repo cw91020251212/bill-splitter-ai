@@ -77,8 +77,8 @@
     ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
     ::-webkit-scrollbar-thumb:hover { background: #64748b; }
   </style>
-  <link rel="stylesheet" href="./theme.css?v=v80-tutorial-choice-screenshots">
-  <link rel="stylesheet" href="./tutorial.css?v=v80-tutorial-choice-screenshots">
+  <link rel="stylesheet" href="./theme.css?v=v81-openrouter-screenshot-guide">
+  <link rel="stylesheet" href="./tutorial.css?v=v81-openrouter-screenshot-guide">
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
@@ -86,7 +86,7 @@
   <script src="./i18n.js"></script>
   <script src="./claim-relay.js"></script>
   <script src="./ocr-cascade.js"></script>
-  <script src="./tutorial.js?v=v80-tutorial-choice-screenshots"></script>
+  <script src="./tutorial.js?v=v81-openrouter-screenshot-guide"></script>
   <script type="text/babel">
     const { useState, useRef, useEffect, useLayoutEffect, useMemo } = React;
     const tr = value => window.BillI18n.t(value);
@@ -3716,43 +3716,12 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
                 </Card>
 
                 <div id="openrouter-guide" className="scroll-mt-24">
-                <Accordion title={bi('🔑 OpenRouter：畫面圖解申請 API 金鑰', '🔑 OpenRouter: create an API key, step by step')} tone="slate" icon={icons.key} defaultOpen={true}>
-                  <p className="text-sm text-slate-800 leading-relaxed mb-3">{bi(<>以下係 OpenRouter 真實介面截圖，紅圈標出要按或填的位置。先 <a href="https://openrouter.ai/" target="_blank" rel="noreferrer" className="font-semibold text-brand-700 underline">註冊／登入</a>，再開 <a href="https://openrouter.ai/keys" target="_blank" rel="noreferrer" className="font-semibold text-brand-700 underline">OpenRouter 官方 API Keys 頁</a>。</>, <>These are real OpenRouter interface screenshots; red circles mark where to click or type. <a href="https://openrouter.ai/" target="_blank" rel="noreferrer" className="font-semibold text-brand-700 underline">Sign up or sign in</a>, then open the <a href="https://openrouter.ai/keys" target="_blank" rel="noreferrer" className="font-semibold text-brand-700 underline">official API Keys page</a>.</>)}</p>
-                  <div className="space-y-4 text-sm leading-relaxed text-slate-700">
-                    <section>
-                      <h4 className="font-bold text-slate-800">{bi('1. 開啟 API Keys 頁，按「Create」', '1. Open API Keys and click “Create”')}</h4>
-                      <p>{bi('如已登入，直接按上面的官方連結；畫面左邊若見到「API Keys」，按該項目，再按頁面中的「Create」。', 'After signing in, use the official link above. If you see “API Keys” in the left menu, open it, then click “Create”.')}</p>
-                      <figure className="mt-2 space-y-1.5">
-                        <a href="./images/openrouter-api-keys-page.webp" target="_blank" rel="noreferrer" className="relative block" aria-label={bi('按一下放大 API Keys 截圖', 'Open the API Keys screenshot full size')}>
-                          <img src="./images/openrouter-api-keys-page.webp" alt={bi('OpenRouter 真實 API Keys 頁面截圖，紅圈標示左側 API Keys 和 Create 按鈕。', 'Real OpenRouter API Keys screenshot with red circles around the API Keys menu and Create button.')} loading="lazy" className="w-full rounded-lg border border-slate-300" />
-                          <svg viewBox="0 0 3248 1978" preserveAspectRatio="none" aria-hidden="true" className="pointer-events-none absolute inset-0 h-full w-full"><ellipse cx="300" cy="932" rx="155" ry="58" fill="#ef4444" fillOpacity="0.05" stroke="#dc2626" strokeWidth="30"/><ellipse cx="1892" cy="1084" rx="190" ry="72" fill="#ef4444" fillOpacity="0.05" stroke="#dc2626" strokeWidth="30"/></svg>
-                        </a>
-                        <figcaption className="text-xs text-slate-500">{bi('真實介面圖；紅圈為本頁位置標註。按圖可放大。', 'Real interface; red circles are annotations. Tap the image to zoom.')}</figcaption>
-                      </figure>
-                    </section>
-                    <section>
-                      <h4 className="font-bold text-slate-800">{bi('2. 填名稱和用量上限，再按「Create」', '2. Enter a name and usage limit, then click “Create”')}</h4>
-                      <p>{bi('「Name」只係方便你認得這把鎖匙，例如 Bill Splitter。「Credit limit」係這把鎖匙可用的消費上限；建議設定一個你接受的上限，唔好留空（留空代表不限額）。「Reset limit」和「Expiration」按需要選；不肯定就先設消費上限，不要開自動加額。', '“Name” is just a label, such as Bill Splitter. “Credit limit” caps spending for this key; OpenRouter recommends setting a limit, and blank means unlimited. Choose “Reset limit” and “Expiration” only if needed. If unsure, set a spending cap and do not enable automatic top-ups.')}</p>
-                      <figure className="mt-2 space-y-1.5">
-                        <a href="./images/openrouter-create-key.webp" target="_blank" rel="noreferrer" className="relative block" aria-label={bi('按一下放大建立金鑰表單截圖', 'Open the create-key form screenshot full size')}>
-                          <img src="./images/openrouter-create-key.webp" alt={bi('OpenRouter 真實建立金鑰表單截圖，紅圈標示名稱、Credit limit 和 Create。', 'Real OpenRouter create-key form with red circles around Name, Credit limit, and Create.')} loading="lazy" className="w-full rounded-lg border border-slate-300" />
-                          <svg viewBox="0 0 3248 1978" preserveAspectRatio="none" aria-hidden="true" className="pointer-events-none absolute inset-0 h-full w-full"><ellipse cx="1635" cy="785" rx="465" ry="58" fill="#ef4444" fillOpacity="0.05" stroke="#dc2626" strokeWidth="30"/><ellipse cx="1635" cy="970" rx="465" ry="58" fill="#ef4444" fillOpacity="0.05" stroke="#dc2626" strokeWidth="30"/><ellipse cx="1980" cy="1440" rx="205" ry="86" fill="#ef4444" fillOpacity="0.05" stroke="#dc2626" strokeWidth="30"/></svg>
-                        </a>
-                        <figcaption className="text-xs text-slate-500">{bi('表單真實畫面；截圖中的範例名稱只係示範。按圖可放大。', 'Real form; the sample name in the screenshot is illustrative. Tap to zoom.')}</figcaption>
-                      </figure>
-                    </section>
-                    <section>
-                      <h4 className="font-bold text-slate-800">{bi('3. 立即複製金鑰，貼回本程式', '3. Copy the key immediately and paste it into this app')}</h4>
-                      <p>{bi('按建立後，OpenRouter 會顯示新金鑰；立即複製並保存在安全位置。之後到本程式「設定」，貼到「免費 API 金鑰」，按「儲存並驗證」。金鑰只留在自己裝置，切勿傳給朋友或貼到公開網頁。', 'After creation, copy the new key immediately and keep it somewhere secure. In this app, open Settings, paste it into “Free API key,” then tap “Save and verify.” Keep the key on your device; never send it to friends or post it publicly.')}</p>
-                    </section>
-                  </div>
-                  <p className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs leading-relaxed text-amber-900">{bi('申請金鑰本身不代表模型使用免費。模型收費依 OpenRouter 當時標示；只想用免費模型，就選明確標示為 Free 的型號並檢查用量。建立和複製金鑰畫面可能只顯示一次，所以不要截圖或分享含完整金鑰的畫面。', 'A key does not make model usage free. Pricing depends on the model shown by OpenRouter. For free use, choose a model explicitly marked Free and monitor usage. The new key may only be shown once, so do not screenshot or share a screen containing the full key.')}</p>
-                  <p className="mt-3 text-xs text-slate-500">{bi(<>截圖來源：<a href="https://developer.puter.com/tutorials/how-to-get-openrouter-api-key/" target="_blank" rel="noreferrer" className="underline">Puter.js OpenRouter 金鑰圖文教學</a>；紅圈是本頁標註。欄位或按鈕字樣日後可能改變。更多說明見 <a href="https://openrouter.ai/docs/api_reference/authentication" target="_blank" rel="noreferrer" className="underline">OpenRouter 官方認證文件</a>。</>, <>Screenshots: <a href="https://developer.puter.com/tutorials/how-to-get-openrouter-api-key/" target="_blank" rel="noreferrer" className="underline">Puter.js OpenRouter guide</a>; red circles are this page’s annotations. Labels may change. See <a href="https://openrouter.ai/docs/api_reference/authentication" target="_blank" rel="noreferrer" className="underline">OpenRouter’s official authentication docs</a>.</>)}</p>
-                  <div className="mt-3 bg-slate-50 border border-slate-400 rounded-xl p-3 text-sm space-y-1.5">
-                    <p className="font-bold text-slate-800">{tr("記住我的鎖匙（免每次重輸）")}</p>
-                    <p className="text-slate-600 text-xs">{bi('在設定勾選記住鎖匙，只存在這部機。', 'In Settings, choose to remember the key. It stays on this device.')}</p>
-                  </div>
-                </Accordion>
+                  <Accordion title={bi('🔑 OpenRouter：七步手機截圖教學', '🔑 OpenRouter: seven mobile screenshot steps')} tone="slate" icon={icons.key} defaultOpen={true}>
+                    <p className="text-sm text-slate-800 leading-relaxed mb-3">{bi(<>以下七步使用你提供的 OpenRouter 手機截圖，紅圈只標示畫面中看得到的控制；由 <a href="https://openrouter.ai/keys" target="_blank" rel="noopener noreferrer" className="font-semibold text-brand-700 underline">OpenRouter 官方 API Keys 頁</a>開始。</>, <>These seven steps use your OpenRouter mobile screenshots. Red circles mark only controls visible in each image. Start at the <a href="https://openrouter.ai/keys" target="_blank" rel="noopener noreferrer" className="font-semibold text-brand-700 underline">official OpenRouter API Keys page</a>.</>)}</p>
+                    <a data-testid="openrouter-key-guide-link" href="./openrouter-key-guide.html" target="_blank" rel="noopener noreferrer" className="inline-flex min-h-[44px] items-center rounded-xl border border-brand-600 bg-brand-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-brand-700">{bi('開啟七步手機截圖教學 ↗', 'Open the seven-step mobile screenshot guide ↗')}</a>
+                    <p className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs leading-relaxed text-amber-900">{bi('申請金鑰本身不代表模型使用免費。模型收費依 OpenRouter 當時標示；只想用免費模型，就選明確標示為 Free 的型號並檢查用量。', 'A key does not make model usage free. Pricing depends on the model shown by OpenRouter. For free use, choose a model explicitly marked Free and monitor usage.')}</p>
+                    <p className="mt-3 text-xs text-slate-500">{bi('金鑰只應貼入自己信任的裝置；不要放到聊天、公開 repo 或含有完整金鑰的截圖。', 'Paste the key only on a device you trust. Never put it in chat, a public repo, or a screenshot that shows the full key.')}</p>
+                  </Accordion>
                 </div>
 
                 <Accordion title={bi('朋友點樣交返', 'How friends send their share')} tone="slate" defaultOpen={true} icon={icons.send}>

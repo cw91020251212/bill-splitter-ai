@@ -249,19 +249,21 @@ async function runTutorialModeSmoke(browser) {
   assert.equal(await page.getByTestId('tutorial-mode-text').count(), 1, 'mode chooser should offer text guide');
   await page.getByTestId('tutorial-mode-text').click();
   await page.locator('#openrouter-guide').waitFor({ state: 'visible' });
-  await page.locator('img[src*="openrouter-api-keys-page"]').scrollIntoViewIfNeeded();
-  await page.waitForFunction(() => {
-    const images = [...document.querySelectorAll('#openrouter-guide img[src*="openrouter-"]')];
-    return images.length === 2 && images.every(image => image.complete && image.naturalWidth > 0);
-  });
-  assert.equal(await page.locator('#openrouter-guide svg ellipse').count(), 5, 'OpenRouter screenshots should include five red-circle annotations');
-  assert.match(await page.locator('#openrouter-guide').innerText(), /Credit limit/);
+  assert.match(await page.locator('#openrouter-guide').innerText(), /模型使用免費|usage free/);
+  const guideLink = page.getByTestId('openrouter-key-guide-link');
+  assert(await guideLink.isVisible(), 'text guide should link to the screenshot guide');
+  assert.equal(await guideLink.getAttribute('href'), './openrouter-key-guide.html');
+  assert.equal(await guideLink.getAttribute('target'), '_blank');
+  const [guide] = await Promise.all([page.waitForEvent('popup'), guideLink.click()]);
+  await guide.waitForLoadState('domcontentloaded');
+  assert.equal(await guide.locator('[data-guide-step]').count(), 7, 'standalone guide should contain seven steps');
+  await guide.close();
   await page.locator('.header-back-button').click();
   await page.getByTestId('tutorial-mode-picker').waitFor({ state: 'visible' });
   await page.locator('.header-back-button').click();
   await page.getByTestId('start-tutorial').waitFor({ state: 'visible' });
-  assert.deepEqual(errors, [], 'tutorial mode screen or screenshots caused a browser exception');
-  results.push({ label: 'tutorial-mode-and-openrouter-screenshots', passed: true }); console.log('PASS tutorial-mode-and-openrouter-screenshots');
+  assert.deepEqual(errors, [], 'tutorial mode screen or guide entry caused a browser exception');
+  results.push({ label: 'tutorial-mode-and-seven-step-guide-entry', passed: true }); console.log('PASS tutorial-mode-and-seven-step-guide-entry');
   await context.close();
 }
 (async () => {
