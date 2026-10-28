@@ -13,7 +13,7 @@
  * Bump CACHE_VERSION whenever you edit index.html so returning users get the
  * new build instead of the cached one.
  */
-const CACHE_VERSION = 'v81-openrouter-screenshot-guide';
+const CACHE_VERSION = 'v82-openrouter-mobile-steps';
 const SHELL_CACHE = `bill-splitter-shell-${CACHE_VERSION}`;
 const ASSET_CACHE = `bill-splitter-assets-${CACHE_VERSION}`;
 const CDN_CACHE = `bill-splitter-cdn-${CACHE_VERSION}`;
@@ -30,13 +30,13 @@ const SHELL_URLS = [
   './tutorial.js',
   './tutorial.css',
   './openrouter-key-guide.html',
-  './assets/openrouter-guide-step-1-signup.png',
+  './assets/openrouter-guide-step-1-google.png',
   './assets/openrouter-guide-step-2-new-key.png',
-  './assets/openrouter-guide-step-3-expiry.png',
-  './assets/openrouter-guide-step-4-limit.png',
-  './assets/openrouter-guide-step-5-create.png',
-  './assets/openrouter-guide-step-6-copy.png',
-  './assets/openrouter-guide-step-7-app-field.png',
+  './assets/openrouter-guide-step-3-expiry-focus.png',
+  './assets/openrouter-guide-step-4-limit-focus.png',
+  './assets/openrouter-guide-step-5-create-focus.png',
+  './assets/openrouter-guide-step-6-original.jpg',
+  './assets/openrouter-guide-step-7-app-field-crop.png',
   './manifest.webmanifest',
   './icons/icon.svg',
   './icons/favicon.ico',

@@ -249,7 +249,7 @@ async function runTutorialModeSmoke(browser) {
   assert.equal(await page.getByTestId('tutorial-mode-text').count(), 1, 'mode chooser should offer text guide');
   await page.getByTestId('tutorial-mode-text').click();
   await page.locator('#openrouter-guide').waitFor({ state: 'visible' });
-  assert.match(await page.locator('#openrouter-guide').innerText(), /模型使用免費|usage free/);
+  assert.match(await page.locator('#openrouter-guide').innerText(), /七步圖解|7-step guide/);
   const guideLink = page.getByTestId('openrouter-key-guide-link');
   assert(await guideLink.isVisible(), 'text guide should link to the screenshot guide');
   assert.equal(await guideLink.getAttribute('href'), './openrouter-key-guide.html');

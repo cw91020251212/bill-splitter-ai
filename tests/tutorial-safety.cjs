@@ -98,7 +98,7 @@ async function walkTutorial(page, label) {
       const names = await caches.keys(); const shell = await caches.open(names.find(n => n.startsWith('bill-splitter-shell-')));
       const js = await shell.match('./tutorial.js'); const css = await shell.match('./tutorial.css');
       const guidePage = await shell.match('./openrouter-key-guide.html');
-      const guideImages = await Promise.all(Array.from({ length: 7 }, (_, i) => shell.match(`./assets/openrouter-guide-step-${i + 1}-` + ['signup.png', 'new-key.png', 'expiry.png', 'limit.png', 'create.png', 'copy.png', 'app-field.png'][i])));
+      const guideImages = await Promise.all(Array.from({ length: 7 }, (_, i) => shell.match(`./assets/openrouter-guide-step-${i + 1}-` + ['google.png', 'new-key.png', 'expiry-focus.png', 'limit-focus.png', 'create-focus.png', 'original.jpg', 'app-field-crop.png'][i])));
       for (const name of names.filter(n => n.startsWith('bill-splitter-assets-'))) {
         const cache = await caches.open(name);
         for (const request of await cache.keys()) if (/\/tutorial\.(js|css)/.test(request.url)) await cache.delete(request);
