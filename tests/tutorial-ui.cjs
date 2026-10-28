@@ -143,6 +143,10 @@ async function begin(page, before, label) {
   const baseline = before || await snapshot(page);
   if (!before) await instrument(page);
   await page.getByTestId('start-tutorial').click();
+  await page.getByTestId('tutorial-mode-picker').waitFor({ state: 'visible' });
+  assert.equal(await page.getByTestId('tutorial-mode-interactive').count(), 1, label + ': missing interactive mode');
+  assert.equal(await page.getByTestId('tutorial-mode-text').count(), 1, label + ': missing text mode');
+  await page.getByTestId('tutorial-mode-interactive').click();
   await waitStage(page, 'upload');
   return baseline;
 }
@@ -210,7 +214,9 @@ async function runEditedSample(page, language) {
 }
 async function runPayerRecovery(page, before, label) {
   await page.getByTestId('start-tutorial').focus();
-  await page.getByTestId('start-tutorial').click(); await waitStage(page, 'upload');
+  await page.getByTestId('start-tutorial').click();
+  await page.getByTestId('tutorial-mode-interactive').click();
+  await waitStage(page, 'upload');
   for (const stage of ['manual', 'verify', 'items', 'fee', 'share']) {
     await page.getByTestId('tutorial-next').click(); await waitStage(page, stage);
   }
@@ -232,9 +238,36 @@ async function runPayerRecovery(page, before, label) {
   await page.getByTestId('tutorial-close').click();
   await assertRestored(page, before, label);
 }
+async function runTutorialModeSmoke(browser) {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' });
+  const page = await context.newPage(); const errors = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await seed(page, 1, 'zh-HK');
+  await page.getByTestId('start-tutorial').click();
+  await page.getByTestId('tutorial-mode-picker').waitFor({ state: 'visible' });
+  assert.equal(await page.getByTestId('tutorial-mode-interactive').count(), 1, 'mode chooser should offer interactive tour');
+  assert.equal(await page.getByTestId('tutorial-mode-text').count(), 1, 'mode chooser should offer text guide');
+  await page.getByTestId('tutorial-mode-text').click();
+  await page.locator('#openrouter-guide').waitFor({ state: 'visible' });
+  await page.locator('img[src*="openrouter-api-keys-page"]').scrollIntoViewIfNeeded();
+  await page.waitForFunction(() => {
+    const images = [...document.querySelectorAll('#openrouter-guide img[src*="openrouter-"]')];
+    return images.length === 2 && images.every(image => image.complete && image.naturalWidth > 0);
+  });
+  assert.equal(await page.locator('#openrouter-guide svg ellipse').count(), 5, 'OpenRouter screenshots should include five red-circle annotations');
+  assert.match(await page.locator('#openrouter-guide').innerText(), /Credit limit/);
+  await page.locator('.header-back-button').click();
+  await page.getByTestId('tutorial-mode-picker').waitFor({ state: 'visible' });
+  await page.locator('.header-back-button').click();
+  await page.getByTestId('start-tutorial').waitFor({ state: 'visible' });
+  assert.deepEqual(errors, [], 'tutorial mode screen or screenshots caused a browser exception');
+  results.push({ label: 'tutorial-mode-and-openrouter-screenshots', passed: true }); console.log('PASS tutorial-mode-and-openrouter-screenshots');
+  await context.close();
+}
 (async () => {
   const browser = await chromium.launch({ headless: true, executablePath: process.env.CHROMIUM_EXECUTABLE || undefined, args: ['--no-sandbox'] });
   try {
+    await runTutorialModeSmoke(browser);
     const sizes = [{ width: 320, height: 640 }, { width: 390, height: 844 }, { width: 768, height: 1024 }, { width: 1280, height: 800 }, { width: 844, height: 390 }];
     for (const language of ['zh-HK', 'en']) for (const viewport of sizes) {
       const label = `${language}-${viewport.width}x${viewport.height}`;
@@ -293,7 +326,8 @@ async function runPayerRecovery(page, before, label) {
       await assertRestored(page, before, 'interactive-exit-' + language);
 
       // Manual-entry target is a safe in-demo shortcut directly to item editing.
-      await page.getByTestId('start-tutorial').focus(); await page.getByTestId('start-tutorial').click(); await waitStage(page, 'upload');
+      await page.getByTestId('start-tutorial').focus(); await page.getByTestId('start-tutorial').click();
+      await page.getByTestId('tutorial-mode-interactive').click(); await waitStage(page, 'upload');
       await page.getByTestId('tutorial-next').click(); await waitStage(page, 'manual');
       await target(page, 1).click(); await waitStage(page, 'items');
       await page.getByTestId('tutorial-close').click(); await assertRestored(page, before, 'manual-close-' + language);
@@ -312,13 +346,14 @@ async function runPayerRecovery(page, before, label) {
       const context = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' });
       const page = await context.newPage(); await seed(page, initialStep, 'zh-HK');
       await page.evaluate(() => window.scrollTo(0, 200)); await page.getByTestId('start-tutorial').focus();
-      const before = await snapshot(page); await instrument(page); await page.getByTestId('start-tutorial').click(); await waitStage(page, 'upload');
+      const before = await snapshot(page); await instrument(page); await page.getByTestId('start-tutorial').click();
+      await page.getByTestId('tutorial-mode-interactive').click(); await waitStage(page, 'upload');
       // Exercise both a previous-stage exit and close/Escape from each original App step.
       await page.getByTestId('tutorial-next').click(); await waitStage(page, 'manual');
       await page.getByTestId('tutorial-prev').click(); await waitStage(page, 'upload');
       if (initialStep % 2) await page.keyboard.press('Escape'); else await page.getByTestId('tutorial-close').click();
       await assertRestored(page, before, 'exit-from-original-step-' + initialStep);
-      await page.getByTestId('start-tutorial').click(); await waitStage(page, 'upload');
+      await page.getByTestId('start-tutorial').click(); await page.getByTestId('tutorial-mode-interactive').click(); await waitStage(page, 'upload');
       await page.getByTestId('tutorial-close').click(); await assertRestored(page, before, 'restart-from-step-' + initialStep);
       results.push({ label: 'exit-and-restart-from-step-' + initialStep, passed: true }); console.log('PASS exit-and-restart-from-step-' + initialStep); await context.close();
     }

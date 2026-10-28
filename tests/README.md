@@ -30,6 +30,7 @@ node tests/tutorial-ui.cjs
 
 ## 覆蓋範圍
 
+- 教學入口先提供互動導覽／文字新手教學選擇；文字教學驗證兩張 OpenRouter 圖片載入、五個紅圈標註及返回流程。
 - 香港繁體中文及英文介面；320×640、390×844、768×1024、1280×800 及 844×390 五種視窗。
 - 16 個互動停留點：`upload`、`manual`、`verify`、`items`、`fee`、`share`、`share-options`、`replies`、`payer`、`currency`、`payment`、`tax-method`、`calculate`、`report`、`report-share`、`detail`；並核對其對應的四個 App 步驟。
 - 目標高亮、卡片不遮擋目標、無橫向溢出、卡片不超過 340px、非模態對話框及示範 App 保持可互動；目前目標以外的控制不可鍵盤操作。
@@ -37,7 +38,7 @@ node tests/tutorial-ui.cjs
 - 實際修改示範單價及附加費，按 2:1 認帳比例計算 Cathy 的分帳；另核對按比例及平均分攤的結果。
 - 報告分享／複製按鈕只顯示教學提示，不呼叫系統分享或剪貼簿；亦不開相機、檔案選擇器、寫入瀏覽器儲存，或請求 OpenRouter／ntfy。
 - 從原本 App 第 1–4 步進入、關閉、按 Escape、完成及重新開始後，逐項核對原有 DOM、輸入、localStorage、IndexedDB 圖片與附件、捲動位置及焦點。
-- 安全測試保留空白帳單及離線驗收：註冊 Service Worker、確認教學 JS/CSS precache，再移除 runtime cache 並離線走完 16 個停留點。
+- 安全測試保留空白帳單及離線驗收：註冊 Service Worker、確認教學 JS/CSS 和 OpenRouter 截圖 precache，再移除 runtime cache 並離線走完 16 個停留點。
 
 Chromium 自動測試不代表已在真實 iPhone Safari／Android WebView 或軟鍵盤上驗收。
 

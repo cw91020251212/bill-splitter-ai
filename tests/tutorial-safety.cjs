@@ -45,7 +45,8 @@ async function assertTargetGating(page, i, label) {
   assert.deepEqual(outside, [], label + ': other controls remain keyboard-accessible');
 }
 async function walkTutorial(page, label) {
-  await page.getByTestId('start-tutorial').click(); await waitStage(page, 'upload');
+  await page.getByTestId('start-tutorial').click();
+  await page.getByTestId('tutorial-mode-interactive').click(); await waitStage(page, 'upload');
   for (let i = 0; i < stages.length; i++) {
     await waitStage(page, stages[i]);
     await target(page, i).waitFor({ state: 'visible' });
@@ -85,7 +86,7 @@ async function walkTutorial(page, label) {
     results.push({ label: 'empty-bill-16-stop-gating-nonmodal', passed: true }); console.log('PASS empty-bill-16-stop-gating-nonmodal');
     await context.close();
 
-    // Keep the offline service-worker assertion: tutorial JS/CSS must survive removal of runtime cache entries.
+    // Tutorial scripts and OpenRouter screenshots must survive runtime-cache removal.
     const offlineContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
     const offline = await offlineContext.newPage(); const offlineErrors = [];
     offline.on('pageerror', e => offlineErrors.push(e.message));
@@ -96,16 +97,23 @@ async function walkTutorial(page, label) {
     const precache = await offline.evaluate(async () => {
       const names = await caches.keys(); const shell = await caches.open(names.find(n => n.startsWith('bill-splitter-shell-')));
       const js = await shell.match('./tutorial.js'); const css = await shell.match('./tutorial.css');
+      const keysPage = await shell.match('./images/openrouter-api-keys-page.webp');
+      const createKey = await shell.match('./images/openrouter-create-key.webp');
       for (const name of names.filter(n => n.startsWith('bill-splitter-assets-'))) {
         const cache = await caches.open(name);
         for (const request of await cache.keys()) if (/\/tutorial\.(js|css)/.test(request.url)) await cache.delete(request);
       }
-      return { js: js?.status, css: css?.status };
+      return { js: js?.status, css: css?.status, keysPage: keysPage?.status, createKey: createKey?.status };
     });
-    assert.deepEqual(precache, { js: 200, css: 200 });
+    assert.deepEqual(precache, { js: 200, css: 200, keysPage: 200, createKey: 200 });
     await offlineContext.setOffline(true);
     await offline.reload({ waitUntil: 'domcontentloaded' }); await offline.getByTestId('start-tutorial').waitFor({ timeout: 30000 });
     await walkTutorial(offline, 'offline');
+    await offline.getByTestId('start-tutorial').click(); await offline.getByTestId('tutorial-mode-text').click();
+    await offline.locator('#openrouter-guide img[src*="openrouter-api-keys-page"]').scrollIntoViewIfNeeded();
+    await offline.locator('#openrouter-guide img[src*="openrouter-create-key"]').scrollIntoViewIfNeeded();
+    await offline.waitForFunction(() => [...document.querySelectorAll('#openrouter-guide img[src*="openrouter-"]')].length === 2 && [...document.querySelectorAll('#openrouter-guide img[src*="openrouter-"]')].every(image => image.complete && image.naturalWidth > 0));
+    assert.equal(await offline.locator('#openrouter-guide svg ellipse').count(), 5, 'offline OpenRouter images should retain their red-circle annotations');
     assert.deepEqual(offlineErrors, [], 'offline browser exceptions');
     results.push({ label: 'registered-SW-offline-16-stop-precache-fallback', passed: true }); console.log('PASS registered-SW-offline-16-stop-precache-fallback');
     await offlineContext.close();

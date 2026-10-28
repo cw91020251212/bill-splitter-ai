@@ -13,7 +13,7 @@
  * Bump CACHE_VERSION whenever you edit index.html so returning users get the
  * new build instead of the cached one.
  */
-const CACHE_VERSION = 'v79-openrouter-tour-help';
+const CACHE_VERSION = 'v80-tutorial-choice-screenshots';
 const SHELL_CACHE = `bill-splitter-shell-${CACHE_VERSION}`;
 const ASSET_CACHE = `bill-splitter-assets-${CACHE_VERSION}`;
 const CDN_CACHE = `bill-splitter-cdn-${CACHE_VERSION}`;
@@ -29,6 +29,8 @@ const SHELL_URLS = [
   './theme.css',
   './tutorial.js',
   './tutorial.css',
+  './images/openrouter-api-keys-page.webp',
+  './images/openrouter-create-key.webp',
   './manifest.webmanifest',
   './icons/icon.svg',
   './icons/favicon.ico',

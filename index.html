@@ -77,8 +77,8 @@
     ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
     ::-webkit-scrollbar-thumb:hover { background: #64748b; }
   </style>
-  <link rel="stylesheet" href="./theme.css?v=v79-openrouter-tour-help">
-  <link rel="stylesheet" href="./tutorial.css?v=v79-openrouter-tour-help">
+  <link rel="stylesheet" href="./theme.css?v=v80-tutorial-choice-screenshots">
+  <link rel="stylesheet" href="./tutorial.css?v=v80-tutorial-choice-screenshots">
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
@@ -86,7 +86,7 @@
   <script src="./i18n.js"></script>
   <script src="./claim-relay.js"></script>
   <script src="./ocr-cascade.js"></script>
-  <script src="./tutorial.js?v=v79-openrouter-tour-help"></script>
+  <script src="./tutorial.js?v=v80-tutorial-choice-screenshots"></script>
   <script type="text/babel">
     const { useState, useRef, useEffect, useLayoutEffect, useMemo } = React;
     const tr = value => window.BillI18n.t(value);
@@ -1010,6 +1010,8 @@
       const [showHistory, setShowHistory] = useState(false);
       const [showSettings, setShowSettings] = useState(false);
       const [showTutorial, setShowTutorial] = useState(false);
+      const [showTutorialMenu, setShowTutorialMenu] = useState(false);
+      const tutorialMenuOrigin = useRef(null);
       const [isSaved, setIsSaved] = useState(false);
       const [isSavingRecord, setIsSavingRecord] = useState(false);
       const [savedReceiptFiles, setSavedReceiptFiles] = useState({});
@@ -3005,12 +3007,29 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
                 <button type="button" data-testid="header-language-toggle" data-ui-language={uiLang === 'en' ? 'zh-HK' : 'en'} onClick={() => changeUiLanguage(uiLang === 'en' ? 'zh-HK' : 'en')} title={uiLang === 'en' ? 'Switch to Traditional Chinese' : '切換至 English'} aria-label={uiLang === 'en' ? 'Switch to Traditional Chinese' : '切換至 English'} className="header-language-button flex items-center justify-center px-2.5 py-2 bg-slate-100 text-slate-700 border border-slate-400 rounded-lg text-xs font-bold transition-colors">
                   <span className="language-divider" aria-hidden="true"></span><span className="language-zh" lang="zh-HK">中</span><span className="language-en" lang="en">Eng</span>
                 </button>
-                {(showHistory || showSettings || showTutorial) ? (
-                  <button onClick={() => {setShowHistory(false); setShowSettings(false); setShowTutorial(false);}} className="header-back-button flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-semibold transition-colors border border-slate-400">
+                {(showHistory || showSettings || showTutorial || showTutorialMenu) ? (
+                  <button onClick={() => {
+                    if (showTutorial) { setShowTutorial(false); setShowTutorialMenu(true); return; }
+                    if (showTutorialMenu) {
+                      setShowTutorialMenu(false);
+                      const origin = tutorialMenuOrigin.current;
+                      requestAnimationFrame(() => {
+                        document.querySelector('[data-testid="start-tutorial"]')?.focus({ preventScroll: true });
+                        if (origin) window.scrollTo({ left: origin.x, top: origin.y, behavior: 'instant' });
+                      });
+                      return;
+                    }
+                    setShowHistory(false); setShowSettings(false);
+                  }} className="header-back-button flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-semibold transition-colors border border-slate-400">
                     <Icon path={icons.arrowLeft} size={16}/>{tr(" 返回")}</button>
                 ) : (
                   <React.Fragment>
-                    <button data-testid="start-tutorial" disabled={!draftReady || isAnalyzing || isSavingRecord} onClick={() => onStartTutorial && typeof window.BillTutorial === 'function' ? onStartTutorial(() => setShowTutorial(true)) : setShowTutorial(true)} title={tr("新手教學")} className="guide-button flex items-center gap-1.5 px-3 py-2 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-500 rounded-lg text-sm font-semibold transition-colors">
+                    <button data-testid="start-tutorial" disabled={!draftReady || isAnalyzing || isSavingRecord} onClick={event => {
+                      event.currentTarget.focus({ preventScroll: true });
+                      tutorialMenuOrigin.current = { x: window.scrollX, y: window.scrollY };
+                      setShowTutorialMenu(true);
+                      requestAnimationFrame(() => window.scrollTo({ left: 0, top: 0, behavior: 'smooth' }));
+                    }} title={bi('教學方式選擇', 'Choose a tutorial')} className="guide-button flex items-center gap-1.5 px-3 py-2 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-500 rounded-lg text-sm font-semibold transition-colors">
                       <Icon path={icons.bookOpen} size={16}/> <span className="guide-label">{tr("教學")}</span>
                     </button>
                     <button onClick={() => setShowSettings(true)} title={tr("設定")} className="header-settings-button flex items-center gap-1.5 px-2.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-400 rounded-lg text-sm font-semibold transition-colors">
@@ -3028,7 +3047,7 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
             </div>
 
             {/* Steps Indicator */}
-            {(!showHistory && !showSettings && !showTutorial) && (
+            {(!showHistory && !showSettings && !showTutorial && !showTutorialMenu) && (
               <div className="stepper-panel bg-slate-50/80 px-4 py-3 border-t border-slate-400 max-w-2xl mx-auto">
                 <div className="step-progress mb-2.5" data-testid="step-progress" data-step={step} role="progressbar" aria-valuemin={1} aria-valuemax={4} aria-valuenow={step} aria-valuetext={bi(`第 ${step} 步，共 4 步`, `Step ${step} of 4`)}>
                   <div className="step-progress-fill" style={{ width: `${(step / 4) * 100}%` }}></div>
@@ -3142,8 +3161,32 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
               </div>
             )}
 
+            {showTutorialMenu && (
+              <div data-testid="tutorial-mode-picker" className="space-y-4 animate-in fade-in duration-300" aria-labelledby="tutorial-mode-title">
+                <Card className="bg-gradient-to-br from-amber-50 to-white border-amber-500 shadow-sm">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="w-10 h-10 bg-amber-500 text-white rounded-xl flex items-center justify-center shadow-sm shrink-0"><Icon path={icons.bookOpen} size={22}/></div>
+                    <h2 id="tutorial-mode-title" className="text-xl font-bold text-slate-800">{bi('你想睇邊種教學？', 'Choose a guide')}</h2>
+                  </div>
+                  <p className="text-sm leading-relaxed text-slate-700">{bi('互動導覽會逐步帶你試用；文字新手教學可以一次過閱讀流程和 OpenRouter 實際畫面。', 'The interactive tour walks you through the app. The text guide lets you read the workflow and OpenRouter screenshots at your own pace.')}</p>
+                </Card>
+                <button type="button" data-testid="tutorial-mode-interactive" onClick={() => {
+                  setShowTutorialMenu(false);
+                  if (onStartTutorial && typeof window.BillTutorial === 'function') onStartTutorial(() => { setShowTutorialMenu(false); setShowTutorial(true); }, tutorialMenuOrigin.current);
+                  else setShowTutorial(true);
+                }} className="w-full min-h-[84px] text-left rounded-2xl border border-slate-500 bg-white p-5 shadow-sm transition-colors hover:border-brand-600 hover:bg-brand-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-700">
+                  <span className="block text-base font-bold text-slate-800">{bi('互動步驟導覽', 'Interactive walkthrough')}</span>
+                  <span className="block mt-1 text-sm leading-relaxed text-slate-600">{bi('跟住畫面逐步操作，約 16 個步驟。', 'Follow the on-screen walkthrough, about 16 steps.')}</span>
+                </button>
+                <button type="button" data-testid="tutorial-mode-text" onClick={() => { setShowTutorialMenu(false); setShowTutorial(true); }} className="w-full min-h-[84px] text-left rounded-2xl border border-slate-500 bg-white p-5 shadow-sm transition-colors hover:border-brand-600 hover:bg-brand-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-700">
+                  <span className="block text-base font-bold text-slate-800">{bi('文字新手教學（流程＋實際截圖）', 'Text guide (workflow + real screenshots)')}</span>
+                  <span className="block mt-1 text-sm leading-relaxed text-slate-600">{bi('直接閱讀說明，不用逐頁撳「下一步」。', 'Read the instructions directly without advancing screen by screen.')}</span>
+                </button>
+              </div>
+            )}
+
             {/* Step 1: Photo scan is the main path; manual entry is the fallback */}
-            {step === 1 && !showSettings && !showHistory && !showTutorial && (
+            {step === 1 && !showSettings && !showHistory && !showTutorial && !showTutorialMenu && (
               <div data-testid="scan-start" className={`space-y-6 animate-in fade-in duration-500${isAnalyzing ? ' is-analyzing' : ''}`}>
                 <div className="page-section-heading flex items-center gap-2 mb-2">
                   <span className="w-8 h-8 rounded-full bg-brand-100 border border-brand-500 text-brand-700 flex items-center justify-center font-bold">1</span>
@@ -3239,7 +3282,7 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
             )}
 
             {/* Step 2: Items & Claims */}
-            {step === 2 && !showHistory && !showSettings && !showTutorial && (
+            {step === 2 && !showHistory && !showSettings && !showTutorial && !showTutorialMenu && (
               <div data-testid="items-step" className="space-y-6 animate-in fade-in duration-500">
                 <div className="page-section-heading flex items-start gap-2 mb-2">
                   <span className="w-8 h-8 rounded-full bg-brand-100 border border-brand-500 text-brand-700 flex items-center justify-center font-bold">2</span>
@@ -3440,7 +3483,7 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
             )}
 
             {/* Step 3: Calculation Settings */}
-            {step === 3 && !showHistory && !showSettings && !showTutorial && (
+            {step === 3 && !showHistory && !showSettings && !showTutorial && !showTutorialMenu && (
               <div className="space-y-6 animate-in fade-in duration-500">
                 <div className="page-section-heading flex items-center gap-2 mb-2">
                   <span className="w-8 h-8 rounded-full bg-brand-100 border border-brand-500 text-brand-700 flex items-center justify-center font-bold">3</span>
@@ -3554,7 +3597,7 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
             )}
 
             {/* Step 4: Results */}
-            {step === 4 && results && !showHistory && !showSettings && !showTutorial && (
+            {step === 4 && results && !showHistory && !showSettings && !showTutorial && !showTutorialMenu && (
               <div className="space-y-6 animate-in fade-in duration-500">
                 <div className="page-section-heading flex items-center gap-2 mb-2">
                   <span className="w-8 h-8 rounded-full bg-brand-600 text-white flex items-center justify-center font-bold"><Icon path={icons.check} size={18}/></span>
@@ -3650,6 +3693,7 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
                     <h2 className="text-xl font-bold text-slate-800 tracking-tight">{tr("新手教學")}</h2>
                   </div>
                   <p className="text-sm mt-1 leading-relaxed text-slate-700">{bi('數字係份數；加單位先係實際數量。', 'A number is a share. Add a unit only for an actual quantity.')}</p>
+                  <a href="#openrouter-guide" className="inline-flex mt-3 text-sm font-bold text-brand-700 underline underline-offset-2">{bi('直接看 OpenRouter 金鑰畫面圖解 ↓', 'Jump to the OpenRouter key screenshots ↓')}</a>
                 </Card>
 
                 <Card className="p-0 overflow-hidden border-slate-500">
@@ -3671,23 +3715,45 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
                   </div>
                 </Card>
 
-                <Accordion title={bi('🔑 OpenRouter：申請 API 金鑰', '🔑 OpenRouter: Get an API key')} tone="slate" icon={icons.key} defaultOpen={true}>
-                  <p className="text-sm text-slate-800 leading-relaxed mb-3">{bi('讀外語單據要用你自己的免費鎖匙。鎖匙只留在這部機，唔好發出去。', 'Foreign receipts need your own free key. It stays on this device. Do not send it out.')}</p>
-                  <ol className="list-decimal space-y-2 pl-5 text-sm text-slate-700">
-                    <li>{bi(<>到 <a href="https://openrouter.ai/" target="_blank" rel="noreferrer" className="font-semibold text-brand-700 underline">OpenRouter</a> 註冊或登入，再開啟 <a href="https://openrouter.ai/settings/keys" target="_blank" rel="noreferrer" className="font-semibold text-brand-700 underline">API Keys 金鑰頁</a>。</>, <>Sign up or sign in at <a href="https://openrouter.ai/" target="_blank" rel="noreferrer" className="font-semibold text-brand-700 underline">OpenRouter</a>, then open the <a href="https://openrouter.ai/settings/keys" target="_blank" rel="noreferrer" className="font-semibold text-brand-700 underline">API Keys page</a>.</>)}</li>
-                    <li>{bi('按「Create」或「Create API Key」，輸入容易辨認的名稱；如有提供用量上限，建議設定上限。', 'Click “Create” or “Create API Key” and give it a recognizable name. Set a usage limit if offered.')}</li>
-                    <li>{bi('建立後立即複製金鑰（通常只會完整顯示一次），返回本程式「設定」，貼到「免費 API 金鑰」，再按「儲存並驗證」。', 'Copy the key as soon as it is created (it may only be shown once). Return to this app’s Settings, paste it into “Free API key,” then tap “Save and verify.”')}</li>
-                  </ol>
-                  <figure className="space-y-1.5">
-                    <img src="./images/openrouter-api-keys.webp" alt={bi('OpenRouter API Keys 金鑰頁面的真實截圖，顯示建立金鑰按鈕。', 'A real screenshot of OpenRouter’s API Keys page showing the create-key button.')} loading="lazy" className="w-full rounded-lg border border-slate-300" />
-                    <figcaption className="text-xs text-slate-500">{bi('OpenRouter 金鑰頁實際畫面；介面或按鈕字樣可能更新。', 'Actual OpenRouter key-page interface; labels may change over time.')}</figcaption>
-                  </figure>
-                  <p className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs leading-relaxed text-amber-900">{bi('建立金鑰不代表所有模型都免費；請選免費模型，留意用量和帳戶消費上限。不要把金鑰貼到群組或公開網頁。', 'Creating a key does not make every model free. Choose a free model, monitor usage and spending limits, and never share the key in a group or public webpage.')}</p>
-                  <div className="bg-slate-50 border border-slate-400 rounded-xl p-3 text-sm space-y-1.5">
+                <div id="openrouter-guide" className="scroll-mt-24">
+                <Accordion title={bi('🔑 OpenRouter：畫面圖解申請 API 金鑰', '🔑 OpenRouter: create an API key, step by step')} tone="slate" icon={icons.key} defaultOpen={true}>
+                  <p className="text-sm text-slate-800 leading-relaxed mb-3">{bi(<>以下係 OpenRouter 真實介面截圖，紅圈標出要按或填的位置。先 <a href="https://openrouter.ai/" target="_blank" rel="noreferrer" className="font-semibold text-brand-700 underline">註冊／登入</a>，再開 <a href="https://openrouter.ai/keys" target="_blank" rel="noreferrer" className="font-semibold text-brand-700 underline">OpenRouter 官方 API Keys 頁</a>。</>, <>These are real OpenRouter interface screenshots; red circles mark where to click or type. <a href="https://openrouter.ai/" target="_blank" rel="noreferrer" className="font-semibold text-brand-700 underline">Sign up or sign in</a>, then open the <a href="https://openrouter.ai/keys" target="_blank" rel="noreferrer" className="font-semibold text-brand-700 underline">official API Keys page</a>.</>)}</p>
+                  <div className="space-y-4 text-sm leading-relaxed text-slate-700">
+                    <section>
+                      <h4 className="font-bold text-slate-800">{bi('1. 開啟 API Keys 頁，按「Create」', '1. Open API Keys and click “Create”')}</h4>
+                      <p>{bi('如已登入，直接按上面的官方連結；畫面左邊若見到「API Keys」，按該項目，再按頁面中的「Create」。', 'After signing in, use the official link above. If you see “API Keys” in the left menu, open it, then click “Create”.')}</p>
+                      <figure className="mt-2 space-y-1.5">
+                        <a href="./images/openrouter-api-keys-page.webp" target="_blank" rel="noreferrer" className="relative block" aria-label={bi('按一下放大 API Keys 截圖', 'Open the API Keys screenshot full size')}>
+                          <img src="./images/openrouter-api-keys-page.webp" alt={bi('OpenRouter 真實 API Keys 頁面截圖，紅圈標示左側 API Keys 和 Create 按鈕。', 'Real OpenRouter API Keys screenshot with red circles around the API Keys menu and Create button.')} loading="lazy" className="w-full rounded-lg border border-slate-300" />
+                          <svg viewBox="0 0 3248 1978" preserveAspectRatio="none" aria-hidden="true" className="pointer-events-none absolute inset-0 h-full w-full"><ellipse cx="300" cy="932" rx="155" ry="58" fill="#ef4444" fillOpacity="0.05" stroke="#dc2626" strokeWidth="30"/><ellipse cx="1892" cy="1084" rx="190" ry="72" fill="#ef4444" fillOpacity="0.05" stroke="#dc2626" strokeWidth="30"/></svg>
+                        </a>
+                        <figcaption className="text-xs text-slate-500">{bi('真實介面圖；紅圈為本頁位置標註。按圖可放大。', 'Real interface; red circles are annotations. Tap the image to zoom.')}</figcaption>
+                      </figure>
+                    </section>
+                    <section>
+                      <h4 className="font-bold text-slate-800">{bi('2. 填名稱和用量上限，再按「Create」', '2. Enter a name and usage limit, then click “Create”')}</h4>
+                      <p>{bi('「Name」只係方便你認得這把鎖匙，例如 Bill Splitter。「Credit limit」係這把鎖匙可用的消費上限；建議設定一個你接受的上限，唔好留空（留空代表不限額）。「Reset limit」和「Expiration」按需要選；不肯定就先設消費上限，不要開自動加額。', '“Name” is just a label, such as Bill Splitter. “Credit limit” caps spending for this key; OpenRouter recommends setting a limit, and blank means unlimited. Choose “Reset limit” and “Expiration” only if needed. If unsure, set a spending cap and do not enable automatic top-ups.')}</p>
+                      <figure className="mt-2 space-y-1.5">
+                        <a href="./images/openrouter-create-key.webp" target="_blank" rel="noreferrer" className="relative block" aria-label={bi('按一下放大建立金鑰表單截圖', 'Open the create-key form screenshot full size')}>
+                          <img src="./images/openrouter-create-key.webp" alt={bi('OpenRouter 真實建立金鑰表單截圖，紅圈標示名稱、Credit limit 和 Create。', 'Real OpenRouter create-key form with red circles around Name, Credit limit, and Create.')} loading="lazy" className="w-full rounded-lg border border-slate-300" />
+                          <svg viewBox="0 0 3248 1978" preserveAspectRatio="none" aria-hidden="true" className="pointer-events-none absolute inset-0 h-full w-full"><ellipse cx="1635" cy="785" rx="465" ry="58" fill="#ef4444" fillOpacity="0.05" stroke="#dc2626" strokeWidth="30"/><ellipse cx="1635" cy="970" rx="465" ry="58" fill="#ef4444" fillOpacity="0.05" stroke="#dc2626" strokeWidth="30"/><ellipse cx="1980" cy="1440" rx="205" ry="86" fill="#ef4444" fillOpacity="0.05" stroke="#dc2626" strokeWidth="30"/></svg>
+                        </a>
+                        <figcaption className="text-xs text-slate-500">{bi('表單真實畫面；截圖中的範例名稱只係示範。按圖可放大。', 'Real form; the sample name in the screenshot is illustrative. Tap to zoom.')}</figcaption>
+                      </figure>
+                    </section>
+                    <section>
+                      <h4 className="font-bold text-slate-800">{bi('3. 立即複製金鑰，貼回本程式', '3. Copy the key immediately and paste it into this app')}</h4>
+                      <p>{bi('按建立後，OpenRouter 會顯示新金鑰；立即複製並保存在安全位置。之後到本程式「設定」，貼到「免費 API 金鑰」，按「儲存並驗證」。金鑰只留在自己裝置，切勿傳給朋友或貼到公開網頁。', 'After creation, copy the new key immediately and keep it somewhere secure. In this app, open Settings, paste it into “Free API key,” then tap “Save and verify.” Keep the key on your device; never send it to friends or post it publicly.')}</p>
+                    </section>
+                  </div>
+                  <p className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs leading-relaxed text-amber-900">{bi('申請金鑰本身不代表模型使用免費。模型收費依 OpenRouter 當時標示；只想用免費模型，就選明確標示為 Free 的型號並檢查用量。建立和複製金鑰畫面可能只顯示一次，所以不要截圖或分享含完整金鑰的畫面。', 'A key does not make model usage free. Pricing depends on the model shown by OpenRouter. For free use, choose a model explicitly marked Free and monitor usage. The new key may only be shown once, so do not screenshot or share a screen containing the full key.')}</p>
+                  <p className="mt-3 text-xs text-slate-500">{bi(<>截圖來源：<a href="https://developer.puter.com/tutorials/how-to-get-openrouter-api-key/" target="_blank" rel="noreferrer" className="underline">Puter.js OpenRouter 金鑰圖文教學</a>；紅圈是本頁標註。欄位或按鈕字樣日後可能改變。更多說明見 <a href="https://openrouter.ai/docs/api_reference/authentication" target="_blank" rel="noreferrer" className="underline">OpenRouter 官方認證文件</a>。</>, <>Screenshots: <a href="https://developer.puter.com/tutorials/how-to-get-openrouter-api-key/" target="_blank" rel="noreferrer" className="underline">Puter.js OpenRouter guide</a>; red circles are this page’s annotations. Labels may change. See <a href="https://openrouter.ai/docs/api_reference/authentication" target="_blank" rel="noreferrer" className="underline">OpenRouter’s official authentication docs</a>.</>)}</p>
+                  <div className="mt-3 bg-slate-50 border border-slate-400 rounded-xl p-3 text-sm space-y-1.5">
                     <p className="font-bold text-slate-800">{tr("記住我的鎖匙（免每次重輸）")}</p>
                     <p className="text-slate-600 text-xs">{bi('在設定勾選記住鎖匙，只存在這部機。', 'In Settings, choose to remember the key. It stays on this device.')}</p>
                   </div>
                 </Accordion>
+                </div>
 
                 <Accordion title={bi('朋友點樣交返', 'How friends send their share')} tone="slate" defaultOpen={true} icon={icons.send}>
                   <ul className="list-disc space-y-2 pl-5">
@@ -3925,9 +3991,9 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
       const savedUi = useRef(null);
       const openHelp = useRef(null);
       const restoreFrame = useRef(0);
-      const startTour = showHelp => {
+      const startTour = (showHelp, returnPosition) => {
         cancelAnimationFrame(restoreFrame.current);
-        savedUi.current = { x: window.scrollX, y: window.scrollY, focus: document.activeElement };
+        savedUi.current = { x: returnPosition?.x ?? window.scrollX, y: returnPosition?.y ?? window.scrollY, focus: document.activeElement };
         openHelp.current = showHelp;
         setTourOpen(true);
       };
@@ -3938,7 +4004,7 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
         restoreFrame.current = requestAnimationFrame(() => {
           if (showHelp) window.scrollTo({ left: 0, top: 0, behavior: 'instant' });
           else if (saved) {
-            saved.focus?.isConnected && saved.focus.focus({ preventScroll: true });
+            (saved.focus?.isConnected ? saved.focus : document.querySelector('[data-testid="start-tutorial"]'))?.focus({ preventScroll: true });
             window.scrollTo({ left: saved.x, top: saved.y, behavior: 'instant' });
           }
         });
