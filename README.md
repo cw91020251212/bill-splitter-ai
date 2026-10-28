@@ -1,6 +1,6 @@
-## v77：OpenRouter 金鑰申請教學
+## v78：直接顯示 OpenRouter 金鑰申請教學
 
-新手教學的「AI 設定與鎖匙」加入 OpenRouter 註冊／登入、建立及複製 API 金鑰、貼回本程式設定並驗證的步驟，中英文同步更新。附上 OpenRouter API Keys 頁面的真實截圖，並提醒模型可能收費及應設定用量上限、勿分享金鑰。新增 `images/openrouter-api-keys.webp`；快取版本為 `v77-openrouter-key-guide`。
+新手教學加入清楚標示「OpenRouter：申請 API 金鑰」的獨立欄目，打開教學時預設展開。內含中英文步驟、OpenRouter API Keys 頁面的真實截圖，以及費用和安全提醒；快取版本為 `v78-openrouter-tutorial-visible`。
 
 ## v75：四步互動教學
 

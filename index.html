@@ -77,8 +77,8 @@
     ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
     ::-webkit-scrollbar-thumb:hover { background: #64748b; }
   </style>
-  <link rel="stylesheet" href="./theme.css?v=v77-openrouter-key-guide">
-  <link rel="stylesheet" href="./tutorial.css?v=v77-openrouter-key-guide">
+  <link rel="stylesheet" href="./theme.css?v=v78-openrouter-tutorial-visible">
+  <link rel="stylesheet" href="./tutorial.css?v=v78-openrouter-tutorial-visible">
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
@@ -86,7 +86,7 @@
   <script src="./i18n.js"></script>
   <script src="./claim-relay.js"></script>
   <script src="./ocr-cascade.js"></script>
-  <script src="./tutorial.js?v=v77-openrouter-key-guide"></script>
+  <script src="./tutorial.js?v=v78-openrouter-tutorial-visible"></script>
   <script type="text/babel">
     const { useState, useRef, useEffect, useLayoutEffect, useMemo } = React;
     const tr = value => window.BillI18n.t(value);
@@ -3702,7 +3702,7 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
                   </div>
                 </Accordion>
 
-                <Accordion title={tr("🔑 6. AI 設定與鎖匙")} tone="slate" icon={icons.key}>
+                <Accordion title={bi('🔑 OpenRouter：申請 API 金鑰', '🔑 OpenRouter: Get an API key')} tone="slate" icon={icons.key} defaultOpen={true}>
                   <p className="text-sm text-slate-800 leading-relaxed mb-3">{bi('讀外語單據要用你自己的免費鎖匙。鎖匙只留在這部機，唔好發出去。', 'Foreign receipts need your own free key. It stays on this device. Do not send it out.')}</p>
                   <ol className="list-decimal space-y-2 pl-5 text-sm text-slate-700">
                     <li>{bi(<>到 <a href="https://openrouter.ai/" target="_blank" rel="noreferrer" className="font-semibold text-brand-700 underline">OpenRouter</a> 註冊或登入，再開啟 <a href="https://openrouter.ai/settings/keys" target="_blank" rel="noreferrer" className="font-semibold text-brand-700 underline">API Keys 金鑰頁</a>。</>, <>Sign up or sign in at <a href="https://openrouter.ai/" target="_blank" rel="noreferrer" className="font-semibold text-brand-700 underline">OpenRouter</a>, then open the <a href="https://openrouter.ai/settings/keys" target="_blank" rel="noreferrer" className="font-semibold text-brand-700 underline">API Keys page</a>.</>)}</li>
