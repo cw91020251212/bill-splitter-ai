@@ -107,7 +107,7 @@ function draft() {
     assert.deepEqual(apiRequests, [], 'no OpenRouter API calls or key submissions');
     record('no-api-calls', 'the guide test never enters, copies, OCRs, or submits a key');
 
-    const app = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1 });
+    const app = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
     await app.goto(base, { waitUntil: 'networkidle', timeout: 60000 });
     await app.evaluate(record => {
       localStorage.setItem('billSplitterActiveDraftV1', JSON.stringify(record));
@@ -120,6 +120,33 @@ function draft() {
     await app.locator('[data-testid="start-tutorial"]').click();
     await app.locator('[data-testid="tutorial-mode-text"]').click();
     await app.locator('#openrouter-guide').waitFor({ state: 'visible' });
+    const videoCard = app.getByTestId('tutorial-video-card');
+    const operationVideo = app.getByTestId('tutorial-operation-video');
+    assert(await videoCard.isVisible(), 'the operation video has a separate entry in the existing tutorial');
+    assert.match(await videoCard.innerText(), /觀看分帳操作短片/);
+    assert.equal(await operationVideo.locator('source').getAttribute('src'), './assets/bill-splitter-operation-cantonese.mp4');
+    assert.equal(await app.locator('#openrouter-guide [data-testid="tutorial-operation-video"]').count(), 0, 'the operation video is separate from the OpenRouter guide');
+    await app.waitForFunction(() => {
+      const video = document.querySelector('[data-testid="tutorial-operation-video"]');
+      return video && video.readyState >= HTMLMediaElement.HAVE_METADATA && video.videoWidth === 1080 && video.videoHeight === 1920;
+    }, null, { timeout: 30000 });
+    const videoLayout = await operationVideo.evaluate(video => {
+      const rect = video.getBoundingClientRect();
+      return { width: rect.width, height: rect.height, viewportWidth: innerWidth, maxHeight: innerHeight * 0.68, controls: video.controls, playsInline: video.playsInline };
+    });
+    assert(videoLayout.controls && videoLayout.playsInline, 'native controls and inline mobile playback are enabled');
+    assert(videoLayout.width > 0 && videoLayout.width <= videoLayout.viewportWidth + 1, 'video fits the mobile viewport');
+    assert(videoLayout.height <= videoLayout.maxHeight + 1, 'video height is capped for mobile');
+    const playback = await operationVideo.evaluate(async video => {
+      video.muted = true;
+      await video.play();
+      await new Promise(resolve => setTimeout(resolve, 900));
+      const result = { currentTime: video.currentTime, paused: video.paused };
+      video.pause();
+      return result;
+    });
+    assert(playback.currentTime > 0.1 && !playback.paused, 'the MP4 decodes and advances on mobile');
+    record('mobile-tutorial-video-playback', '390×844 touch viewport; inline H.264/AAC playback advances; player is separate from the key guide');
     const guideLink = app.locator('[data-testid="openrouter-key-guide-link"]');
     assert(await guideLink.isVisible(), 'existing tutorial still has one entry to the guide');
     assert.equal(await guideLink.getAttribute('href'), './openrouter-key-guide.html');

@@ -3696,6 +3696,17 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
                   <a href="#openrouter-guide" className="inline-flex mt-3 text-sm font-bold text-brand-700 underline underline-offset-2">{bi('直接看 OpenRouter 金鑰畫面圖解 ↓', 'Jump to the OpenRouter key screenshots ↓')}</a>
                 </Card>
 
+                <Card data-testid="tutorial-video-card" className="p-0 overflow-hidden border-brand-600 bg-white shadow-sm">
+                  <div className="px-5 pt-4 pb-3">
+                    <h3 className="text-base font-bold text-slate-800">{bi('觀看分帳操作短片', 'Watch the bill-splitting video')}</h3>
+                    <p className="mt-2 text-sm leading-relaxed text-slate-700">{bi('約 1 分鐘，示範由入單、朋友認帳到分享結算結果。第一次用 AI 讀單前，請先設定 API Key；設定步驟請看下方獨立的 OpenRouter 七步圖解。', 'About one minute: see receipt entry, friends’ claims, and sharing the split. Set up your API key before AI receipt scanning; setup steps are in the separate OpenRouter guide below.')}</p>
+                  </div>
+                  <video data-testid="tutorial-operation-video" controls playsInline preload="metadata" aria-label={bi('分帳操作廣東話示範短片', 'Cantonese bill-splitting tutorial video')} className="mx-auto mb-4 block max-h-[68dvh] w-auto max-w-full rounded-xl bg-black">
+                    <source src="./assets/bill-splitter-operation-cantonese.mp4" type="video/mp4" />
+                    {bi('你的瀏覽器未能播放 MP4 影片。', 'Your browser cannot play this MP4 video.')}
+                  </video>
+                </Card>
+
                 <Card className="p-0 overflow-hidden border-slate-500">
                   <div className="bg-slate-50 px-5 py-4 border-b border-slate-400">
                     <h3 className="font-bold text-slate-800 text-base flex items-center gap-2">{tr("🗺️ 整個流程（4 步）")}</h3>

@@ -13,7 +13,7 @@
  * Bump CACHE_VERSION whenever you edit index.html so returning users get the
  * new build instead of the cached one.
  */
-const CACHE_VERSION = 'v82-openrouter-mobile-steps';
+const CACHE_VERSION = 'v83-cantonese-tutorial-video';
 const SHELL_CACHE = `bill-splitter-shell-${CACHE_VERSION}`;
 const ASSET_CACHE = `bill-splitter-assets-${CACHE_VERSION}`;
 const CDN_CACHE = `bill-splitter-cdn-${CACHE_VERSION}`;
@@ -126,6 +126,9 @@ self.addEventListener('fetch', (event) => {
   if (NO_CACHE_HOSTS.some((h) => url.hostname === h || url.hostname.endsWith('.' + h))) {
     return; // straight to network, never stored
   }
+
+  // Native media playback needs byte-range requests; leave MP4 streaming to the browser.
+  if (url.pathname.toLowerCase().endsWith('.mp4')) return;
 
   // Page navigations: network first, cached shell as offline fallback.
   if (request.mode === 'navigate') {
