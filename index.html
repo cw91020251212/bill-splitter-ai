@@ -77,8 +77,8 @@
     ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
     ::-webkit-scrollbar-thumb:hover { background: #64748b; }
   </style>
-  <link rel="stylesheet" href="./theme.css?v=v76-contextual-tutorial">
-  <link rel="stylesheet" href="./tutorial.css?v=v76-contextual-tutorial">
+  <link rel="stylesheet" href="./theme.css?v=v77-openrouter-key-guide">
+  <link rel="stylesheet" href="./tutorial.css?v=v77-openrouter-key-guide">
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
@@ -86,7 +86,7 @@
   <script src="./i18n.js"></script>
   <script src="./claim-relay.js"></script>
   <script src="./ocr-cascade.js"></script>
-  <script src="./tutorial.js?v=v76-contextual-tutorial"></script>
+  <script src="./tutorial.js?v=v77-openrouter-key-guide"></script>
   <script type="text/babel">
     const { useState, useRef, useEffect, useLayoutEffect, useMemo } = React;
     const tr = value => window.BillI18n.t(value);
@@ -3704,6 +3704,16 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
 
                 <Accordion title={tr("🔑 6. AI 設定與鎖匙")} tone="slate" icon={icons.key}>
                   <p className="text-sm text-slate-800 leading-relaxed mb-3">{bi('讀外語單據要用你自己的免費鎖匙。鎖匙只留在這部機，唔好發出去。', 'Foreign receipts need your own free key. It stays on this device. Do not send it out.')}</p>
+                  <ol className="list-decimal space-y-2 pl-5 text-sm text-slate-700">
+                    <li>{bi(<>到 <a href="https://openrouter.ai/" target="_blank" rel="noreferrer" className="font-semibold text-brand-700 underline">OpenRouter</a> 註冊或登入，再開啟 <a href="https://openrouter.ai/settings/keys" target="_blank" rel="noreferrer" className="font-semibold text-brand-700 underline">API Keys 金鑰頁</a>。</>, <>Sign up or sign in at <a href="https://openrouter.ai/" target="_blank" rel="noreferrer" className="font-semibold text-brand-700 underline">OpenRouter</a>, then open the <a href="https://openrouter.ai/settings/keys" target="_blank" rel="noreferrer" className="font-semibold text-brand-700 underline">API Keys page</a>.</>)}</li>
+                    <li>{bi('按「Create」或「Create API Key」，輸入容易辨認的名稱；如有提供用量上限，建議設定上限。', 'Click “Create” or “Create API Key” and give it a recognizable name. Set a usage limit if offered.')}</li>
+                    <li>{bi('建立後立即複製金鑰（通常只會完整顯示一次），返回本程式「設定」，貼到「免費 API 金鑰」，再按「儲存並驗證」。', 'Copy the key as soon as it is created (it may only be shown once). Return to this app’s Settings, paste it into “Free API key,” then tap “Save and verify.”')}</li>
+                  </ol>
+                  <figure className="space-y-1.5">
+                    <img src="./images/openrouter-api-keys.webp" alt={bi('OpenRouter API Keys 金鑰頁面的真實截圖，顯示建立金鑰按鈕。', 'A real screenshot of OpenRouter’s API Keys page showing the create-key button.')} loading="lazy" className="w-full rounded-lg border border-slate-300" />
+                    <figcaption className="text-xs text-slate-500">{bi('OpenRouter 金鑰頁實際畫面；介面或按鈕字樣可能更新。', 'Actual OpenRouter key-page interface; labels may change over time.')}</figcaption>
+                  </figure>
+                  <p className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs leading-relaxed text-amber-900">{bi('建立金鑰不代表所有模型都免費；請選免費模型，留意用量和帳戶消費上限。不要把金鑰貼到群組或公開網頁。', 'Creating a key does not make every model free. Choose a free model, monitor usage and spending limits, and never share the key in a group or public webpage.')}</p>
                   <div className="bg-slate-50 border border-slate-400 rounded-xl p-3 text-sm space-y-1.5">
                     <p className="font-bold text-slate-800">{tr("記住我的鎖匙（免每次重輸）")}</p>
                     <p className="text-slate-600 text-xs">{bi('在設定勾選記住鎖匙，只存在這部機。', 'In Settings, choose to remember the key. It stays on this device.')}</p>
