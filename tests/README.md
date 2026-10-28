@@ -33,8 +33,11 @@ node tests/tutorial-ui.cjs
 
 - 新瀏覽器首次開啟只出現一次教學引導；用家可略過，重新載入後不會重複出現；往後可自行從「教學」重開。
 - 教學中心只有兩個目錄，影片教學排第一、16 步互動教學排第二；影片次序為 OpenRouter API Key 設定、分帳操作示範。
+- 16 步互動教學開始前提示相片辨識需 OpenRouter API Key；已有金鑰可略過，影片連結會跳至現有 Key 教學，提示留在 16 步之外。
 - 兩支影片都有原生播放控制、使用 `preload="none"`，不帶 `autoplay`，初始維持暫停。
 - 設定頁不再提供付費模型選項；模型清單只列免費模型，舊版 localStorage／sessionStorage 的付費選擇會自動遷回免費模型。
+- 沒有已儲存 API Key 時「取得免費金鑰」為紅色，有金鑰時為綠色；設定頁的「影片教學」捷徑會打開教學中心並捲到 OpenRouter API Key 影片。
+- 已設定免費模型時狀態卡只顯示模型狀態；未設定金鑰時仍保留紅色設定提醒。
 - 香港繁體中文及英文介面；320×640、390×844、768×1024、1280×800 及 844×390 五種視窗。
 - 16 個互動停留點：`upload`、`manual`、`verify`、`items`、`fee`、`share`、`share-options`、`replies`、`payer`、`currency`、`payment`、`tax-method`、`calculate`、`report`、`report-share`、`detail`；並核對其對應的四個 App 步驟。
 - 目標高亮、卡片不遮擋目標、無橫向溢出、卡片不超過 340px、非模態對話框及示範 App 保持可互動；目前目標以外的控制不可鍵盤操作。

@@ -1010,6 +1010,7 @@
       const [showSettings, setShowSettings] = useState(false);
       const [showTutorial, setShowTutorial] = useState(false);
       const tutorialMenuOrigin = useRef(null);
+      const tutorialVideoJumpRef = useRef(false);
       const firstVisitStateRef = useRef(null);
       const firstVisitPromptCheckedRef = useRef(false);
       if (!tutorialDemo && firstVisitStateRef.current === null) {
@@ -1065,6 +1066,11 @@
       const claimLinkSharedRef = useRef(false);
       const pendingClaimShareScrollRef = useRef(false);
       const [claimLinkShared, setClaimLinkShared] = useState(false);
+      useEffect(() => {
+        if (!showTutorial || !tutorialVideoJumpRef.current) return;
+        tutorialVideoJumpRef.current = false;
+        requestAnimationFrame(() => document.getElementById('openrouter-key-video')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+      }, [showTutorial]);
       useEffect(() => {
         if (tutorialDemo || !showClaimShareDialog) return;
         const dialog = claimShareDialogRef.current;
@@ -3214,13 +3220,11 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
                             : bi(`✅ 免費 ${Ocr.shortLabel(resolveBillModel(apiModel, allowPaidModels))} 已設定`, `✅ Free ${Ocr.shortLabel(resolveBillModel(apiModel, allowPaidModels))} is set`))
                           : bi('⚠️ 尚未設定免費鎖匙', '⚠️ Free key is not set yet')}
                       </span>
-                      <span className={`block text-base font-medium leading-snug ${apiKey.trim() ? 'text-slate-600' : 'text-red-700'}`}>
-                        {apiKey.trim()
-                          ? (!modelUsesFreeTier(apiModel, allowPaidModels)
-                            ? bi('可能產生費用。點此返回設定。', 'This may cost money. Tap to open settings.')
-                            : bi('預設唔使充值。點此可改模型或鎖匙。', 'The default needs no top-up. Tap to change the model or key.'))
-                          : bi('點擊此處設定免費鎖匙，先可以讀外語單據。', 'Tap here to set a free key before a foreign receipt can be read.')}
-                      </span>
+                      {!apiKey.trim() && (
+                        <span className="block text-base font-medium leading-snug text-red-700">
+                          {bi('點擊此處設定免費鎖匙，先可以讀外語單據。', 'Tap here to set a free key before a foreign receipt can be read.')}
+                        </span>
+                      )}
                     </div>
                     <Icon path={icons.settings} size={22} className="shrink-0 text-slate-500"/>
                   </button>
@@ -3699,7 +3703,7 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
                       <h2 id="video-lessons-title" className="text-lg font-extrabold text-slate-800">{bi('👍 必看影片教學', '👍 Must-watch video lessons')}</h2>
                     </div>
                     <div className="space-y-4 px-4 pb-4">
-                      <article data-testid="openrouter-video-card" className="rounded-xl border border-slate-400 bg-slate-50 p-3">
+                      <article id="openrouter-key-video" data-testid="openrouter-video-card" className="scroll-mt-24 rounded-xl border border-slate-400 bg-slate-50 p-3">
                         <h3 className="text-base font-bold text-slate-800">{bi('1. OpenRouter API Key 設定教學', '1. OpenRouter API key setup')}</h3>
                         <p className="mt-1 mb-3 text-sm leading-relaxed text-slate-700">{bi('示範申請及設定 OpenRouter API Key。', 'Create and add an OpenRouter API key.')}</p>
                         <video data-testid="tutorial-openrouter-video" controls playsInline preload="none" aria-label={bi('OpenRouter API Key 設定影片', 'OpenRouter API key setup video')} className="mx-auto block max-h-[56dvh] w-auto max-w-full rounded-xl bg-black">
@@ -3724,6 +3728,10 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
                   <Card className="border-slate-500 bg-white shadow-sm">
                     <h2 id="interactive-guide-title" className="text-lg font-extrabold text-slate-800">{bi('16 步互動教學', '16-step interactive guide')}</h2>
                     <p className="mt-1 mb-4 text-sm leading-relaxed text-slate-700">{bi('跟隨 16 步操作示範，不會修改你的帳單。', 'Try 16 steps with sample data; your bill stays unchanged.')}</p>
+                    <div data-testid="api-key-prerequisite" className="mb-4 rounded-lg border border-amber-300 bg-amber-50 p-3">
+                      <p className="text-sm leading-relaxed text-slate-700">{bi('首次用單據相片辨識，需先設定 OpenRouter API Key；已有金鑰可略過。', 'Set up an OpenRouter API key first for receipt-photo recognition. Already have one? Skip this.')}</p>
+                      <a data-testid="openrouter-key-video-link" href="#openrouter-key-video" className="mt-1 inline-block text-xs font-semibold text-brand-800 underline underline-offset-2">{bi('觀看 OpenRouter API Key 教學影片', 'Watch the OpenRouter API key video')}</a>
+                    </div>
                     <Button data-testid="start-interactive-tutorial" className="w-full" onClick={() => {
                       if (!onStartTutorial || typeof window.BillTutorial !== 'function') return;
                       const origin = tutorialMenuOrigin.current || { x: window.scrollX, y: window.scrollY };
@@ -3801,7 +3809,16 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
                   <h2 className="text-2xl font-bold flex items-center gap-2 text-slate-800"><Icon path={icons.settings} className="settings-mark"/>{tr(" 系統設定")}</h2>
                   <Card><LanguageSwitch value={uiLang} onChange={changeUiLanguage} /></Card>
                   <Card>
-                    <Label className="text-base mb-3">{tr("API 服務供應商")}</Label>
+                    <div className="mb-3 flex items-center justify-between gap-2">
+                      <Label className="text-base !mb-0">{tr("API 服務供應商")}</Label>
+                      <button type="button" data-testid="settings-key-video-link" aria-label={bi('OpenRouter API Key 教學影片', 'OpenRouter API key tutorial video')} onClick={() => {
+                        tutorialMenuOrigin.current = { x: window.scrollX, y: window.scrollY };
+                        tutorialVideoJumpRef.current = true;
+                        setShowHistory(false);
+                        setShowSettings(false);
+                        setShowTutorial(true);
+                      }} className="shrink-0 rounded-md border border-brand-600 px-2 py-1 text-xs font-semibold text-brand-700 hover:bg-brand-50">{bi('影片教學', 'Video guide')}</button>
+                    </div>
                     <div className="mb-6 rounded-xl border border-brand-500 bg-brand-50 p-4">
                       <div className="font-bold text-base text-brand-900">OpenRouter</div>
                       <p className="text-base text-slate-700 font-medium mt-1 leading-relaxed">{bi('用來讀外語單據。預設免費。鎖匙只留在這部機。', 'Used to read foreign receipts. Free by default. The key stays on this device.')}</p>
@@ -3827,7 +3844,7 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
                       </div>
 
                       <div>
-                        <Label className="text-base flex justify-between items-center">{bi('免費 API 金鑰', 'Free API key')}<a href="https://openrouter.ai/settings/keys" target="_blank" rel="noreferrer" className="text-sm text-brand-700 hover:text-brand-800 underline font-semibold">{bi('取得免費金鑰 ↗', 'Get a free key ↗')}</a>
+                        <Label className="text-base flex justify-between items-center">{bi('免費 API 金鑰', 'Free API key')}<a data-testid="get-free-api-key" data-key-saved={!isEditingKey && Boolean(apiKey.trim()) ? 'true' : 'false'} href="https://openrouter.ai/settings/keys" target="_blank" rel="noreferrer" className={`text-sm underline font-semibold ${!isEditingKey && apiKey.trim() ? 'text-brand-700 hover:text-brand-800' : 'text-red-700 hover:text-red-900'}`}>{bi('取得免費金鑰 ↗', 'Get a free key ↗')}</a>
                         </Label>
                         {!isEditingKey && apiKey ? (
                           <div className="bg-slate-50 border border-slate-400 rounded-xl p-4 mt-2">

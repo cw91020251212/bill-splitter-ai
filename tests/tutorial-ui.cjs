@@ -249,6 +249,15 @@ async function runTutorialHubSmoke(browser) {
   assert.deepEqual(videoSources, ['./assets/OpenRouter_API_Key_Tutorial_Preview_Revised.mp4', './assets/bill-splitter-operation-cantonese.mp4'], 'OpenRouter setup must precede the operation clip');
   const videoStates = await page.locator('[data-testid="video-lessons-directory"] video').evaluateAll(nodes => nodes.map(node => ({ autoplay: node.hasAttribute('autoplay'), paused: node.paused, preload: node.getAttribute('preload') })));
   assert.deepEqual(videoStates, [{ autoplay: false, paused: true, preload: 'none' }, { autoplay: false, paused: true, preload: 'none' }], 'videos must wait for a user tap');
+  assert.match(await page.getByTestId('api-key-prerequisite').innerText(), /首次用單據相片辨識.*OpenRouter API Key.*已有金鑰可略過/);
+  assert.equal(await page.getByTestId('interactive-tutorial').count(), 0, 'the prerequisite must stay outside the 16 numbered steps');
+  assert.equal(await page.getByTestId('openrouter-key-video-link').getAttribute('href'), '#openrouter-key-video');
+  await page.getByTestId('openrouter-key-video-link').click();
+  await page.waitForFunction(() => location.hash === '#openrouter-key-video');
+  const keyVideoVisible = await page.locator('#openrouter-key-video').evaluate(node => {
+    const rect = node.getBoundingClientRect(); return rect.top >= 0 && rect.top < innerHeight;
+  });
+  assert(keyVideoVisible, 'the API Key link must bring the existing video into view');
   await page.getByTestId('skip-tutorials').click();
   await page.getByTestId('tutorial-hub').waitFor({ state: 'detached' });
   await page.getByTestId('start-tutorial').waitFor({ state: 'visible' });
@@ -264,10 +273,42 @@ async function runTutorialHubSmoke(browser) {
   results.push({ label: 'video-first-hub-one-time-prompt-no-autoplay', passed: true }); console.log('PASS video-first-hub-one-time-prompt-no-autoplay');
   await context.close();
 }
+async function runKeyStatusHintSmoke(browser) {
+  for (const [label, key] of [['missing', ''], ['saved', 'test-api-key-only']]) {
+    const context = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' });
+    const page = await context.newPage();
+    await page.goto(base + 'tests/README.md', { waitUntil: 'networkidle' });
+    await page.evaluate(key => {
+      localStorage.setItem('billSplitterApiConfig', JSON.stringify({ engine: 'openrouter', keys: { openrouter: key }, model: 'nvidia/nemotron-3.5-super-vl:free', allowPaidModels: false }));
+      localStorage.setItem('billSplitterHistory', '[]');
+      localStorage.setItem('billSplitterLanguage', 'zh-HK');
+    }, key);
+    await page.goto(base, { waitUntil: 'networkidle' });
+    await page.waitForFunction(hasKey => {
+      const text = document.querySelector('[data-testid="open-free-key-settings"]')?.innerText || '';
+      return hasKey ? text.includes('已設定') : text.includes('尚未設定免費鎖匙');
+    }, Boolean(key));
+    const statusText = await page.getByTestId('open-free-key-settings').innerText();
+    if (key) {
+      assert.match(statusText, /免費 .*已設定/);
+      assert(!statusText.includes('預設唔使充值'));
+      assert(!statusText.includes('點此可改模型或鎖匙'));
+      assert(!statusText.includes('The default needs no top-up'));
+      assert(!statusText.includes('Tap to change the model or key'));
+    } else {
+      assert.match(statusText, /尚未設定免費鎖匙/);
+      assert.match(statusText, /點擊此處設定免費鎖匙/);
+    }
+    await context.close();
+  }
+  results.push({ label: 'key-status-hint-removed-but-missing-key-guidance-kept', passed: true });
+  console.log('PASS key-status-hint-removed-but-missing-key-guidance-kept');
+}
 (async () => {
   const browser = await chromium.launch({ headless: true, executablePath: process.env.CHROMIUM_EXECUTABLE || undefined, args: ['--no-sandbox'] });
   try {
     await runTutorialHubSmoke(browser);
+    await runKeyStatusHintSmoke(browser);
     const sizes = [{ width: 320, height: 640 }, { width: 390, height: 844 }, { width: 768, height: 1024 }, { width: 1280, height: 800 }, { width: 844, height: 390 }];
     for (const language of ['zh-HK', 'en']) for (const viewport of sizes) {
       const label = `${language}-${viewport.width}x${viewport.height}`;
