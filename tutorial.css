@@ -60,6 +60,8 @@
 .bt-kicker { margin: 0 0 5px; color: #29835f; font-size: 10px; line-height: 1.4; font-weight: 800; letter-spacing: .055em; }
 .bt-copy h2 { margin: 0; color: #1d2921; font-size: 18px; line-height: 1.35; font-weight: 800; overflow-wrap: anywhere; }
 .bt-description { margin: 7px 0 0; color: #435047; font-size: 13px; line-height: 1.6; font-weight: 600; overflow-wrap: anywhere; }
+.bt-key-help { display: inline-flex; align-items: center; margin-top: 9px; padding: 7px 10px; border: 1px solid #38976e; border-radius: 9px; background: #edf8f0; color: #22613f; font: inherit; font-size: 12px; font-weight: 800; cursor: pointer; }
+.bt-key-help:hover { background: #dff2e4; }
 .bt-feedback { margin: 8px 0 0; padding: 7px 8px; border-radius: 7px; background: #e8f5ec; color: #235d3e; font-size: 12px; line-height: 1.5; font-weight: 700; }
 .bt-controls { display: flex; align-items: center; gap: 7px; padding: 10px 13px 12px; border-top: 1px solid #e1e8e1; background: #f8faf6; flex: 0 0 auto; }
 .bt-controls button { min-height: 40px; padding: 8px 12px; border: 1px solid #b9c9bd; border-radius: 11px; font: inherit; font-size: 12px; font-weight: 800; line-height: 1.25; cursor: pointer; }

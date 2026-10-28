@@ -1,6 +1,6 @@
-## v78：直接顯示 OpenRouter 金鑰申請教學
+## v79：互動導覽加入 OpenRouter 金鑰教學入口
 
-新手教學加入清楚標示「OpenRouter：申請 API 金鑰」的獨立欄目，打開教學時預設展開。內含中英文步驟、OpenRouter API Keys 頁面的真實截圖，以及費用和安全提醒；快取版本為 `v78-openrouter-tutorial-visible`。
+互動導覽每一頁都提供「OpenRouter 金鑰申請教學」按鈕，可直接跳到已展開的金鑰申請說明。該專項移到詳細教學前段，從互動導覽開啟詳細說明時回到頁面頂部。快取版本為 `v79-openrouter-tour-help`。
 
 ## v75：四步互動教學
 

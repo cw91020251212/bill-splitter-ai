@@ -232,6 +232,7 @@
           h('p', { className: 'bt-kicker' }, (english ? 'SAMPLE · STEP ' : '示例 · 第 ') + stage.step + (english ? ' · ' : ' 步 · ') + MAIN_NAMES[stage.step - 1][english ? 1 : 0]),
           h('h2', { id: 'bt-title' }, stage.title[english ? 1 : 0]),
           h('p', { id: 'bt-description', className: 'bt-description' }, stage.copy[english ? 1 : 0]),
+          props.onOpenHelp ? h('button', { type: 'button', className: 'bt-key-help', onClick: props.onOpenHelp }, english ? 'OpenRouter API key guide' : 'OpenRouter 金鑰申請教學') : null,
           feedback ? h('p', { className: 'bt-feedback', 'data-testid': 'tutorial-feedback', role: 'status' }, feedback) : null
         ),
         h('footer', { className: 'bt-controls' },
