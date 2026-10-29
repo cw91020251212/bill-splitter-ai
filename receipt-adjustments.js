@@ -226,6 +226,25 @@
     };
   }
 
+  function summarizeAppliedReceiptRows(resolution, items = []) {
+    const applied = Array.isArray(resolution?.applied) ? resolution.applied : [];
+    return applied.map(adjustment => {
+      const itemIndex = adjustment.scope === 'item' && Number.isInteger(adjustment.itemIndex)
+        ? adjustment.itemIndex : null;
+      const item = itemIndex !== null ? items[itemIndex] : null;
+      const rate = adjustment.ratePercent;
+      const amount = Number(adjustment.amount);
+      return {
+        label: String(adjustment.label || '').replace(/\s+/g, ' ').trim(),
+        kind: adjustment.kind,
+        ratePercent: rate === null || rate === undefined || !Number.isFinite(Number(rate)) ? null : Number(rate),
+        amount,
+        itemName: String(item?.name || '').trim(),
+        itemNameEn: String(item?.nameEn || '').trim()
+      };
+    }).filter(row => ['tax', 'discount'].includes(row.kind) && row.label && Number.isFinite(row.amount) && row.amount > 0);
+  }
+
   function resolveReceiptAdjustments({ items = [], adjustments = [], taxTotal = null, discountTotal = null, receiptTotal = null, currency = 'HKD' } = {}) {
     const itemSubtotals = (Array.isArray(items) ? items : []).map(item => amountOfItem(item, currency));
     const subtotal = roundMoney(itemSubtotals.reduce((sum, value) => sum + value, 0), currency);
@@ -297,5 +316,5 @@
     };
   }
 
-  return { extractPayload, parseMoney, parseRatePercent, normalizeAdjustment, resolveReceiptAdjustments, currencyDecimals, toMinorUnits, roundMoney, formatMoney, moneyEquals, withinRoundingTolerance, isDiscountWithinSubtotal };
+  return { extractPayload, parseMoney, parseRatePercent, normalizeAdjustment, resolveReceiptAdjustments, summarizeAppliedReceiptRows, currencyDecimals, toMinorUnits, roundMoney, formatMoney, moneyEquals, withinRoundingTolerance, isDiscountWithinSubtotal };
 });

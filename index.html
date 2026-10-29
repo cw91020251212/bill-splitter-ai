@@ -944,6 +944,7 @@
       const [taxAmount, setTaxAmount] = useState(tutorialDemo ? '12' : '');
       const [discountAmount, setDiscountAmount] = useState('');
       const [taxNote, setTaxNote] = useState('');
+      const [receiptAdjustmentDetails, setReceiptAdjustmentDetails] = useState(null);
       const [friendsReplies, setFriendsReplies] = useState(tutorialDemo ? TUTORIAL_REPLIES : '');
 
       const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -1100,7 +1101,7 @@
       draftSnapshotRef.current = {
         ready: draftReady, hasWork: hasDraftWork, schema: 1,
         assetRevision: draftAssets.revision, hasAssets: hasDraftAssets || draftAssets.unavailable,
-        data: { step, items, taxAmount, discountAmount, taxNote, friendsReplies, payer, detectedCurrency, currency,
+        data: { step, items, taxAmount, discountAmount, taxNote, receiptAdjustmentDetails, friendsReplies, payer, detectedCurrency, currency,
           taxSplitMethod, paymentMethods, results, reconciliation, isSaved, includeReceiptImages, detailLang, pendingReceiptShare,
           claimRoom, claimInboxSeen, readReceipt, claimLinkShared: claimLinkSharedRef.current }
       };
@@ -1176,6 +1177,8 @@
             setOpenItemEdits({});
             [[setTaxAmount, 'taxAmount'], [setDiscountAmount, 'discountAmount'], [setTaxNote, 'taxNote'], [setFriendsReplies, 'friendsReplies'], [setPayer, 'payer']]
               .forEach(([setter, key]) => setter(typeof data[key] === 'string' || typeof data[key] === 'number' ? String(data[key]) : ''));
+            setReceiptAdjustmentDetails(data.receiptAdjustmentDetails && Array.isArray(data.receiptAdjustmentDetails.rows)
+              ? data.receiptAdjustmentDetails : null);
             setCurrency(typeof data.currency === 'string' ? data.currency : 'HKD');
             setDetectedCurrency(typeof data.detectedCurrency === 'string' ? data.detectedCurrency : 'HKD');
             setTaxSplitMethod(['equal', 'proportional'].includes(data.taxSplitMethod) ? data.taxSplitMethod : 'proportional');
@@ -1234,7 +1237,7 @@
       useEffect(() => {
         if (tutorialDemo || !draftReady) return;
         persistActiveDraft();
-      }, [draftReady, step, items, readReceipt, taxAmount, discountAmount, taxNote, friendsReplies, payer, detectedCurrency, currency,
+      }, [draftReady, step, items, readReceipt, taxAmount, discountAmount, taxNote, receiptAdjustmentDetails, friendsReplies, payer, detectedCurrency, currency,
         taxSplitMethod, paymentMethods, results, reconciliation, isSaved, includeReceiptImages, detailLang, pendingReceiptShare, draftAssets, claimRoom, claimInboxSeen, claimLinkShared]);
 
       useEffect(() => {
@@ -1895,7 +1898,7 @@
         setPendingReceiptShare(false); setReceiptShareNudge(0);
         setStepError(''); setUploadError(''); setItems([]); setFriendsReplies(''); setResults(null);
         setIsAnalyzing(false); setProgress(0); setProgressText('');
-        setIsSaved(false); setIncludeReceiptImages(false); setLastImageData([]); setTaxAmount(''); setDiscountAmount(''); setTaxNote('');
+        setIsSaved(false); setIncludeReceiptImages(false); setLastImageData([]); setTaxAmount(''); setDiscountAmount(''); setTaxNote(''); setReceiptAdjustmentDetails(null);
         setClaimAttachments([]); setClaimInfo(null); setShowClaimShareDialog(false);
         inboxGenerationRef.current += 1;
         claimRoomRef.current = null; claimInboxSeenRef.current = [];
@@ -2274,15 +2277,15 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
 每項欄位：name, nameEn, original, ja, price, qty, totalQty（無則 null）, unit（無則 ""，用繁體，如件／杯／碗）, total（照單據列出的該項行金額）。稅、服務費、折扣獨立行不可當成品項，亦不可把獨立調整重複加進 total。
 跨國收據請辨識不同語言／位置的稅費與優惠行，包括 VAT、GST、消費税、各種稅率、服務費、折扣、優惠券、割引等；百分比可寫成 10%、10％、10 percent 或本地格式。只抄單據明確印出的百分比，絕不可由固定金額猜百分比。
 每個稅／服務費／折扣行各輸出一次到 adjustments；kind 只用 tax 或 discount；ratePercent 用數字百分比（10 代表 10%），amount 只填單據印出的金額（正數），未印金額就 null；baseAmount 只填單據明確印出的計算基數，否則 null。若同時印百分比和金額，兩者都填，程式會以印出的金額為準。
+label 只寫收據上與該項稅／服務費／折扣直接相關的那一行，保持簡短；不要寫商場或店名、付款方式、交通卡餘額、地址、找續或其他無關 OCR 內容，也不要把整段收據塞進 label。taxNote 是舊格式欄位，留空即可，絕不可放整段收據文字。
 application 必須是 separate（確認在品項金額之外另加／另減）、included（已反映於品項行金額或應付總額，例如含稅價／折後價）或 unknown（無法判斷；不可猜）。scope 用 receipt 表示整張單，item 表示指定品項；itemIndex 是 items 陣列的 0 起算位置；order 按收據行出現次序。折扣要用正數，由程式扣減；稅費用正數，由程式加上。項目金額若已是折後／含稅最終價，相關 adjustment 要標 included。
 頂層：adjustments（即使沒有調整也輸出 []）, taxTotal（只供舊格式兼容，正常請用 adjustments；已內含則 0 或 null）, taxNote, currency（ISO 三位，不明用 HKD）, date（YYYY-MM-DD 或 null，唔好用今天）, receiptTotal（收據最終應付總額或 null）。不要把已反映在項目金額／總額的調整再次輸出為 separate。
-格式：{"items":[{"name":"拉麵","nameEn":"","original":"ラーメン","ja":"","price":100,"qty":1,"totalQty":null,"unit":"碗","total":100}],"adjustments":[{"label":"消費税","kind":"tax","ratePercent":8,"amount":null,"baseAmount":null,"application":"separate","scope":"receipt","itemIndex":null,"order":0}],"taxTotal":null,"taxNote":"消費税","currency":"JPY","date":"2026-03-14","receiptTotal":108}
+格式：{"items":[{"name":"拉麵","nameEn":"","original":"ラーメン","ja":"","price":100,"qty":1,"totalQty":null,"unit":"碗","total":100}],"adjustments":[{"label":"消費税","kind":"tax","ratePercent":8,"amount":null,"baseAmount":null,"application":"separate","scope":"receipt","itemIndex":null,"order":0}],"taxTotal":null,"taxNote":"","currency":"JPY","date":"2026-03-14","receiptTotal":108}
 這裡有 ${files.length} 張單據。`;
 
           let parsedItems = [];
           let parsedTax = null;
           let parsedDiscount = 0;
-          let parsedTaxNote = '';
           let parsedCurrency = 'HKD';
 
           const contentArray = [{ type: "text", text: promptText }];
@@ -2408,7 +2411,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
           }
           if (generation !== billGenerationRef.current || !shaped) return;
           setProgressText('正在整理識別結果...');
-          parsedItems = shaped.items; parsedTax = shaped.taxTotal; parsedTaxNote = shaped.taxNote; parsedCurrency = shaped.currency?.toUpperCase() || 'HKD';
+          parsedItems = shaped.items; parsedTax = shaped.taxTotal; parsedCurrency = shaped.currency?.toUpperCase() || 'HKD';
           const formattedItems = parsedItems.map((item, idx) => {
             const names = normalizeReceiptItemNames(item);
             const parsedPrice = ReceiptMath.parseMoney(item.price, parsedCurrency) ?? 0;
@@ -2432,18 +2435,12 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
             const itemQty = toNum(item.qty) || 1;
             return { ...item, price: netTotal / itemQty, total: netTotal, receiptDiscountAmount: itemDiscount };
           });
-          const adjustmentSummary = resolvedAdjustments.applied.map(adjustment => {
-            const rateLabel = adjustment.ratePercent === null ? '' : ` ${adjustment.ratePercent}%`;
-            const sign = adjustment.kind === 'discount' ? '−' : '+';
-            return `${adjustment.label}${rateLabel} ${sign}${formatMoney(adjustment.amount, parsedCurrency)}`;
-          }).join(' · ');
-          const noDoubleApplyNote = resolvedAdjustments.doubleApplicationPrevented
-            ? bi('收據總額已與品項金額吻合，沒有重複套用稅費／折扣。', 'Receipt total already matches the item amounts; tax/discount was not applied twice.')
-            : '';
-          const totalMismatchNote = resolvedAdjustments.receiptTotalMatches === false
-            ? bi('自動計算與收據應付總額未完全吻合，請核對品項及稅費／折扣。', 'The calculated amount does not match the printed receipt total; check the items and adjustments.')
-            : '';
-          parsedTaxNote = [parsedTaxNote, adjustmentSummary, noDoubleApplyNote, totalMismatchNote].filter(Boolean).join('；');
+          const parsedAdjustmentDetails = {
+            rows: ReceiptMath.summarizeAppliedReceiptRows(resolvedAdjustments, formattedItems),
+            currency: parsedCurrency,
+            doubleApplicationPrevented: resolvedAdjustments.doubleApplicationPrevented,
+            receiptTotalMatches: resolvedAdjustments.receiptTotalMatches
+          };
 
           setProgress(0);
           setProgressText('處理完成！');
@@ -2459,7 +2456,8 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
 
             setTaxAmount(parsedTax > 0 ? String(ReceiptMath.roundMoney(parsedTax, parsedCurrency)) : '');
             setDiscountAmount(parsedDiscount > 0 ? String(ReceiptMath.roundMoney(parsedDiscount, parsedCurrency)) : '');
-            setTaxNote(parsedTaxNote || '');
+            setTaxNote('');
+            setReceiptAdjustmentDetails(parsedAdjustmentDetails);
             const appliedToastParts = [];
             if (parsedTax > 0) appliedToastParts.push(`${bi('稅／服務費', 'tax / fees')} ${formatMoney(parsedTax, parsedCurrency)}`);
             if (resolvedAdjustments.discountAmount > 0) appliedToastParts.push(`${bi('折扣', 'discount')} −${formatMoney(resolvedAdjustments.discountAmount, parsedCurrency)}`);
@@ -2494,13 +2492,17 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
         handleFileUpload({ target: { files, value: '' } }, true);
       };
 
-      const addItem = () => setItems([...items, { id: String(items.length + 1).padStart(2, '0'), name: '', original: '', ja: '', price: '', qty: 1, totalQty: null, unit: '', total: 0 }]);
+      const addItem = () => {
+        setReceiptAdjustmentDetails(null);
+        setItems([...items, { id: String(items.length + 1).padStart(2, '0'), name: '', original: '', ja: '', price: '', qty: 1, totalQty: null, unit: '', total: 0 }]);
+      };
       const addItemAndFocus = () => {
         const index = items.length;
         addItem();
         setTimeout(() => focusField(`item-name-${index}`), 80);
       };
       const updateItem = (index, field, value) => {
+        setReceiptAdjustmentDetails(null);
         const newItems = [...items]; newItems[index] = { ...newItems[index], [field]: value };
         if (field === 'nameEn') newItems[index].nameEnEdited = true;
         if (field === 'price' || field === 'qty') {
@@ -2512,6 +2514,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
         setItems(newItems);
       };
       const removeItem = (index) => {
+        setReceiptAdjustmentDetails(null);
         const newItems = items.filter((_, i) => i !== index);
         setItems(newItems.map((item, i) => ({ ...item, id: String(i + 1).padStart(2, '0') })));
         const next = {};
@@ -2840,6 +2843,38 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
         return txt;
       };
 
+      const getReceiptAdjustmentNote = (language = uiLang) => {
+        if (!receiptAdjustmentDetails) return '';
+        const english = String(language).toLowerCase().startsWith('en');
+        const rows = Array.isArray(receiptAdjustmentDetails.rows) ? receiptAdjustmentDetails.rows : [];
+        const lines = [];
+        if (rows.length) {
+          lines.push(english ? 'Receipt rows used in this calculation:' : '本次計算只用到以下收據行：');
+          rows.forEach(row => {
+            const itemName = english ? (row.itemNameEn || row.itemName) : row.itemName;
+            const itemPrefix = itemName ? `${itemName}｜` : '';
+            const normalizedLabel = String(row.label).normalize('NFKC');
+            const printedRates = [...normalizedLabel.matchAll(/(?:^|[^\d.])(\d+(?:\.\d+)?)\s*%/g)].map(match => Number(match[1]));
+            const rateAlreadyInLabel = row.ratePercent !== null && row.ratePercent !== undefined
+              && printedRates.some(rate => rate === Number(row.ratePercent));
+            const rateLabel = row.ratePercent === null || row.ratePercent === undefined || rateAlreadyInLabel ? '' : ` ${row.ratePercent}%`;
+            const sign = row.kind === 'discount' ? '−' : '+';
+            lines.push(`• ${itemPrefix}${row.label}${rateLabel} ${sign}${formatMoney(row.amount, receiptAdjustmentDetails.currency || currency)}`);
+          });
+        }
+        if (receiptAdjustmentDetails.doubleApplicationPrevented) {
+          lines.push(english
+            ? 'The receipt total already includes the relevant adjustment; it was not counted twice.'
+            : '收據應付總額已反映相關調整，今次沒有重複計算。');
+        }
+        if (receiptAdjustmentDetails.receiptTotalMatches === false) {
+          lines.push(english
+            ? 'Calculated total differs from the receipt; check the items and relevant tax/discount row.'
+            : '計算總額與收據應付總額有差異，請核對項目及相關稅費／折扣行。');
+        }
+        return lines.join('\n');
+      };
+
       const getDetailedResult = (mode = 'zh', language = uiLang) => {
         if (!results) return '';
         const full = mode === 'full';
@@ -2892,7 +2927,8 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
         txt += english
           ? `\n📊 *Totals check*\nItems subtotal: ${formatMoney(itemsSum, curr)}\nReceipt discount: −${formatMoney(billDiscount, curr)}\nTax / service charge: ${formatMoney(billTax, curr)}\nReceipt total: ${formatMoney(billTotal, curr)}\nSum of individual amounts: ${formatMoney(grandTotal, curr)}\nDifference: ${formatMoney(diff, curr)} ${totalsMatch ? '✅' : '⚠️ Check the quantities'}\n`
           : `\n📊 *總核對*\n項目小計：${formatMoney(itemsSum, curr)}\n整單折扣：−${formatMoney(billDiscount, curr)}\n稅／服務費：${formatMoney(billTax, curr)}\n單據總計：${formatMoney(billTotal, curr)}\n各人合計：${formatMoney(grandTotal, curr)}\n差額：${formatMoney(diff, curr)} ${totalsMatch ? '✅' : '⚠️ 請檢查認帳數量'}\n`;
-        if (taxNote) txt += english ? `\n📝 Receipt adjustment notes: ${taxNote}\n` : `\n📝 收據稅費／折扣備註：${taxNote}\n`;
+        const receiptAdjustmentNote = getReceiptAdjustmentNote(language);
+        if (receiptAdjustmentNote) txt += `\n🧾 ${receiptAdjustmentNote}\n`;
         return txt;
       };
       const paymentOptions = ['轉數快 (FPS)', 'PayMe', '現金', '銀行轉帳', 'Alipay'];
@@ -3414,7 +3450,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                       </div>
                       <div className="field-round flex items-center w-36 shrink-0 overflow-hidden shadow-sm">
                         <span className="pl-3 pr-1 text-slate-600 font-bold border-r border-slate-500 py-2">{getCurrencySymbol(currency)}</span>
-        <input type="number" min="0" step={Math.pow(10, -ReceiptMath.currencyDecimals(currency))} placeholder="0" value={taxAmount} onChange={(e) => setTaxAmount(e.target.value)} className="w-full text-base font-bold text-slate-800 text-right outline-none shadow-none" />
+        <input type="number" min="0" step={Math.pow(10, -ReceiptMath.currencyDecimals(currency))} placeholder="0" value={taxAmount} onChange={(e) => { setTaxAmount(e.target.value); setReceiptAdjustmentDetails(null); }} className="w-full text-base font-bold text-slate-800 text-right outline-none shadow-none" />
                       </div>
                     </div>
                     <div className="flex justify-between items-center gap-4 border-t border-slate-300 pt-3">
@@ -3424,11 +3460,11 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                       </div>
                       <div className="field-round flex items-center w-36 shrink-0 overflow-hidden shadow-sm">
                         <span className="pl-3 pr-1 text-slate-600 font-bold border-r border-slate-500 py-2">{getCurrencySymbol(currency)}</span>
-                        <input type="number" min="0" step={Math.pow(10, -ReceiptMath.currencyDecimals(currency))} placeholder="0" value={discountAmount} data-testid="discount-amount" ref={el => fieldRefs.current['discount-amount'] = el} onChange={(e) => setDiscountAmount(e.target.value)} className="w-full text-base font-bold text-slate-800 text-right outline-none shadow-none" />
+                        <input type="number" min="0" step={Math.pow(10, -ReceiptMath.currencyDecimals(currency))} placeholder="0" value={discountAmount} data-testid="discount-amount" ref={el => fieldRefs.current['discount-amount'] = el} onChange={(e) => { setDiscountAmount(e.target.value); setReceiptAdjustmentDetails(null); }} className="w-full text-base font-bold text-slate-800 text-right outline-none shadow-none" />
                       </div>
                     </div>
                   </div>
-                  {taxNote && <p data-testid="receipt-adjustment-note" className="mt-3 rounded-lg border border-amber-500 bg-amber-50 p-3 text-xs leading-relaxed text-amber-950">{taxNote}</p>}
+                  {getReceiptAdjustmentNote() && <div data-testid="receipt-adjustment-note" className="mt-3 whitespace-pre-line rounded-lg border border-amber-500 bg-amber-50 p-3 text-xs leading-relaxed text-amber-950">{getReceiptAdjustmentNote()}</div>}
                 </Card>
 
                 <div className="border-t border-slate-400 my-6 pt-6 space-y-6">

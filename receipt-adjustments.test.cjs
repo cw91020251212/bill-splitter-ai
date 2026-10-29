@@ -259,6 +259,26 @@ test('formats zero-, two-, and three-decimal currencies without losing precision
   assert.equal(receipt.formatMoney(1.2346, 'KWD', 'KWD '), 'KWD 1.235');
 });
 
+test('summarizes only applied tax and discount rows and names the affected item', () => {
+  const items = [{ name: '拉麵', nameEn: 'Ramen', total: 100 }];
+  const result = receipt.resolveReceiptAdjustments({
+    items,
+    adjustments: [
+      { label: '消費税等', kind: 'tax', ratePercent: 8, amount: 8, application: 'separate' },
+      { label: 'ラーメン割引', kind: 'discount', amount: 5, application: 'separate', scope: 'item', itemIndex: 0 },
+      { label: '現金券還元', kind: 'discount', amount: 22, application: 'included' },
+      { label: '交通系電子支付', kind: 'payment', amount: 322, application: 'separate' }
+    ],
+    receiptTotal: 103,
+    currency: 'JPY'
+  });
+
+  assert.deepEqual(receipt.summarizeAppliedReceiptRows(result, items), [
+    { label: '消費税等', kind: 'tax', ratePercent: 8, amount: 8, itemName: '', itemNameEn: '' },
+    { label: 'ラーメン割引', kind: 'discount', ratePercent: null, amount: 5, itemName: '拉麵', itemNameEn: 'Ramen' }
+  ]);
+});
+
 test('uses less than one minor unit as the report rounding tolerance', () => {
   assert.equal(receipt.withinRoundingTolerance(0.004, 'HKD'), true);
   assert.equal(receipt.withinRoundingTolerance(0.005, 'HKD'), false);
