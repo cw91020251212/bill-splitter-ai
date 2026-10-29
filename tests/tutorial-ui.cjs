@@ -181,6 +181,9 @@ async function runEditedSample(page, language) {
   const feeInput = target(page, 4).locator('input').first();
   await feeInput.fill('15');
   assert.equal(await feeInput.inputValue(), '15', 'sample fee edit did not stick');
+  const billDiscount = demo(page).getByTestId('discount-amount');
+  await billDiscount.fill('30');
+  assert.equal(await billDiscount.inputValue(), '30', 'sample bill-wide discount did not stick');
   await page.getByTestId('tutorial-next').click(); await waitStage(page, 'share');
   await clickShareOpener(page);
   await clickSendClaim(page);
@@ -193,14 +196,14 @@ async function runEditedSample(page, language) {
   }
   const taxRadios = target(page, 11).locator('input[type="radio"]');
   assert(await taxRadios.count() >= 2, language + ': missing fee split choices');
-  await taxRadios.nth(0).check(); // proportional: $165 total at 2:1 gives Cathy $55
+  await taxRadios.nth(0).check(); // after a $30 bill-wide discount, the $150 item base becomes $120; with $15 tax Cathy owes $45.
   await page.getByTestId('tutorial-next').click(); await waitStage(page, 'calculate');
   await target(page, 12).click(); await waitStage(page, 'report');
   const report = await target(page, 13).innerText();
   assert.match(report, language === 'en' ? /Pay to: \*Cathy\*/ : /請過數俾：\*Cathy\*/, language + ': edited payer must be Cathy');
-  assert.match(report, language === 'en' ? /Payer's own share: \$55\.00/ : /Cathy 自己一份：\$55\.00/, language + ': expected Cathy $55 on a 2:1 split');
+  assert.match(report, language === 'en' ? /Payer's own share: \$45\.00/ : /Cathy 自己一份：\$45\.00/, language + ': expected Cathy $45 after the proportional discount');
 
-  // Equal fee/tax split changes Cathy to $57.50; this also verifies the actual radio and calculator.
+  // Equal fee/tax split changes Cathy to $47.50 after the same discount.
   await page.getByTestId('tutorial-prev').click(); await waitStage(page, 'calculate');
   await page.getByTestId('tutorial-prev').click(); await waitStage(page, 'tax-method');
   await taxRadios.nth(1).check();
@@ -208,7 +211,7 @@ async function runEditedSample(page, language) {
   await target(page, 12).click(); await waitStage(page, 'report');
   const equalReport = await target(page, 13).innerText();
   assert.match(equalReport, language === 'en' ? /Pay to: \*Cathy\*/ : /請過數俾：\*Cathy\*/, language + ': equal fee split must retain edited payer');
-  assert.match(equalReport, language === 'en' ? /Payer's own share: \$57\.50/ : /Cathy 自己一份：\$57\.50/, language + ': equal fee split should give Cathy $57.50');
+  assert.match(equalReport, language === 'en' ? /Payer's own share: \$47\.50/ : /Cathy 自己一份：\$47\.50/, language + ': equal fee split should give Cathy $47.50 after discount');
 }
 async function runPayerRecovery(page, before, label) {
   await page.getByTestId('start-tutorial').focus();

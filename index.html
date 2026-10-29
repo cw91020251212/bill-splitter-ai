@@ -86,10 +86,12 @@
   <script src="./i18n.js"></script>
   <script src="./claim-relay.js"></script>
   <script src="./ocr-cascade.js"></script>
-  <script src="./tutorial.js?v=v86-free-models-only"></script>
+  <script src="./receipt-adjustments.js"></script>
+  <script src="./tutorial.js?v=v89-receipt-percent-adjustments"></script>
   <script type="text/babel">
     const { useState, useRef, useEffect, useLayoutEffect, useMemo } = React;
     const tr = value => window.BillI18n.t(value);
+    const ReceiptMath = window.ReceiptAdjustments;
     const tf = (key, values) => window.BillI18n.format(key, values);
     const bi = (zh, en) => window.BillI18n.language === 'en' ? en : zh;
     // Alternative actions, not sequential workflow steps.
@@ -231,29 +233,7 @@
       return isNaN(n) ? 0 : n;
     };
 
-    const extractPayload = (rawText) => {
-      const stripFences = value => String(value || '').replace(/```json/gi, '').replace(/```/g, '').trim();
-      let txt = stripFences(rawText).replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
-      if (!txt) txt = stripFences(rawText);
-      let data = null;
-      try { data = JSON.parse(txt); } catch (e) {
-        const objMatch = txt.match(/\{[\s\S]*\}/);
-        const arrMatch = txt.match(/\[[\s\S]*\]/);
-        const candidate = (objMatch && arrMatch) ? (objMatch.index <= arrMatch.index ? objMatch[0] : arrMatch[0]) : (objMatch ? objMatch[0] : (arrMatch ? arrMatch[0] : null));
-        if (!candidate) throw new Error('AI 回傳的內容不是有效 JSON，請重試或改用其他模型。');
-        data = JSON.parse(candidate);
-      }
-      if (Array.isArray(data)) return { items: data, taxTotal: null, taxNote: '', currency: 'HKD', date: null, receiptTotal: null };
-      const items = Array.isArray(data.items) ? data.items : (Array.isArray(data.data) ? data.data : []);
-      let taxTotal = null;
-      if (data.taxTotal !== undefined && data.taxTotal !== null && data.taxTotal !== '') taxTotal = toNum(data.taxTotal);
-      else if (data.tax !== undefined && data.tax !== null && data.tax !== '') taxTotal = toNum(data.tax);
-      const rawDate = data.date || data.receiptDate || data.Date || null;
-      const date = (typeof rawDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(rawDate.trim())) ? rawDate.trim() : null;
-      const rawTotal = (data.receiptTotal !== undefined && data.receiptTotal !== null && data.receiptTotal !== '') ? data.receiptTotal : null;
-      const receiptTotal = rawTotal === null ? null : toNum(rawTotal);
-      return { items, taxTotal, taxNote: data.taxNote || data.tax_note || '', currency: data.currency || data.Currency || 'HKD', date, receiptTotal };
-    };
+    const extractPayload = rawText => ReceiptMath.extractPayload(rawText);
 
     // Free vision models often copy the receipt into name. Keep name in Hong Kong
     // Traditional Chinese and leave kana/hangul in original (and ja only when different).
@@ -750,14 +730,7 @@
       return tr(map[curr?.toUpperCase()] || curr);
     };
 
-    const formatMoney = (amount, curr) => {
-      const num = Number(amount || 0);
-      const sym = getCurrencySymbol(curr);
-      if (['JPY', 'KRW'].includes(curr?.toUpperCase())) {
-        return `${sym}${Math.round(num)}`;
-      }
-      return `${sym}${num.toFixed(2)}`;
-    };
+    const formatMoney = (amount, curr) => ReceiptMath.formatMoney(amount, curr, getCurrencySymbol(curr));
     const itemAmount = (item) => {
       const total = toNum(item?.total);
       if (total) return total;
@@ -969,6 +942,7 @@
       const verifyModeRef = useRef(false);
       const displayItemName = item => uiLang === 'en' && (item?.nameEn || item?.nameEnEdited) ? item.nameEn : item?.name || '';
       const [taxAmount, setTaxAmount] = useState(tutorialDemo ? '12' : '');
+      const [discountAmount, setDiscountAmount] = useState('');
       const [taxNote, setTaxNote] = useState('');
       const [friendsReplies, setFriendsReplies] = useState(tutorialDemo ? TUTORIAL_REPLIES : '');
 
@@ -1115,13 +1089,18 @@
       itemsRef.current = items;
       const receiptWasRead = (readReceipt || items.some(item => String(item?.original || '').trim() || String(item?.ja || '').trim())) && items.some(item => String(item?.name || '').trim());
       verifyModeRef.current = receiptWasRead;
-      const receiptTotal = items.reduce((sum, item) => sum + itemAmount(item), 0) + toNum(taxAmount);
+      const receiptTotal = ReceiptMath.roundMoney(
+        items.reduce((sum, item) => sum + itemAmount(item), 0)
+          + ReceiptMath.roundMoney(toNum(taxAmount), currency)
+          - ReceiptMath.roundMoney(toNum(discountAmount), currency),
+        currency
+      );
       const hasDraftWork = Boolean(items.length || friendsReplies.trim() || results || lastImageData.length || claimAttachments.length || draftAssets.unavailable);
       const hasDraftAssets = Boolean(lastImageData.length || claimAttachments.length);
       draftSnapshotRef.current = {
         ready: draftReady, hasWork: hasDraftWork, schema: 1,
         assetRevision: draftAssets.revision, hasAssets: hasDraftAssets || draftAssets.unavailable,
-        data: { step, items, taxAmount, taxNote, friendsReplies, payer, detectedCurrency, currency,
+        data: { step, items, taxAmount, discountAmount, taxNote, friendsReplies, payer, detectedCurrency, currency,
           taxSplitMethod, paymentMethods, results, reconciliation, isSaved, includeReceiptImages, detailLang, pendingReceiptShare,
           claimRoom, claimInboxSeen, readReceipt, claimLinkShared: claimLinkSharedRef.current }
       };
@@ -1195,7 +1174,7 @@
             setReadReceipt(Boolean(data.readReceipt) || restoredItems.some(item => String(item.original || item.ja || '').trim()));
             openItemEditsRef.current = {};
             setOpenItemEdits({});
-            [[setTaxAmount, 'taxAmount'], [setTaxNote, 'taxNote'], [setFriendsReplies, 'friendsReplies'], [setPayer, 'payer']]
+            [[setTaxAmount, 'taxAmount'], [setDiscountAmount, 'discountAmount'], [setTaxNote, 'taxNote'], [setFriendsReplies, 'friendsReplies'], [setPayer, 'payer']]
               .forEach(([setter, key]) => setter(typeof data[key] === 'string' || typeof data[key] === 'number' ? String(data[key]) : ''));
             setCurrency(typeof data.currency === 'string' ? data.currency : 'HKD');
             setDetectedCurrency(typeof data.detectedCurrency === 'string' ? data.detectedCurrency : 'HKD');
@@ -1255,7 +1234,7 @@
       useEffect(() => {
         if (tutorialDemo || !draftReady) return;
         persistActiveDraft();
-      }, [draftReady, step, items, readReceipt, taxAmount, taxNote, friendsReplies, payer, detectedCurrency, currency,
+      }, [draftReady, step, items, readReceipt, taxAmount, discountAmount, taxNote, friendsReplies, payer, detectedCurrency, currency,
         taxSplitMethod, paymentMethods, results, reconciliation, isSaved, includeReceiptImages, detailLang, pendingReceiptShare, draftAssets, claimRoom, claimInboxSeen, claimLinkShared]);
 
       useEffect(() => {
@@ -1766,7 +1745,9 @@
         const receiptImageCount = lastImageData.length;
         try {
           const receiptFiles = receiptImageCount ? await saveReceiptImagesLocally(recordId, lastImageData) : [];
-          const billTotal = items.reduce((sum, item) => sum + toNum(item.total), 0) + toNum(taxAmount);
+          const billTax = ReceiptMath.roundMoney(toNum(taxAmount), results.currency);
+          const billDiscount = ReceiptMath.roundMoney(toNum(discountAmount), results.currency);
+          const billTotal = ReceiptMath.roundMoney(items.reduce((sum, item) => sum + toNum(item.total), 0) + billTax - billDiscount, results.currency);
           const newRecord = { id: recordId, date: results.date, payer, totalAmount: billTotal, currency: results.currency, simplifiedText: getSimplifiedResult('zh-HK'), detailedText: getDetailedResult('zh', 'zh-HK'), detailedFullText: getDetailedResult('full', 'zh-HK'), reportLanguage: uiLang, reportData: { simplified: { zh: getSimplifiedResult('zh-HK'), en: getSimplifiedResult('en') }, detailed: { zh: getDetailedResult('zh', 'zh-HK'), en: getDetailedResult('zh', 'en'), fullZh: getDetailedResult('full', 'zh-HK'), fullEn: getDetailedResult('full', 'en') } }, receiptImageCount };
           setSavedHistory(current => [newRecord, ...current]);
           if (receiptImageCount) setSavedReceiptFiles(current => ({ ...current, [recordId]: receiptFiles }));
@@ -1887,7 +1868,7 @@
         if (savedHistory.length === 0) return;
         const headers = ['日期', '墊支人', '總金額', '貨幣', '追數版內容', '詳細版內容'].map(tr);
         const escapeCSV = (str) => { if (str === null || str === undefined) return '""'; return `"${String(str).replace(/"/g, '""')}"`; };
-        const rows = savedHistory.map(record => [ escapeCSV(record.date), escapeCSV(record.payer), escapeCSV(record.totalAmount?.toFixed(2)), escapeCSV(record.currency), escapeCSV(getSavedReportText(record, 'simplified')), escapeCSV(getSavedReportText(record, 'detailed')) ].join(','));
+        const rows = savedHistory.map(record => [ escapeCSV(record.date), escapeCSV(record.payer), escapeCSV(record.totalAmount === null || record.totalAmount === undefined ? null : ReceiptMath.formatMoney(record.totalAmount, record.currency)), escapeCSV(record.currency), escapeCSV(getSavedReportText(record, 'simplified')), escapeCSV(getSavedReportText(record, 'detailed')) ].join(','));
         const csvContent = '\uFEFF' + [headers.join(','), ...rows].join('\n');
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
@@ -1914,7 +1895,7 @@
         setPendingReceiptShare(false); setReceiptShareNudge(0);
         setStepError(''); setUploadError(''); setItems([]); setFriendsReplies(''); setResults(null);
         setIsAnalyzing(false); setProgress(0); setProgressText('');
-        setIsSaved(false); setIncludeReceiptImages(false); setLastImageData([]); setTaxAmount(''); setTaxNote('');
+        setIsSaved(false); setIncludeReceiptImages(false); setLastImageData([]); setTaxAmount(''); setDiscountAmount(''); setTaxNote('');
         setClaimAttachments([]); setClaimInfo(null); setShowClaimShareDialog(false);
         inboxGenerationRef.current += 1;
         claimRoomRef.current = null; claimInboxSeenRef.current = [];
@@ -2290,13 +2271,17 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
 正確：{"name":"拉麵","nameEn":"","original":"ラーメン","ja":""}
 錯誤：{"name":"ラーメン","original":"ラーメン"}（name 仍然係日文，唔算翻譯）
 
-每項欄位：name, nameEn, original, ja, price, qty, totalQty（無則 null）, unit（無則 ""，用繁體，如件／杯／碗）, total。稅、服務費、折扣唔好當成項目。
-頂層：taxTotal（外加稅／服務費總和，已內含則 0）, taxNote, currency（ISO 三位，不明用 HKD）, date（YYYY-MM-DD 或 null，唔好用今天）, receiptTotal（應付總額或 null）。
-格式：{"items":[{"name":"拉麵","nameEn":"","original":"ラーメン","ja":"","price":980,"qty":1,"totalQty":null,"unit":"碗","total":980}],"taxTotal":78,"taxNote":"消費税","currency":"JPY","date":"2026-03-14","receiptTotal":1058}
+每項欄位：name, nameEn, original, ja, price, qty, totalQty（無則 null）, unit（無則 ""，用繁體，如件／杯／碗）, total（照單據列出的該項行金額）。稅、服務費、折扣獨立行不可當成品項，亦不可把獨立調整重複加進 total。
+跨國收據請辨識不同語言／位置的稅費與優惠行，包括 VAT、GST、消費税、各種稅率、服務費、折扣、優惠券、割引等；百分比可寫成 10%、10％、10 percent 或本地格式。只抄單據明確印出的百分比，絕不可由固定金額猜百分比。
+每個稅／服務費／折扣行各輸出一次到 adjustments；kind 只用 tax 或 discount；ratePercent 用數字百分比（10 代表 10%），amount 只填單據印出的金額（正數），未印金額就 null；baseAmount 只填單據明確印出的計算基數，否則 null。若同時印百分比和金額，兩者都填，程式會以印出的金額為準。
+application 必須是 separate（確認在品項金額之外另加／另減）、included（已反映於品項行金額或應付總額，例如含稅價／折後價）或 unknown（無法判斷；不可猜）。scope 用 receipt 表示整張單，item 表示指定品項；itemIndex 是 items 陣列的 0 起算位置；order 按收據行出現次序。折扣要用正數，由程式扣減；稅費用正數，由程式加上。項目金額若已是折後／含稅最終價，相關 adjustment 要標 included。
+頂層：adjustments（即使沒有調整也輸出 []）, taxTotal（只供舊格式兼容，正常請用 adjustments；已內含則 0 或 null）, taxNote, currency（ISO 三位，不明用 HKD）, date（YYYY-MM-DD 或 null，唔好用今天）, receiptTotal（收據最終應付總額或 null）。不要把已反映在項目金額／總額的調整再次輸出為 separate。
+格式：{"items":[{"name":"拉麵","nameEn":"","original":"ラーメン","ja":"","price":100,"qty":1,"totalQty":null,"unit":"碗","total":100}],"adjustments":[{"label":"消費税","kind":"tax","ratePercent":8,"amount":null,"baseAmount":null,"application":"separate","scope":"receipt","itemIndex":null,"order":0}],"taxTotal":null,"taxNote":"消費税","currency":"JPY","date":"2026-03-14","receiptTotal":108}
 這裡有 ${files.length} 張單據。`;
 
           let parsedItems = [];
           let parsedTax = null;
+          let parsedDiscount = 0;
           let parsedTaxNote = '';
           let parsedCurrency = 'HKD';
 
@@ -2426,32 +2411,60 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
           parsedItems = shaped.items; parsedTax = shaped.taxTotal; parsedTaxNote = shaped.taxNote; parsedCurrency = shaped.currency?.toUpperCase() || 'HKD';
           const formattedItems = parsedItems.map((item, idx) => {
             const names = normalizeReceiptItemNames(item);
+            const parsedPrice = ReceiptMath.parseMoney(item.price, parsedCurrency) ?? 0;
+            const parsedTotal = ReceiptMath.parseMoney(item.total, parsedCurrency);
+            const parsedQty = toNum(item.qty) || 1;
             return {
               id: String(idx + 1).padStart(2, '0'), name: names.name || '項目', nameEn: names.nameEn, original: names.original, ja: names.ja,
-              price: toNum(item.price), qty: toNum(item.qty) || 1, totalQty: item.totalQty === null ? null : (toNum(item.totalQty) || toNum(item.qty) || null), unit: String(item.unit || '').trim(), total: toNum(item.total) || (toNum(item.price) * (toNum(item.qty) || 1)) || 0
+              price: parsedPrice, qty: parsedQty, totalQty: item.totalQty === null ? null : (toNum(item.totalQty) || toNum(item.qty) || null), unit: String(item.unit || '').trim(), total: parsedTotal === null ? parsedPrice * parsedQty : parsedTotal
             };
           });
+          const resolvedAdjustments = ReceiptMath.resolveReceiptAdjustments({
+            items: formattedItems, adjustments: shaped.adjustments, taxTotal: shaped.taxTotal,
+            discountTotal: shaped.discountTotal, receiptTotal: shaped.receiptTotal, currency: parsedCurrency
+          });
+          parsedTax = resolvedAdjustments.taxAmount;
+          parsedDiscount = resolvedAdjustments.billDiscountAmount;
+          const finalizedItems = formattedItems.map((item, idx) => {
+            const itemDiscount = resolvedAdjustments.itemDiscounts[idx] || 0;
+            if (!itemDiscount) return item;
+            const netTotal = Math.max(0, item.total - itemDiscount);
+            const itemQty = toNum(item.qty) || 1;
+            return { ...item, price: netTotal / itemQty, total: netTotal, receiptDiscountAmount: itemDiscount };
+          });
+          const adjustmentSummary = resolvedAdjustments.applied.map(adjustment => {
+            const rateLabel = adjustment.ratePercent === null ? '' : ` ${adjustment.ratePercent}%`;
+            const sign = adjustment.kind === 'discount' ? '−' : '+';
+            return `${adjustment.label}${rateLabel} ${sign}${formatMoney(adjustment.amount, parsedCurrency)}`;
+          }).join(' · ');
+          const noDoubleApplyNote = resolvedAdjustments.doubleApplicationPrevented
+            ? bi('收據總額已與品項金額吻合，沒有重複套用稅費／折扣。', 'Receipt total already matches the item amounts; tax/discount was not applied twice.')
+            : '';
+          const totalMismatchNote = resolvedAdjustments.receiptTotalMatches === false
+            ? bi('自動計算與收據應付總額未完全吻合，請核對品項及稅費／折扣。', 'The calculated amount does not match the printed receipt total; check the items and adjustments.')
+            : '';
+          parsedTaxNote = [parsedTaxNote, adjustmentSummary, noDoubleApplyNote, totalMismatchNote].filter(Boolean).join('；');
 
           setProgress(0);
           setProgressText('處理完成！');
 
           ocrCompleteRef.current = setTimeout(() => {
             if (generation !== billGenerationRef.current) return;
-            setItems(formattedItems);
+            setItems(finalizedItems);
             setReadReceipt(true);
             openItemEditsRef.current = {};
             setOpenItemEdits({});
             setCurrency(parsedCurrency);
             setDetectedCurrency(parsedCurrency);
 
-            if (parsedTax !== null && !isNaN(parsedTax) && parsedTax > 0) {
-              setTaxAmount(String(Number(parsedTax.toFixed ? parsedTax.toFixed(2) : parsedTax)));
-              setTaxNote(parsedTaxNote || '');
-              toast(`✅ 已自動帶入稅金／服務費：${formatMoney(parsedTax, parsedCurrency)}`);
-            } else {
-              setTaxAmount('');
-              setTaxNote(parsedTaxNote || '');
-            }
+            setTaxAmount(parsedTax > 0 ? String(ReceiptMath.roundMoney(parsedTax, parsedCurrency)) : '');
+            setDiscountAmount(parsedDiscount > 0 ? String(ReceiptMath.roundMoney(parsedDiscount, parsedCurrency)) : '');
+            setTaxNote(parsedTaxNote || '');
+            const appliedToastParts = [];
+            if (parsedTax > 0) appliedToastParts.push(`${bi('稅／服務費', 'tax / fees')} ${formatMoney(parsedTax, parsedCurrency)}`);
+            if (resolvedAdjustments.discountAmount > 0) appliedToastParts.push(`${bi('折扣', 'discount')} −${formatMoney(resolvedAdjustments.discountAmount, parsedCurrency)}`);
+            if (appliedToastParts.length) toast(`✅ ${bi('已自動換算：', 'Calculated automatically: ')}${appliedToastParts.join(' · ')}`);
+            else if (resolvedAdjustments.doubleApplicationPrevented) toast(bi('✅ 已核對收據總額，沒有重複套用稅費／折扣。', '✅ Checked the receipt total; no tax/discount was applied twice.'));
 
             setStep(2);
             setIsAnalyzing(false);
@@ -2494,6 +2507,7 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
           const price = parseFloat(newItems[index].price) || 0; const qty = parseFloat(newItems[index].qty) || 0;
           if (field === 'qty') newItems[index].totalQty = qty || 1;
           newItems[index].total = price * qty;
+          newItems[index].receiptDiscountAmount = 0;
         }
         setItems(newItems);
       };
@@ -2694,7 +2708,7 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
         }
 
         const personTotals = {}; let totalItemsCost = 0;
-        Object.keys(personClaims).forEach(person => { personTotals[person] = { items: [], adjustments: [], subtotal: 0, tax: 0, total: 0 }; });
+        Object.keys(personClaims).forEach(person => { personTotals[person] = { items: [], adjustments: [], subtotal: 0, discount: 0, tax: 0, total: 0 }; });
 
         items.forEach(item => {
           const totalClaimed = itemClaimTotals[item.id];
@@ -2744,7 +2758,18 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
         });
         const reconciliationAllocations = reconciliationIssues.map(issue => ({ ...issue, policy: reconciliation?.policy }));
 
-        const taxNum = parseFloat(taxAmount) || 0; const numPeople = Object.keys(personClaims).length;
+        const discountNum = ReceiptMath.roundMoney(parseFloat(discountAmount) || 0, currency);
+        if (discountNum < 0 || !ReceiptMath.isDiscountWithinSubtotal(discountNum, totalItemsCost, currency)) {
+          setStepError('⚠️ 整張單折扣不可多於已分攤品項小計，請核對折扣金額。'); focusField('discount-amount'); return;
+        }
+        const preDiscountItemsCost = totalItemsCost;
+        Object.keys(personTotals).forEach(person => {
+          const share = preDiscountItemsCost > 0 ? discountNum * (personTotals[person].subtotal / preDiscountItemsCost) : 0;
+          personTotals[person].discount = share;
+          personTotals[person].subtotal = Math.max(0, personTotals[person].subtotal - share);
+        });
+        totalItemsCost = Math.max(0, preDiscountItemsCost - discountNum);
+        const taxNum = ReceiptMath.roundMoney(parseFloat(taxAmount) || 0, currency); const numPeople = Object.keys(personClaims).length;
         Object.keys(personTotals).forEach(person => {
           let taxShare = 0;
           if (taxSplitMethod === 'equal') taxShare = taxNum / numPeople;
@@ -2851,6 +2876,7 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
               ? `💲 ${formatMoney(a.amount, curr)} (${a.qty} ${unitDisplay(a.unit, language)}, ${reasonMap[a.reason] || a.reason})\n\n`
               : `💲 ${formatMoney(a.amount, curr)}（${a.qty} ${unitDisplay(a.unit, language)}，${a.reason}）\n\n`;
           });
+          if (p.discount > 0) txt += english ? `▫️ Receipt discount share −${formatMoney(p.discount, curr)}\n` : `▫️ 整單折扣分攤 −${formatMoney(p.discount, curr)}\n`;
           if (p.tax > 0) txt += english ? `▫️ Tax / service charge share 💲 ${formatMoney(p.tax, curr)}\n` : `▫️ 稅／服務費分攤 💲 ${formatMoney(p.tax, curr)}\n`;
           txt += english
             ? `\n━━━━━━━━━━\n💰 *TOTAL DUE*\n\n*${formatMoney(p.total, curr)}*\n━━━━━━━━━━\n`
@@ -2858,12 +2884,15 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
           grandTotal += p.total;
         });
         const itemsSum = items.reduce((sum, item) => sum + toNum(item.total), 0);
-        const billTotal = itemsSum + toNum(taxAmount);
+        const billTax = ReceiptMath.roundMoney(toNum(taxAmount), curr);
+        const billDiscount = ReceiptMath.roundMoney(toNum(discountAmount), curr);
+        const billTotal = ReceiptMath.roundMoney(itemsSum + billTax - billDiscount, curr);
         const diff = Math.abs(grandTotal - billTotal);
+        const totalsMatch = ReceiptMath.withinRoundingTolerance(diff, curr);
         txt += english
-          ? `\n📊 *Totals check*\nItems subtotal: ${formatMoney(itemsSum, curr)}\nTax / service charge: ${formatMoney(taxAmount, curr)}\nReceipt total: ${formatMoney(billTotal, curr)}\nSum of individual amounts: ${formatMoney(grandTotal, curr)}\nDifference: ${formatMoney(diff, curr)} ${diff < 0.05 ? '✅' : '⚠️ Check the quantities'}\n`
-          : `\n📊 *總核對*\n項目小計：${formatMoney(itemsSum, curr)}\n稅／服務費：${formatMoney(taxAmount, curr)}\n單據總計：${formatMoney(billTotal, curr)}\n各人合計：${formatMoney(grandTotal, curr)}\n差額：${formatMoney(diff, curr)} ${diff < 0.05 ? '✅' : '⚠️ 請檢查認帳數量'}\n`;
-        if (full && taxNote) txt += english ? `\n📝 Tax note: ${taxNote}\n` : `\n📝 稅費來源：${taxNote}\n`;
+          ? `\n📊 *Totals check*\nItems subtotal: ${formatMoney(itemsSum, curr)}\nReceipt discount: −${formatMoney(billDiscount, curr)}\nTax / service charge: ${formatMoney(billTax, curr)}\nReceipt total: ${formatMoney(billTotal, curr)}\nSum of individual amounts: ${formatMoney(grandTotal, curr)}\nDifference: ${formatMoney(diff, curr)} ${totalsMatch ? '✅' : '⚠️ Check the quantities'}\n`
+          : `\n📊 *總核對*\n項目小計：${formatMoney(itemsSum, curr)}\n整單折扣：−${formatMoney(billDiscount, curr)}\n稅／服務費：${formatMoney(billTax, curr)}\n單據總計：${formatMoney(billTotal, curr)}\n各人合計：${formatMoney(grandTotal, curr)}\n差額：${formatMoney(diff, curr)} ${totalsMatch ? '✅' : '⚠️ 請檢查認帳數量'}\n`;
+        if (taxNote) txt += english ? `\n📝 Receipt adjustment notes: ${taxNote}\n` : `\n📝 收據稅費／折扣備註：${taxNote}\n`;
         return txt;
       };
       const paymentOptions = ['轉數快 (FPS)', 'PayMe', '現金', '銀行轉帳', 'Alipay'];
@@ -3333,6 +3362,7 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
                             <p className="text-base font-semibold text-slate-800">{item.id} {displayItemName(item)}</p>
                             {(item.original || item.ja) && <div className="mt-1 text-xs font-normal text-slate-500 italic truncate" title={item.original || item.ja}>{tr("原文：")}{item.original || item.ja}</div>}
                             <p className="mt-1 text-base font-semibold text-slate-800">{formatMoney(itemAmount(item), currency)}{qtyLabel ? ` · ${qtyLabel}` : ''}</p>
+                            {item.receiptDiscountAmount > 0 && <p className="mt-1 text-xs font-medium text-emerald-800">{bi(`已自動扣除單品折扣 ${formatMoney(item.receiptDiscountAmount, currency)}`, `Item discount applied: ${formatMoney(item.receiptDiscountAmount, currency)}`)}</p>}
                           </div>
                           <button type="button" data-testid="edit-item" onClick={() => openItemEdit(idx)} className="shrink-0 min-h-[40px] px-3.5 py-1.5 rounded-lg border border-slate-400 bg-white text-sm font-bold text-slate-800">{tr("改")}</button>
                         </div>
@@ -3374,17 +3404,31 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
                 </div>
 
                 {items.length > 0 && <React.Fragment>
-                <Card data-tutorial-target="fee" className="bg-slate-50">
-                  <div className="flex justify-between items-center gap-4">
-                    <div className="flex-1">
-                      <Label className="!mb-0.5">{tr("附加稅金／服務費")}</Label>
-                      <p className="text-xs text-slate-500 font-medium">{tr("如有額外費用請在此填寫")}</p>
+                <Card className="bg-slate-50">
+                  <p className="text-sm text-slate-700 leading-relaxed mb-4">{bi('讀單會自動換算百分比稅費及折扣；已反映在品項／總額的調整不會重複計。', 'Scanning calculates percentage-based tax and discounts; amounts already reflected in item or final prices are not applied again.')}</p>
+                  <div className="grid gap-4">
+                    <div data-tutorial-target="fee" className="flex justify-between items-center gap-4">
+                      <div className="flex-1">
+                        <Label className="!mb-0.5">{tr("附加稅金／服務費")}</Label>
+                        <p className="text-xs text-slate-500 font-medium">{bi('核對自動換算金額；手動輸入時填金額，不用填百分比。', 'Check the calculated amount; if entering manually, enter money, not a percentage.')}</p>
+                      </div>
+                      <div className="field-round flex items-center w-36 shrink-0 overflow-hidden shadow-sm">
+                        <span className="pl-3 pr-1 text-slate-600 font-bold border-r border-slate-500 py-2">{getCurrencySymbol(currency)}</span>
+        <input type="number" min="0" step={Math.pow(10, -ReceiptMath.currencyDecimals(currency))} placeholder="0" value={taxAmount} onChange={(e) => setTaxAmount(e.target.value)} className="w-full text-base font-bold text-slate-800 text-right outline-none shadow-none" />
+                      </div>
                     </div>
-                    <div className="field-round flex items-center w-36 shrink-0 overflow-hidden shadow-sm">
-                      <span className="pl-3 pr-1 text-slate-600 font-bold border-r border-slate-500 py-2">{getCurrencySymbol(currency)}</span>
-                      <input type="number" placeholder="0" value={taxAmount} onChange={(e) => setTaxAmount(e.target.value)} className="w-full text-base font-bold text-slate-800 text-right outline-none shadow-none" />
+                    <div className="flex justify-between items-center gap-4 border-t border-slate-300 pt-3">
+                      <div className="flex-1">
+                        <Label className="!mb-0.5">{bi('整張單折扣', 'Bill-wide discount')}</Label>
+                        <p className="text-xs text-slate-500 font-medium">{bi('整單折扣會按消費比例分攤；單品折扣已反映在品項金額。', 'Bill-wide discounts are split by spending; item discounts are already reflected in item amounts.')}</p>
+                      </div>
+                      <div className="field-round flex items-center w-36 shrink-0 overflow-hidden shadow-sm">
+                        <span className="pl-3 pr-1 text-slate-600 font-bold border-r border-slate-500 py-2">{getCurrencySymbol(currency)}</span>
+                        <input type="number" min="0" step={Math.pow(10, -ReceiptMath.currencyDecimals(currency))} placeholder="0" value={discountAmount} data-testid="discount-amount" ref={el => fieldRefs.current['discount-amount'] = el} onChange={(e) => setDiscountAmount(e.target.value)} className="w-full text-base font-bold text-slate-800 text-right outline-none shadow-none" />
+                      </div>
                     </div>
                   </div>
+                  {taxNote && <p data-testid="receipt-adjustment-note" className="mt-3 rounded-lg border border-amber-500 bg-amber-50 p-3 text-xs leading-relaxed text-amber-950">{taxNote}</p>}
                 </Card>
 
                 <div className="border-t border-slate-400 my-6 pt-6 space-y-6">
