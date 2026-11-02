@@ -1373,12 +1373,25 @@
         return () => clearTimeout(timer);
       }, [draftReady, pendingReceiptShare, receiptShareNudge, step, showHistory, showSettings, showTutorial, includeReceiptImages, lastImageData.length, tutorialSuspended]);
 
+      const inboxPeople = useMemo(() => {
+        const names = [];
+        String(friendsReplies || '').split('\n').forEach(line => {
+          if (!/(?:👤|姓名|Name)/.test(line) || !/[:：=＝]/.test(line)) return;
+          const name = line.split(/[:：=＝]/).slice(1).join(':').replace(/\*/g, '').trim();
+          if (name && !names.includes(name)) names.push(name);
+        });
+        return names;
+      }, [friendsReplies]);
+      const hasInboundClaim = inboxPeople.length >= 1;
+      // The tutorial prefills sample replies, so that demo still waits for its share step.
+      const claimFollowupOpen = tutorialDemo ? claimLinkShared : hasInboundClaim;
+
       useEffect(() => {
         const node = claimFollowupRef.current;
         if (!node) return;
-        if (claimLinkShared) node.removeAttribute('inert');
+        if (claimFollowupOpen) node.removeAttribute('inert');
         else node.setAttribute('inert', '');
-      }, [claimLinkShared, step, items.length]);
+      }, [claimFollowupOpen, step, items.length]);
 
       useLayoutEffect(() => {
         if (tutorialDemo || tutorialSuspended || !isAnalyzing || step !== 1 || showSettings || showHistory || showTutorial) return undefined;
@@ -2934,16 +2947,6 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
       const paymentOptions = ['轉數快 (FPS)', 'PayMe', '現金', '銀行轉帳', 'Alipay'];
       const displayCurrencies = Array.from(new Set([detectedCurrency, 'HKD', 'JPY', 'TWD', 'THB', 'KRW', 'USD', 'MOP', 'GBP', 'EUR'])).filter(Boolean).slice(0, 9);
 
-      const inboxPeople = useMemo(() => {
-        const names = [];
-        String(friendsReplies || '').split('\n').forEach(line => {
-          if (!/(?:👤|姓名|Name)/.test(line) || !/[:：=＝]/.test(line)) return;
-          const name = line.split(/[:：=＝]/).slice(1).join(':').replace(/\*/g, '').trim();
-          if (name && !names.includes(name)) names.push(name);
-        });
-        return names;
-      }, [friendsReplies]);
-
       // ── 智能提示欄邏輯 (StatusBar) ──
       const statuses = useMemo(() => {
         const list = [];
@@ -3526,21 +3529,26 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                     ref={claimFollowupRef}
                     data-testid="claim-followup"
                     data-claim-shared={claimLinkShared ? 'true' : 'false'}
-                    className={claimLinkShared ? 'space-y-6' : 'claim-await-share space-y-6'}
-                    aria-disabled={claimLinkShared ? undefined : true}
-                    {...(claimLinkShared ? {} : { inert: '' })}
+                    data-claim-returned={claimFollowupOpen ? 'true' : 'false'}
+                    className={claimFollowupOpen ? 'space-y-6' : 'claim-await-share space-y-6'}
+                    aria-disabled={claimFollowupOpen ? undefined : true}
+                    {...(claimFollowupOpen ? {} : { inert: '' })}
                   >
                     <Card data-testid="claim-inbox" className="!p-4 mb-4 border-brand-600">
                       <h3 className="text-lg font-extrabold text-slate-800">{bi('朋友一按交返', 'Friends send their share')}</h3>
                       <p className="text-base text-slate-700 mt-2 leading-relaxed">{bi('朋友撳「交返發起人」後，認帳會出現在下面。', 'After a friend taps Send to organizer, their share appears below.')}</p>
                       <p data-testid="claim-inbox-status" className="mt-3 text-base font-bold leading-relaxed text-slate-800" role="status">
-                        {!claimRoom && bi('先複製或分享上面的連結。', 'Copy or share the link above first.')}
-                        {claimRoom && inboxPhase === 'receiving' && bi('正在接收…', 'Receiving…')}
-                        {claimRoom && inboxPhase === 'error' && bi('暫時收唔到。請再按，或用 WhatsApp 後備。', 'Could not receive just now. Tap again, or use the WhatsApp backup.')}
-                        {claimRoom && inboxPhase === 'offline' && bi('而家離線，連線後會再試。', 'You are offline. This page will try again once you are online.')}
-                        {claimRoom && inboxPhase !== 'receiving' && inboxPhase !== 'error' && inboxPhase !== 'offline' && (inboxPeople.length
+                        {claimFollowupOpen && inboxPeople.length >= 1
                           ? bi(`已收到 ${inboxPeople.length} 位：${inboxPeople.join('、')}`, `Received ${inboxPeople.length}: ${inboxPeople.join(', ')}`)
-                          : bi('等候朋友交返。', 'Waiting for friends.'))}
+                          : tutorialDemo
+                            ? bi('先複製或分享上面的連結。', 'Copy or share the link above first.')
+                            : claimRoom && inboxPhase === 'receiving'
+                              ? bi('正在接收…', 'Receiving…')
+                              : claimRoom && inboxPhase === 'error'
+                                ? bi('暫時收唔到，稍後再試。', 'Could not receive just now. This page will try again shortly.')
+                                : claimRoom && inboxPhase === 'offline'
+                                  ? bi('而家離線，連線後會再試。', 'You are offline. This page will try again once you are online.')
+                                  : bi('等候朋友交返。', 'Waiting for a friend to send their share.')}
                       </p>
                       {inboxNote && claimRoom && <p className="mt-2 text-base font-semibold text-brand-800">{bi(`最新交到：${inboxNote}`, `Latest: ${inboxNote}`)}</p>}
                       <Button data-testid="claim-inbox-refresh" variant="outline" className="!w-full mt-3" disabled={!claimRoom || inboxPhase === 'receiving'} onClick={() => pullClaimsRef.current(true)}>{bi('重新接收', 'Check again')}</Button>
