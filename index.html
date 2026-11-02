@@ -962,6 +962,8 @@
       const [progressText, setProgressText] = useState('');
       const [uploadError, setUploadError] = useState('');
       const [lastImageData, setLastImageData] = useState([]);
+      const [showImageActionMenu, setShowImageActionMenu] = useState(false);
+      const [lastRecognitionModel, setLastRecognitionModel] = useState('');
       const [includeReceiptImages, setIncludeReceiptImages] = useState(false);
       const [showRedaction, setShowRedaction] = useState(false);
       const [pendingRedactionImages, setPendingRedactionImages] = useState([]);
@@ -979,6 +981,15 @@
       const [cameraOpen, setCameraOpen] = useState(false);
       const cameraStreamRef = useRef(null);
       const cameraVideoRef = useRef(null);
+
+      useEffect(() => {
+        if (!showImageActionMenu) return undefined;
+        const closeOnEscape = event => {
+          if (event.key === 'Escape') setShowImageActionMenu(false);
+        };
+        window.addEventListener('keydown', closeOnEscape);
+        return () => window.removeEventListener('keydown', closeOnEscape);
+      }, [showImageActionMenu]);
 
       const [payer, setPayer] = useState(tutorialDemo ? '阿明' : '');
       // detectedCurrency is the currency printed on the receipt / used for entry.
@@ -1137,7 +1148,7 @@
         assetRevision: draftAssets.revision, hasAssets: hasDraftAssets || draftAssets.unavailable,
         data: { step, items, taxAmount, discountAmount, taxNote, receiptAdjustmentDetails, friendsReplies, payer, detectedCurrency, currency,
           taxSplitMethod, paymentMethods, results, reconciliation, isSaved, includeReceiptImages, detailLang, pendingReceiptShare,
-          claimRoom, claimInboxSeen, readReceipt, claimLinkShared: claimLinkSharedRef.current }
+          claimRoom, claimInboxSeen, readReceipt, lastRecognitionModel, claimLinkShared: claimLinkSharedRef.current }
       };
       const persistActiveDraft = () => {
         if (tutorialDemo) return true;
@@ -1223,6 +1234,7 @@
             setIsSaved(Boolean(data.isSaved));
             setDetailLang(data.detailLang === 'full' ? 'full' : 'zh');
             setLastImageData(images); setClaimAttachments(attachments);
+            setLastRecognitionModel(typeof data.lastRecognitionModel === 'string' ? data.lastRecognitionModel : '');
             const restoredRoom = data.claimRoom && window.ClaimRelay?.isRoom(data.claimRoom) ? data.claimRoom : null;
             claimRoomRef.current = restoredRoom;
             setClaimRoom(restoredRoom);
@@ -1272,7 +1284,7 @@
         if (tutorialDemo || !draftReady) return;
         persistActiveDraft();
       }, [draftReady, step, items, readReceipt, taxAmount, discountAmount, taxNote, receiptAdjustmentDetails, friendsReplies, payer, detectedCurrency, currency,
-        taxSplitMethod, paymentMethods, results, reconciliation, isSaved, includeReceiptImages, detailLang, pendingReceiptShare, draftAssets, claimRoom, claimInboxSeen, claimLinkShared]);
+        taxSplitMethod, paymentMethods, results, reconciliation, isSaved, includeReceiptImages, detailLang, pendingReceiptShare, draftAssets, claimRoom, claimInboxSeen, claimLinkShared, lastRecognitionModel]);
 
       useEffect(() => {
         if (tutorialDemo || !draftReady) return;
@@ -1395,7 +1407,7 @@
       }, [step, showHistory, showSettings, showTutorial]);
 
       useEffect(() => {
-        if (tutorialDemo || tutorialSuspended || !draftReady || !pendingReceiptShare || !receiptShareNudge || step !== 4 || showHistory || showSettings || showTutorial) return;
+        if (tutorialDemo || tutorialSuspended || !draftReady || !pendingReceiptShare || !includeReceiptImages || !lastImageData.length || !receiptShareNudge || step !== 4 || showHistory || showSettings || showTutorial) return;
         const timer = setTimeout(() => {
           if (document.visibilityState !== 'visible' || !pendingReceiptShareRef.current) return;
           const target = document.getElementById('receipt-share-step');
@@ -1860,13 +1872,14 @@
         if (tutorialDemo) { onTutorialAction?.('report-preview'); return; }
         if (!ensureDraftSavedForSharing()) return;
         setReceiptShareNudge(0);
-        if (includeReceiptImages && lastImageData.length) {
+        const receiptImagesSelected = Boolean(includeReceiptImages && lastImageData.length);
+        if (receiptImagesSelected) {
           if (!updatePendingReceiptShare(true)) {
             toast('⚠️ 下一步提示未能存入本機草稿，暫不切換 App；請先檢查儲存權限。', 'error');
             return;
           }
-        }
-        receiptReturnArmedRef.current = Boolean(includeReceiptImages && lastImageData.length);
+        } else updatePendingReceiptShare(false);
+        receiptReturnArmedRef.current = receiptImagesSelected;
         shareTextWithFiles(text, [], title, requestReceiptShareNudge);
       };
 
@@ -1886,8 +1899,11 @@
         if (tutorialDemo) { onTutorialAction?.('report-preview'); return; }
         if (!ensureDraftSavedForSharing()) return;
         setReceiptShareNudge(0);
-        if (includeReceiptImages && lastImageData.length && !updatePendingReceiptShare(true)) return;
-        receiptReturnArmedRef.current = Boolean(includeReceiptImages && lastImageData.length);
+        const receiptImagesSelected = Boolean(includeReceiptImages && lastImageData.length);
+        if (receiptImagesSelected) {
+          if (!updatePendingReceiptShare(true)) return;
+        } else updatePendingReceiptShare(false);
+        receiptReturnArmedRef.current = receiptImagesSelected;
         copyToClipboard(text, title);
       };
 
@@ -1943,7 +1959,7 @@
         setPendingReceiptShare(false); setReceiptShareNudge(0);
         setStepError(''); setUploadError(''); setItems([]); setFriendsReplies(''); setResults(null);
         setIsAnalyzing(false); setProgress(0); setProgressText('');
-        setIsSaved(false); setIncludeReceiptImages(false); setLastImageData([]); setTaxAmount(''); setDiscountAmount(''); setTaxNote(''); setReceiptAdjustmentDetails(null);
+        setIsSaved(false); setIncludeReceiptImages(false); setLastImageData([]); setLastRecognitionModel(''); setTaxAmount(''); setDiscountAmount(''); setTaxNote(''); setReceiptAdjustmentDetails(null);
         setClaimAttachments([]); setClaimInfo(null); setShowClaimShareDialog(false);
         inboxGenerationRef.current += 1;
         claimRoomRef.current = null; claimInboxSeenRef.current = [];
@@ -2217,7 +2233,7 @@
         }
       };
 
-      const handleFileUpload = async (event, alreadyRedacted = false) => {
+      const handleFileUpload = async (event, alreadyRedacted = false, keepPreviousResultsOnFailure = false) => {
         if (tutorialDemo) return;
         const generation = billGenerationRef.current;
         const inputTarget = event?.target;
@@ -2422,6 +2438,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
           };
 
           let shaped;
+          let recognizedModelId = modelForRequest;
           if (Ocr.isFreeModel(modelForRequest)) {
             const order = Ocr.cascadeOrder(modelForRequest);
             const failures = [];
@@ -2434,7 +2451,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                   firstStatus: index === 0 ? Ocr.waitingText(modelId) : Ocr.switchText(modelId)
                 });
                 if (generation !== billGenerationRef.current) return;
-                if (shaped) break;
+                if (shaped) { recognizedModelId = modelId; break; }
               } catch (error) {
                 if (error?.name === 'AbortError' || Number(error?.status) === 401) throw error;
                 failures.push({ modelId, error });
@@ -2494,6 +2511,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
             if (generation !== billGenerationRef.current) return;
             setItems(finalizedItems);
             setReadReceipt(true);
+            setLastRecognitionModel(recognizedModelId);
             openItemEditsRef.current = {};
             setOpenItemEdits({});
             setCurrency(parsedCurrency);
@@ -2521,6 +2539,10 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
           setIsAnalyzing(false);
           setProgressText('');
           setUploadError({ main: '讀取失敗', sub: error?.message || '未知錯誤', detail: error?.detail || '', action: null });
+          if (keepPreviousResultsOnFailure && receiptWasRead && items.length) {
+            setStep(2);
+            toast(bi('重新識別未成功，已保留上次成功結果。', 'Re-recognition failed; the previous successful results are kept.'), 'error');
+          }
         } finally {
           if (generation === billGenerationRef.current) clearFileSelection();
         }
@@ -2534,7 +2556,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
           const ext = img.mimeType === 'image/png' ? 'png' : img.mimeType === 'image/webp' ? 'webp' : 'jpg';
           return new File([bytes], `receipt-retry-${index + 1}.${ext}`, { type: img.mimeType });
         });
-        handleFileUpload({ target: { files, value: '' } }, true);
+        handleFileUpload({ target: { files, value: '' } }, true, receiptWasRead && items.length > 0);
       };
 
       const addItem = () => {
@@ -3389,32 +3411,55 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                       <div className="w-full bg-brand-100 border border-brand-300 rounded-full h-3 overflow-hidden shadow-inner" aria-hidden="true">
                         <div className="ocr-indeterminate bg-brand-500 h-3 rounded-full"></div>
                       </div>
+                      {lastRecognitionModel && <p data-testid="last-recognition-model" className="mt-2 text-xs text-slate-600 text-left">{bi(`上次使用：${Ocr.shortLabel(lastRecognitionModel)}`, `Previous model: ${Ocr.shortLabel(lastRecognitionModel)}`)}</p>}
                       <p className="text-base text-slate-700 mt-4 leading-relaxed">{bi('請稍候。完成後會帶你去核對項目。', 'Please wait. You can check the items when it finishes.')}</p>
-                    </div>
-                  ) : uploadError ? (
-                    <div className="flex flex-col items-center max-w-md mx-auto">
-                      <div className="w-20 h-20 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center mb-4 shadow-sm border border-amber-300"><Icon path={icons.alert} size={36} /></div>
-                      <h3 className="text-lg font-bold text-slate-800">{tr("今次未能完整讀取單據")}</h3>
-                      <p className="text-base font-medium text-slate-700 mt-2">{bi('今次讀唔到。可以用同一張圖再試。', 'Could not read it this time. Try the same image again.')}</p>
-                      {uploadError.sub && <p className="text-base text-slate-700 mt-2 break-words">{tr(uploadError.sub)}</p>}
-                      {uploadError.detail && <p className="text-base text-slate-600 mt-1 break-words">{uploadError.detail}</p>}
-                      {lastImageData.length ? (
-                        <Button variant="primary" className="mt-4 w-full sm:w-auto" onClick={retryLastUpload}>{tr("↻ 用剛才圖片再試一次")}</Button>
-                      ) : (
-                        <Button variant="secondary" className="mt-4 w-full sm:w-auto" onClick={() => { setUploadError(''); triggerUpload(); }}>{tr("重新選擇圖片")}</Button>
-                      )}
-                      <Button variant="secondary" className="mt-3 w-full border-slate-500" onClick={startManualEntry}>{bi('改為手動輸入', 'Enter items manually')}</Button>
                     </div>
                   ) : (
                     <div className="flex flex-col items-center w-full">
-                      <div className="w-20 h-20 bg-slate-100 text-slate-500 rounded-full flex items-center justify-center mb-4 shadow-sm border border-slate-400"><Icon path={icons.fileImage} size={36} /></div>
-                      <h3 className="text-lg font-bold text-slate-800">{tr("選擇單據圖片")}</h3>
-                      <p className="text-base font-medium text-slate-600 mt-2">{tr("可以直接影相，或者從手機選擇圖片（最多 5 張）")}</p>
+                      <div className={`w-20 h-20 ${uploadError ? 'bg-amber-50 text-amber-600 border-amber-300' : 'bg-slate-100 text-slate-500 border-slate-400'} rounded-full flex items-center justify-center mb-4 shadow-sm border`}><Icon path={uploadError ? icons.alert : icons.fileImage} size={36} /></div>
+                      <h3 className="text-lg font-bold text-slate-800">{uploadError ? tr("今次未能完整讀取單據") : lastImageData.length ? bi('已保留上次單據圖片', 'Previous receipt image is ready') : tr("選擇單據圖片")}</h3>
+                      {uploadError ? (
+                        <div className="mt-2 text-center">
+                          <p className="text-base font-medium text-slate-700">{bi('今次讀唔到。可按同一位置再試，舊結果會保留至新結果成功。', 'Could not read it this time. Retry here; the previous results stay until the new read succeeds.')}</p>
+                          {uploadError.sub && <p className="text-base text-slate-700 mt-2 break-words">{tr(uploadError.sub)}</p>}
+                          {typeof uploadError === 'string' && <p className="text-sm text-slate-600 mt-2">{tr(uploadError)}</p>}
+                          {uploadError.detail && <p className="text-sm text-slate-600 mt-1 break-words">{uploadError.detail}</p>}
+                        </div>
+                      ) : (
+                        <p className="text-base font-medium text-slate-600 mt-2">{lastImageData.length ? bi('可以用同一批圖片重新識別，或直接影新收據。', 'Re-recognize the same images, or take a new receipt photo.') : tr("可以直接影相，或者從手機選擇圖片（最多 5 張）")}</p>
+                      )}
+                      {receiptWasRead && lastImageData.length > 0 && (
+                        <p data-testid="reuse-last-batch-hint" className="mt-4 max-w-sm text-left text-xs leading-relaxed text-slate-600">
+                          {bi('小提示：可以用返上一次成批相片重新識別。', 'Tip: you can re-recognize the full previous batch of photos.')}
+                        </p>
+                      )}
                       <div data-testid="receipt-source-actions" className="flex flex-col sm:flex-row items-stretch gap-3 mt-5 w-full max-w-sm">
                         <Button data-testid="receipt-camera" variant="primary" className="flex-1 !py-3" onClick={triggerCamera}><Icon path={'<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3Z"/><circle cx="12" cy="13" r="4"/>'} size={20}/>{tr("📷 直接影相").replace("📷", "").trim()}</Button>
                         <ChoiceDivider inline />
-                        <Button data-testid="receipt-upload" variant="secondary" className="flex-1 !py-3" onClick={triggerUpload}><Icon path={icons.fileImage} size={18}/>{tr(" 選擇圖片")}</Button>
+                        <Button data-testid="receipt-upload" aria-haspopup="dialog" aria-expanded={showImageActionMenu} variant="secondary" className="flex-1 !py-3" onClick={() => tutorialDemo ? onTutorialAction?.('receipt') : setShowImageActionMenu(true)}><Icon path={icons.fileImage} size={18}/>{tr(" 選擇圖片")}</Button>
                       </div>
+                      {showImageActionMenu && (
+                        <div data-testid="receipt-image-action-backdrop" className="fixed inset-0 z-[60] flex items-end justify-center bg-slate-900/40 p-3 backdrop-blur-sm sm:items-center" onClick={() => setShowImageActionMenu(false)}>
+                          <div role="dialog" aria-modal="true" aria-labelledby="receipt-image-action-title" data-testid="receipt-image-action-menu" className="w-full max-w-sm rounded-2xl border border-slate-300 bg-white p-4 shadow-2xl" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 1rem)' }} onClick={event => event.stopPropagation()}>
+                            <div className="mb-3 flex items-start justify-between gap-3">
+                              <div>
+                                <h3 id="receipt-image-action-title" className="text-lg font-bold text-slate-900">{bi('選擇圖片操作', 'Choose a photo action')}</h3>
+                                <p className="mt-1 text-sm leading-relaxed text-slate-600">{bi('選擇新相片，或者重用上一批相片。', 'Choose new photos or reuse the previous batch.')}</p>
+                              </div>
+                              <button type="button" data-testid="close-receipt-image-menu" onClick={() => setShowImageActionMenu(false)} aria-label={tr('關閉')} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-400 text-2xl leading-none text-slate-600 hover:bg-slate-100">×</button>
+                            </div>
+                            <div className="flex flex-col gap-2">
+                              <Button data-testid="add-new-receipt-photos" variant="primary" className="!justify-start !py-3 text-left" onClick={() => { setShowImageActionMenu(false); setUploadError(''); triggerUpload(); }}>
+                                <Icon path={icons.fileImage} size={20}/><span className="flex flex-col items-start"><span>{bi('添加新照片', 'Add new photos')}</span><span className="text-xs font-normal opacity-90">{bi('從手機選擇最多 5 張圖片', 'Choose up to 5 photos from your device')}</span></span>
+                              </Button>
+                              <Button data-testid="reuse-last-receipt-photos" variant="secondary" className="!justify-start !py-3 text-left" disabled={!lastImageData.length || isAnalyzing} onClick={() => { setShowImageActionMenu(false); retryLastUpload(); }}>
+                                <Icon path={icons.fileImage} size={20}/><span className="flex flex-col items-start"><span>{bi('用上一次的圖片重新識別', 'Re-recognize the last photos')}</span><span className="text-xs font-normal text-slate-600">{lastImageData.length ? bi(`重用整批 ${lastImageData.length} 張相片`, `Reuse all ${lastImageData.length} photos`) : bi('暫無可重用的相片', 'No previous photos available')}</span></span>
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      {lastImageData.length > 0 && lastRecognitionModel && <p data-testid="last-recognition-model" className="mt-2 text-xs text-slate-600">{bi(`上次使用：${Ocr.shortLabel(lastRecognitionModel)}`, `Previous model: ${Ocr.shortLabel(lastRecognitionModel)}`)}</p>}
                     </div>
                   )}
                 </div>
@@ -3439,11 +3484,19 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                       <h2 className="verify-hint" data-testid="verify-title">{tr("核對單據")}</h2>
                       <p className="verify-hint-sub" data-testid="verify-subtitle">{tr("AI 已讀好，改錯嘅就得")}</p>
                       <p className="verify-summary" data-testid="verify-summary">{tf("已讀到 {0} 項 · 總額 {1}", [items.length, formatMoney(receiptTotal, detectedCurrency)])}</p>
+                      {lastRecognitionModel && <p data-testid="last-recognition-model" className="mt-1 text-xs text-slate-600">{bi(`上次使用：${Ocr.shortLabel(lastRecognitionModel)}`, `Previous model: ${Ocr.shortLabel(lastRecognitionModel)}`)}</p>}
                     </div>
                   ) : (
                     <h2 className="text-2xl font-bold text-slate-800 tracking-tight">{tr("核對項目與各自認帳")}</h2>
                   )}
                 </div>
+                {uploadError && lastRecognitionModel && receiptWasRead && (
+                  <div data-testid="recognition-retry-error" role="alert" className="rounded-xl border border-amber-500 bg-amber-50 p-3 text-sm leading-relaxed text-amber-950">
+                    <p className="font-bold">{bi('重新識別未成功；以下仍保留上次成功結果。', 'Re-recognition did not succeed; the previous successful results are still shown.')}</p>
+                    {uploadError.sub && <p className="mt-1">{tr(uploadError.sub)}</p>}
+                    {uploadError.detail && <p className="mt-1 break-words">{uploadError.detail}</p>}
+                  </div>
+                )}
                 {items.length === 0 && <p className="text-base text-slate-700 leading-relaxed">{bi('有項目之後，先會出現認帳連結。', 'The share link appears once there is an item.')}</p>}
 
                 <div className="space-y-4">
@@ -3813,11 +3866,16 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                   </Card>
                 </div>
 
+                <div data-testid="report-choice-divider" className="my-4 flex items-center gap-3 px-4 text-slate-500" role="separator" aria-label={bi('報告二選一', 'Choose one report')}>
+                  <span aria-hidden="true" className="h-px flex-1 bg-slate-400" />
+                  <span className="rounded-full border border-slate-300 bg-slate-50 px-3 py-1 text-sm font-bold uppercase tracking-wider">OR</span>
+                  <span aria-hidden="true" className="h-px flex-1 bg-slate-400" />
+                </div>
+
                 <Card className="report-detail-card !p-0 overflow-hidden">
                   <div className="p-4 bg-slate-50 border-b border-slate-400">
                     <div className="mb-3">
                       <h3 className="font-bold text-slate-800 text-base">{tr("🧾 詳細明細版")}</h3>
-                      <p className="text-xs text-slate-500 font-medium mt-0.5">{bi('或選詳細版；第 1 步只需發送一款文字報告。', 'Or choose the detailed version; send just one text report in step 1.')}</p>
                     </div>
                     <div data-testid="detail-report-actions" className="flex items-center gap-2 mb-4">
                       <Button onClick={() => shareCurrentReport(getDetailedResult(detailLang), tr("分帳詳細明細"))} variant="primary" className="flex-1 !w-auto !px-2 !py-2 text-sm">{tr("分享詳細版")}</Button>
@@ -3835,7 +3893,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                 </Card>
 
                 {(pendingReceiptShare || (includeReceiptImages && lastImageData.length > 0)) && (
-                  <section id="receipt-share-step" data-testid="receipt-next-step" tabIndex={-1} aria-labelledby="receipt-share-heading" className="scroll-mt-56 rounded-2xl border-4 border-amber-800 bg-amber-100 p-4 shadow-lg focus:outline-none focus:ring-4 focus:ring-amber-700 focus:ring-offset-2">
+                  <section id="receipt-share-step" data-testid="receipt-next-step" tabIndex={-1} aria-labelledby="receipt-share-heading" className="scroll-mt-56 rounded-2xl border border-amber-800 bg-amber-100 p-4 shadow-lg focus:outline-none focus:ring-4 focus:ring-amber-700 focus:ring-offset-2">
                     <div className="flex items-start gap-3">
                       <span aria-hidden="true" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-amber-900 text-2xl font-bold text-white">2</span>
                       <div className="min-w-0">
@@ -3845,7 +3903,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                     </div>
                     {pendingReceiptShare && <p role="status" className="mt-4 rounded-xl border-2 border-amber-800 bg-white p-3 text-base font-bold leading-relaxed text-amber-950">{bi('文字唔會附圖。確認發出後再分享圖片。', 'The text has no images. After it is sent, share the pictures.')}</p>}
                     {!lastImageData.length && <p role="alert" className="mt-4 font-bold text-amber-950">{tr("本機圖片暫未能載入。請重新開啟同一網址重試讀取草稿，勿重設帳單。")}</p>}
-                    <Button onClick={shareCurrentReceipts} disabled={!lastImageData.length} variant="primary" className="mt-4 !w-full !bg-amber-900 hover:!bg-amber-950 !text-white !border-amber-950 !py-4 !font-bold disabled:!opacity-100 disabled:!bg-slate-700"><Icon path={icons.share} size={20}/>{tr(" 分享單據圖片（")}{lastImageData.length}{tr(" 張）")}</Button>
+                    <Button onClick={shareCurrentReceipts} disabled={!lastImageData.length} variant="primary" className="mt-4 !w-full !bg-gradient-to-tr !from-amber-950 !to-amber-700 hover:!from-amber-900 hover:!to-amber-600 !text-white !border-amber-950 !py-4 !font-bold disabled:!opacity-100 disabled:!bg-slate-700" style={{ textShadow: '0 1px 2px rgba(0,0,0,.65)' }}><Icon path={icons.share} size={20}/>{tr(" 分享單據圖片（")}{lastImageData.length}{tr(" 張）")}</Button>
                     <p className="mt-3 text-sm leading-relaxed text-amber-950">{bi('只發圖片，唔會重發文字。', 'Images only. The text is not sent again.')}</p>
                   </section>
                 )}
