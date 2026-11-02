@@ -13,7 +13,7 @@
  * Bump CACHE_VERSION whenever you edit index.html so returning users get the
  * new build instead of the cached one.
  */
-const CACHE_VERSION = 'v90-claim-return-unlock';
+const CACHE_VERSION = 'v91-cross-currency-settlement';
 const SHELL_CACHE = `bill-splitter-shell-${CACHE_VERSION}`;
 const ASSET_CACHE = `bill-splitter-assets-${CACHE_VERSION}`;
 const CDN_CACHE = `bill-splitter-cdn-${CACHE_VERSION}`;
@@ -26,6 +26,7 @@ const SHELL_URLS = [
   './claim-relay.js',
   './ocr-cascade.js',
   './receipt-adjustments.js',
+  './exchange-rates.js',
   './i18n.js',
   './theme.css',
   './tutorial.js',

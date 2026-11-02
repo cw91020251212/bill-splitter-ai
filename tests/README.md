@@ -16,6 +16,8 @@ python3 -m http.server 4178
 node tests/tutorial-ui.cjs
 node tests/tutorial-safety.cjs
 node tests/settings-free-models.cjs
+node --test exchange-rates.test.cjs
+node tests/cross-currency-ui.cjs
 ```
 
 若 Playwright 或 Chromium 不在預設路徑，可用環境變數指定：
@@ -28,6 +30,7 @@ node tests/tutorial-ui.cjs
 ```
 
 `BASE_URL` 預設為 `http://127.0.0.1:4178/`。瀏覽器測試只允許 localhost／127.0.0.1；測試不需要 API 鎖匙。UI 測試建立本身的草稿及 IndexedDB 圖片／附件樣本，並比較教學前後原有 DOM、表單、localStorage、IndexedDB、捲動位置和焦點。
+跨貨幣 UI 測試會唯讀查詢 Frankfurter 取得實際匯率；它不傳送帳單或個人資料。匯率失敗情境則由測試攔截並模擬。
 
 ## 覆蓋範圍
 
@@ -56,3 +59,9 @@ node --test ocr-cascade.test.cjs claim-relay.test.cjs
 ```
 
 注意：既有 `claim-relay.test.cjs` 包含一項會使用公開 ntfy.sh 的實際網絡整合測試。
+
+## 跨貨幣結算
+
+`exchange-rates.test.cjs` 驗證同幣總額、實際取得的 JPY→HKD 匯率、目標貨幣的小數位四捨五入，以及查詢失敗或幣種配對錯誤時拒絕計算。`tests/cross-currency-ui.cjs` 以本機 Chromium 驗證使用者可見的來源幣／結算幣、實際換算報告，以及匯率服務失敗時不會產生報告。
+
+匯率來自 [Frankfurter 官方 API](https://frankfurter.dev/)，使用 `/v2/rate/{base}/{quote}` 並在報告列出服務回傳的日期。這是有日期的參考匯率，與銀行、信用卡或商戶實際成交匯率可能不同。

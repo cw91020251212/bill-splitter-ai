@@ -87,7 +87,8 @@
   <script src="./claim-relay.js"></script>
   <script src="./ocr-cascade.js"></script>
   <script src="./receipt-adjustments.js"></script>
-  <script src="./tutorial.js?v=v89-receipt-percent-adjustments"></script>
+  <script src="./exchange-rates.js?v=v90-cross-currency-settlement"></script>
+  <script src="./tutorial.js?v=v90-cross-currency-settlement"></script>
   <script type="text/babel">
     const { useState, useRef, useEffect, useLayoutEffect, useMemo } = React;
     const tr = value => window.BillI18n.t(value);
@@ -726,16 +727,25 @@
     };
 
     const getCurrencyName = (curr) => {
-      const map = { 'HKD': '港幣 (HKD)', 'JPY': '日元 (JPY)', 'KRW': '韓圜 (KRW)', 'TWD': '台幣 (TWD)', 'THB': '泰銖 (THB)', 'USD': '美金 (USD)', 'EUR': '歐元 (EUR)', 'GBP': '英鎊 (GBP)', 'CNY': '人民幣 (CNY)' };
+      const map = { 'HKD': '港幣 (HKD)', 'JPY': '日元 (JPY)', 'KRW': '韓圜 (KRW)', 'TWD': '台幣 (TWD)', 'THB': '泰銖 (THB)', 'USD': '美金 (USD)', 'EUR': '歐元 (EUR)', 'GBP': '英鎊 (GBP)', 'CNY': '人民幣 (CNY)', 'MOP': '澳門幣 (MOP)', 'AUD': '澳元 (AUD)', 'CAD': '加拿大元 (CAD)', 'SGD': '新加坡元 (SGD)' };
       return tr(map[curr?.toUpperCase()] || curr);
     };
 
     const formatMoney = (amount, curr) => ReceiptMath.formatMoney(amount, curr, getCurrencySymbol(curr));
+    const formatExchangeRate = (rate) => {
+      const value = Number(rate);
+      return Number.isFinite(value) ? value.toFixed(8).replace(/0+$/, '').replace(/\.$/, '') : '';
+    };
     const itemAmount = (item) => {
       const total = toNum(item?.total);
       if (total) return total;
       const qty = toNum(item?.qty) || toNum(item?.totalQty) || 1;
       return toNum(item?.price) * qty;
+    };
+    const getResultsBillTotal = (result) => {
+      const explicit = Number(result?.billTotal);
+      if (Number.isFinite(explicit)) return explicit;
+      return Object.values(result?.personTotals || {}).reduce((sum, person) => sum + toNum(person?.total), 0);
     };
 
     const RECEIPT_DB_NAME = 'billSplitterLocalData';
@@ -971,8 +981,32 @@
       const cameraVideoRef = useRef(null);
 
       const [payer, setPayer] = useState(tutorialDemo ? '阿明' : '');
+      // detectedCurrency is the currency printed on the receipt / used for entry.
       const [detectedCurrency, setDetectedCurrency] = useState('HKD');
       const [currency, setCurrency] = useState('HKD');
+      const [exchangeRate, setExchangeRate] = useState({ base: 'HKD', quote: 'HKD', rate: 1, date: null, provider: 'identity', status: 'ready' });
+      const [exchangeRateAttempt, setExchangeRateAttempt] = useState(0);
+
+      useEffect(() => {
+        const base = String(detectedCurrency || 'HKD').toUpperCase();
+        const quote = String(currency || 'HKD').toUpperCase();
+        if (base === quote) {
+          setExchangeRate({ base, quote, rate: 1, date: null, provider: 'identity', status: 'ready' });
+          return undefined;
+        }
+        const controller = new AbortController();
+        let active = true;
+        const timeout = setTimeout(() => controller.abort(), 12000);
+        setExchangeRate({ base, quote, status: 'loading' });
+        ExchangeRates.fetchRate(base, quote, { signal: controller.signal })
+          .then(result => { if (active) setExchangeRate({ ...result, status: 'ready' }); })
+          .catch(error => {
+            if (!active) return;
+            setExchangeRate({ base, quote, status: 'error', error: error?.name === 'AbortError' ? '匯率查詢逾時，請重試。' : (error?.message || '暫時無法取得匯率。') });
+          })
+          .finally(() => clearTimeout(timeout));
+        return () => { active = false; clearTimeout(timeout); controller.abort(); };
+      }, [detectedCurrency, currency, exchangeRateAttempt]);
 
       const [taxSplitMethod, setTaxSplitMethod] = useState('proportional');
       const [paymentMethods, setPaymentMethods] = useState(['轉數快 (FPS)']);
@@ -1092,9 +1126,9 @@
       verifyModeRef.current = receiptWasRead;
       const receiptTotal = ReceiptMath.roundMoney(
         items.reduce((sum, item) => sum + itemAmount(item), 0)
-          + ReceiptMath.roundMoney(toNum(taxAmount), currency)
-          - ReceiptMath.roundMoney(toNum(discountAmount), currency),
-        currency
+          + ReceiptMath.roundMoney(toNum(taxAmount), detectedCurrency)
+          - ReceiptMath.roundMoney(toNum(discountAmount), detectedCurrency),
+        detectedCurrency
       );
       const hasDraftWork = Boolean(items.length || friendsReplies.trim() || results || lastImageData.length || claimAttachments.length || draftAssets.unavailable);
       const hasDraftAssets = Boolean(lastImageData.length || claimAttachments.length);
@@ -1761,9 +1795,7 @@
         const receiptImageCount = lastImageData.length;
         try {
           const receiptFiles = receiptImageCount ? await saveReceiptImagesLocally(recordId, lastImageData) : [];
-          const billTax = ReceiptMath.roundMoney(toNum(taxAmount), results.currency);
-          const billDiscount = ReceiptMath.roundMoney(toNum(discountAmount), results.currency);
-          const billTotal = ReceiptMath.roundMoney(items.reduce((sum, item) => sum + toNum(item.total), 0) + billTax - billDiscount, results.currency);
+          const billTotal = getResultsBillTotal(results);
           const newRecord = { id: recordId, date: results.date, payer, totalAmount: billTotal, currency: results.currency, simplifiedText: getSimplifiedResult('zh-HK'), detailedText: getDetailedResult('zh', 'zh-HK'), detailedFullText: getDetailedResult('full', 'zh-HK'), reportLanguage: uiLang, reportData: { simplified: { zh: getSimplifiedResult('zh-HK'), en: getSimplifiedResult('en') }, detailed: { zh: getDetailedResult('zh', 'zh-HK'), en: getDetailedResult('zh', 'en'), fullZh: getDetailedResult('full', 'zh-HK'), fullEn: getDetailedResult('full', 'en') } }, receiptImageCount };
           setSavedHistory(current => [newRecord, ...current]);
           if (receiptImageCount) setSavedReceiptFiles(current => ({ ...current, [recordId]: receiptFiles }));
@@ -2697,10 +2729,35 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
 
         if (parsed.people.length === 0) { setStepError("⚠️ 未能解析！請確保已正確貼上朋友回覆並填寫數量。"); focusField('replies'); return; }
 
-        const itemClaimTotals = {};
-        items.forEach(item => { itemClaimTotals[item.id] = 0; Object.keys(personClaims).forEach(person => { itemClaimTotals[item.id] += (personClaims[person][item.id] || 0); }); });
+        let conversionRate;
+        try { conversionRate = ExchangeRates.requireRate(exchangeRate, detectedCurrency, currency); }
+        catch (error) {
+          setStepError(exchangeRate.status === 'loading'
+            ? '⚠️ 正在取得最新匯率，請稍候再按「產生分帳報告」。'
+            : '⚠️ 未能取得這組貨幣的匯率，請重試或選擇其他結算貨幣；未換算前不會產生報告。');
+          return false;
+        }
 
-        const reconciliationIssues = items.map(item => {
+        const sourceTotal = ReceiptMath.roundMoney(
+          items.reduce((sum, item) => sum + itemAmount(item), 0)
+            + ReceiptMath.roundMoney(toNum(taxAmount), detectedCurrency)
+            - ReceiptMath.roundMoney(toNum(discountAmount), detectedCurrency),
+          detectedCurrency
+        );
+        const convertedReceipt = ExchangeRates.convertReceiptAmounts({
+          itemAmounts: items.map(item => itemAmount(item)),
+          taxAmount: toNum(taxAmount),
+          discountAmount: toNum(discountAmount),
+          rate: conversionRate,
+          targetCurrency: currency,
+          moneyMath: ReceiptMath
+        });
+        const calculationItems = items.map((item, index) => ({ ...item, total: convertedReceipt.itemAmounts[index] }));
+
+        const itemClaimTotals = {};
+        calculationItems.forEach(item => { itemClaimTotals[item.id] = 0; Object.keys(personClaims).forEach(person => { itemClaimTotals[item.id] += (personClaims[person][item.id] || 0); }); });
+
+        const reconciliationIssues = calculationItems.map(item => {
           const totalQty = toNum(item.totalQty);
           if (totalQty <= 0) return null;
           const actualPeople = Object.keys(personClaims).filter(person => claimUnits[person]?.[item.id] && (personClaims[person][item.id] || 0) > 0);
@@ -2726,7 +2783,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
         const personTotals = {}; let totalItemsCost = 0;
         Object.keys(personClaims).forEach(person => { personTotals[person] = { items: [], adjustments: [], subtotal: 0, discount: 0, tax: 0, total: 0 }; });
 
-        items.forEach(item => {
+        calculationItems.forEach(item => {
           const totalClaimed = itemClaimTotals[item.id];
           if (totalClaimed <= 0) return;
           const people = Object.keys(personClaims);
@@ -2752,7 +2809,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
 
         reconciliationIssues.forEach(issue => {
           const policy = reconciliation?.policy;
-          const item = items.find(candidate => candidate.id === issue.itemId);
+          const item = calculationItems.find(candidate => candidate.id === issue.itemId);
           const amount = issue.amount;
           if (policy === 'payer') {
             if (!personTotals[payer]) personTotals[payer] = { items: [], adjustments: [], subtotal: 0, tax: 0, total: 0 };
@@ -2774,7 +2831,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
         });
         const reconciliationAllocations = reconciliationIssues.map(issue => ({ ...issue, policy: reconciliation?.policy }));
 
-        const discountNum = ReceiptMath.roundMoney(parseFloat(discountAmount) || 0, currency);
+        const discountNum = convertedReceipt.discountAmount;
         if (discountNum < 0 || !ReceiptMath.isDiscountWithinSubtotal(discountNum, totalItemsCost, currency)) {
           setStepError('⚠️ 整張單折扣不可多於已分攤品項小計，請核對折扣金額。'); focusField('discount-amount'); return;
         }
@@ -2785,7 +2842,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
           personTotals[person].subtotal = Math.max(0, personTotals[person].subtotal - share);
         });
         totalItemsCost = Math.max(0, preDiscountItemsCost - discountNum);
-        const taxNum = ReceiptMath.roundMoney(parseFloat(taxAmount) || 0, currency); const numPeople = Object.keys(personClaims).length;
+        const taxNum = convertedReceipt.taxAmount; const numPeople = Object.keys(personClaims).length;
         Object.keys(personTotals).forEach(person => {
           let taxShare = 0;
           if (taxSplitMethod === 'equal') taxShare = taxNum / numPeople;
@@ -2793,7 +2850,8 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
           personTotals[person].tax = taxShare; personTotals[person].total = personTotals[person].subtotal + taxShare;
         });
 
-        setResults({ personTotals, totalItemsCost, reconciliationAllocations, date: new Date().toISOString().split('T')[0], currency });
+        const billTotal = ReceiptMath.roundMoney(totalItemsCost + taxNum, currency);
+        setResults({ personTotals, totalItemsCost, itemsSubtotal: preDiscountItemsCost, discountAmount: discountNum, taxAmount: taxNum, billTotal, sourceCurrency: detectedCurrency, sourceTotal, exchangeRate: conversionRate, exchangeRateDate: exchangeRate.date || null, exchangeProvider: exchangeRate.provider || 'Frankfurter', reconciliationAllocations, date: new Date().toISOString().split('T')[0], currency });
         updatePendingReceiptShare(false); setReceiptShareNudge(0);
         setIsSaved(false); setIsSavingRecord(false); setIncludeReceiptImages(false); setStep(4);
         return true;
@@ -2817,7 +2875,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
         return map[value] || value || 'unit(s)';
       };
       const reportCurrencyName = (currency, language) => {
-        if (language !== 'en') { const names = { HKD: '港幣 (HKD)', JPY: '日元 (JPY)', KRW: '韓圜 (KRW)', TWD: '台幣 (TWD)', THB: '泰銖 (THB)', USD: '美金 (USD)', EUR: '歐元 (EUR)', GBP: '英鎊 (GBP)', MOP: '澳門幣 (MOP)', CNY: '人民幣 (CNY)' }; return names[String(currency || '').toUpperCase()] || currency; }
+        if (language !== 'en') { const names = { HKD: '港幣 (HKD)', JPY: '日元 (JPY)', KRW: '韓圜 (KRW)', TWD: '台幣 (TWD)', THB: '泰銖 (THB)', USD: '美金 (USD)', EUR: '歐元 (EUR)', GBP: '英鎊 (GBP)', MOP: '澳門幣 (MOP)', CNY: '人民幣 (CNY)', AUD: '澳元 (AUD)', CAD: '加拿大元 (CAD)', SGD: '新加坡元 (SGD)' }; return names[String(currency || '').toUpperCase()] || currency; }
         const code = String(currency || '').toUpperCase();
         const names = { HKD: 'Hong Kong dollars (HKD)', JPY: 'Japanese yen (JPY)', KRW: 'South Korean won (KRW)', TWD: 'New Taiwan dollars (TWD)', THB: 'Thai baht (THB)', USD: 'US dollars (USD)', EUR: 'euros (EUR)', GBP: 'British pounds (GBP)', MOP: 'Macanese patacas (MOP)', CNY: 'Chinese yuan (CNY)', MOP: 'Macanese patacas (MOP)', AUD: 'Australian dollars (AUD)', CAD: 'Canadian dollars (CAD)', SGD: 'Singapore dollars (SGD)' };
         return names[code] || code;
@@ -2833,9 +2891,15 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
         const english = language === 'en';
         const others = Object.keys(results.personTotals).filter(p => p !== payer);
         const curr = results.currency;
+        const conversionNote = results.sourceCurrency && results.sourceCurrency !== curr
+          ? (english
+            ? `🔄 Receipt total: ${formatMoney(results.sourceTotal, results.sourceCurrency)} ${results.sourceCurrency} → Settlement total: ${formatMoney(results.billTotal, curr)} ${curr}\n📈 Exchange rate: 1 ${results.sourceCurrency} = ${formatExchangeRate(results.exchangeRate)} ${curr} (${results.exchangeRateDate || 'latest available'}${results.exchangeProvider ? ` · ${results.exchangeProvider}` : ''})\n`
+            : `🔄 原單總額：${formatMoney(results.sourceTotal, results.sourceCurrency)} ${results.sourceCurrency} → 結算總額：${formatMoney(results.billTotal, curr)} ${curr}\n📈 匯率：1 ${results.sourceCurrency} = ${formatExchangeRate(results.exchangeRate)} ${curr}（${results.exchangeRateDate || '最新可用'}${results.exchangeProvider ? ` · ${results.exchangeProvider}` : ''}）\n`)
+          : '';
         const paymentLabel = paymentMethods.length ? paymentMethods.map(method => paymentDisplay(method, language)).join(english ? ', ' : '、') : (english ? 'Not specified' : '未指定');
         if (!english) {
           let txt = `💰 *分帳結果｜各人應付金額與收款資料* 💰\n📅 ${results.date} · 💴 結算貨幣：*${reportCurrencyName(curr, language)}*\n💳 請過數俾：*${payer}*\n💵 付款方式：${paymentLabel}\n────────\n`;
+          txt += conversionNote;
           others.forEach(person => { txt += `👤 *${person}* — 應付 ➡️ *${formatMoney(results.personTotals[person].total, curr)}*\n\n`; });
           if (others.length === 0) txt += `（只有墊支人一位，無需過數）\n`;
           txt += `────────\n`;
@@ -2846,6 +2910,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
           return txt;
         }
         let txt = `💰 *Bill Split | Amounts Due & Payment Details* 💰\n📅 ${results.date} · 💴 Settlement currency: *${reportCurrencyName(curr, language)}*\n💳 Pay to: *${payer}*\n💵 Payment methods: ${paymentLabel}\n────────\n`;
+        txt += conversionNote;
         others.forEach(person => { txt += `👤 *${person}* — Amount due ➡️ *${formatMoney(results.personTotals[person].total, curr)}*\n\n`; });
         if (others.length === 0) txt += `(Only the payer is included; no transfer is needed.)\n`;
         txt += `────────\n`;
@@ -2872,7 +2937,11 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
               && printedRates.some(rate => rate === Number(row.ratePercent));
             const rateLabel = row.ratePercent === null || row.ratePercent === undefined || rateAlreadyInLabel ? '' : ` ${row.ratePercent}%`;
             const sign = row.kind === 'discount' ? '−' : '+';
-            lines.push(`• ${itemPrefix}${row.label}${rateLabel} ${sign}${formatMoney(row.amount, receiptAdjustmentDetails.currency || currency)}`);
+            const rowCurrency = receiptAdjustmentDetails.currency || detectedCurrency;
+            const rowAmount = results && rowCurrency === results.sourceCurrency && results.sourceCurrency !== results.currency
+              ? `${formatMoney(row.amount, rowCurrency)} ${rowCurrency} → ${formatMoney(ExchangeRates.convertMoney(row.amount, results.exchangeRate, results.currency, ReceiptMath), results.currency)} ${results.currency}`
+              : `${formatMoney(row.amount, rowCurrency)} ${rowCurrency}`;
+            lines.push(`• ${itemPrefix}${row.label}${rateLabel} ${sign}${rowAmount}`);
           });
         }
         if (receiptAdjustmentDetails.doubleApplicationPrevented) {
@@ -2893,6 +2962,11 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
         const full = mode === 'full';
         const english = language === 'en';
         const curr = results.currency;
+        const conversionNote = results.sourceCurrency && results.sourceCurrency !== curr
+          ? (english
+            ? `🔄 Receipt total: ${formatMoney(results.sourceTotal, results.sourceCurrency)} ${results.sourceCurrency} → Settlement total: ${formatMoney(results.billTotal, curr)} ${curr}\n📈 Exchange rate: 1 ${results.sourceCurrency} = ${formatExchangeRate(results.exchangeRate)} ${curr} (${results.exchangeRateDate || 'latest available'}${results.exchangeProvider ? ` · ${results.exchangeProvider}` : ''})\n`
+            : `🔄 原單總額：${formatMoney(results.sourceTotal, results.sourceCurrency)} ${results.sourceCurrency} → 結算總額：${formatMoney(results.billTotal, curr)} ${curr}\n📈 匯率：1 ${results.sourceCurrency} = ${formatExchangeRate(results.exchangeRate)} ${curr}（${results.exchangeRateDate || '最新可用'}${results.exchangeProvider ? ` · ${results.exchangeProvider}` : ''}）\n`)
+          : '';
         const paymentLabel = paymentMethods.length ? paymentMethods.map(method => paymentDisplay(method, language)).join(english ? ', ' : '、') : (english ? 'Not specified' : '未指定');
         const oneLineName = value => String(value || '').replace(/\s+/g, ' ').trim();
         const splitLabel = taxSplitMethod === 'equal'
@@ -2901,6 +2975,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
         let txt = english
           ? `🧾 *Detailed Bill Split | Shares & Amount Due* 🧾\n📅 ${results.date} · 💴 Settlement currency: ${reportCurrencyName(curr, language)}\n💳 Payer: ${payer}\n💵 Payment methods: ${paymentLabel}\n⚖️ Tax / service charge: ${splitLabel}\n────────\n\n`
           : `🧾 *分帳詳細明細｜各人認帳項目與應付金額* 🧾\n📅 ${results.date} · 💴 結算貨幣：${reportCurrencyName(curr, language)}\n💳 墊支人：${payer}\n💵 付款方式：${paymentLabel}\n⚖️ 稅／服務費：${splitLabel}\n────────\n\n`;
+        txt += conversionNote;
         let grandTotal = 0;
         Object.keys(results.personTotals).forEach(person => {
           const p = results.personTotals[person];
@@ -2931,10 +3006,10 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
             : `\n━━━━━━━━━━\n💰 *應付總額*\n\n*${formatMoney(p.total, curr)}*\n━━━━━━━━━━\n`;
           grandTotal += p.total;
         });
-        const itemsSum = items.reduce((sum, item) => sum + toNum(item.total), 0);
-        const billTax = ReceiptMath.roundMoney(toNum(taxAmount), curr);
-        const billDiscount = ReceiptMath.roundMoney(toNum(discountAmount), curr);
-        const billTotal = ReceiptMath.roundMoney(itemsSum + billTax - billDiscount, curr);
+        const itemsSum = Number.isFinite(Number(results.itemsSubtotal)) ? Number(results.itemsSubtotal) : items.reduce((sum, item) => sum + toNum(item.total), 0);
+        const billTax = Number.isFinite(Number(results.taxAmount)) ? Number(results.taxAmount) : ReceiptMath.roundMoney(toNum(taxAmount), curr);
+        const billDiscount = Number.isFinite(Number(results.discountAmount)) ? Number(results.discountAmount) : ReceiptMath.roundMoney(toNum(discountAmount), curr);
+        const billTotal = getResultsBillTotal(results);
         const diff = Math.abs(grandTotal - billTotal);
         const totalsMatch = ReceiptMath.withinRoundingTolerance(diff, curr);
         txt += english
@@ -2945,7 +3020,8 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
         return txt;
       };
       const paymentOptions = ['轉數快 (FPS)', 'PayMe', '現金', '銀行轉帳', 'Alipay'];
-      const displayCurrencies = Array.from(new Set([detectedCurrency, 'HKD', 'JPY', 'TWD', 'THB', 'KRW', 'USD', 'MOP', 'GBP', 'EUR'])).filter(Boolean).slice(0, 9);
+      const sourceCurrencyOptions = Array.from(new Set([detectedCurrency, 'HKD', 'JPY', 'TWD', 'THB', 'KRW', 'USD', 'MOP', 'GBP', 'EUR', 'CNY', 'AUD', 'CAD', 'SGD'])).filter(Boolean);
+      const displayCurrencies = Array.from(new Set([detectedCurrency, currency, 'HKD', 'JPY', 'TWD', 'THB', 'KRW', 'USD', 'MOP', 'GBP', 'EUR'])).filter(Boolean).slice(0, 9);
 
       // ── 智能提示欄邏輯 (StatusBar) ──
       const statuses = useMemo(() => {
@@ -3362,7 +3438,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                     <div className="min-w-0" data-testid="verify-intro">
                       <h2 className="verify-hint" data-testid="verify-title">{tr("核對單據")}</h2>
                       <p className="verify-hint-sub" data-testid="verify-subtitle">{tr("AI 已讀好，改錯嘅就得")}</p>
-                      <p className="verify-summary" data-testid="verify-summary">{tf("已讀到 {0} 項 · 總額 {1}", [items.length, formatMoney(receiptTotal, currency)])}</p>
+                      <p className="verify-summary" data-testid="verify-summary">{tf("已讀到 {0} 項 · 總額 {1}", [items.length, formatMoney(receiptTotal, detectedCurrency)])}</p>
                     </div>
                   ) : (
                     <h2 className="text-2xl font-bold text-slate-800 tracking-tight">{tr("核對項目與各自認帳")}</h2>
@@ -3400,8 +3476,8 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                           <div className="min-w-0">
                             <p className="text-base font-semibold text-slate-800">{item.id} {displayItemName(item)}</p>
                             {(item.original || item.ja) && <div className="mt-1 text-xs font-normal text-slate-500 italic truncate" title={item.original || item.ja}>{tr("原文：")}{item.original || item.ja}</div>}
-                            <p className="mt-1 text-base font-semibold text-slate-800">{formatMoney(itemAmount(item), currency)}{qtyLabel ? ` · ${qtyLabel}` : ''}</p>
-                            {item.receiptDiscountAmount > 0 && <p className="mt-1 text-xs font-medium text-emerald-800">{bi(`已自動扣除單品折扣 ${formatMoney(item.receiptDiscountAmount, currency)}`, `Item discount applied: ${formatMoney(item.receiptDiscountAmount, currency)}`)}</p>}
+                            <p className="mt-1 text-base font-semibold text-slate-800">{formatMoney(itemAmount(item), detectedCurrency)}{qtyLabel ? ` · ${qtyLabel}` : ''}</p>
+                            {item.receiptDiscountAmount > 0 && <p className="mt-1 text-xs font-medium text-emerald-800">{bi(`已自動扣除單品折扣 ${formatMoney(item.receiptDiscountAmount, detectedCurrency)}`, `Item discount applied: ${formatMoney(item.receiptDiscountAmount, detectedCurrency)}`)}</p>}
                           </div>
                           <button type="button" data-testid="edit-item" onClick={() => openItemEdit(idx)} className="shrink-0 min-h-[40px] px-3.5 py-1.5 rounded-lg border border-slate-400 bg-white text-sm font-bold text-slate-800">{tr("改")}</button>
                         </div>
@@ -3416,7 +3492,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                           <div className="min-w-0 flex-1">
                             <label className="text-base font-bold text-slate-700 uppercase tracking-wider mb-1.5 block">{tr("單價")}</label>
                             <div className="field-round flex items-center">
-                              <span className="pl-3 text-slate-600 font-bold">{getCurrencySymbol(currency)}</span>
+                              <span className="pl-3 text-slate-600 font-bold">{getCurrencySymbol(detectedCurrency)}</span>
                               <input type="number" ref={el => fieldRefs.current[`item-price-${idx}`] = el} value={item.price} onChange={(e) => updateItem(idx, 'price', e.target.value)} onKeyDown={(e) => handleItemKeyDown(e, 'price', idx)} className="w-full text-base font-semibold text-slate-800 bg-transparent outline-none shadow-none focus:ring-0" placeholder="0" />
                             </div>
                           </div>
@@ -3452,8 +3528,8 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                         <p className="text-xs text-slate-500 font-medium">{bi('核對自動換算金額；手動輸入時填金額，不用填百分比。', 'Check the calculated amount; if entering manually, enter money, not a percentage.')}</p>
                       </div>
                       <div className="field-round flex items-center w-36 shrink-0 overflow-hidden shadow-sm">
-                        <span className="pl-3 pr-1 text-slate-600 font-bold border-r border-slate-500 py-2">{getCurrencySymbol(currency)}</span>
-        <input type="number" min="0" step={Math.pow(10, -ReceiptMath.currencyDecimals(currency))} placeholder="0" value={taxAmount} onChange={(e) => { setTaxAmount(e.target.value); setReceiptAdjustmentDetails(null); }} className="w-full text-base font-bold text-slate-800 text-right outline-none shadow-none" />
+                        <span className="pl-3 pr-1 text-slate-600 font-bold border-r border-slate-500 py-2">{getCurrencySymbol(detectedCurrency)}</span>
+        <input type="number" min="0" step={Math.pow(10, -ReceiptMath.currencyDecimals(detectedCurrency))} placeholder="0" value={taxAmount} onChange={(e) => { setTaxAmount(e.target.value); setReceiptAdjustmentDetails(null); }} className="w-full text-base font-bold text-slate-800 text-right outline-none shadow-none" />
                       </div>
                     </div>
                     <div className="flex justify-between items-center gap-4 border-t border-slate-300 pt-3">
@@ -3462,8 +3538,8 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                         <p className="text-xs text-slate-500 font-medium">{bi('整單折扣會按消費比例分攤；單品折扣已反映在品項金額。', 'Bill-wide discounts are split by spending; item discounts are already reflected in item amounts.')}</p>
                       </div>
                       <div className="field-round flex items-center w-36 shrink-0 overflow-hidden shadow-sm">
-                        <span className="pl-3 pr-1 text-slate-600 font-bold border-r border-slate-500 py-2">{getCurrencySymbol(currency)}</span>
-                        <input type="number" min="0" step={Math.pow(10, -ReceiptMath.currencyDecimals(currency))} placeholder="0" value={discountAmount} data-testid="discount-amount" ref={el => fieldRefs.current['discount-amount'] = el} onChange={(e) => { setDiscountAmount(e.target.value); setReceiptAdjustmentDetails(null); }} className="w-full text-base font-bold text-slate-800 text-right outline-none shadow-none" />
+                        <span className="pl-3 pr-1 text-slate-600 font-bold border-r border-slate-500 py-2">{getCurrencySymbol(detectedCurrency)}</span>
+                        <input type="number" min="0" step={Math.pow(10, -ReceiptMath.currencyDecimals(detectedCurrency))} placeholder="0" value={discountAmount} data-testid="discount-amount" ref={el => fieldRefs.current['discount-amount'] = el} onChange={(e) => { setDiscountAmount(e.target.value); setReceiptAdjustmentDetails(null); }} className="w-full text-base font-bold text-slate-800 text-right outline-none shadow-none" />
                       </div>
                     </div>
                   </div>
@@ -3619,18 +3695,33 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                     <input type="text" ref={el => fieldRefs.current.payer = el} value={payer} onChange={(e) => {setPayer(e.target.value); setStepError('');}} placeholder={tr("請輸入先付款人的姓名...")} className="w-full rounded-xl p-3.5 text-base font-semibold text-slate-800 outline-none transition-all bg-slate-50 focus:bg-white" />
                   </div>
 
+                  <div data-testid="receipt-currency-control" className="space-y-2">
+                    <Label className="text-lg">{bi('收據原幣（收據／輸入金額所用）', 'Receipt currency (the currency used on the receipt and in the fields)')}</Label>
+                    <select data-testid="source-currency" value={detectedCurrency} onChange={event => { setDetectedCurrency(event.target.value); setReceiptAdjustmentDetails(null); setReconciliation(null); setStepError(''); setResults(null); setIsSaved(false); }} className="w-full rounded-xl border border-slate-400 bg-white p-3.5 text-base font-semibold text-slate-800">
+                      {sourceCurrencyOptions.map(code => <option key={code} value={code}>{getCurrencyName(code)}</option>)}
+                    </select>
+                    <p className="text-xs text-slate-600">{bi('單據項目、稅費及折扣都以此貨幣輸入；讀單辨識後可在這裡核對或更改。', 'Receipt items, tax and discounts are entered in this currency. Confirm or change the detected currency here.')}</p>
+                  </div>
+
                   <div data-tutorial-target="currency">
                     <Label className="text-lg mb-3">{tr("結算貨幣 (Currency)")} <span className="text-xs font-normal">{bi('（擇一）', '(choose one)')}</span></Label>
                     <div className="flex flex-wrap gap-2.5">
                       {displayCurrencies.map(c => (
                           <button
-                              key={c} onClick={() => setCurrency(c)} aria-pressed={currency === c}
+                              key={c} onClick={() => { if (c !== currency) { setCurrency(c); setReconciliation(null); setStepError(''); setResults(null); setIsSaved(false); } }} aria-pressed={currency === c}
                               className={`px-4 py-2.5 rounded-xl border font-bold text-sm transition-all outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 ${currency === c ? 'border-brand-600 bg-brand-50 text-brand-700 shadow-sm' : 'border-slate-500 bg-white text-slate-600 hover:bg-slate-50'}`}
                           >
                               {getCurrencyName(c)}
                           </button>
                       ))}
                     </div>
+                  </div>
+
+                  <div data-testid="exchange-rate-status" role="status" aria-live="polite" className={`rounded-xl border p-3 text-sm ${exchangeRate.status === 'error' ? 'border-red-400 bg-red-50 text-red-900' : 'border-sky-300 bg-sky-50 text-slate-800'}`}>
+                    {detectedCurrency === currency && <p className="font-semibold">{bi(`原幣與結算貨幣相同（${detectedCurrency}），不需換算。`, `Receipt and settlement currencies are both ${detectedCurrency}; no conversion is needed.`)}</p>}
+                    {detectedCurrency !== currency && exchangeRate.status === 'loading' && <p className="font-semibold">{bi(`正在取得 ${detectedCurrency} → ${currency} 最新匯率…`, `Fetching the latest ${detectedCurrency} → ${currency} exchange rate…`)}</p>}
+                    {detectedCurrency !== currency && exchangeRate.status === 'error' && <div className="flex flex-wrap items-center justify-between gap-2"><p className="font-semibold">{bi('暫時未能取得匯率；為免錯誤計算，暫不能產生報告。', 'The rate is unavailable. Calculation is blocked to prevent an incorrect report.')}</p><button type="button" onClick={() => setExchangeRateAttempt(current => current + 1)} className="rounded-lg border border-red-500 bg-white px-3 py-2 font-bold">{bi('重試', 'Retry')}</button></div>}
+                    {detectedCurrency !== currency && exchangeRate.status === 'ready' && exchangeRate.base === detectedCurrency && exchangeRate.quote === currency && <div className="space-y-1"><p className="font-bold">{bi('最新匯率', 'Latest exchange rate')}: 1 {detectedCurrency} = {formatExchangeRate(exchangeRate.rate)} {currency} <span className="font-normal">({exchangeRate.date || bi('日期未提供', 'date unavailable')} · {exchangeRate.provider || 'Frankfurter'})</span></p><p>{bi('換算示例', 'Example')}: {formatMoney(1000, detectedCurrency)} {detectedCurrency} → {formatMoney(ExchangeRates.convertMoney(1000, exchangeRate.rate, currency, ReceiptMath), currency)} {currency}</p><p className="text-xs">{bi('報告會列出原單總額、換算後總額及本次採用的匯率。', 'The report will show the receipt total, converted total and rate used.')}</p></div>}
                   </div>
 
                   <div>
