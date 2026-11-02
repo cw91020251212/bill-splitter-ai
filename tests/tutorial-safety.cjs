@@ -24,6 +24,12 @@ const waitStage = (page, stage) => page.waitForFunction(stage => {
 }, stage);
 const demo = page => page.locator('[data-tutorial-demo]');
 const target = (page, i) => demo(page).locator(selectors[i]);
+const waitForTutorialButton = page => page.waitForFunction(() => {
+  const button = document.querySelector('[data-testid="start-tutorial"]');
+  if (!button || button.disabled || !button.getClientRects().length) return false;
+  const style = getComputedStyle(button);
+  return style.display !== 'none' && style.visibility === 'visible';
+}, null, { timeout: 30000 });
 async function advance(page, i) {
   if (i === 5) { await target(page, 5).click(); await waitStage(page, 'share-options'); }
   else if (i === 6) { await target(page, 6).click(); await waitStage(page, 'replies'); }
@@ -78,7 +84,7 @@ async function walkTutorial(page, label) {
     const page = await context.newPage(); const errors = [], requests = [];
     page.on('pageerror', e => errors.push(e.message));
     page.on('request', r => { if (/openrouter\.ai|ntfy\.sh/.test(r.url())) requests.push(r.url().replace(/\?.*/, '')); });
-    await page.goto(base, { waitUntil: 'networkidle' }); await page.getByTestId('start-tutorial').waitFor();
+    await page.goto(base, { waitUntil: 'networkidle' }); await waitForTutorialButton(page);
     const before = await page.evaluate(() => Object.fromEntries(Object.keys(localStorage).map(k => [k, localStorage.getItem(k)])));
     await walkTutorial(page, 'empty-bill');
     assert.deepEqual(await page.evaluate(() => Object.fromEntries(Object.keys(localStorage).map(k => [k, localStorage.getItem(k)]))), before, 'tutorial changed localStorage');
@@ -91,10 +97,10 @@ async function walkTutorial(page, label) {
     const offlineContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
     const offline = await offlineContext.newPage(); const offlineErrors = [];
     offline.on('pageerror', e => offlineErrors.push(e.message));
-    await offline.goto(base, { waitUntil: 'networkidle' }); await offline.getByTestId('start-tutorial').waitFor();
+    await offline.goto(base, { waitUntil: 'networkidle' }); await waitForTutorialButton(offline);
     await offline.evaluate(async () => { await navigator.serviceWorker.register('./sw.js'); await navigator.serviceWorker.ready; });
     await offline.waitForFunction(() => Boolean(navigator.serviceWorker.controller));
-    await offline.reload({ waitUntil: 'networkidle' }); await offline.getByTestId('start-tutorial').waitFor(); await offline.waitForTimeout(300);
+    await offline.reload({ waitUntil: 'networkidle' }); await waitForTutorialButton(offline); await offline.waitForTimeout(300);
     const precache = await offline.evaluate(async () => {
       const names = await caches.keys(); const shell = await caches.open(names.find(n => n.startsWith('bill-splitter-shell-')));
       const js = await shell.match('./tutorial.js'); const css = await shell.match('./tutorial.css');
@@ -103,7 +109,7 @@ async function walkTutorial(page, label) {
     });
     assert.deepEqual(precache, { js: 200, css: 200, oldGuide: null });
     await offlineContext.setOffline(true);
-    await offline.reload({ waitUntil: 'domcontentloaded' }); await offline.getByTestId('start-tutorial').waitFor({ timeout: 30000 });
+    await offline.reload({ waitUntil: 'domcontentloaded' }); await waitForTutorialButton(offline);
     await walkTutorial(offline, 'offline');
     await offline.getByTestId('start-tutorial').click();
     await offline.getByTestId('tutorial-hub').waitFor({ state: 'visible' });
