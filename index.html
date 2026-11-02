@@ -3843,8 +3843,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                     <label className="flex items-start gap-3 cursor-pointer">
                       <input type="checkbox" checked={includeReceiptImages} onChange={event => { const checked = event.target.checked; setIncludeReceiptImages(checked); if (!checked) { updatePendingReceiptShare(false); setReceiptShareNudge(0); } }} className="w-5 h-5 mt-0.5 text-brand-600 focus:ring-brand-500" />
                       <div>
-                        <div className="font-bold text-slate-800">{tr("需要另外分享實體單副本（")}{lastImageData.length}{tr(" 張）")}</div>
-                        <p className="text-sm text-slate-700 mt-1 leading-relaxed">{bi('先發文字，返回後再分享圖片。', 'Send the text first, then share the images when you return.')}</p>
+                        <div className="font-bold text-slate-800">{bi('分享單據圖片（選項，非必要）', 'Share receipt images (optional)')}</div>
                       </div>
                     </label>
                   </Card>
@@ -3860,7 +3859,6 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                         <ChoiceDivider inline />
                         <Button onClick={() => copyCurrentReport(getSimplifiedResult(), tr("追數版"))} variant="outline" className="flex-1 !w-auto !px-2 !py-2 text-sm bg-white hover:bg-brand-50 border-slate-500 text-slate-700 hover:text-brand-700 hover:border-brand-500"><Icon path={icons.copy} size={16}/>{tr(" 複製文字")}</Button>
                       </div>
-                      {includeReceiptImages && lastImageData.length > 0 && <p className="mt-3 rounded-lg border-l-4 border-amber-600 bg-amber-50 p-3 text-sm leading-relaxed text-amber-950"><strong>{tr("這一步只有文字，不附圖片。")}</strong>{tr("返回後會自動帶你到")}<a href="#receipt-share-step" className="font-bold underline underline-offset-2">{tr("第 2 步分享單據圖片（")}{lastImageData.length}{tr(" 張）")}</a>{bi('。', '.')}</p>}
                     </div>
                     <div data-testid="final-summary-preview" className="p-4 bg-white font-sans text-sm text-slate-700 whitespace-pre-wrap break-words leading-relaxed selection:bg-brand-100">{getSimplifiedResult()}</div>
                   </Card>
@@ -3882,7 +3880,6 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                       <ChoiceDivider inline />
                       <Button onClick={() => copyCurrentReport(getDetailedResult(detailLang), tr("詳細版"))} variant="secondary" className="flex-1 !w-auto !px-2 !py-2 text-sm bg-white border-slate-500"><Icon path={icons.copy} size={16}/>{tr(" 複製文字")}</Button>
                     </div>
-                    {includeReceiptImages && lastImageData.length > 0 && <p className="mb-4 rounded-lg border-l-4 border-amber-600 bg-amber-50 p-3 text-sm leading-relaxed text-amber-950"><strong>{tr("這一步只有文字，不附圖片。")}</strong>{tr("返回後會自動帶你到")}<a href="#receipt-share-step" className="font-bold underline underline-offset-2">{tr("第 2 步分享單據圖片（")}{lastImageData.length}{tr(" 張）")}</a>{bi('。', '.')}</p>}
                     <p className="text-xs text-slate-600 mb-2">{bi('菜名顯示方式（擇一）', 'Item name display (choose one)')}</p>
                     <div className="flex bg-slate-200/60 p-1 rounded-lg border border-slate-400">
                       <button onClick={() => setDetailLang('zh')} aria-pressed={detailLang === 'zh'} className={`flex-1 py-1.5 rounded-md text-xs font-bold transition-all ${detailLang === 'zh' ? 'bg-white text-slate-800 shadow border border-slate-300' : 'text-slate-600 hover:text-slate-800'}`}>{bi('中文菜名版', 'Item names only')}</button>
@@ -3898,13 +3895,10 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                       <span aria-hidden="true" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-amber-900 text-2xl font-bold text-white">2</span>
                       <div className="min-w-0">
                         <h3 id="receipt-share-heading" className="text-2xl font-extrabold leading-snug text-amber-950">{tr("第 2 步：分享單據圖片")}</h3>
-                        <p className="mt-2 text-base font-semibold leading-relaxed text-amber-950">{bi('選 WhatsApp 同收件人，再自己發送全部 ', 'Choose WhatsApp and a recipient, then send all ')}{lastImageData.length}{bi(' 張圖片。', ' images yourself.')}</p>
                       </div>
                     </div>
-                    {pendingReceiptShare && <p role="status" className="mt-4 rounded-xl border-2 border-amber-800 bg-white p-3 text-base font-bold leading-relaxed text-amber-950">{bi('文字唔會附圖。確認發出後再分享圖片。', 'The text has no images. After it is sent, share the pictures.')}</p>}
                     {!lastImageData.length && <p role="alert" className="mt-4 font-bold text-amber-950">{tr("本機圖片暫未能載入。請重新開啟同一網址重試讀取草稿，勿重設帳單。")}</p>}
                     <Button onClick={shareCurrentReceipts} disabled={!lastImageData.length} variant="primary" className="mt-4 !w-full !bg-gradient-to-tr !from-amber-950 !to-amber-700 hover:!from-amber-900 hover:!to-amber-600 !text-white !border-amber-950 !py-4 !font-bold disabled:!opacity-100 disabled:!bg-slate-700" style={{ textShadow: '0 1px 2px rgba(0,0,0,.65)' }}><Icon path={icons.share} size={20}/>{tr(" 分享單據圖片（")}{lastImageData.length}{tr(" 張）")}</Button>
-                    <p className="mt-3 text-sm leading-relaxed text-amber-950">{bi('只發圖片，唔會重發文字。', 'Images only. The text is not sent again.')}</p>
                   </section>
                 )}
 
