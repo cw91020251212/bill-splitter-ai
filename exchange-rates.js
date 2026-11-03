@@ -68,6 +68,64 @@
     return moneyMath.roundMoney(amount * numericRate, normalizeCurrency(targetCurrency));
   }
 
+  function convertAggregatedAmounts({ amounts = {}, totalAmount, rate, targetCurrency, moneyMath } = {}) {
+    if (!amounts || typeof amounts !== 'object' || Array.isArray(amounts)) throw new Error('Aggregated person amounts must be an object.');
+    if (!moneyMath || typeof moneyMath.toMinorUnits !== 'function' || typeof moneyMath.currencyDecimals !== 'function') {
+      throw new Error('Currency precision helpers are required to apportion settlement rounding.');
+    }
+    const target = normalizeCurrency(targetCurrency);
+    const numericTotal = Number(totalAmount);
+    if (!Number.isFinite(numericTotal)) throw new Error('The aggregate source amount must be finite.');
+    const entries = Object.entries(amounts).map(([key, value], index) => {
+      const amount = Number(value);
+      if (!Number.isFinite(amount)) throw new Error('Every aggregated person amount must be finite.');
+      return { key, amount, index };
+    });
+    const sumOfPeople = entries.reduce((sum, entry) => sum + entry.amount, 0);
+    const sourceTolerance = 1e-8 * Math.max(1, Math.abs(numericTotal), Math.abs(sumOfPeople));
+    if (Math.abs(sumOfPeople - numericTotal) > sourceTolerance) {
+      throw new Error('Person source amounts do not reconcile with the aggregate source total.');
+    }
+
+    const total = convertMoney(numericTotal, rate, target, moneyMath);
+    const decimals = moneyMath.currencyDecimals(target);
+    const scale = 10 ** decimals;
+    const totalUnits = moneyMath.toMinorUnits(total, target);
+    const converted = entries.map(entry => {
+      const roundedAmount = convertMoney(entry.amount, rate, target, moneyMath);
+      const units = moneyMath.toMinorUnits(roundedAmount, target);
+      return {
+        key: entry.key,
+        index: entry.index,
+        units,
+        remainder: entry.amount * Number(rate) * scale - units
+      };
+    });
+
+    let remainingUnits = totalUnits - converted.reduce((sum, entry) => sum + entry.units, 0);
+    const roundingAdjustmentUnits = remainingUnits;
+    if (remainingUnits && !converted.length) throw new Error('A non-zero settlement total has no people to receive it.');
+    while (remainingUnits !== 0) {
+      const direction = Math.sign(remainingUnits);
+      const ordered = [...converted].sort((left, right) => {
+        const remainderOrder = direction > 0 ? right.remainder - left.remainder : left.remainder - right.remainder;
+        return remainderOrder || left.index - right.index;
+      });
+      const adjustmentsThisPass = Math.min(Math.abs(remainingUnits), ordered.length);
+      ordered.slice(0, adjustmentsThisPass).forEach(entry => {
+        entry.units += direction;
+        entry.remainder -= direction;
+        remainingUnits -= direction;
+      });
+    }
+
+    return {
+      total,
+      amounts: Object.fromEntries(converted.map(entry => [entry.key, entry.units / scale])),
+      roundingAdjustmentUnits
+    };
+  }
+
   function convertReceiptAmounts({ itemAmounts = [], taxAmount = 0, discountAmount = 0, rate, targetCurrency, moneyMath } = {}) {
     if (!Array.isArray(itemAmounts)) throw new Error('Receipt item amounts must be an array.');
     const target = normalizeCurrency(targetCurrency);
@@ -85,5 +143,5 @@
     };
   }
 
-  return { normalizeCurrency, fetchRate, requireRate, convertMoney, convertReceiptAmounts };
+  return { normalizeCurrency, fetchRate, requireRate, convertMoney, convertAggregatedAmounts, convertReceiptAmounts };
 });

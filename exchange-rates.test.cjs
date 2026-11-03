@@ -49,6 +49,21 @@ test('converted amounts round to the settlement currency precision', () => {
   assert.equal(ExchangeRates.convertMoney(1000, rate, 'JPY', ReceiptMath), 50);
 });
 
+test('source-currency aggregates avoid per-item conversion drift and reconcile rounded person totals', () => {
+  const result = ExchangeRates.convertAggregatedAmounts({
+    amounts: { '阿明': 2.5, '小美': 2.5 },
+    totalAmount: 5,
+    rate: 0.045,
+    targetCurrency: 'HKD',
+    moneyMath: ReceiptMath
+  });
+  assert.equal(result.total, 0.23, '5 JPY is converted once to HKD and rounded at the final total');
+  assert.deepEqual(Object.values(result.amounts).sort((a, b) => a - b), [0.11, 0.12]);
+  assert.equal(ReceiptMath.toMinorUnits(Object.values(result.amounts).reduce((sum, value) => sum + value, 0), 'HKD'), ReceiptMath.toMinorUnits(result.total, 'HKD'));
+  assert.equal(result.roundingAdjustmentUnits, 1, 'the required one-cent residual is assigned to a person');
+  assert.equal(ExchangeRates.convertMoney(1, 0.045, 'HKD', ReceiptMath) * 5, 0.25, 'converting five JPY line items separately would drift to HK$0.25');
+});
+
 test('rate fetch failure is surfaced and an unavailable quote cannot be used', async () => {
   await assert.rejects(
     ExchangeRates.fetchRate('JPY', 'HKD', {

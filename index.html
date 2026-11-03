@@ -736,6 +736,20 @@
     };
 
     const formatMoney = (amount, curr) => ReceiptMath.formatMoney(amount, curr, getCurrencySymbol(curr));
+    const formatSourceMoney = (amount, curr) => {
+      const code = String(curr || 'HKD').toUpperCase();
+      const decimals = ReceiptMath.currencyDecimals(code);
+      const numeric = Number.isFinite(Number(amount)) ? Number(amount) : 0;
+      try {
+        const formatted = new Intl.NumberFormat('en-US', {
+          minimumFractionDigits: decimals,
+          maximumFractionDigits: Math.max(6, decimals)
+        }).format(numeric);
+        return `${getCurrencySymbol(code)}${formatted}`;
+      } catch (_) {
+        return `${getCurrencySymbol(code)}${numeric.toFixed(Math.max(6, decimals))}`;
+      }
+    };
     const formatExchangeRate = (rate) => {
       const value = Number(rate);
       return Number.isFinite(value) ? value.toFixed(8).replace(/0+$/, '').replace(/\.$/, '') : '';
@@ -1217,7 +1231,9 @@
             setDetectedCurrency(typeof data.detectedCurrency === 'string' ? data.detectedCurrency : 'HKD');
             setTaxSplitMethod(['equal', 'proportional'].includes(data.taxSplitMethod) ? data.taxSplitMethod : 'proportional');
             setPaymentMethods(Array.isArray(data.paymentMethods) ? data.paymentMethods.filter(method => ['轉數快 (FPS)', 'PayMe', '現金', '銀行轉帳', 'Alipay'].includes(method)) : ['轉數快 (FPS)']);
-            const restoredResults = data.results && typeof data.results.personTotals === 'object' && data.results.personTotals ? data.results : null;
+            const hasPreviousResults = Boolean(data.results && typeof data.results.personTotals === 'object' && data.results.personTotals);
+            const restoredResults = hasPreviousResults && data.results.calculationVersion === 2 ? data.results : null;
+            const needsCurrencyRecalculation = hasPreviousResults && !restoredResults;
             setResults(restoredResults);
             setReconciliation(data.reconciliation && Array.isArray(data.reconciliation.issues) ? data.reconciliation : null);
             setIsSaved(Boolean(data.isSaved));
@@ -1237,6 +1253,7 @@
             if (!restoredItems.length && restoredStep > 1) restoredStep = 1;
             if (restoredStep === 4 && !restoredResults) restoredStep = 3;
             if (restoredStep >= 3 && !String(data.friendsReplies || '').trim()) restoredStep = 2;
+            if (needsCurrencyRecalculation && restoredStep === 3) setStepError('貨幣分帳方式已更新，請按「產生分帳報告」重新計算。');
             setStep(restoredStep);
             if (restoredStep === 1 && images.length) setUploadError('已恢復遮蓋後的單據圖片；可按重試識別，毋須重新上傳。');
             setDraftNotice(assetsMissing
@@ -1881,7 +1898,7 @@
           };
         });
         const previewData = {
-          version: 1,
+          version: 2,
           previewId: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
           assetRevision: draftAssets.revision,
           language: uiLang,
@@ -1891,6 +1908,7 @@
             currency: results.currency || currency,
             sourceCurrency: results.sourceCurrency || detectedCurrency,
             sourceTotal: Number(results.sourceTotal) || 0,
+            sourceBillTotal: Number(results.sourceBillTotal) || 0,
             billTotal: getResultsBillTotal(results),
             itemsSubtotal: Number(results.itemsSubtotal) || 0,
             discountAmount: Number(results.discountAmount) || 0,
@@ -1906,6 +1924,7 @@
           participants: Object.entries(results.personTotals || {}).map(([name, summary]) => ({
             name,
             total: Number(summary.total) || 0,
+            sourceTotal: Number(summary.sourceTotal) || 0,
             subtotal: Number(summary.subtotal) || 0,
             tax: Number(summary.tax) || 0,
             discount: Number(summary.discount) || 0
@@ -1920,7 +1939,7 @@
         const previewData = buildDetailedTablePreviewData();
         if (!previewData) return null;
         return {
-          version: 1,
+          version: 2,
           language: previewData.language,
           bill: previewData.bill,
           participants: previewData.participants,
@@ -2903,15 +2922,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
             - ReceiptMath.roundMoney(toNum(discountAmount), detectedCurrency),
           detectedCurrency
         );
-        const convertedReceipt = ExchangeRates.convertReceiptAmounts({
-          itemAmounts: items.map(item => itemAmount(item)),
-          taxAmount: toNum(taxAmount),
-          discountAmount: toNum(discountAmount),
-          rate: conversionRate,
-          targetCurrency: currency,
-          moneyMath: ReceiptMath
-        });
-        const calculationItems = items.map((item, index) => ({ ...item, total: convertedReceipt.itemAmounts[index] }));
+        const calculationItems = items.map(item => ({ ...item, total: itemAmount(item) }));
 
         const itemClaimTotals = {};
         calculationItems.forEach(item => { itemClaimTotals[item.id] = 0; Object.keys(personClaims).forEach(person => { itemClaimTotals[item.id] += (personClaims[person][item.id] || 0); }); });
@@ -2940,7 +2951,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
         }
 
         const personTotals = {}; let totalItemsCost = 0;
-        Object.keys(personClaims).forEach(person => { personTotals[person] = { items: [], adjustments: [], subtotal: 0, discount: 0, tax: 0, total: 0 }; });
+        Object.keys(personClaims).forEach(person => { personTotals[person] = { items: [], adjustments: [], subtotal: 0, discount: 0, tax: 0, sourceTotal: 0, total: 0 }; });
 
         calculationItems.forEach(item => {
           const totalClaimed = itemClaimTotals[item.id];
@@ -2971,7 +2982,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
           const item = calculationItems.find(candidate => candidate.id === issue.itemId);
           const amount = issue.amount;
           if (policy === 'payer') {
-            if (!personTotals[payer]) personTotals[payer] = { items: [], adjustments: [], subtotal: 0, tax: 0, total: 0 };
+            if (!personTotals[payer]) personTotals[payer] = { items: [], adjustments: [], subtotal: 0, discount: 0, tax: 0, sourceTotal: 0, total: 0 };
             personTotals[payer].adjustments.push({ name: item.name, nameEn: item.nameEn || '', qty: issue.difference, unit: issue.unit, amount, reason: '墊支人承擔未認帳數量' });
             personTotals[payer].subtotal += amount; totalItemsCost += amount;
           } else if (policy === 'equal') {
@@ -2983,15 +2994,15 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
             });
           } else if (policy && policy.startsWith('person:')) {
             const person = policy.slice(7);
-            if (!personTotals[person]) personTotals[person] = { items: [], adjustments: [], subtotal: 0, tax: 0, total: 0 };
+            if (!personTotals[person]) personTotals[person] = { items: [], adjustments: [], subtotal: 0, discount: 0, tax: 0, sourceTotal: 0, total: 0 };
             personTotals[person].adjustments.push({ name: item.name, nameEn: item.nameEn || '', qty: issue.difference, unit: issue.unit, amount, reason: '指定承擔未認帳數量' });
             personTotals[person].subtotal += amount; totalItemsCost += amount;
           }
         });
         const reconciliationAllocations = reconciliationIssues.map(issue => ({ ...issue, policy: reconciliation?.policy }));
 
-        const discountNum = convertedReceipt.discountAmount;
-        if (discountNum < 0 || !ReceiptMath.isDiscountWithinSubtotal(discountNum, totalItemsCost, currency)) {
+        const discountNum = ReceiptMath.roundMoney(toNum(discountAmount), detectedCurrency);
+        if (discountNum < 0 || !ReceiptMath.isDiscountWithinSubtotal(discountNum, totalItemsCost, detectedCurrency)) {
           setStepError('⚠️ 整張單折扣不可多於已分攤項目小計，請核對折扣金額。'); focusField('discount-amount'); return;
         }
         const preDiscountItemsCost = totalItemsCost;
@@ -3001,16 +3012,27 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
           personTotals[person].subtotal = Math.max(0, personTotals[person].subtotal - share);
         });
         totalItemsCost = Math.max(0, preDiscountItemsCost - discountNum);
-        const taxNum = convertedReceipt.taxAmount; const numPeople = Object.keys(personClaims).length;
+        const taxNum = ReceiptMath.roundMoney(toNum(taxAmount), detectedCurrency); const numPeople = Object.keys(personClaims).length;
         Object.keys(personTotals).forEach(person => {
           let taxShare = 0;
           if (taxSplitMethod === 'equal') taxShare = taxNum / numPeople;
           else if (taxSplitMethod === 'proportional' && totalItemsCost > 0) taxShare = taxNum * (personTotals[person].subtotal / totalItemsCost);
-          personTotals[person].tax = taxShare; personTotals[person].total = personTotals[person].subtotal + taxShare;
+          personTotals[person].tax = taxShare;
+          personTotals[person].sourceTotal = personTotals[person].subtotal + taxShare;
         });
 
-        const billTotal = ReceiptMath.roundMoney(totalItemsCost + taxNum, currency);
-        setResults({ personTotals, totalItemsCost, itemsSubtotal: preDiscountItemsCost, discountAmount: discountNum, taxAmount: taxNum, billTotal, sourceCurrency: detectedCurrency, sourceTotal, exchangeRate: conversionRate, exchangeRateDate: exchangeRate.date || null, exchangeProvider: exchangeRate.provider || 'Frankfurter', reconciliationAllocations, date: new Date().toISOString().split('T')[0], currency });
+        const sourceBillTotal = ReceiptMath.roundMoney(totalItemsCost + taxNum, detectedCurrency);
+        const sourceAmounts = Object.fromEntries(Object.entries(personTotals).map(([person, summary]) => [person, summary.sourceTotal]));
+        let convertedTotals;
+        try {
+          convertedTotals = ExchangeRates.convertAggregatedAmounts({ amounts: sourceAmounts, totalAmount: sourceBillTotal, rate: conversionRate, targetCurrency: currency, moneyMath: ReceiptMath });
+        } catch (error) {
+          setStepError('⚠️ 原幣分帳小計未能與全單總額核對，請檢查認帳數量及折扣／稅費。');
+          return false;
+        }
+        Object.entries(convertedTotals.amounts).forEach(([person, amount]) => { personTotals[person].total = amount; });
+        const billTotal = convertedTotals.total;
+        setResults({ calculationVersion: 2, personTotals, totalItemsCost, itemsSubtotal: preDiscountItemsCost, discountAmount: discountNum, taxAmount: taxNum, sourceBillTotal, settlementRoundingAdjustmentUnits: convertedTotals.roundingAdjustmentUnits, billTotal, sourceCurrency: detectedCurrency, sourceTotal, exchangeRate: conversionRate, exchangeRateDate: exchangeRate.date || null, exchangeProvider: exchangeRate.provider || 'Frankfurter', reconciliationAllocations, date: new Date().toISOString().split('T')[0], currency });
         setIsSaved(false); setIsSavingRecord(false); setStep(4);
         return true;
       };
@@ -3049,10 +3071,11 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
         const english = language === 'en';
         const others = Object.keys(results.personTotals).filter(p => p !== payer);
         const curr = results.currency;
+        const sourceBillTotal = Number.isFinite(Number(results.sourceBillTotal)) ? Number(results.sourceBillTotal) : (Number(results.sourceTotal) || 0);
         const conversionNote = results.sourceCurrency && results.sourceCurrency !== curr
           ? (english
-            ? `🔄 Receipt total: ${formatMoney(results.sourceTotal, results.sourceCurrency)} ${results.sourceCurrency} → Settlement total: ${formatMoney(results.billTotal, curr)} ${curr}\n📈 Exchange rate: 1 ${results.sourceCurrency} = ${formatExchangeRate(results.exchangeRate)} ${curr} (${results.exchangeRateDate || 'latest available'}${results.exchangeProvider ? ` · ${results.exchangeProvider}` : ''})\n`
-            : `🔄 原單總額：${formatMoney(results.sourceTotal, results.sourceCurrency)} ${results.sourceCurrency} → 結算總額：${formatMoney(results.billTotal, curr)} ${curr}\n📈 匯率：1 ${results.sourceCurrency} = ${formatExchangeRate(results.exchangeRate)} ${curr}（${results.exchangeRateDate || '最新可用'}${results.exchangeProvider ? ` · ${results.exchangeProvider}` : ''}）\n`)
+            ? `🔄 Split total in source currency: ${formatSourceMoney(sourceBillTotal, results.sourceCurrency)} ${results.sourceCurrency} → Settlement total: ${formatMoney(results.billTotal, curr)} ${curr}\n📈 Exchange rate: 1 ${results.sourceCurrency} = ${formatExchangeRate(results.exchangeRate)} ${curr} (${results.exchangeRateDate || 'latest available'}${results.exchangeProvider ? ` · ${results.exchangeProvider}` : ''})\n`
+            : `🔄 原幣分帳總額：${formatSourceMoney(sourceBillTotal, results.sourceCurrency)} ${results.sourceCurrency} → 結算總額：${formatMoney(results.billTotal, curr)} ${curr}\n📈 匯率：1 ${results.sourceCurrency} = ${formatExchangeRate(results.exchangeRate)} ${curr}（${results.exchangeRateDate || '最新可用'}${results.exchangeProvider ? ` · ${results.exchangeProvider}` : ''}）\n`)
           : '';
         const paymentLabel = paymentMethods.length ? paymentMethods.map(method => paymentDisplay(method, language)).join(english ? ', ' : '、') : (english ? 'Not specified' : '未指定');
         if (!english) {
@@ -3096,9 +3119,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
             const rateLabel = row.ratePercent === null || row.ratePercent === undefined || rateAlreadyInLabel ? '' : ` ${row.ratePercent}%`;
             const sign = row.kind === 'discount' ? '−' : '+';
             const rowCurrency = receiptAdjustmentDetails.currency || detectedCurrency;
-            const rowAmount = results && rowCurrency === results.sourceCurrency && results.sourceCurrency !== results.currency
-              ? `${formatMoney(row.amount, rowCurrency)} ${rowCurrency} → ${formatMoney(ExchangeRates.convertMoney(row.amount, results.exchangeRate, results.currency, ReceiptMath), results.currency)} ${results.currency}`
-              : `${formatMoney(row.amount, rowCurrency)} ${rowCurrency}`;
+            const rowAmount = `${formatSourceMoney(row.amount, rowCurrency)} ${rowCurrency}`;
             lines.push(`• ${itemPrefix}${row.label}${rateLabel} ${sign}${rowAmount}`);
           });
         }
@@ -3132,10 +3153,13 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
         const full = mode === 'full';
         const english = language === 'en';
         const curr = results.currency;
+        const sourceCurr = results.sourceCurrency || detectedCurrency || curr;
+        const sourceBillTotal = Number.isFinite(Number(results.sourceBillTotal)) ? Number(results.sourceBillTotal) : (Number(results.sourceTotal) || 0);
+        const formatSourceAmount = amount => `${formatSourceMoney(amount, sourceCurr)} ${sourceCurr}`;
         const conversionNote = results.sourceCurrency && results.sourceCurrency !== curr
           ? (english
-            ? `🔄 Receipt total: ${formatMoney(results.sourceTotal, results.sourceCurrency)} ${results.sourceCurrency} → Settlement total: ${formatMoney(results.billTotal, curr)} ${curr}\n📈 Exchange rate: 1 ${results.sourceCurrency} = ${formatExchangeRate(results.exchangeRate)} ${curr} (${results.exchangeRateDate || 'latest available'}${results.exchangeProvider ? ` · ${results.exchangeProvider}` : ''})\n`
-            : `🔄 原單總額：${formatMoney(results.sourceTotal, results.sourceCurrency)} ${results.sourceCurrency} → 結算總額：${formatMoney(results.billTotal, curr)} ${curr}\n📈 匯率：1 ${results.sourceCurrency} = ${formatExchangeRate(results.exchangeRate)} ${curr}（${results.exchangeRateDate || '最新可用'}${results.exchangeProvider ? ` · ${results.exchangeProvider}` : ''}）\n`)
+            ? `🔄 Split total in source currency: ${formatSourceMoney(sourceBillTotal, sourceCurr)} ${sourceCurr} → Settlement total: ${formatMoney(results.billTotal, curr)} ${curr}\n📈 Exchange rate: 1 ${sourceCurr} = ${formatExchangeRate(results.exchangeRate)} ${curr} (${results.exchangeRateDate || 'latest available'}${results.exchangeProvider ? ` · ${results.exchangeProvider}` : ''})\n`
+            : `🔄 原幣分帳總額：${formatSourceMoney(sourceBillTotal, sourceCurr)} ${sourceCurr} → 結算總額：${formatMoney(results.billTotal, curr)} ${curr}\n📈 匯率：1 ${sourceCurr} = ${formatExchangeRate(results.exchangeRate)} ${curr}（${results.exchangeRateDate || '最新可用'}${results.exchangeProvider ? ` · ${results.exchangeProvider}` : ''}）\n`)
           : '';
         const paymentLabel = paymentMethods.length ? paymentMethods.map(method => paymentDisplay(method, language)).join(english ? ', ' : '、') : (english ? 'Not specified' : '未指定');
         const oneLineName = value => String(value || '').replace(/\s+/g, ' ').trim();
@@ -3159,32 +3183,32 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
             const share = i.isActualUnit
               ? (english ? `(${i.qty} ${shownUnit}, actual quantity)` : `（${i.qty} ${shownUnit}，按實際單位）`)
               : (english ? `(${i.qty}/${i.totalClaimed} shares)` : `（${i.qty}/${i.totalClaimed} 份比例）`);
-            txt += `💲 ${formatMoney(i.amount, curr)} ${share}\n\n`;
+            txt += `💲 ${formatSourceAmount(i.amount)} ${share}\n\n`;
           });
           (p.adjustments || []).forEach(a => {
             const adjustmentName = receiptPrimaryLabel(a.name, a.nameEn, a.original, english);
             const reasonMap = { '墊支人承擔未認帳數量': 'Unclaimed quantity covered by the payer', '已認帳人士平均承擔未認帳數量': 'Unclaimed quantity shared equally', '指定承擔未認帳數量': 'Unclaimed quantity assigned to this person' };
             txt += `${oneLineName(adjustmentName)}\n${english ? 'Unclaimed quantity covered by this person' : '未認帳數量由此人承擔'}\n`;
             txt += english
-              ? `💲 ${formatMoney(a.amount, curr)} (${a.qty} ${unitDisplay(a.unit, language)}, ${reasonMap[a.reason] || a.reason})\n\n`
-              : `💲 ${formatMoney(a.amount, curr)}（${a.qty} ${unitDisplay(a.unit, language)}，${a.reason}）\n\n`;
+              ? `💲 ${formatSourceAmount(a.amount)} (${a.qty} ${unitDisplay(a.unit, language)}, ${reasonMap[a.reason] || a.reason})\n\n`
+              : `💲 ${formatSourceAmount(a.amount)}（${a.qty} ${unitDisplay(a.unit, language)}，${a.reason}）\n\n`;
           });
-          if (p.discount > 0) txt += english ? `▫️ Receipt discount share −${formatMoney(p.discount, curr)}\n` : `▫️ 整單折扣分攤 −${formatMoney(p.discount, curr)}\n`;
-          if (p.tax > 0) txt += english ? `▫️ Tax / service charge share 💲 ${formatMoney(p.tax, curr)}\n` : `▫️ 稅／服務費分攤 💲 ${formatMoney(p.tax, curr)}\n`;
+          if (p.discount > 0) txt += english ? `▫️ Receipt discount share −${formatSourceAmount(p.discount)}\n` : `▫️ 整單折扣分攤 −${formatSourceAmount(p.discount)}\n`;
+          if (p.tax > 0) txt += english ? `▫️ Tax / service charge share 💲 ${formatSourceAmount(p.tax)}\n` : `▫️ 稅／服務費分攤 💲 ${formatSourceAmount(p.tax)}\n`;
           txt += english
-            ? `\n━━━━━━━━━━\n💰 *TOTAL DUE*\n\n*${formatMoney(p.total, curr)}*\n━━━━━━━━━━\n`
-            : `\n━━━━━━━━━━\n💰 *應付總額*\n\n*${formatMoney(p.total, curr)}*\n━━━━━━━━━━\n`;
+            ? `\n━━━━━━━━━━\n💰 *TOTAL DUE (${curr})*\n\n*${formatMoney(p.total, curr)} ${curr}*\n━━━━━━━━━━\n`
+            : `\n━━━━━━━━━━\n💰 *應付總額（${curr}）*\n\n*${formatMoney(p.total, curr)} ${curr}*\n━━━━━━━━━━\n`;
           grandTotal += p.total;
         });
         const itemsSum = Number.isFinite(Number(results.itemsSubtotal)) ? Number(results.itemsSubtotal) : items.reduce((sum, item) => sum + toNum(item.total), 0);
-        const billTax = Number.isFinite(Number(results.taxAmount)) ? Number(results.taxAmount) : ReceiptMath.roundMoney(toNum(taxAmount), curr);
-        const billDiscount = Number.isFinite(Number(results.discountAmount)) ? Number(results.discountAmount) : ReceiptMath.roundMoney(toNum(discountAmount), curr);
+        const billTax = Number.isFinite(Number(results.taxAmount)) ? Number(results.taxAmount) : ReceiptMath.roundMoney(toNum(taxAmount), sourceCurr);
+        const billDiscount = Number.isFinite(Number(results.discountAmount)) ? Number(results.discountAmount) : ReceiptMath.roundMoney(toNum(discountAmount), sourceCurr);
         const billTotal = getResultsBillTotal(results);
         const diff = Math.abs(grandTotal - billTotal);
         const totalsMatch = ReceiptMath.withinRoundingTolerance(diff, curr);
         txt += english
-          ? `\n📊 *Totals check*\nItems subtotal: ${formatMoney(itemsSum, curr)}\nReceipt discount: −${formatMoney(billDiscount, curr)}\nTax / service charge: ${formatMoney(billTax, curr)}\nReceipt total: ${formatMoney(billTotal, curr)}\nSum of individual amounts: ${formatMoney(grandTotal, curr)}\nDifference: ${formatMoney(diff, curr)} ${totalsMatch ? '✅' : '⚠️ Check the quantities'}\n`
-          : `\n📊 *總核對*\n項目小計：${formatMoney(itemsSum, curr)}\n整單折扣：−${formatMoney(billDiscount, curr)}\n稅／服務費：${formatMoney(billTax, curr)}\n單據總計：${formatMoney(billTotal, curr)}\n各人合計：${formatMoney(grandTotal, curr)}\n差額：${formatMoney(diff, curr)} ${totalsMatch ? '✅' : '⚠️ 請檢查認帳數量'}\n`;
+          ? `\n📊 *Totals check*\nItems subtotal (${sourceCurr}): ${formatSourceAmount(itemsSum)}\nReceipt discount (${sourceCurr}): −${formatSourceAmount(billDiscount)}\nTax / service charge (${sourceCurr}): ${formatSourceAmount(billTax)}\nSource-currency split total: ${formatSourceAmount(sourceBillTotal)}\nSettlement total (${curr}): ${formatMoney(billTotal, curr)} ${curr}\nSum of individual amounts: ${formatMoney(grandTotal, curr)} ${curr}\nDifference: ${formatMoney(diff, curr)} ${curr} ${totalsMatch ? '✅' : '⚠️ Check the quantities'}\n`
+          : `\n📊 *總核對*\n項目小計（${sourceCurr}）：${formatSourceAmount(itemsSum)}\n整單折扣（${sourceCurr}）：−${formatSourceAmount(billDiscount)}\n稅／服務費（${sourceCurr}）：${formatSourceAmount(billTax)}\n原幣分帳總額：${formatSourceAmount(sourceBillTotal)}\n結算總額（${curr}）：${formatMoney(billTotal, curr)} ${curr}\n各人合計：${formatMoney(grandTotal, curr)} ${curr}\n差額：${formatMoney(diff, curr)} ${curr} ${totalsMatch ? '✅' : '⚠️ 請檢查認帳數量'}\n`;
         const receiptAdjustmentNote = getReceiptAdjustmentNote(language);
         if (receiptAdjustmentNote) txt += `\n🧾 ${receiptAdjustmentNote}\n`;
         const friendTableUrl = getDetailedTableShareUrl();
@@ -3871,6 +3895,8 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                   <span className="w-8 h-8 rounded-full bg-brand-100 border border-brand-500 text-brand-700 flex items-center justify-center font-bold">3</span>
                   <h2 className="text-2xl font-bold text-slate-800 tracking-tight">{tr("結算細節設定")}</h2>
                 </div>
+
+                {stepError && <div role="alert" data-testid="step-error" className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm font-semibold text-amber-900">{stepError}</div>}
 
                 {reconciliation?.issues?.length > 0 && (
                   <Card className="border-amber-500 bg-amber-50 space-y-4">

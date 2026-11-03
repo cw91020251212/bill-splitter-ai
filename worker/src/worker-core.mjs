@@ -55,7 +55,7 @@ function cleanNumber(value) {
 }
 
 function normalizeShareData(input) {
-  if (!input || input.version !== 1 || !input.bill || typeof input.bill !== 'object' ||
+  if (!input || ![1, 2].includes(input.version) || !input.bill || typeof input.bill !== 'object' ||
       !Array.isArray(input.participants) || !Array.isArray(input.items)) {
     throw new TypeError('分享資料格式不正確。');
   }
@@ -73,7 +73,7 @@ function normalizeShareData(input) {
   });
   const bill = input.bill;
   return {
-    version: 1,
+    version: input.version,
     language: cleanText(input.language, 20) || 'zh-HK',
     bill: {
       date: cleanText(bill.date, 80),
@@ -81,6 +81,7 @@ function normalizeShareData(input) {
       currency: cleanText(bill.currency, 8) || 'HKD',
       sourceCurrency: cleanText(bill.sourceCurrency, 8) || cleanText(bill.currency, 8) || 'HKD',
       sourceTotal: cleanNumber(bill.sourceTotal),
+      sourceBillTotal: cleanNumber(bill.sourceBillTotal),
       billTotal: cleanNumber(bill.billTotal),
       itemsSubtotal: cleanNumber(bill.itemsSubtotal),
       discountAmount: cleanNumber(bill.discountAmount),
@@ -96,6 +97,7 @@ function normalizeShareData(input) {
     participants: input.participants.map(person => ({
       name: cleanText(person?.name, 120),
       total: cleanNumber(person?.total),
+      sourceTotal: cleanNumber(person?.sourceTotal),
       subtotal: cleanNumber(person?.subtotal),
       tax: cleanNumber(person?.tax),
       discount: cleanNumber(person?.discount)

@@ -188,10 +188,15 @@
       const $ = selector => document.querySelector(selector);
       const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[char]));
       const number = value => Number.isFinite(Number(value)) ? Number(value) : 0;
-      const formatMoney = (value, currency) => {
+      const formatMoney = (value, currency, allowFraction = false) => {
         const code = /^[A-Z]{3}$/.test(String(currency || '')) ? currency : 'HKD';
-        try { return new Intl.NumberFormat('zh-HK', { style:'currency', currency:code, maximumFractionDigits:['JPY','KRW'].includes(code) ? 0 : 2 }).format(number(value)); }
-        catch (_) { return `${code} ${number(value).toFixed(2)}`; }
+        try {
+          if (allowFraction) {
+            const defaults = new Intl.NumberFormat('zh-HK', { style:'currency', currency:code }).resolvedOptions();
+            return new Intl.NumberFormat('zh-HK', { style:'currency', currency:code, minimumFractionDigits:defaults.minimumFractionDigits, maximumFractionDigits:Math.max(6, defaults.maximumFractionDigits) }).format(number(value));
+          }
+          return new Intl.NumberFormat('zh-HK', { style:'currency', currency:code, maximumFractionDigits:['JPY','KRW'].includes(code) ? 0 : 2 }).format(number(value));
+        } catch (_) { return `${code} ${number(value).toFixed(allowFraction ? 6 : 2)}`; }
       };
       const formatQuantity = value => new Intl.NumberFormat('zh-HK', { maximumFractionDigits:3 }).format(number(value));
       const shareParams = new URLSearchParams(window.location.search);
@@ -216,7 +221,7 @@
       } else {
         try { data = JSON.parse(localStorage.getItem(PREVIEW_KEY) || 'null'); } catch (_) {}
       }
-      if (!data || data.version !== 1 || !data.bill || !Array.isArray(data.items)) {
+      if (!data || ![1, 2].includes(Number(data.version)) || !data.bill || !Array.isArray(data.items)) {
         $('#loading-state').hidden = true;
         $('#empty-state').hidden = false;
         if (isSharedLink) {
@@ -237,6 +242,9 @@
       }
       const currency = bill.currency || 'HKD';
       const sourceCurrency = bill.sourceCurrency || currency;
+      const isSourceBreakdown = Number(data.version) >= 2;
+      const breakdownCurrency = isSourceBreakdown ? sourceCurrency : currency;
+      const formatBreakdownMoney = value => formatMoney(value, breakdownCurrency, isSourceBreakdown);
       const participants = Array.isArray(data.participants) ? data.participants : [];
       const sharedImages = isSharedLink && Array.isArray(data.images) ? data.images.filter(image => image && typeof image.data === 'string' && /^[A-Za-z0-9+/]+={0,2}$/.test(image.data) && ['image/jpeg','image/png','image/webp'].includes(image.mimeType)) : [];
       const memberSelect = $('#member-select');
@@ -284,6 +292,10 @@
         detailEntries.push(['匯率', `1 ${sourceCurrency} = ${bill.exchangeRate || '—'} ${currency}`]);
         detailEntries.push(['匯率日期／來源', [bill.exchangeRateDate, bill.exchangeProvider].filter(Boolean).join(' · ') || '未提供']);
       }
+      if (isSourceBreakdown) {
+        detailEntries.push(['原幣分帳總額', `${formatMoney(bill.sourceBillTotal ?? bill.sourceTotal, sourceCurrency, true)} ${sourceCurrency}`]);
+        detailEntries.push(['結算總額', `${formatMoney(bill.billTotal, currency)} ${currency}`]);
+      }
       $('#bill-details').innerHTML = detailEntries.map(([label, value]) => `<dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd>`).join('');
       if (bill.receiptAdjustmentNote) {
         $('#adjustment-note').hidden = false;
@@ -310,18 +322,18 @@
         paidNoticeStatus.textContent = !payerName ? '未設定收款人' : '';
         memberGateHeading.textContent = `你揀咗：${selected.name}`;
         $('#page-title').textContent = `${selected.name}嘅賬單`;
-        $('#total-label').textContent = '你要埋單幾多';
+        $('#total-label').textContent = isSourceBreakdown ? `你要埋單幾多（${currency}）` : '你要埋單幾多';
         $('#grand-total').textContent = formatMoney(selected.total, currency);
         $('#items-title').textContent = `${selected.name}要埋單嘅項目`;
         $('#item-heading').textContent = '項目／數量';
-        $('#amount-heading').textContent = '分攤金額';
+        $('#amount-heading').textContent = isSourceBreakdown ? `分攤金額（${sourceCurrency}）` : '分攤金額';
         const preDiscount = number(selected.subtotal) + number(selected.discount);
         const personalEntries = [];
-        if (number(selected.discount) || number(selected.tax)) {
-          personalEntries.push(['項目及額外分攤小計', formatMoney(preDiscount, currency)]);
-          if (number(selected.discount)) personalEntries.push(['折扣', `−${formatMoney(selected.discount, currency)}`]);
-          if (number(selected.tax)) personalEntries.push(['稅項／服務費', formatMoney(selected.tax, currency)]);
-          personalEntries.push(['你要埋單', formatMoney(selected.total, currency)]);
+        if (isSourceBreakdown || number(selected.discount) || number(selected.tax)) {
+          personalEntries.push([isSourceBreakdown ? `項目及額外分攤小計（${breakdownCurrency}）` : '項目及額外分攤小計', `${formatBreakdownMoney(preDiscount)}${isSourceBreakdown ? ` ${breakdownCurrency}` : ''}`]);
+          if (number(selected.discount)) personalEntries.push([isSourceBreakdown ? `折扣（${breakdownCurrency}）` : '折扣', `−${formatBreakdownMoney(selected.discount)}${isSourceBreakdown ? ` ${breakdownCurrency}` : ''}`]);
+          if (number(selected.tax)) personalEntries.push([isSourceBreakdown ? `稅項／服務費（${breakdownCurrency}）` : '稅項／服務費', `${formatBreakdownMoney(selected.tax)}${isSourceBreakdown ? ` ${breakdownCurrency}` : ''}`]);
+          personalEntries.push([isSourceBreakdown ? `你要埋單（${currency}）` : '你要埋單', `${formatMoney(selected.total, currency)}${isSourceBreakdown ? ` ${currency}` : ''}`]);
           $('#personal-breakdown').hidden = false;
           $('#personal-title').textContent = '埋單金額點計';
           $('#personal-details').innerHTML = personalEntries.map(([label, value]) => `<dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd>`).join('');
@@ -335,16 +347,16 @@
           const extras = [];
           if (item.original) extras.push(`<div><strong>單據原文：</strong>${escapeHtml(item.original)}</div>`);
           if (item.ja) extras.push(`<div><strong>日文：</strong>${escapeHtml(item.ja)}</div>`);
-          extras.push(`<div><strong>全單項目金額：</strong>${escapeHtml(formatMoney(item.sourceAmount, sourceCurrency))}</div>`);
+          extras.push(`<div><strong>全單項目金額：</strong>${escapeHtml(formatMoney(item.sourceAmount, sourceCurrency, isSourceBreakdown))}</div>`);
           const quantity = number(share.quantity);
           const unit = share.unit || item.unit || '';
           const quantityText = quantity ? `你認領：${formatQuantity(quantity)}${unit ? ` ${unit}` : ''}` : '';
-          return [`<tr class="item-row" data-testid="personal-item-row"><td><div class="item-name">${escapeHtml(item.name || '未命名項目')}</div>${quantityText ? `<div class="item-subline">${escapeHtml(quantityText)}</div>` : ''}<details class="item-details"><summary>睇單據原文</summary><div class="item-extra">${extras.join('')}</div></details></td><td class="amount">${escapeHtml(formatMoney(share.amount, currency))}</td></tr>`];
+          return [`<tr class="item-row" data-testid="personal-item-row"><td><div class="item-name">${escapeHtml(item.name || '未命名項目')}</div>${quantityText ? `<div class="item-subline">${escapeHtml(quantityText)}</div>` : ''}<details class="item-details"><summary>睇單據原文</summary><div class="item-extra">${extras.join('')}</div></details></td><td class="amount">${escapeHtml(formatBreakdownMoney(share.amount))}</td></tr>`];
         });
         adjustments.filter(entry => entry.person === selected.name).forEach(entry => {
           const quantity = number(entry.quantity);
           const quantityText = quantity ? ` · ${formatQuantity(quantity)}${entry.unit ? ` ${entry.unit}` : ''}` : '';
-          rows.push(`<tr class="adjustment-row" data-testid="personal-adjustment-row"><td><div class="item-name">額外分攤：${escapeHtml(entry.name)}</div><div class="item-subline">${escapeHtml(entry.reason || '單據調整')}${escapeHtml(quantityText)}</div></td><td class="amount">${escapeHtml(formatMoney(entry.amount, currency))}</td></tr>`);
+          rows.push(`<tr class="adjustment-row" data-testid="personal-adjustment-row"><td><div class="item-name">額外分攤：${escapeHtml(entry.name)}</div><div class="item-subline">${escapeHtml(entry.reason || '單據調整')}${escapeHtml(quantityText)}</div></td><td class="amount">${escapeHtml(formatBreakdownMoney(entry.amount))}</td></tr>`);
         });
         $('#item-rows').innerHTML = rows.length ? rows.join('') : '<tr><td colspan="2" class="empty-items">今次冇要埋單嘅項目</td></tr>';
         $('#other-details').open = false;
