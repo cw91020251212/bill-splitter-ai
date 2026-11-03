@@ -210,21 +210,81 @@ async function calculate(page) {
       await legacyPage.goto(new URL('claim.html', base).href, { waitUntil: 'domcontentloaded' });
       await legacyPage.evaluate(() => localStorage.setItem('billSplitterDetailTablePreviewV1', JSON.stringify({
         version: 1,
-        bill: { date: '2026-11-03', payer: '阿明', currency: 'HKD', sourceCurrency: 'JPY', sourceTotal: 1000, billTotal: 1.25, paymentMethods: [] },
-        participants: [{ name: '舊連結友人', total: 1.25, subtotal: 1.25, tax: 0, discount: 0 }],
-        items: [{ id: '01', name: '舊版項目', unit: '件', sourceAmount: 1000, shares: [{ person: '舊連結友人', amount: 1.25, quantity: 1, unit: '件' }] }],
+        bill: { date: '2026-11-03', payer: '阿明', currency: 'HKD', sourceCurrency: 'JPY', sourceTotal: 1500, billTotal: 1.5, paymentMethods: [] },
+        participants: [
+          { name: '舊連結友人', total: 0.5, subtotal: 0.5, tax: 0, discount: 0 },
+          { name: '小美', total: 0.25, subtotal: 0.25, tax: 0, discount: 0 },
+          { name: '阿強', total: 0.75, subtotal: 0.75, tax: 0, discount: 0 }
+        ],
+        items: [{ id: '01', name: '舊版項目', quantity: 6, unit: '件', sourceAmount: 1500, allocatedAmount: 1.5, shares: [
+          { person: '舊連結友人', amount: 0.5, quantity: 2, unit: '件' },
+          { person: '小美', amount: 0.25, quantity: 1, unit: '件' },
+          { person: '阿強', amount: 0.75, quantity: 3, unit: '件' }
+        ] }],
         adjustments: [], images: []
       })));
       await legacyPage.goto(new URL('detailed-view.html', base).href, { waitUntil: 'domcontentloaded' });
       await legacyPage.getByTestId('member-select').selectOption({ label: '舊連結友人' });
       assert.equal(await legacyPage.locator('#total-label').innerText(), '你要埋單幾多');
       assert.equal(await legacyPage.locator('#amount-heading').innerText(), '分攤金額');
-      assert.equal(await legacyPage.getByTestId('preview-grand-total').innerText(), 'HK$1.25');
+      assert.equal(await legacyPage.getByTestId('preview-grand-total').innerText(), 'HK$0.50');
       const legacyRow = await legacyPage.locator('[data-testid="personal-item-row"]').first().innerText();
-      assert.match(legacyRow, /你認領：1 件/);
-      assert.doesNotMatch(legacyRow, /你分攤：/);
-      assert.match(legacyRow, /HK\$1\.25/);
-      console.log('PASS legacy v1 friend preview: retains settlement-currency item shares and totals.');
+      assert.match(legacyRow, /共 3 人分食，你分 1\/3 份/);
+      assert.match(legacyRow, /HK\$0\.50/);
+      console.log('PASS legacy v1 friend preview: recovers three diners and 2/6 → 1/3 from saved shares; settlement currency remains HKD.');
+
+      const legacyV2Page = await context.newPage();
+      legacyV2Page.on('pageerror', error => failures.push(`legacy v2 friend page error: ${error.message}`));
+      await legacyV2Page.goto(new URL('claim.html', base).href, { waitUntil: 'domcontentloaded' });
+      await legacyV2Page.evaluate(() => localStorage.setItem('billSplitterDetailTablePreviewV1', JSON.stringify({
+        version: 2,
+        bill: { date: '2026-11-03', payer: '阿明', currency: 'HKD', sourceCurrency: 'JPY', sourceTotal: 270, billTotal: 12.15, itemsSubtotal: 270, paymentMethods: [] },
+        participants: [
+          { name: '阿明', total: 4.05, sourceTotal: 90, subtotal: 90, tax: 0, discount: 0 },
+          { name: '小美', total: 4.95, sourceTotal: 110, subtotal: 110, tax: 0, discount: 0 },
+          { name: '阿強', total: 3.15, sourceTotal: 70, subtotal: 70, tax: 0, discount: 0 }
+        ],
+        items: [
+          { id: '01', name: '舊版三人平分', quantity: 3, unit: '件', sourceAmount: 130, allocatedAmount: 130, shares: [
+            { person: '阿明', quantity: 1, unit: '件', amount: 130 / 3 },
+            { person: '小美', quantity: 1, unit: '件', amount: 130 / 3 },
+            { person: '阿強', quantity: 1, unit: '件', amount: 130 / 3 }
+          ] },
+          { id: '02', name: '舊版不等分 2/6', quantity: 6, unit: '件', sourceAmount: 140, allocatedAmount: 140, shares: [
+            { person: '阿明', quantity: 2, unit: '件', amount: 140 * 2 / 6 },
+            { person: '小美', quantity: 1, unit: '件', amount: 140 / 6 },
+            { person: '阿強', quantity: 3, unit: '件', amount: 70 }
+          ] }
+        ],
+        adjustments: [], images: []
+      })));
+      await legacyV2Page.goto(new URL('detailed-view.html', base).href, { waitUntil: 'domcontentloaded' });
+      await legacyV2Page.getByTestId('member-select').selectOption({ label: '阿明' });
+      const legacyV2Rows = await legacyV2Page.locator('[data-testid="personal-item-row"]').allInnerTexts();
+      assert.match(legacyV2Rows[0], /共 3 人分食，你分 1\/3 份/);
+      assert.match(legacyV2Rows[1], /共 3 人分食，你分 1\/3 份/);
+      assert.match(legacyV2Rows[0], /¥43\.333333/);
+      assert.match(legacyV2Rows[1], /¥46\.666667/);
+      console.log('PASS legacy v2 friend preview: three-person equal split and saved 2/6 share render as 1/3 without new metadata.');
+
+      const incompletePage = await context.newPage();
+      await incompletePage.goto(new URL('claim.html', base).href, { waitUntil: 'domcontentloaded' });
+      await incompletePage.evaluate(() => localStorage.setItem('billSplitterDetailTablePreviewV1', JSON.stringify({
+        version: 2,
+        bill: { payer: '阿明', currency: 'HKD', sourceCurrency: 'JPY', billTotal: 1 },
+        participants: [{ name: '阿明', total: 0.5 }],
+        items: [{ id: '01', name: '缺少一位人名', sourceAmount: 20, shares: [
+          { person: '阿明', quantity: 1, amount: 10 },
+          { person: '', quantity: 1, amount: 10 }
+        ] }],
+        adjustments: [], images: []
+      })));
+      await incompletePage.goto(new URL('detailed-view.html', base).href, { waitUntil: 'domcontentloaded' });
+      await incompletePage.getByTestId('member-select').selectOption({ label: '阿明' });
+      const incompleteRow = await incompletePage.locator('[data-testid="personal-item-row"]').first().innerText();
+      assert.match(incompleteRow, /分食人數未能從此連結確認，你分 1\/2 份/);
+      assert.doesNotMatch(incompleteRow, /共 1 人分食/);
+      console.log('PASS incomplete legacy payload: reports the recoverable fraction but does not guess diner count.');
       await context.close();
     }
 
@@ -243,34 +303,39 @@ async function calculate(page) {
         items: [
           { id: '01', name: '實際件數 130 円', price: 130, total: 130, totalQty: 3, unit: '件' },
           { id: '02', name: '比例分攤 140 円（2/5）', price: 140, total: 140, totalQty: null, unit: '件' },
-          { id: '03', name: '比例分攤 140 円（2/6）', price: 140, total: 140, totalQty: null, unit: '件' }
+          { id: '03', name: '比例分攤 140 円（2/6）', price: 140, total: 140, totalQty: null, unit: '件' },
+          { id: '04', name: '原算法三人平均 90 円', price: 90, total: 90, totalQty: null, unit: '' }
         ],
-        replies: '姓名：阿明\n01 = 1件\n02 = 2件\n03 = 2件\n姓名：小美\n01 = 2件\n02 = 3件\n03 = 4件'
+        replies: '姓名：阿明\n01 = 1件\n02 = 2件\n03 = 2件\n04 = 1\n姓名：小美\n01 = 2件\n02 = 3件\n03 = 1件\n04 = 1\n姓名：阿強\n03 = 3件\n04 = 1'
       }));
       await page.waitForFunction(() => document.querySelector('[data-testid="exchange-rate-status"]')?.textContent.includes('Frankfurter'), null, { timeout: 20000 });
       const summary = await calculate(page);
-      assert.match(summary, /原幣分帳總額：¥410 JPY → 結算總額：\$18\.45 HKD/);
+      assert.match(summary, /原幣分帳總額：¥500 JPY → 結算總額：\$22\.50 HKD/);
       await page.evaluate(() => { window.open = () => ({ opener: null }); });
       await page.getByTestId('open-detailed-table-preview').click();
       const preview = await page.evaluate(() => JSON.parse(localStorage.getItem('billSplitterDetailTablePreviewV1') || 'null'));
       const selectedShares = preview.items.map(item => item.shares.find(share => share.person === '阿明'));
-      assert.deepEqual(selectedShares.map(share => [share.quantity, share.allocationTotal, share.isActualUnit]), [[1, 3, true], [2, 5, false], [2, 6, false]]);
-      assert.deepEqual(selectedShares.map(share => Number(share.amount.toFixed(6))), [43.333333, 56, 46.666667]);
+      assert.deepEqual(selectedShares.map(share => [share.quantity, share.allocationTotal, share.isActualUnit]), [[1, 3, true], [2, 5, false], [2, 6, false], [1, 3, false]]);
+      assert.deepEqual(selectedShares.map(share => Number(share.amount.toFixed(6))), [43.333333, 56, 46.666667, 30]);
 
       const friendPage = await context.newPage();
       friendPage.on('pageerror', error => failures.push(`portion label friend page error: ${error.message}`));
       await friendPage.goto(new URL('detailed-view.html', base).href, { waitUntil: 'domcontentloaded' });
       await friendPage.getByTestId('member-select').selectOption({ label: '阿明' });
       const rows = await friendPage.locator('[data-testid="personal-item-row"]').allInnerTexts();
-      assert.match(rows[0], /你認領：1 件／全單共 3 件（1\/3）/);
+      assert.match(rows[0], /共 2 人分食，你分 1\/3 份/);
       assert.match(rows[0], /¥43\.333333/);
-      assert.match(rows[1], /你分攤：2／共 5 份（2\/5）/);
+      assert.match(rows[1], /共 2 人分食，你分 2\/5 份/);
       assert.match(rows[1], /¥56/);
-      assert.match(rows[2], /你分攤：2／共 6 份（2\/6）/);
+      assert.match(rows[2], /共 3 人分食，你分 1\/3 份/);
       assert.match(rows[2], /¥46\.666667/);
+      assert.match(rows[3], /共 3 人分食，你分 1\/3 份/);
+      assert.match(rows[3], /¥30/);
+      assert.equal(await friendPage.locator('#item-heading').innerText(), '項目／分食比例');
       assert.equal(await friendPage.locator('#total-label').innerText(), '你要埋單幾多（HKD）');
-      assert.match(await friendPage.getByTestId('preview-grand-total').innerText(), /HK\$6\.57/);
-      console.log('PASS 390px friend portions: actual 1/3 and weighted shares 2/5, 2/6 show their true denominators; JPY rows and HKD payable remain correct.');
+      assert.match(await friendPage.getByTestId('preview-grand-total').innerText(), /HK\$7\.92/);
+      assert.equal(await friendPage.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true, 'fraction labels fit the 390px mobile viewport');
+      console.log('PASS 390px friend portions: original 3-person equal split, 2/6 reduced to 1/3, distinct diner count, JPY rows and HKD payable all correct.');
       await context.close();
     }
 

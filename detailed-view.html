@@ -199,6 +199,28 @@
         } catch (_) { return `${code} ${number(value).toFixed(allowFraction ? 6 : 2)}`; }
       };
       const formatQuantity = value => new Intl.NumberFormat('zh-HK', { maximumFractionDigits:3 }).format(number(value));
+      const gcd = (a, b) => { let left = Math.abs(Math.round(a)); let right = Math.abs(Math.round(b)); while (right) { const remainder = left % right; left = right; right = remainder; } return left || 1; };
+      const formatReducedFraction = (numerator, denominator) => {
+        const ratio = number(numerator) / number(denominator);
+        if (!Number.isFinite(ratio) || ratio <= 0) return '';
+        let value = ratio;
+        let previousNumerator = 0, currentNumerator = 1, previousDenominator = 1, currentDenominator = 0;
+        for (let index = 0; index < 32; index += 1) {
+          const whole = Math.floor(value);
+          const nextNumerator = whole * currentNumerator + previousNumerator;
+          const nextDenominator = whole * currentDenominator + previousDenominator;
+          if (nextDenominator > 1000000 || !Number.isSafeInteger(nextNumerator)) break;
+          previousNumerator = currentNumerator; currentNumerator = nextNumerator;
+          previousDenominator = currentDenominator; currentDenominator = nextDenominator;
+          if (Math.abs(currentNumerator / currentDenominator - ratio) <= Math.max(1e-10, Math.abs(ratio) * 1e-7)) break;
+          const remainder = value - whole;
+          if (remainder <= 1e-12) break;
+          value = 1 / remainder;
+        }
+        if (currentDenominator <= 0) return '';
+        const divisor = gcd(currentNumerator, currentDenominator);
+        return `${currentNumerator / divisor}/${currentDenominator / divisor}`;
+      };
       const shareParams = new URLSearchParams(window.location.search);
       const shareId = shareParams.get('share') || '';
       const expectedExpiry = Number(shareParams.get('e') || 0);
@@ -325,7 +347,7 @@
         $('#total-label').textContent = isSourceBreakdown ? `你要埋單幾多（${currency}）` : '你要埋單幾多';
         $('#grand-total').textContent = formatMoney(selected.total, currency);
         $('#items-title').textContent = `${selected.name}要埋單嘅項目`;
-        $('#item-heading').textContent = '項目／數量';
+        $('#item-heading').textContent = '項目／分食比例';
         $('#amount-heading').textContent = isSourceBreakdown ? `分攤金額（${sourceCurrency}）` : '分攤金額';
         const preDiscount = number(selected.subtotal) + number(selected.discount);
         const personalEntries = [];
@@ -342,29 +364,47 @@
         }
 
         const rows = data.items.flatMap(item => {
-          const share = (Array.isArray(item.shares) ? item.shares : []).find(entry => entry.person === selected.name);
+          const itemShares = Array.isArray(item.shares) ? item.shares : [];
+          const share = itemShares.find(entry => entry.person === selected.name);
           if (!share) return [];
           const extras = [];
           if (item.original) extras.push(`<div><strong>單據原文：</strong>${escapeHtml(item.original)}</div>`);
           if (item.ja) extras.push(`<div><strong>日文：</strong>${escapeHtml(item.ja)}</div>`);
           extras.push(`<div><strong>全單項目金額：</strong>${escapeHtml(formatMoney(item.sourceAmount, sourceCurrency, isSourceBreakdown))}`);
           const quantity = number(share.quantity);
-          const unit = share.unit || item.unit || '';
-          const unitLabel = unit || '件';
-          const allocatedQuantity = Array.isArray(item.shares) ? item.shares.reduce((sum, entry) => sum + number(entry.quantity), 0) : 0;
-          const allocationTotal = number(share.allocationTotal) || number(item.quantity) || allocatedQuantity;
-          const isActualUnit = share.isActualUnit === true;
-          const hasAllocationMetadata = number(share.allocationTotal) > 0 && typeof share.isActualUnit === 'boolean';
-          const ratioText = allocationTotal > 0 ? `（${formatQuantity(quantity)}/${formatQuantity(allocationTotal)}）` : '';
-          const quantityText = !quantity ? '' : !hasAllocationMetadata
-            ? `你認領：${formatQuantity(quantity)}${unit ? ` ${unit}` : ''}`
-            : isActualUnit
-            ? allocationTotal > 0
-              ? `你認領：${formatQuantity(quantity)} ${unitLabel}／全單共 ${formatQuantity(allocationTotal)} ${unitLabel}${ratioText}`
-              : `你認領：${formatQuantity(quantity)} ${unitLabel}`
-            : allocationTotal > 0
-              ? `你分攤：${formatQuantity(quantity)}／共 ${formatQuantity(allocationTotal)} 份${ratioText}`
-              : `你分攤：${formatQuantity(quantity)} 份`;
+          const activeShares = itemShares.filter(entry => number(entry.quantity) > 0 || number(entry.amount) > 0);
+          const dinerNames = new Set();
+          let unknownDiner = false;
+          activeShares.forEach(entry => {
+            const name = String(entry.person || '').trim();
+            if (name) dinerNames.add(name);
+            else unknownDiner = true;
+          });
+          const dinerCount = !unknownDiner && dinerNames.size ? dinerNames.size : 0;
+          const allocationTotal = number(share.allocationTotal);
+          let fraction = allocationTotal > 0 ? formatReducedFraction(quantity, allocationTotal) : '';
+          if (!fraction && isSourceBreakdown && number(item.sourceAmount) > 0) {
+            fraction = formatReducedFraction(share.amount, item.sourceAmount);
+          }
+          const shareAmountTotal = itemShares.reduce((sum, entry) => sum + number(entry.amount), 0);
+          const amountTotal = isSourceBreakdown && number(item.sourceAmount) > 0
+            ? number(item.sourceAmount)
+            : number(item.allocatedAmount) || shareAmountTotal;
+          if (!fraction && number(share.amount) > 0 && amountTotal > 0) {
+            fraction = formatReducedFraction(share.amount, amountTotal);
+          }
+          const allocatedQuantity = itemShares.reduce((sum, entry) => sum + number(entry.quantity), 0);
+          const itemQuantity = number(item.quantity);
+          if (!fraction && quantity > 0 && allocatedQuantity > 0 && (!itemQuantity || Math.abs(allocatedQuantity - itemQuantity) < 0.000001)) {
+            fraction = formatReducedFraction(quantity, itemQuantity || allocatedQuantity);
+          }
+          const quantityText = fraction && dinerCount
+            ? `共 ${dinerCount} 人分食，你分 ${fraction} 份`
+            : fraction
+              ? `分食人數未能從此連結確認，你分 ${fraction} 份`
+              : dinerCount
+                ? `共 ${dinerCount} 人分食；此連結未保存分攤比例，請向發起人索取新連結。`
+                : '此連結未保存分食人數及比例，請向發起人索取新連結。';
           return [`<tr class="item-row" data-testid="personal-item-row"><td><div class="item-name">${escapeHtml(item.name || '未命名項目')}</div>${quantityText ? `<div class="item-subline">${escapeHtml(quantityText)}</div>` : ''}<details class="item-details"><summary>睇單據原文</summary><div class="item-extra">${extras.join('')}</div></details></td><td class="amount">${escapeHtml(formatBreakdownMoney(share.amount))}</td></tr>`];
         });
         adjustments.filter(entry => entry.person === selected.name).forEach(entry => {
