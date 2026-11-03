@@ -3,8 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex,nofollow,noarchive">
   <meta name="theme-color" content="#145c3b">
-  <title>朋友埋單｜本機預覽</title>
+  <title>朋友埋單表格</title>
   <style>
     :root { color-scheme:light; --ink:#1d2a21; --muted:#68756c; --line:#dfe6df; --paper:#f4f6f2; --green:#176a43; --green-dark:#104d31; --green-pale:#e7f2e9; --shadow:0 12px 32px rgba(27,54,35,.07); }
     * { box-sizing:border-box; }
@@ -23,8 +24,10 @@
     .member-gate h1 { margin:0 0 16px; font-size:23px; text-align:center; }
     .member-gate select { display:block; width:100%; min-height:50px; padding:10px 40px 10px 13px; border:1px solid #b9cbbb; border-radius:11px; background:#fff; color:var(--ink); font:inherit; font-weight:700; }
     .member-gate select:focus-visible { outline:3px solid #b38830; outline-offset:2px; }
+    .share-privacy { margin:12px 0 0; color:#80551f; font-size:12px; line-height:1.5; }
     .member-gate--selected { display:grid; grid-template-columns:minmax(130px,.45fr) minmax(0,1fr); align-items:center; gap:12px; margin:0 auto 16px; padding:11px 15px; box-shadow:none; }
     .member-gate--selected h1 { margin:0; font-size:14px; text-align:left; }
+    .member-gate--selected .share-privacy { grid-column:1/-1; margin-top:0; }
     .total-card { display:flex; justify-content:space-between; align-items:center; gap:18px; min-height:92px; margin-bottom:22px; padding:20px 25px; border:1px solid #135837; border-radius:19px; background:linear-gradient(120deg,#176a43,#104d31); color:#fff; box-shadow:var(--shadow); }
     .total-label { font-size:15px; font-weight:750; opacity:.92; }
     .total-value { color:#fff; font-size:clamp(30px,5vw,38px); font-weight:900; line-height:1.1; letter-spacing:-.03em; font-variant-numeric:tabular-nums; text-align:right; }
@@ -65,6 +68,10 @@
     .personal-breakdown h2 { margin:0 0 11px; font-size:17px; }
     .personal-breakdown .detail-list { grid-template-columns:1fr auto; }
     .personal-breakdown .detail-list dt:last-of-type,.personal-breakdown .detail-list dd:last-of-type { color:var(--green-dark); font-weight:850; }
+    .paid-notice-card { margin:0 0 18px; padding:16px 18px; }
+    .paid-notice-button { width:100%; min-height:48px; padding:10px 14px; border:1px solid #104d31; border-radius:11px; background:#176a43; color:#fff; font:inherit; font-weight:800; cursor:pointer; }
+    .paid-notice-button:disabled { opacity:.58; cursor:not-allowed; }
+    .paid-notice-status { margin:7px 0 0; color:#3d5d47; font-size:12px; }
     .item-subline { margin-top:4px; color:#718076; font-size:12px; font-weight:500; }
     .detail-list { display:grid; grid-template-columns:minmax(115px,.7fr) 1.3fr; gap:0 14px; margin:0; }
     .detail-list dt,.detail-list dd { margin:0; padding:9px 0; border-top:1px solid #edf0ed; }
@@ -104,6 +111,10 @@
     <span id="local-tag" class="local-tag" hidden>本機預覽・不會公開</span>
   </header>
   <main>
+    <section id="loading-state" class="empty" aria-live="polite">
+      <h1>正在載入朋友分帳資料…</h1>
+      <p>資料由短連結暫存服務讀取，請稍候。</p>
+    </section>
     <section id="empty-state" class="empty" hidden>
       <h1>未有分帳資料</h1>
       <p>請返回分帳報告，再開一次朋友埋單頁。</p>
@@ -112,6 +123,7 @@
       <section id="member-gate" class="member-gate">
         <h1 id="member-gate-heading">請選擇成員</h1>
         <select id="member-select" data-testid="member-select" aria-label="請選擇成員"><option value="">請揀你個名</option></select>
+        <p id="share-privacy" class="share-privacy" hidden>此連結包含全單分帳資料及收據相片。任何持有連結的人都可查看；伺服器副本只暫存 7 日，到期後自動刪除。<br><strong id="share-expiry" data-testid="share-expiry"></strong></p>
       </section>
       <div id="member-content" hidden>
       <h1 id="page-title" class="page-title"></h1>
@@ -122,6 +134,14 @@
       <section id="personal-breakdown" class="card personal-breakdown" data-testid="personal-breakdown" hidden>
         <h2 id="personal-title"></h2>
         <dl id="personal-details" class="detail-list"></dl>
+      </section>
+      <section id="payment-instructions" class="card personal-breakdown" data-testid="payment-instructions" aria-label="收款資料">
+        <h2>收款資料</h2>
+        <dl class="detail-list"><dt>請將款項還給</dt><dd id="payment-recipient">未指定</dd><dt>可用付款方式</dt><dd id="payment-methods">未指定</dd></dl>
+      </section>
+      <section class="card paid-notice-card" data-testid="paid-notice-card" aria-label="WhatsApp 通知收款人">
+        <button id="share-paid-notice" data-testid="share-paid-notice" class="paid-notice-button" type="button">付款後請通知收款人，謝謝</button>
+        <p id="paid-notice-status" data-testid="paid-notice-status" class="paid-notice-status" role="status" aria-live="polite"></p>
       </section>
       <div class="content-grid">
         <section class="card items-card" aria-labelledby="items-title">
@@ -141,13 +161,13 @@
         </aside>
       </div>
       <details id="other-details" class="optional" data-testid="other-details">
-        <summary>其他單據資料（折扣、稅項、匯率及付款）</summary>
+        <summary>其他單據資料（折扣、稅項及匯率）</summary>
         <div class="optional-content">
           <dl id="bill-details" class="detail-list"></dl>
           <p id="adjustment-note" class="notice" hidden></p>
         </div>
       </details>
-      <footer>此頁只讀取本機報告資料；不會公開或更改原分帳。</footer>
+      <footer id="page-footer">此頁只讀取本機報告資料；不會公開或更改原分帳。</footer>
       </div>
     </div>
   </main>
@@ -155,8 +175,10 @@
     <div class="lightbox-head"><span id="photo-caption">單據相片</span><button id="close-photo" type="button" aria-label="關閉">×</button></div>
     <img id="lightbox-image" class="lightbox-image" alt="放大的單據相片">
   </dialog>
+  <script src="./share-config.js"></script>
+  <script src="./bill-share-api.js"></script>
   <script>
-    (() => {
+    (async () => {
       'use strict';
       const PREVIEW_KEY = 'billSplitterDetailTablePreviewV1';
       const $ = selector => document.querySelector(selector);
@@ -168,17 +190,51 @@
         catch (_) { return `${code} ${number(value).toFixed(2)}`; }
       };
       const formatQuantity = value => new Intl.NumberFormat('zh-HK', { maximumFractionDigits:3 }).format(number(value));
+      const shareParams = new URLSearchParams(window.location.search);
+      const shareId = shareParams.get('share') || '';
+      const expectedExpiry = Number(shareParams.get('e') || 0);
+      const isSharedLink = Boolean(shareId);
       let data = null;
-      try { data = JSON.parse(localStorage.getItem(PREVIEW_KEY) || 'null'); } catch (_) {}
+      let shareExpiresAt = '';
+      if (isSharedLink) {
+        try {
+          if (!window.BillShareApi?.getShare) throw new Error('分享服務尚未載入，請重新開啟連結。');
+          const stored = await window.BillShareApi.getShare(shareId, expectedExpiry);
+          data = stored.data;
+          shareExpiresAt = stored.expiresAt || (expectedExpiry ? new Date(expectedExpiry * 1000).toISOString() : '');
+        } catch (error) {
+          $('#loading-state').hidden = true;
+          $('#empty-state').hidden = false;
+          $('#empty-state h1').textContent = /到期/.test(error?.message || '') ? '朋友分享連結已到期' : '未能載入朋友分享資料';
+          $('#empty-state p').textContent = error?.message || '請向建立者索取新的朋友連結。';
+          return;
+        }
+      } else {
+        try { data = JSON.parse(localStorage.getItem(PREVIEW_KEY) || 'null'); } catch (_) {}
+      }
       if (!data || data.version !== 1 || !data.bill || !Array.isArray(data.items)) {
+        $('#loading-state').hidden = true;
         $('#empty-state').hidden = false;
+        if (isSharedLink) {
+          $('#empty-state h1').textContent = '朋友分享連結無效或已到期';
+          $('#empty-state p').textContent = '請向建立者索取新的朋友埋單連結。';
+        }
         return;
       }
+      $('#loading-state').hidden = true;
       $('#preview-content').hidden = false;
       const bill = data.bill;
+      if (isSharedLink) {
+        $('#local-tag').hidden = false;
+        $('#local-tag').textContent = '朋友分享連結・7 日有效';
+        $('#share-privacy').hidden = false;
+        $('#share-expiry').textContent = shareExpiresAt ? `連結有效至：${new Intl.DateTimeFormat('zh-HK', { timeZone: 'Asia/Hong_Kong', dateStyle: 'medium', timeStyle: 'short' }).format(new Date(shareExpiresAt))}（香港時間）` : '伺服器副本會在建立後 7 日自動刪除。';
+        $('#page-footer').textContent = '分帳及收據相片由短連結服務暫存，7 日後自動刪除。任何持有連結者都可查看全單資料、收款方式及收據相片。';
+      }
       const currency = bill.currency || 'HKD';
       const sourceCurrency = bill.sourceCurrency || currency;
       const participants = Array.isArray(data.participants) ? data.participants : [];
+      const sharedImages = isSharedLink && Array.isArray(data.images) ? data.images.filter(image => image && typeof image.data === 'string' && /^[A-Za-z0-9+/]+={0,2}$/.test(image.data) && ['image/jpeg','image/png','image/webp'].includes(image.mimeType)) : [];
       const memberSelect = $('#member-select');
       const memberGateHeading = $('#member-gate-heading');
       const adjustments = Array.isArray(data.adjustments) ? data.adjustments : [];
@@ -189,10 +245,36 @@
         memberSelect.disabled = true;
         memberGateHeading.textContent = '呢張單未有成員';
       }
+      const payerName = String(bill.payer || '').trim();
+      $('#payment-recipient').textContent = payerName || '未指定';
+      $('#payment-methods').textContent = Array.isArray(bill.paymentMethods) && bill.paymentMethods.length ? bill.paymentMethods.join('、') : '未指定';
+      const paidNoticeButton = $('#share-paid-notice');
+      const paidNoticeStatus = $('#paid-notice-status');
+      const getSelectedForNotice = () => participants.find(person => person.name === memberSelect.value);
+      const getShareContextUrl = () => {
+        if (!isSharedLink || !shareId) return '';
+        const apiBaseUrl = String(window.BillShareConfig?.apiBaseUrl || '').trim();
+        if (!apiBaseUrl) return window.location.href;
+        try {
+          const shortUrl = new URL(`/s/${encodeURIComponent(shareId)}`, apiBaseUrl);
+          if (expectedExpiry > 0) shortUrl.searchParams.set('e', String(expectedExpiry));
+          return shortUrl.href;
+        } catch (_) { return window.location.href; }
+      };
+      const buildPaidNoticeMessage = selected => {
+        const recipient = payerName || '收款人';
+        const message = `${recipient}你好，我係${selected.name}，已轉帳 ${formatMoney(selected.total, currency)} 畀你。`;
+        const shareUrl = getShareContextUrl();
+        return shareUrl ? `${message}\n分帳：${shareUrl}` : message;
+      };
+      const notifyPayerOfPayment = () => {
+        const selected = getSelectedForNotice();
+        if (!selected || !payerName || selected.name === payerName) return;
+        window.open(`https://wa.me/?text=${encodeURIComponent(buildPaidNoticeMessage(selected))}`, '_blank', 'noopener,noreferrer');
+        paidNoticeStatus.textContent = 'WhatsApp 已開啟';
+      };
       const detailEntries = [
-        ['墊支人', bill.payer || '未指定'],
-        ['日期', bill.date || '未提供'],
-        ['付款方式', Array.isArray(bill.paymentMethods) && bill.paymentMethods.length ? bill.paymentMethods.join('、') : '未指定']
+        ['日期', bill.date || '未提供']
       ];
       if (sourceCurrency !== currency) {
         detailEntries.push(['匯率', `1 ${sourceCurrency} = ${bill.exchangeRate || '—'} ${currency}`]);
@@ -211,11 +293,17 @@
           $('#local-tag').hidden = true;
           $('#member-gate').classList.remove('member-gate--selected');
           memberGateHeading.textContent = '請選擇成員';
+          paidNoticeButton.disabled = true;
+          paidNoticeStatus.textContent = '';
           return;
         }
         $('#member-content').hidden = false;
         $('#local-tag').hidden = false;
+        $('#local-tag').textContent = isSharedLink ? '朋友分享連結・7 日有效' : '本機預覽・不會公開';
         $('#member-gate').classList.add('member-gate--selected');
+        const isPayer = Boolean(payerName) && selected.name === payerName;
+        paidNoticeButton.disabled = !payerName || isPayer;
+        paidNoticeStatus.textContent = !payerName ? '未設定收款人' : '';
         memberGateHeading.textContent = `你揀咗：${selected.name}`;
         $('#page-title').textContent = `${selected.name}嘅賬單`;
         $('#total-label').textContent = '你要埋單幾多';
@@ -256,14 +344,27 @@
         });
         $('#item-rows').innerHTML = rows.length ? rows.join('') : '<tr><td colspan="2" class="empty-items">今次冇要埋單嘅項目</td></tr>';
         $('#other-details').open = false;
-        if (!receiptsLoaded) loadReceiptImages();
+        if (!receiptsLoaded) {
+          if (isSharedLink) {
+            receiptsLoaded = true;
+            if (sharedImages.length) {
+              images.push(...sharedImages);
+              imageCountLabel.textContent = `${sharedImages.length} 張`;
+              renderPhotos(sharedImages);
+            } else {
+              showPhotoMessage('這份朋友分享沒有附上收據相片。');
+            }
+          } else {
+            loadReceiptImages();
+          }
+        }
       };
 
       const receiptContent = $('#receipt-content');
       const imageCountLabel = $('#image-count');
       const images = [];
       let receiptsLoaded = false;
-      const imageCount = number(bill.receiptImageCount);
+      const imageCount = isSharedLink ? sharedImages.length : number(bill.receiptImageCount);
       imageCountLabel.textContent = imageCount ? `${imageCount} 張` : '';
       const showPhotoMessage = message => { receiptContent.innerHTML = `<div class="photo-placeholder">${escapeHtml(message)}</div>`; };
       const renderPhotos = files => {
@@ -311,6 +412,7 @@
       };
       $('#close-photo').addEventListener('click', () => $('#photo-dialog').close());
       $('#photo-dialog').addEventListener('click', event => { if (event.target === $('#photo-dialog')) $('#photo-dialog').close(); });
+      paidNoticeButton.addEventListener('click', notifyPayerOfPayment);
       memberSelect.addEventListener('change', renderSelectedMember);
     })();
   </script>

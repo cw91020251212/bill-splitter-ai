@@ -1,0 +1,14 @@
+name = "bill-splitter-share"
+main = "src/index.mjs"
+compatibility_date = "2026-11-03"
+workers_dev = true
+preview_urls = false
+
+[[kv_namespaces]]
+binding = "BILL_SHARES"
+id = "0c06593c40b946a1bc0f549b5f39be64"
+
+[vars]
+SITE_BASE_URL = "https://cw91020251212.github.io/bill-splitter-ai/"
+ALLOWED_ORIGINS = "https://cw91020251212.github.io"
+SHARE_TTL_SECONDS = "604800"
