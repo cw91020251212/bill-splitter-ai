@@ -1962,9 +1962,54 @@
         return `${new Intl.DateTimeFormat('zh-HK', { timeZone: 'Asia/Hong_Kong', dateStyle: 'medium', timeStyle: 'short' }).format(date)}（香港時間）`;
       };
 
-      const getFriendWhatsAppShareText = shortUrl => `${bi('朋友埋單表（7日有效），揀你個名睇要埋單幾多：', 'Friend bill link (valid for 7 days). Choose your name to see your amount due:')}
-${shortUrl}`;
-      const getFriendWhatsAppShareUrl = shortUrl => `https://wa.me/?text=${encodeURIComponent(getFriendWhatsAppShareText(shortUrl))}`;
+      const getReducedFriendShareFraction = (quantity, allocationTotal) => {
+        const scale = 1000000;
+        const numerator = Math.round(Number(quantity) * scale);
+        const denominator = Math.round(Number(allocationTotal) * scale);
+        if (!Number.isSafeInteger(numerator) || !Number.isSafeInteger(denominator) || numerator <= 0 || denominator <= 0) return '';
+        let a = numerator;
+        let b = denominator;
+        while (b) { const remainder = a % b; a = b; b = remainder; }
+        return a > 0 ? `${numerator / a}/${denominator / a}` : '';
+      };
+      const formatFriendSourceShareAmount = (amount, currencyCode) => {
+        const value = Number(amount);
+        if (!Number.isFinite(value)) return bi('金額未提供', 'amount unavailable');
+        const code = String(currencyCode || '').toUpperCase();
+        let formatted;
+        try { formatted = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format(value); }
+        catch (_) { formatted = value.toFixed(2); }
+        return `${getCurrencySymbol(code)}${formatted}`;
+      };
+      const getFriendWhatsAppShareText = (shortUrl, shareData = getFriendShareData()) => {
+        const sourceCurrency = String(shareData?.bill?.sourceCurrency || results?.sourceCurrency || detectedCurrency || '').toUpperCase();
+        const settlementCurrency = String(shareData?.bill?.currency || results?.currency || currency || '').toUpperCase();
+        const itemLines = (Array.isArray(shareData?.items) ? shareData.items : []).map(item => {
+          const shares = (Array.isArray(item?.shares) ? item.shares : []).filter(share => String(share?.person || '').trim() && Number(share?.quantity) > 0);
+          if (!shares.length) return '';
+          const dinerCount = new Set(shares.map(share => String(share.person).trim())).size;
+          const shareParts = shares.map(share => {
+            const fraction = getReducedFriendShareFraction(share.quantity, share.allocationTotal) || bi('份額未提供', 'share unavailable');
+            return `${String(share.person).trim()} ${fraction}（${formatFriendSourceShareAmount(share.amount, sourceCurrency)}）`;
+          });
+          return `• ${item?.name || bi('未命名項目', 'Unnamed item')}：${bi(`共 ${dinerCount} 人分食`, `shared by ${dinerCount} people`)}｜${shareParts.join('；')}`;
+        }).filter(Boolean);
+        const participants = Array.isArray(shareData?.participants) ? shareData.participants : [];
+        const participantTotals = participants.map(person => `${person.name} ${formatMoney(person.total, settlementCurrency)}`);
+        const billTotal = Number(shareData?.bill?.billTotal);
+        const sections = [
+          bi('朋友埋單表（7日有效），揀你個名睇詳情：', 'Friend bill (valid for 7 days). Choose your name to see details:'),
+          [
+            `${bi('項目分攤', 'Item shares')}（${sourceCurrency}）`,
+            ...(itemLines.length ? itemLines : [bi('沒有項目分攤資料。', 'No item shares.')])
+          ].join('\n'),
+          `${bi('各人應付', 'Amounts due')}（${settlementCurrency}）：${participantTotals.join('；')}`,
+          Number.isFinite(billTotal) ? `${bi('全單結算總額', 'Final bill total')}：${formatMoney(billTotal, settlementCurrency)}` : '',
+          String(shortUrl || '')
+        ];
+        return sections.filter(Boolean).join('\n\n');
+      };
+      const getFriendWhatsAppShareUrl = (shortUrl, shareData) => `https://wa.me/?text=${encodeURIComponent(getFriendWhatsAppShareText(shortUrl, shareData))}`;
       const openFriendWhatsAppShare = shortUrl => {
         let popup = null;
         try { popup = window.open(getFriendWhatsAppShareUrl(shortUrl), '_blank'); } catch (_) {}
@@ -2001,7 +2046,7 @@ ${shortUrl}`;
           let whatsappOpened = false;
           if (whatsappWindow && !whatsappWindow.closed) {
             try {
-              whatsappWindow.location.replace(getFriendWhatsAppShareUrl(created.shortUrl));
+              whatsappWindow.location.replace(getFriendWhatsAppShareUrl(created.shortUrl, shareData));
               try { whatsappWindow.opener = null; } catch (_) {}
               whatsappOpened = true;
             } catch (_) {}
