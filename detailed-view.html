@@ -28,7 +28,7 @@
     .member-gate--selected { display:grid; grid-template-columns:minmax(130px,.45fr) minmax(0,1fr); align-items:center; gap:12px; margin:0 auto 16px; padding:11px 15px; box-shadow:none; }
     .member-gate--selected h1 { margin:0; font-size:14px; text-align:left; }
     .member-gate--selected .share-privacy { grid-column:1/-1; margin-top:0; }
-    .total-card { display:flex; justify-content:space-between; align-items:center; gap:18px; min-height:92px; margin-bottom:22px; padding:20px 25px; border:1px solid #135837; border-radius:19px; background:linear-gradient(120deg,#176a43,#104d31); color:#fff; box-shadow:var(--shadow); }
+    .total-card { scroll-margin-top:66px; display:flex; justify-content:space-between; align-items:center; gap:18px; min-height:92px; margin-bottom:22px; padding:20px 25px; border:1px solid #135837; border-radius:19px; background:linear-gradient(120deg,#176a43,#104d31); color:#fff; box-shadow:var(--shadow); }
     .total-label { font-size:15px; font-weight:750; opacity:.92; }
     .total-value { color:#fff; font-size:clamp(30px,5vw,38px); font-weight:900; line-height:1.1; letter-spacing:-.03em; font-variant-numeric:tabular-nums; text-align:right; }
     .content-grid { display:grid; grid-template-columns:minmax(0,1.2fr) minmax(300px,.8fr); align-items:start; gap:22px; }
@@ -131,7 +131,7 @@
       </section>
       <div id="member-content" hidden>
       <h1 id="page-title" class="page-title"></h1>
-      <section class="total-card" aria-label="分帳總額">
+      <section id="friend-amount-summary" class="total-card" data-testid="friend-amount-summary" aria-label="分帳總額">
         <span id="total-label" class="total-label">全單總額</span>
         <strong id="grand-total" class="total-value" data-testid="preview-grand-total">—</strong>
       </section>
@@ -417,7 +417,11 @@
       $('#close-photo').addEventListener('click', () => $('#photo-dialog').close());
       $('#photo-dialog').addEventListener('click', event => { if (event.target === $('#photo-dialog')) $('#photo-dialog').close(); });
       paidNoticeButton.addEventListener('click', notifyPayerOfPayment);
-      memberSelect.addEventListener('change', renderSelectedMember);
+      memberSelect.addEventListener('change', () => {
+        renderSelectedMember();
+        if (!memberSelect.value) return;
+        requestAnimationFrame(() => $('#friend-amount-summary').scrollIntoView({ behavior:'smooth', block:'start' }));
+      });
     })();
   </script>
 </body>

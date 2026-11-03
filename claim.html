@@ -820,14 +820,9 @@
         return /^(?:\d+(?:\.\d+)?|\.\d+)$/.test(value.trim());
       }
 
+      // Typing stays in the current quantity field; only explicit Enter/Next may advance.
       itemList.addEventListener('input', event => {
-        const input = event.target;
-        if (!input.matches('.qty-input')) return;
-        if (!isCompleteNumber(input.value)) {
-          clearPending();
-          return;
-        }
-        scheduleFollow(input, false);
+        if (event.target.matches('.qty-input')) clearPending();
       });
 
       itemList.addEventListener('keydown', event => {
