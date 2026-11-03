@@ -32,7 +32,7 @@ node tests/tutorial-ui.cjs
 
 `BASE_URL` 預設為 `http://127.0.0.1:4178/`。瀏覽器測試只允許 localhost／127.0.0.1；測試不需要 API 鎖匙。UI 測試建立本身的草稿及 IndexedDB 圖片／附件樣本，並比較教學前後原有 DOM、表單、localStorage、IndexedDB、捲動位置和焦點。
 跨貨幣 UI 測試會唯讀查詢 Frankfurter 取得實際匯率；它不傳送帳單或個人資料。匯率失敗情境則由測試攔截並模擬。
-`recognition-retry-ui.cjs` 只在本機攔截並模擬 OCR，於 390px 驗證選單、成功後提示、加入多張新相片、重用整批相片而不重開選擇器、成功替換及失敗保留舊結果；亦模擬分享面板返回，驗證已選收據時圖片分享按鈕會進入視野、未選時不會跳動。完成時會產生 `artifacts/recognition-retry-preview.png`。
+`recognition-retry-ui.cjs` 只在本機攔截並模擬 OCR，於 390px 驗證選單、成功後提示、加入多張新相片、重用整批相片而不重開選擇器、成功替換及失敗保留舊結果；亦驗證綠色收據按鈕直接分享圖片。朋友埋單頁初始只顯示成員提示和六人下拉；選中後才顯示該人的應付金額和項目，並載入本機單據相片供放大。測試用收據圖是合成樣本，不代表任何真實賬單。完成時會產生 `artifacts/recognition-retry-preview.png`、`artifacts/detailed-view-before-select.png` 和 `artifacts/detailed-view-preview.png`。
 
 ## 覆蓋範圍
 

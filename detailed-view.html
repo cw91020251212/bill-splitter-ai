@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#145c3b">
+  <title>朋友埋單｜本機預覽</title>
+  <style>
+    :root { color-scheme:light; --ink:#1d2a21; --muted:#68756c; --line:#dfe6df; --paper:#f4f6f2; --green:#176a43; --green-dark:#104d31; --green-pale:#e7f2e9; --shadow:0 12px 32px rgba(27,54,35,.07); }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--paper); color:var(--ink); font:16px/1.5 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+    a,button,summary { -webkit-tap-highlight-color:transparent; }
+    a:focus-visible,button:focus-visible,summary:focus-visible { outline:3px solid #b38830; outline-offset:3px; border-radius:7px; }
+    .topbar { position:sticky; top:0; z-index:10; display:flex; justify-content:space-between; align-items:center; gap:12px; min-height:58px; padding:10px max(20px,calc((100vw - 1020px)/2)); border-bottom:1px solid #dbe3db; background:rgba(255,255,255,.96); backdrop-filter:blur(10px); }
+    .back { color:var(--green-dark); font-weight:750; text-decoration:none; }
+    .local-tag { padding:4px 9px; border:1px solid #cee0d0; border-radius:99px; background:#f5faf5; color:#4b6652; font-size:11px; font-weight:700; white-space:nowrap; }
+    main { width:min(100% - 36px,1000px); margin:26px auto 64px; }
+    .empty { max-width:480px; margin:14vh auto; padding:30px 24px; border:1px solid var(--line); border-radius:20px; background:#fff; box-shadow:var(--shadow); text-align:center; }
+    .empty h1 { margin:0 0 8px; font-size:23px; }
+    .empty p { margin:0; color:var(--muted); }
+    .page-title { margin:0 0 18px; font-size:25px; line-height:1.25; }
+    .member-gate { max-width:500px; margin:15vh auto 0; padding:26px 23px; border:1px solid var(--line); border-radius:19px; background:#fff; box-shadow:var(--shadow); }
+    .member-gate h1 { margin:0 0 16px; font-size:23px; text-align:center; }
+    .member-gate select { display:block; width:100%; min-height:50px; padding:10px 40px 10px 13px; border:1px solid #b9cbbb; border-radius:11px; background:#fff; color:var(--ink); font:inherit; font-weight:700; }
+    .member-gate select:focus-visible { outline:3px solid #b38830; outline-offset:2px; }
+    .member-gate--selected { display:grid; grid-template-columns:minmax(130px,.45fr) minmax(0,1fr); align-items:center; gap:12px; margin:0 auto 16px; padding:11px 15px; box-shadow:none; }
+    .member-gate--selected h1 { margin:0; font-size:14px; text-align:left; }
+    .total-card { display:flex; justify-content:space-between; align-items:center; gap:18px; min-height:92px; margin-bottom:22px; padding:20px 25px; border:1px solid #135837; border-radius:19px; background:linear-gradient(120deg,#176a43,#104d31); color:#fff; box-shadow:var(--shadow); }
+    .total-label { font-size:15px; font-weight:750; opacity:.92; }
+    .total-value { color:#fff; font-size:clamp(30px,5vw,38px); font-weight:900; line-height:1.1; letter-spacing:-.03em; font-variant-numeric:tabular-nums; text-align:right; }
+    .content-grid { display:grid; grid-template-columns:minmax(0,1.2fr) minmax(300px,.8fr); align-items:start; gap:22px; }
+    .card { overflow:hidden; border:1px solid var(--line); border-radius:19px; background:#fff; box-shadow:0 7px 22px rgba(27,54,35,.045); }
+    .card-heading { display:flex; justify-content:space-between; align-items:center; gap:12px; min-height:64px; padding:17px 21px; border-bottom:1px solid #edf0ed; }
+    .card-heading h2 { margin:0; font-size:19px; }
+    .table-wrap { overflow-x:auto; }
+    table { width:100%; border-collapse:collapse; text-align:left; }
+    th { padding:11px 21px; background:#f8faf7; color:#748076; font-size:12px; font-weight:750; }
+    th:last-child { text-align:right; }
+    td { padding:19px 21px; border-top:1px solid #edf0ed; vertical-align:top; }
+    tbody tr:first-child td { border-top:0; }
+    .item-name { color:#1e2d23; font-size:16px; font-weight:760; overflow-wrap:anywhere; }
+    .amount { color:#203729; font-size:16px; font-weight:820; font-variant-numeric:tabular-nums; text-align:right; white-space:nowrap; }
+    .empty-items { color:var(--muted); text-align:center; }
+    .item-details { margin-top:8px; color:var(--muted); font-size:12px; }
+    .item-details summary { width:max-content; max-width:100%; color:#63756a; cursor:pointer; }
+    .item-extra { display:grid; gap:7px; margin:10px 0 0; padding:12px 13px; border-radius:11px; background:#f6f8f5; color:#56645a; overflow-wrap:anywhere; }
+    .share-list { display:grid; gap:4px; margin:4px 0 0; padding-left:18px; }
+    .share-list li { padding-left:2px; }
+    .receipt-card { position:sticky; top:78px; }
+    .receipt-heading { display:flex; justify-content:space-between; align-items:center; gap:10px; }
+    .image-count { color:#738076; font-size:12px; font-weight:650; }
+    .receipt-content { padding:17px; }
+    .receipt-grid { display:grid; grid-template-columns:1fr; gap:13px; }
+    .receipt-photo { overflow:hidden; width:100%; padding:0; border:1px solid #e1e7e0; border-radius:13px; background:#f6f8f5; cursor:zoom-in; text-align:left; }
+    .receipt-photo img { display:block; width:100%; height:340px; object-fit:contain; background:#f0f2ee; }
+    .receipt-photo span { display:block; padding:8px 11px; border-top:1px solid #e5eae4; color:#657268; font-size:12px; }
+    .photo-placeholder { display:grid; min-height:200px; place-items:center; padding:20px; border:1px dashed #cbd8cc; border-radius:13px; background:#fafbf9; color:#758178; font-size:13px; text-align:center; }
+    .optional { overflow:hidden; margin-top:16px; border:1px solid var(--line); border-radius:15px; background:#fff; }
+    .optional > summary { display:flex; justify-content:space-between; align-items:center; gap:12px; min-height:56px; padding:14px 18px; color:#33443a; font-size:14px; font-weight:760; cursor:pointer; list-style:none; }
+    .optional > summary::-webkit-details-marker { display:none; }
+    .optional > summary::after { content:"＋"; display:grid; place-items:center; flex:0 0 25px; width:25px; height:25px; border:1px solid #d8e2d9; border-radius:50%; color:var(--green); font-size:16px; }
+    .optional[open] > summary::after { content:"−"; }
+    .optional-content { padding:0 18px 18px; color:#536158; font-size:13px; }
+    .personal-breakdown { margin:0 0 18px; padding:18px 20px 20px; }
+    .personal-breakdown h2 { margin:0 0 11px; font-size:17px; }
+    .personal-breakdown .detail-list { grid-template-columns:1fr auto; }
+    .personal-breakdown .detail-list dt:last-of-type,.personal-breakdown .detail-list dd:last-of-type { color:var(--green-dark); font-weight:850; }
+    .item-subline { margin-top:4px; color:#718076; font-size:12px; font-weight:500; }
+    .detail-list { display:grid; grid-template-columns:minmax(115px,.7fr) 1.3fr; gap:0 14px; margin:0; }
+    .detail-list dt,.detail-list dd { margin:0; padding:9px 0; border-top:1px solid #edf0ed; }
+    .detail-list dt { color:#748076; }
+    .detail-list dd { color:#35463b; font-weight:650; overflow-wrap:anywhere; }
+    .adjustment-list { display:grid; gap:8px; margin:11px 0 0; padding-left:19px; }
+    .notice { margin:10px 0 0; padding:11px 12px; border-radius:10px; background:#f5f7f4; color:#66736a; }
+    dialog { width:min(94vw,1000px); max-width:none; max-height:92vh; padding:0; border:0; border-radius:17px; background:#101711; box-shadow:0 20px 70px rgba(0,0,0,.4); }
+    dialog::backdrop { background:rgba(15,25,18,.78); }
+    .lightbox-head { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:10px 13px; color:#fff; }
+    .lightbox-head button { min-width:40px; min-height:38px; border:1px solid #718077; border-radius:9px; background:#26352b; color:#fff; font-size:20px; cursor:pointer; }
+    .lightbox-image { display:block; width:100%; max-height:calc(92vh - 60px); object-fit:contain; }
+    footer { margin-top:21px; color:#808a82; font-size:11px; text-align:center; }
+    @media(max-width:720px) {
+      .topbar { min-height:52px; padding:8px 14px; }
+      main { width:calc(100% - 22px); margin:18px auto 42px; }
+      .page-title { margin-bottom:13px; font-size:22px; }
+      .total-card { min-height:78px; margin-bottom:15px; padding:17px 18px; }
+      .member-gate { margin-top:12vh; padding:22px 17px; }
+      .member-gate--selected { grid-template-columns:1fr; gap:5px; margin-bottom:12px; padding:11px 14px; }
+      .member-gate--selected h1 { font-size:13px; }
+      .content-grid { grid-template-columns:1fr; gap:14px; }
+      .card-heading { min-height:56px; padding:14px 16px; }
+      th { padding:9px 15px; }
+      td { padding:16px 15px; }
+      .receipt-card { position:static; }
+      .receipt-content { padding:13px; }
+      .receipt-photo img { height:min(68vh,430px); }
+      .optional { margin-top:13px; }
+    }
+    @media(min-width:721px) { .receipt-grid[data-count="2"] { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <a class="back" href="./index.html">← 返回分帳報告</a>
+    <span id="local-tag" class="local-tag" hidden>本機預覽・不會公開</span>
+  </header>
+  <main>
+    <section id="empty-state" class="empty" hidden>
+      <h1>未有分帳資料</h1>
+      <p>請返回分帳報告，再開一次朋友埋單頁。</p>
+    </section>
+    <div id="preview-content" hidden>
+      <section id="member-gate" class="member-gate">
+        <h1 id="member-gate-heading">請選擇成員</h1>
+        <select id="member-select" data-testid="member-select" aria-label="請選擇成員"><option value="">請揀你個名</option></select>
+      </section>
+      <div id="member-content" hidden>
+      <h1 id="page-title" class="page-title"></h1>
+      <section class="total-card" aria-label="分帳總額">
+        <span id="total-label" class="total-label">全單總額</span>
+        <strong id="grand-total" class="total-value" data-testid="preview-grand-total">—</strong>
+      </section>
+      <section id="personal-breakdown" class="card personal-breakdown" data-testid="personal-breakdown" hidden>
+        <h2 id="personal-title"></h2>
+        <dl id="personal-details" class="detail-list"></dl>
+      </section>
+      <div class="content-grid">
+        <section class="card items-card" aria-labelledby="items-title">
+          <div class="card-heading"><h2 id="items-title">全單項目金額</h2></div>
+          <div class="table-wrap">
+            <table data-testid="detail-items-table">
+              <thead><tr><th id="item-heading" scope="col">項目名稱</th><th id="amount-heading" scope="col">全單金額</th></tr></thead>
+              <tbody id="item-rows"></tbody>
+            </table>
+          </div>
+        </section>
+        <aside class="card receipt-card" aria-labelledby="receipt-title">
+          <div class="card-heading">
+            <div class="receipt-heading"><h2 id="receipt-title">單據相片</h2><span id="image-count" class="image-count"></span></div>
+          </div>
+          <div id="receipt-content" class="receipt-content"><div class="photo-placeholder">正在讀取本機單據相片…</div></div>
+        </aside>
+      </div>
+      <details id="other-details" class="optional" data-testid="other-details">
+        <summary>其他單據資料（折扣、稅項、匯率及付款）</summary>
+        <div class="optional-content">
+          <dl id="bill-details" class="detail-list"></dl>
+          <p id="adjustment-note" class="notice" hidden></p>
+        </div>
+      </details>
+      <footer>此頁只讀取本機報告資料；不會公開或更改原分帳。</footer>
+      </div>
+    </div>
+  </main>
+  <dialog id="photo-dialog" aria-label="放大收據相片">
+    <div class="lightbox-head"><span id="photo-caption">單據相片</span><button id="close-photo" type="button" aria-label="關閉">×</button></div>
+    <img id="lightbox-image" class="lightbox-image" alt="放大的單據相片">
+  </dialog>
+  <script>
+    (() => {
+      'use strict';
+      const PREVIEW_KEY = 'billSplitterDetailTablePreviewV1';
+      const $ = selector => document.querySelector(selector);
+      const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[char]));
+      const number = value => Number.isFinite(Number(value)) ? Number(value) : 0;
+      const formatMoney = (value, currency) => {
+        const code = /^[A-Z]{3}$/.test(String(currency || '')) ? currency : 'HKD';
+        try { return new Intl.NumberFormat('zh-HK', { style:'currency', currency:code, maximumFractionDigits:['JPY','KRW'].includes(code) ? 0 : 2 }).format(number(value)); }
+        catch (_) { return `${code} ${number(value).toFixed(2)}`; }
+      };
+      const formatQuantity = value => new Intl.NumberFormat('zh-HK', { maximumFractionDigits:3 }).format(number(value));
+      let data = null;
+      try { data = JSON.parse(localStorage.getItem(PREVIEW_KEY) || 'null'); } catch (_) {}
+      if (!data || data.version !== 1 || !data.bill || !Array.isArray(data.items)) {
+        $('#empty-state').hidden = false;
+        return;
+      }
+      $('#preview-content').hidden = false;
+      const bill = data.bill;
+      const currency = bill.currency || 'HKD';
+      const sourceCurrency = bill.sourceCurrency || currency;
+      const participants = Array.isArray(data.participants) ? data.participants : [];
+      const memberSelect = $('#member-select');
+      const memberGateHeading = $('#member-gate-heading');
+      const adjustments = Array.isArray(data.adjustments) ? data.adjustments : [];
+      if (participants.length) {
+        memberSelect.innerHTML = '<option value="">請揀你個名</option>' + participants.map(person => `<option value="${escapeHtml(person.name)}">${escapeHtml(person.name)}</option>`).join('');
+      } else {
+        memberSelect.innerHTML = '<option value="">呢張單未有成員</option>';
+        memberSelect.disabled = true;
+        memberGateHeading.textContent = '呢張單未有成員';
+      }
+      const detailEntries = [
+        ['墊支人', bill.payer || '未指定'],
+        ['日期', bill.date || '未提供'],
+        ['付款方式', Array.isArray(bill.paymentMethods) && bill.paymentMethods.length ? bill.paymentMethods.join('、') : '未指定']
+      ];
+      if (sourceCurrency !== currency) {
+        detailEntries.push(['匯率', `1 ${sourceCurrency} = ${bill.exchangeRate || '—'} ${currency}`]);
+        detailEntries.push(['匯率日期／來源', [bill.exchangeRateDate, bill.exchangeProvider].filter(Boolean).join(' · ') || '未提供']);
+      }
+      $('#bill-details').innerHTML = detailEntries.map(([label, value]) => `<dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd>`).join('');
+      if (bill.receiptAdjustmentNote) {
+        $('#adjustment-note').hidden = false;
+        $('#adjustment-note').textContent = bill.receiptAdjustmentNote;
+      }
+
+      const renderSelectedMember = () => {
+        const selected = participants.find(person => person.name === memberSelect.value);
+        if (!selected) {
+          $('#member-content').hidden = true;
+          $('#local-tag').hidden = true;
+          $('#member-gate').classList.remove('member-gate--selected');
+          memberGateHeading.textContent = '請選擇成員';
+          return;
+        }
+        $('#member-content').hidden = false;
+        $('#local-tag').hidden = false;
+        $('#member-gate').classList.add('member-gate--selected');
+        memberGateHeading.textContent = `你揀咗：${selected.name}`;
+        $('#page-title').textContent = `${selected.name}嘅賬單`;
+        $('#total-label').textContent = '你要埋單幾多';
+        $('#grand-total').textContent = formatMoney(selected.total, currency);
+        $('#items-title').textContent = `${selected.name}要埋單嘅項目`;
+        $('#item-heading').textContent = '項目／數量';
+        $('#amount-heading').textContent = '分攤金額';
+        const preDiscount = number(selected.subtotal) + number(selected.discount);
+        const personalEntries = [];
+        if (number(selected.discount) || number(selected.tax)) {
+          personalEntries.push(['項目及額外分攤小計', formatMoney(preDiscount, currency)]);
+          if (number(selected.discount)) personalEntries.push(['折扣', `−${formatMoney(selected.discount, currency)}`]);
+          if (number(selected.tax)) personalEntries.push(['稅項／服務費', formatMoney(selected.tax, currency)]);
+          personalEntries.push(['你要埋單', formatMoney(selected.total, currency)]);
+          $('#personal-breakdown').hidden = false;
+          $('#personal-title').textContent = '埋單金額點計';
+          $('#personal-details').innerHTML = personalEntries.map(([label, value]) => `<dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd>`).join('');
+        } else {
+          $('#personal-breakdown').hidden = true;
+        }
+
+        const rows = data.items.flatMap(item => {
+          const share = (Array.isArray(item.shares) ? item.shares : []).find(entry => entry.person === selected.name);
+          if (!share) return [];
+          const extras = [];
+          if (item.original) extras.push(`<div><strong>單據原文：</strong>${escapeHtml(item.original)}</div>`);
+          if (item.ja) extras.push(`<div><strong>日文：</strong>${escapeHtml(item.ja)}</div>`);
+          extras.push(`<div><strong>全單項目金額：</strong>${escapeHtml(formatMoney(item.sourceAmount, sourceCurrency))}</div>`);
+          const quantity = number(share.quantity);
+          const unit = share.unit || item.unit || '';
+          const quantityText = quantity ? `你認領：${formatQuantity(quantity)}${unit ? ` ${unit}` : ''}` : '';
+          return [`<tr class="item-row" data-testid="personal-item-row"><td><div class="item-name">${escapeHtml(item.name || '未命名項目')}</div>${quantityText ? `<div class="item-subline">${escapeHtml(quantityText)}</div>` : ''}<details class="item-details"><summary>睇單據原文</summary><div class="item-extra">${extras.join('')}</div></details></td><td class="amount">${escapeHtml(formatMoney(share.amount, currency))}</td></tr>`];
+        });
+        adjustments.filter(entry => entry.person === selected.name).forEach(entry => {
+          const quantity = number(entry.quantity);
+          const quantityText = quantity ? ` · ${formatQuantity(quantity)}${entry.unit ? ` ${entry.unit}` : ''}` : '';
+          rows.push(`<tr class="adjustment-row" data-testid="personal-adjustment-row"><td><div class="item-name">額外分攤：${escapeHtml(entry.name)}</div><div class="item-subline">${escapeHtml(entry.reason || '單據調整')}${escapeHtml(quantityText)}</div></td><td class="amount">${escapeHtml(formatMoney(entry.amount, currency))}</td></tr>`);
+        });
+        $('#item-rows').innerHTML = rows.length ? rows.join('') : '<tr><td colspan="2" class="empty-items">今次冇要埋單嘅項目</td></tr>';
+        $('#other-details').open = false;
+        if (!receiptsLoaded) loadReceiptImages();
+      };
+
+      const receiptContent = $('#receipt-content');
+      const imageCountLabel = $('#image-count');
+      const images = [];
+      let receiptsLoaded = false;
+      const imageCount = number(bill.receiptImageCount);
+      imageCountLabel.textContent = imageCount ? `${imageCount} 張` : '';
+      const showPhotoMessage = message => { receiptContent.innerHTML = `<div class="photo-placeholder">${escapeHtml(message)}</div>`; };
+      const renderPhotos = files => {
+        receiptContent.innerHTML = `<div class="receipt-grid" data-count="${files.length}">${files.map((image,index) => `<button class="receipt-photo" type="button" data-photo-index="${index}" aria-label="放大單據相片 ${index + 1}"><img loading="eager" src="data:${image.mimeType};base64,${image.data}" alt="單據相片 ${index + 1}"><span>單據相片 ${index + 1} · 按圖放大</span></button>`).join('')}</div>`;
+        receiptContent.querySelectorAll('[data-photo-index]').forEach(button => button.addEventListener('click', () => {
+          const image = files[Number(button.dataset.photoIndex)];
+          if (!image) return;
+          $('#lightbox-image').src = `data:${image.mimeType};base64,${image.data}`;
+          $('#photo-caption').textContent = `單據相片 ${Number(button.dataset.photoIndex) + 1}`;
+          $('#photo-dialog').showModal();
+        }));
+      };
+      const loadReceiptImages = async () => {
+        if (receiptsLoaded) return;
+        receiptsLoaded = true;
+        if (!imageCount) { showPhotoMessage('這份分帳沒有附上單據相片。'); return; }
+        if (!window.indexedDB) { showPhotoMessage('此瀏覽器不支援本機圖片儲存。'); return; }
+        try {
+          const db = await new Promise((resolve,reject) => {
+            const request = indexedDB.open('billSplitterLocalData',1);
+            request.onupgradeneeded = () => { if (!request.result.objectStoreNames.contains('receipts')) request.result.createObjectStore('receipts',{keyPath:'recordId'}); };
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error || new Error('讀取失敗'));
+          });
+          const record = await new Promise((resolve,reject) => {
+            if (!db.objectStoreNames.contains('receipts')) { resolve(null); return; }
+            const transaction = db.transaction('receipts','readonly');
+            let result = null;
+            const request = transaction.objectStore('receipts').get('active-bill-draft-assets-v1');
+            request.onsuccess = () => { result = request.result || null; };
+            request.onerror = () => reject(request.error || new Error('讀取失敗'));
+            transaction.oncomplete = () => resolve(result);
+            transaction.onerror = () => reject(transaction.error || new Error('讀取失敗'));
+          });
+          db.close();
+          if (!record || record.revision !== data.assetRevision) { showPhotoMessage('找不到這份報告的本機單據相片；可能已清除網站資料。'); return; }
+          const files = (Array.isArray(record.images) ? record.images : []).filter(image => image && typeof image.data === 'string' && /^[A-Za-z0-9+/]+={0,2}$/.test(image.data) && ['image/jpeg','image/png','image/webp'].includes(image.mimeType));
+          if (!files.length) { showPhotoMessage('本機沒有可顯示的單據相片。'); return; }
+          images.push(...files);
+          imageCountLabel.textContent = `${files.length} 張`;
+          renderPhotos(files);
+        } catch (_) {
+          showPhotoMessage('未能讀取本機單據相片，請返回分帳頁稍後重試。');
+        }
+      };
+      $('#close-photo').addEventListener('click', () => $('#photo-dialog').close());
+      $('#photo-dialog').addEventListener('click', event => { if (event.target === $('#photo-dialog')) $('#photo-dialog').close(); });
+      memberSelect.addEventListener('change', renderSelectedMember);
+    })();
+  </script>
+</body>
+</html>

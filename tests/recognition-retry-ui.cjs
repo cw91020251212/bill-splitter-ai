@@ -13,7 +13,9 @@ if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?\//.test(base)) {
 }
 const outputDir = process.env.TEST_OUTPUT_DIR || path.resolve(__dirname, '../artifacts');
 const screenshotPath = path.join(outputDir, 'recognition-retry-preview.png');
-const PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a2ioAAAAASUVORK5CYII=';
+const detailedViewScreenshotPath = path.join(outputDir, 'detailed-view-preview.png');
+const detailedViewInitialScreenshotPath = path.join(outputDir, 'detailed-view-before-select.png');
+const PNG = fs.readFileSync(path.join(__dirname, 'fixtures', 'receipt-preview.png')).toString('base64');
 const DEFAULT_MODEL = 'nvidia/nemotron-3.5-super-vl:free';
 const FALLBACK_MODEL = 'thinkingmachines/inkling-small:free';
 const itemPayload = name => ({
@@ -156,7 +158,7 @@ const success = payload => ({
     await page.evaluate(() => {
       const draft = JSON.parse(localStorage.getItem('billSplitterActiveDraftV1'));
       draft.data.step = 3;
-      draft.data.friendsReplies = '姓名：阿明\n01 = 1';
+      draft.data.friendsReplies = '姓名：阿明\n01 = 0.166666666\n姓名：小美\n01 = 0.166666666\n姓名：阿強\n01 = 0.166666666\n姓名：阿欣\n01 = 0.166666666\n姓名：家豪\n01 = 0.166666666\n姓名：嘉嘉\n01 = 0.166666666';
       draft.data.payer = '阿明';
       draft.data.claimLinkShared = true;
       localStorage.setItem('billSplitterActiveDraftV1', JSON.stringify(draft));
@@ -168,48 +170,93 @@ const success = payload => ({
     });
     await page.reload({ waitUntil: 'domcontentloaded' });
     await page.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '3', null, { timeout: 30000 });
-    await page.waitForFunction(() => document.querySelector('[data-testid="draft-status"]')?.textContent.includes('草稿已保存在') || document.querySelector('[data-testid="draft-status"]')?.textContent.includes('saving') || document.querySelector('[data-testid="calculate-split"]'), null, { timeout: 15000 });
+    await page.waitForFunction(() => document.querySelector('[data-testid="draft-status"]')?.textContent.includes('草稿已儲存在') || document.querySelector('[data-testid="draft-status"]')?.textContent.includes('saving') || document.querySelector('[data-testid="calculate-split"]'), null, { timeout: 15000 });
     await page.getByTestId('calculate-split').click();
     await page.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '4', null, { timeout: 15000 });
-
-    const includeReceiptToggle = page.locator('main input[type="checkbox"]').first();
-    await includeReceiptToggle.check();
+    const receiptImageButton = page.getByTestId('share-receipt-images');
+    await receiptImageButton.waitFor({ state: 'visible' });
+    assert.match(await receiptImageButton.getAttribute('class'), /!bg-emerald-700/, 'receipt sharing is a prominent green button');
+    assert.equal(await receiptImageButton.evaluate(button => getComputedStyle(button).backgroundColor), 'rgb(4, 120, 87)', 'the receipt button renders with a green background');
+    assert.equal(await page.getByTestId('receipt-next-step').count(), 0, 'the separate second-step receipt card is removed');
     await page.evaluate(() => {
+      Object.defineProperty(navigator, 'canShare', {
+        configurable: true,
+        value: data => Array.isArray(data?.files) && data.files.length > 0
+      });
       Object.defineProperty(navigator, 'share', {
         configurable: true,
-        value: () => new Promise(resolve => { window.__finishMockShare = resolve; })
+        value: data => {
+          window.__lastMockShare = {
+            fileCount: data.files?.length || 0,
+            fileTypes: data.files?.map(file => file.type) || [],
+            text: data.text || ''
+          };
+          return Promise.resolve();
+        }
       });
       window.scrollTo({ top: 0, behavior: 'instant' });
     });
-    await page.getByTestId('summary-report-actions').getByRole('button', { name: '分享報告' }).click();
-    await page.waitForFunction(() => typeof window.__finishMockShare === 'function');
-    await page.evaluate(() => window.__finishMockShare());
-    await page.waitForFunction(() => {
-      const button = document.querySelector('#receipt-share-step button');
-      const headerBottom = document.querySelector('header')?.getBoundingClientRect().bottom || 0;
-      if (!button) return false;
-      const rect = button.getBoundingClientRect();
-      return rect.top >= headerBottom && rect.bottom <= window.innerHeight;
-    }, null, { timeout: 5000 });
-    const receiptButtonPosition = await page.locator('#receipt-share-step button').evaluate(button => ({
-      top: button.getBoundingClientRect().top,
-      bottom: button.getBoundingClientRect().bottom,
-      scrollY: window.scrollY
-    }));
-    assert.ok(receiptButtonPosition.scrollY > 0, 'returning from summary share should scroll the receipt card into view');
-    assert.ok(receiptButtonPosition.top >= 0 && receiptButtonPosition.bottom <= 844, 'the receipt-image share button must be visible in the 390px viewport');
-    console.log('PASS 390px share return: selected receipt images bring the image-share button into view when the share sheet closes, including without a visibility-change event.');
-
-    await includeReceiptToggle.uncheck();
-    await page.waitForFunction(() => !document.getElementById('receipt-share-step'));
-    await page.evaluate(() => { window.__finishMockShare = null; window.scrollTo({ top: 0, behavior: 'instant' }); });
-    await page.getByTestId('summary-report-actions').getByRole('button', { name: '分享報告' }).click();
-    await page.waitForFunction(() => typeof window.__finishMockShare === 'function');
-    await page.evaluate(() => window.__finishMockShare());
+    await receiptImageButton.click();
+    await page.waitForFunction(() => window.__lastMockShare?.fileCount > 0);
+    const receiptShare = await page.evaluate(() => window.__lastMockShare);
+    assert.equal(receiptShare.fileCount, 2, 'the green button shares both images in the current receipt batch');
+    assert.equal(receiptShare.fileTypes.length, 2);
+    assert.ok(receiptShare.fileTypes.every(type => type.startsWith('image/')), 'every shared file remains an image after receipt processing');
+    assert.equal(receiptShare.text, '', 'receipt images are shared without attaching the report text');
+    await page.evaluate(() => { window.__lastMockShare = null; });
+    const reportShareButton = page.getByTestId('summary-report-actions').getByRole('button', { name: '分享報告' });
+    await reportShareButton.scrollIntoViewIfNeeded();
+    const scrollBeforeReportShare = await page.evaluate(() => Math.round(window.scrollY));
+    await reportShareButton.click();
+    await page.waitForFunction(() => window.__lastMockShare?.text?.length > 0);
     await page.waitForTimeout(250);
-    assert.equal(await page.evaluate(() => Math.round(window.scrollY)), 0, 'without receipt images selected, returning from summary share must not jump to the receipt card');
-    assert.equal(await page.getByTestId('receipt-next-step').count(), 0, 'the second-step receipt card stays hidden when no images were selected');
-    console.log('PASS 390px no-receipt case: summary-share return does not jump when receipt images were not selected.');
+    assert.equal(await page.evaluate(() => Math.round(window.scrollY)), scrollBeforeReportShare, 'report sharing does not change the page scroll position on return');
+    assert.equal(await page.getByTestId('receipt-next-step').count(), 0, 'the second-step receipt card remains removed');
+    console.log('PASS 390px receipt sharing: the green button shares local image files directly and report sharing no longer auto-scrolls to a second step.');
+
+    await page.getByTestId('open-detailed-table-preview').scrollIntoViewIfNeeded();
+    const previewPopup = page.waitForEvent('popup');
+    await page.getByTestId('open-detailed-table-preview').click();
+    const previewPage = await previewPopup;
+    await previewPage.waitForLoadState('domcontentloaded');
+    const memberSelect = previewPage.getByTestId('member-select');
+    await memberSelect.waitFor({ state: 'visible' });
+    assert.equal(await previewPage.locator('#member-gate h1').innerText(), '請選擇成員', 'the initial screen asks the user to choose a member');
+    assert.equal(await memberSelect.locator('option').count(), 7, 'the vertical name selector lists all six friends plus its prompt');
+    assert.equal(await previewPage.locator('#member-content').isVisible(), false, 'no bill content appears before a member is selected');
+    assert.equal(await previewPage.getByTestId('preview-grand-total').isVisible(), false, 'no payable amount is shown before selection');
+    assert.equal(await previewPage.locator('[data-testid="detail-items-table"]').isVisible(), false, 'the item table stays hidden before selection');
+    assert.equal(await previewPage.locator('#personal-breakdown').isVisible(), false, 'no personal breakdown appears before selection');
+    assert.equal(await previewPage.locator('#receipt-content .receipt-photo').count(), 0, 'receipt photos are not loaded before selection');
+    assert.equal(await previewPage.locator('#local-tag').isVisible(), false, 'the initial view contains no extra preview label');
+    await previewPage.screenshot({ path: detailedViewInitialScreenshotPath, fullPage: true });
+    console.log(`TABLE_INITIAL_SCREENSHOT ${detailedViewInitialScreenshotPath}`);
+
+    await memberSelect.selectOption({ label: '阿明' });
+    await previewPage.getByTestId('preview-grand-total').waitFor({ state: 'visible' });
+    assert.equal(await previewPage.locator('#page-title').innerText(), '阿明嘅賬單', 'the page clearly identifies whose bill is shown');
+    assert.equal(await previewPage.locator('#member-gate h1').innerText(), '你揀咗：阿明', 'the selected name remains visible above the bill');
+    assert.equal(await previewPage.locator('#total-label').innerText(), '你要埋單幾多', 'the amount is clearly labelled as this member’s payable total');
+    assert.match(await previewPage.getByTestId('preview-grand-total').innerText(), /16\.67/, 'the selected member sees their own calculated payable amount');
+    assert.equal(await previewPage.locator('#items-title').innerText(), '阿明要埋單嘅項目', 'the table header names the selected member');
+    assert.ok(await previewPage.locator('[data-testid="personal-item-row"]').count() > 0, 'the table shows this member’s allocated items');
+    assert.match(await previewPage.locator('[data-testid="personal-item-row"]').first().innerText(), /16\.67/, 'the item row shows this member’s share, not the whole bill');
+    assert.equal(await previewPage.locator('#item-rows').innerText().then(text => ['小美', '阿強', '阿欣', '家豪', '嘉嘉'].some(name => text.includes(name))), false, 'the selected view does not expose other friends’ names or shares');
+    assert.equal(await previewPage.locator('#person-select, [data-filter], button[data-mark]').count(), 0, 'the view has no quick filters or eat/buy controls');
+    assert.equal(await previewPage.locator('.item-details').first().evaluate(node => node.open), false, 'item source details are collapsed by default');
+    assert.equal(await previewPage.getByTestId('other-details').evaluate(node => node.open), false, 'other bill details are collapsed by default');
+    await previewPage.waitForFunction(() => document.querySelectorAll('#receipt-content .receipt-photo img').length === 2, null, { timeout: 10000 });
+    assert.equal(await previewPage.locator('#receipt-content .receipt-photo').count(), 2, 'local receipt images appear after selecting a member');
+    await previewPage.screenshot({ path: detailedViewScreenshotPath, fullPage: true });
+    console.log(`TABLE_SCREENSHOT ${detailedViewScreenshotPath}`);
+    await memberSelect.selectOption({ label: '小美' });
+    assert.match(await previewPage.getByTestId('preview-grand-total').innerText(), /16\.67/, 'switching the name updates the payable amount');
+    assert.equal(await previewPage.locator('#page-title').innerText(), '小美嘅賬單', 'switching the name updates the bill heading');
+    await previewPage.locator('.item-details summary').first().click();
+    assert.match(await previewPage.locator('.item-details').first().innerText(), /單據原文/, 'the optional item source can be opened when needed');
+    await previewPage.locator('.receipt-photo').first().click();
+    assert.equal(await previewPage.locator('#photo-dialog').evaluate(node => node.open), true, 'tapping a receipt thumbnail opens it for a closer look');
+    console.log('PASS 390px detailed table: starts with only member selection; six-member dropdown reveals only the selected friend’s payable amount and items, then local receipt photos load and can be enlarged.');
 
     console.log(`SCREENSHOT ${screenshotPath}`);
     await context.close();

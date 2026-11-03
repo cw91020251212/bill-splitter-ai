@@ -857,8 +857,8 @@
             });
           }
           transaction.oncomplete = () => resolve(result);
-          transaction.onerror = () => reject(transaction.error || new Error('無法存取帳單草稿附件'));
-          transaction.onabort = () => reject(transaction.error || new Error('帳單草稿附件存取中止'));
+          transaction.onerror = () => reject(transaction.error || new Error('無法存取賬單草稿附件'));
+          transaction.onabort = () => reject(transaction.error || new Error('賬單草稿附件存取中止'));
         });
       } finally { db.close(); }
     };
@@ -964,7 +964,6 @@
       const [lastImageData, setLastImageData] = useState([]);
       const [showImageActionMenu, setShowImageActionMenu] = useState(false);
       const [lastRecognitionModel, setLastRecognitionModel] = useState('');
-      const [includeReceiptImages, setIncludeReceiptImages] = useState(false);
       const [showRedaction, setShowRedaction] = useState(false);
       const [pendingRedactionImages, setPendingRedactionImages] = useState([]);
       const [redactionMasks, setRedactionMasks] = useState([]);
@@ -1050,7 +1049,7 @@
       const [savedReceiptFiles, setSavedReceiptFiles] = useState({});
       const [receiptHistoryLoading, setReceiptHistoryLoading] = useState({});
 
-      const [detailLang, setDetailLang] = useState('zh');
+      const [detailLang, setDetailLang] = useState('full');
 
       const [apiKey, setApiKey] = useState('');
 
@@ -1114,10 +1113,6 @@
       const [draftNotice, setDraftNotice] = useState('');
       const [draftSaveError, setDraftSaveError] = useState('');
       const [draftAssetStatus, setDraftAssetStatus] = useState('saved');
-      const [pendingReceiptShare, setPendingReceiptShare] = useState(false);
-      const [receiptShareNudge, setReceiptShareNudge] = useState(0);
-      const pendingReceiptShareRef = useRef(false);
-      const receiptReturnArmedRef = useRef(false);
       const restoredDraftAssetsRef = useRef(null);
       const persistedDraftAssetRevisionRef = useRef(null);
       const draftAssetQueueRef = useRef(Promise.resolve());
@@ -1147,7 +1142,7 @@
         ready: draftReady, hasWork: hasDraftWork, schema: 1,
         assetRevision: draftAssets.revision, hasAssets: hasDraftAssets || draftAssets.unavailable,
         data: { step, items, taxAmount, discountAmount, taxNote, receiptAdjustmentDetails, friendsReplies, payer, detectedCurrency, currency,
-          taxSplitMethod, paymentMethods, results, reconciliation, isSaved, includeReceiptImages, detailLang, pendingReceiptShare,
+          taxSplitMethod, paymentMethods, results, reconciliation, isSaved, detailLang,
           claimRoom, claimInboxSeen, readReceipt, lastRecognitionModel, claimLinkShared: claimLinkSharedRef.current }
       };
       const persistActiveDraft = () => {
@@ -1162,25 +1157,8 @@
           setDraftSaveError('');
           return true;
         } catch (error) {
-          setDraftSaveError('本機草稿未能保存。請勿關閉頁面或切換 App；請允許網站儲存資料、釋放空間或先複製報告備份。');
+          setDraftSaveError('本機草稿未能儲存。請勿關閉頁面或切換 App；請允許網站儲存資料、釋放空間或先複製報告備份。');
           return false;
-        }
-      };
-
-      const updatePendingReceiptShare = pending => {
-        const next = Boolean(pending);
-        pendingReceiptShareRef.current = next;
-        setPendingReceiptShare(next);
-        if (!next) receiptReturnArmedRef.current = false;
-        if (draftSnapshotRef.current?.data) {
-          draftSnapshotRef.current.data = { ...draftSnapshotRef.current.data, pendingReceiptShare: next };
-        }
-        return persistActiveDraft();
-      };
-      const requestReceiptShareNudge = () => {
-        if (pendingReceiptShareRef.current && receiptReturnArmedRef.current && document.visibilityState === 'visible') {
-          receiptReturnArmedRef.current = false;
-          setReceiptShareNudge(current => current + 1);
         }
       };
 
@@ -1232,7 +1210,7 @@
             setResults(restoredResults);
             setReconciliation(data.reconciliation && Array.isArray(data.reconciliation.issues) ? data.reconciliation : null);
             setIsSaved(Boolean(data.isSaved));
-            setDetailLang(data.detailLang === 'full' ? 'full' : 'zh');
+            setDetailLang(data.detailLang === 'zh' ? 'zh' : 'full');
             setLastImageData(images); setClaimAttachments(attachments);
             setLastRecognitionModel(typeof data.lastRecognitionModel === 'string' ? data.lastRecognitionModel : '');
             const restoredRoom = data.claimRoom && window.ClaimRelay?.isRoom(data.claimRoom) ? data.claimRoom : null;
@@ -1245,11 +1223,6 @@
             const restoredSeen = Array.isArray(data.claimInboxSeen) ? data.claimInboxSeen.filter(id => typeof id === 'string').slice(-500) : [];
             claimInboxSeenRef.current = restoredSeen;
             setClaimInboxSeen(restoredSeen);
-            setIncludeReceiptImages(Boolean((data.includeReceiptImages || data.pendingReceiptShare) && images.length));
-            const pending = Boolean(data.pendingReceiptShare && restoredResults);
-            pendingReceiptShareRef.current = pending;
-            setPendingReceiptShare(pending);
-            if (pending) setReceiptShareNudge(current => current + 1);
             let restoredStep = [1, 2, 3, 4].includes(data.step) ? data.step : 2;
             if (!restoredItems.length && restoredStep > 1) restoredStep = 1;
             if (restoredStep === 4 && !restoredResults) restoredStep = 3;
@@ -1257,8 +1230,8 @@
             setStep(restoredStep);
             if (restoredStep === 1 && images.length) setUploadError('已恢復遮蓋後的單據圖片；可按重試識別，毋須重新上傳。');
             setDraftNotice(assetsMissing
-              ? '已恢復帳單文字及結果，但本機附件未能讀取，請重新選擇圖片／附件。'
-              : '已自動恢復上次帳單，可繼續認帳、計算或分享。');
+              ? '已恢復賬單文字及結果，但本機附件未能讀取，請重新選擇圖片／附件。'
+              : '已自動恢復上次賬單，可繼續認帳、計算或分享。');
           } catch (error) {
             if (!cancelled) setDraftNotice('未能讀取本機草稿；請檢查是否使用同一瀏覽器及網址。');
           } finally { if (!cancelled) setDraftReady(true); }
@@ -1284,30 +1257,19 @@
         if (tutorialDemo || !draftReady) return;
         persistActiveDraft();
       }, [draftReady, step, items, readReceipt, taxAmount, discountAmount, taxNote, receiptAdjustmentDetails, friendsReplies, payer, detectedCurrency, currency,
-        taxSplitMethod, paymentMethods, results, reconciliation, isSaved, includeReceiptImages, detailLang, pendingReceiptShare, draftAssets, claimRoom, claimInboxSeen, claimLinkShared, lastRecognitionModel]);
+        taxSplitMethod, paymentMethods, results, reconciliation, isSaved, detailLang, draftAssets, claimRoom, claimInboxSeen, claimLinkShared, lastRecognitionModel]);
 
       useEffect(() => {
         if (tutorialDemo || !draftReady) return;
         const onHidden = () => {
-          if (document.visibilityState === 'hidden') {
-            if (pendingReceiptShareRef.current) receiptReturnArmedRef.current = true;
-            persistActiveDraft();
-          }
-          else requestReceiptShareNudge();
+          if (document.visibilityState === 'hidden') persistActiveDraft();
         };
-        const onPageHide = () => {
-          if (pendingReceiptShareRef.current) receiptReturnArmedRef.current = true;
-          persistActiveDraft();
-        };
+        const onPageHide = () => persistActiveDraft();
         document.addEventListener('visibilitychange', onHidden);
         window.addEventListener('pagehide', onPageHide);
-        window.addEventListener('pageshow', requestReceiptShareNudge);
-        window.addEventListener('focus', requestReceiptShareNudge);
         return () => {
           document.removeEventListener('visibilitychange', onHidden);
           window.removeEventListener('pagehide', onPageHide);
-          window.removeEventListener('pageshow', requestReceiptShareNudge);
-          window.removeEventListener('focus', requestReceiptShareNudge);
         };
       }, [draftReady]);
 
@@ -1386,9 +1348,9 @@
       }, [draftReady, draftAssets]);
 
       const ensureDraftSavedForSharing = () => {
-        if (!persistActiveDraft()) { toast('⚠️ 本機草稿未能保存，暫不切換 App；請先備份帳單或檢查網站儲存權限。', 'error'); return false; }
+        if (!persistActiveDraft()) { toast('⚠️ 本機草稿未能儲存，暫不切換 App；請先備份賬單或檢查網站儲存權限。', 'error'); return false; }
         if (hasDraftAssets && persistedDraftAssetRevisionRef.current !== draftAssets.revision) {
-          toast(draftAssetStatus === 'error' ? '⚠️ 附件草稿未能保存，暫不切換 App；請檢查網站儲存權限及剩餘空間。' : '⏳ 正在保存本機附件，完成後請再按分享。', 'error');
+          toast(draftAssetStatus === 'error' ? '⚠️ 附件草稿未能儲存，暫不切換 App；請檢查網站儲存權限及剩餘空間。' : '⏳ 正在儲存本機附件，完成後請再按分享。', 'error');
           return false;
         }
         return true;
@@ -1405,19 +1367,6 @@
         if (pendingClaimShareScrollRef.current && step === 2 && items.length) return;
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }, [step, showHistory, showSettings, showTutorial]);
-
-      useEffect(() => {
-        if (tutorialDemo || tutorialSuspended || !draftReady || !pendingReceiptShare || !includeReceiptImages || !lastImageData.length || !receiptShareNudge || step !== 4 || showHistory || showSettings || showTutorial) return;
-        const timer = setTimeout(() => {
-          if (document.visibilityState !== 'visible' || !pendingReceiptShareRef.current) return;
-          const target = document.getElementById('receipt-share-step');
-          if (!target) return;
-          const headerBottom = Math.max(0, document.querySelector('header')?.getBoundingClientRect().bottom || 0);
-          window.scrollTo({ top: Math.max(0, window.scrollY + target.getBoundingClientRect().top - headerBottom - 16), behavior: 'instant' });
-          target.focus({ preventScroll: true });
-        }, 120);
-        return () => clearTimeout(timer);
-      }, [draftReady, pendingReceiptShare, receiptShareNudge, step, showHistory, showSettings, showTutorial, includeReceiptImages, lastImageData.length, tutorialSuspended]);
 
       const inboxPeople = useMemo(() => {
         const names = [];
@@ -1835,7 +1784,7 @@
         }
       };
 
-      const shareTextWithFiles = (text, files, title, onSettled) => {
+      const shareTextWithFiles = (text, files, title) => {
         if (tutorialDemo) return;
         const shareFiles = files || [];
         if (shareFiles.length) {
@@ -1849,61 +1798,130 @@
         if (typeof navigator.share !== 'function') {
           if (shareFiles.length) { toast('⚠️ 此瀏覽器無法分享附件；請於 WhatsApp 手動附加圖片或檔案。', 'error'); return; }
           copyToClipboard(text, title);
-          if (onSettled) onSettled();
           return;
         }
         const shareData = {};
         if (text) { shareData.title = title; shareData.text = text; }
         if (shareFiles.length) shareData.files = shareFiles;
         try {
-          navigator.share(shareData).then(() => {
-            if (onSettled) onSettled();
-          }, error => {
+          navigator.share(shareData).catch(error => {
             if (error?.name !== 'AbortError') toast('⚠️ 未能開啟手機分享選單，請再試一次。', 'error');
-            if (onSettled) onSettled();
           });
         } catch (error) {
           if (error?.name !== 'AbortError') toast('⚠️ 未能開啟手機分享選單，請再試一次。', 'error');
-          if (onSettled) onSettled();
         }
       };
 
       const shareCurrentReport = (text, title) => {
         if (tutorialDemo) { onTutorialAction?.('report-preview'); return; }
         if (!ensureDraftSavedForSharing()) return;
-        setReceiptShareNudge(0);
-        const receiptImagesSelected = Boolean(includeReceiptImages && lastImageData.length);
-        if (receiptImagesSelected) {
-          if (!updatePendingReceiptShare(true)) {
-            toast('⚠️ 下一步提示未能存入本機草稿，暫不切換 App；請先檢查儲存權限。', 'error');
-            return;
-          }
-        } else updatePendingReceiptShare(false);
-        receiptReturnArmedRef.current = receiptImagesSelected;
-        shareTextWithFiles(text, [], title, requestReceiptShareNudge);
+        shareTextWithFiles(text, [], title);
       };
 
       const shareCurrentReceipts = () => {
         if (tutorialDemo) return;
-        if ((!includeReceiptImages && !pendingReceiptShareRef.current) || !lastImageData.length) return;
+        if (!lastImageData.length) return;
         if (!ensureDraftSavedForSharing()) return;
-        receiptReturnArmedRef.current = pendingReceiptShareRef.current;
         try {
-          shareTextWithFiles('', receiptEntriesToFiles(lastImageData), '', requestReceiptShareNudge);
+          shareTextWithFiles('', receiptEntriesToFiles(lastImageData), '');
         } catch (error) {
           toast('⚠️ 無法讀取本次單據圖片，請重新選擇圖片後再試。', 'error');
+        }
+      };
+
+      const openDetailedTablePreview = () => {
+        if (tutorialDemo) { onTutorialAction?.('report-preview'); return; }
+        if (!results || !ensureDraftSavedForSharing()) return;
+        const sharesByItem = new Map();
+        const adjustments = [];
+        Object.entries(results.personTotals || {}).forEach(([person, summary]) => {
+          (summary.items || []).forEach(entry => {
+            const key = String(entry.id);
+            if (!sharesByItem.has(key)) sharesByItem.set(key, []);
+            sharesByItem.get(key).push({
+              person,
+              quantity: Number(entry.qty) || 0,
+              unit: entry.unit || entry.unitName || '',
+              amount: Number(entry.amount) || 0
+            });
+          });
+          (summary.adjustments || []).forEach(entry => adjustments.push({
+            person,
+            name: entry.name || '額外調整',
+            quantity: Number(entry.qty) || 0,
+            unit: entry.unit || '',
+            amount: Number(entry.amount) || 0,
+            reason: entry.reason || ''
+          }));
+        });
+        const previewItems = items.map((item, index) => {
+          const id = String(item?.id ?? `item-${index + 1}`);
+          const shares = sharesByItem.get(id) || [];
+          return {
+            id,
+            number: String(item?.id || String(index + 1).padStart(2, '0')),
+            name: item?.name || '未命名項目',
+            nameEn: item?.nameEn || '',
+            original: item?.original || '',
+            ja: item?.ja || '',
+            quantity: Number(item?.totalQty) || shares.reduce((sum, share) => sum + share.quantity, 0),
+            unit: item?.unit || shares.find(share => share.unit)?.unit || '',
+            sourceAmount: Number(itemAmount(item)) || 0,
+            allocatedAmount: shares.reduce((sum, share) => sum + share.amount, 0),
+            shares
+          };
+        });
+        const previewData = {
+          version: 1,
+          previewId: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+          assetRevision: draftAssets.revision,
+          language: uiLang,
+          bill: {
+            date: results.date || '',
+            payer,
+            currency: results.currency || currency,
+            sourceCurrency: results.sourceCurrency || detectedCurrency,
+            sourceTotal: Number(results.sourceTotal) || 0,
+            billTotal: getResultsBillTotal(results),
+            itemsSubtotal: Number(results.itemsSubtotal) || 0,
+            discountAmount: Number(results.discountAmount) || 0,
+            taxAmount: Number(results.taxAmount) || 0,
+            taxSplitMethod,
+            paymentMethods: [...paymentMethods],
+            exchangeRate: Number(results.exchangeRate) || 0,
+            exchangeRateDate: results.exchangeRateDate || '',
+            exchangeProvider: results.exchangeProvider || '',
+            receiptImageCount: lastImageData.length,
+            receiptAdjustmentNote: getReceiptAdjustmentNote(uiLang)
+          },
+          participants: Object.entries(results.personTotals || {}).map(([name, summary]) => ({
+            name,
+            total: Number(summary.total) || 0,
+            subtotal: Number(summary.subtotal) || 0,
+            tax: Number(summary.tax) || 0,
+            discount: Number(summary.discount) || 0
+          })),
+          items: previewItems,
+          adjustments
+        };
+        const storageKey = 'billSplitterDetailTablePreviewV1';
+        try {
+          localStorage.setItem(storageKey, JSON.stringify(previewData));
+          const previewWindow = window.open('./detailed-view.html', '_blank');
+          if (!previewWindow) {
+            localStorage.removeItem(storageKey);
+            toast('⚠️ 瀏覽器未能開啟詳細表格；請允許彈出視窗後再試。', 'error');
+            return;
+          }
+          try { previewWindow.opener = null; } catch (_) {}
+        } catch (error) {
+          toast('⚠️ 未能準備本機表格預覽，請檢查瀏覽器儲存權限後再試。', 'error');
         }
       };
 
       const copyCurrentReport = (text, title) => {
         if (tutorialDemo) { onTutorialAction?.('report-preview'); return; }
         if (!ensureDraftSavedForSharing()) return;
-        setReceiptShareNudge(0);
-        const receiptImagesSelected = Boolean(includeReceiptImages && lastImageData.length);
-        if (receiptImagesSelected) {
-          if (!updatePendingReceiptShare(true)) return;
-        } else updatePendingReceiptShare(false);
-        receiptReturnArmedRef.current = receiptImagesSelected;
         copyToClipboard(text, title);
       };
 
@@ -1911,7 +1929,7 @@
         if (tutorialDemo) return;
         if (reportType !== 'receipts') {
           const text = getSavedReportText(record, reportType);
-          const title = reportType === 'detailed' ? bi('分帳詳細明細', 'Detailed bill split') : bi('分帳追數結果', 'Bill split summary');
+          const title = reportType === 'detailed' ? bi('詳細分帳報告', 'Detailed bill split') : bi('分帳追數結果', 'Bill split summary');
           shareTextWithFiles(text, [], title);
           return;
         }
@@ -1955,11 +1973,9 @@
         catch (_) { setDraftSaveError(bi('未能清除本機草稿，請檢查網站儲存權限。', 'Could not clear the local draft. Check site storage permissions.')); }
         restoredDraftAssetsRef.current = null;
         persistedDraftAssetRevisionRef.current = null;
-        pendingReceiptShareRef.current = false; receiptReturnArmedRef.current = false;
-        setPendingReceiptShare(false); setReceiptShareNudge(0);
         setStepError(''); setUploadError(''); setItems([]); setFriendsReplies(''); setResults(null);
         setIsAnalyzing(false); setProgress(0); setProgressText('');
-        setIsSaved(false); setIncludeReceiptImages(false); setLastImageData([]); setLastRecognitionModel(''); setTaxAmount(''); setDiscountAmount(''); setTaxNote(''); setReceiptAdjustmentDetails(null);
+        setIsSaved(false); setLastImageData([]); setLastRecognitionModel(''); setTaxAmount(''); setDiscountAmount(''); setTaxNote(''); setReceiptAdjustmentDetails(null);
         setClaimAttachments([]); setClaimInfo(null); setShowClaimShareDialog(false);
         inboxGenerationRef.current += 1;
         claimRoomRef.current = null; claimInboxSeenRef.current = [];
@@ -1975,7 +1991,7 @@
         setCurrency('HKD'); setDetectedCurrency('HKD'); setPaymentMethods(['轉數快 (FPS)']);
         setShowHistory(false); setShowSettings(false); setShowTutorial(false); setStatusExpanded(false); setStep(1);
         window.scrollTo({ top: 0, behavior: 'instant' });
-        toast(bi('已清空目前帳單；歷史紀錄及已存收據保留。', 'Current bill cleared. History and saved receipts kept.'));
+        toast(bi('已清空目前賬單；歷史紀錄及已存收據保留。', 'Current bill cleared. History and saved receipts kept.'));
       };
 
       const handleGoToStep2 = () => { setStepError(''); setStep(2); };
@@ -2197,7 +2213,6 @@
         setRedactionDrag(null);
         redactionDragRef.current = null;
         setLastImageData([]);
-        setIncludeReceiptImages(false);
         if (fileInputRef.current) fileInputRef.current.value = '';
       };
 
@@ -2253,7 +2268,6 @@
         if (!alreadyRedacted) {
           setUploadError('');
           setLastImageData([]);
-          setIncludeReceiptImages(false);
           setIsSaved(false);
           try {
             const originals = await Promise.all(files.map(file => new Promise((resolve, reject) => {
@@ -2647,7 +2661,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
 
       const buildFriendClaimLink = (lang = uiLang) => {
         if (tutorialDemo) return;
-        if (!items.length) { setStepError('⚠️ 請先新增至少一個帳單項目。'); return null; }
+        if (!items.length) { setStepError('⚠️ 請先新增至少一個賬單項目。'); return null; }
         const invalidIndex = items.findIndex(item => !String(item.name || '').trim());
         if (invalidIndex !== -1) {
           setStepError(`⚠️ 項目 ${items[invalidIndex].id} 未填寫名稱，請先補上。`);
@@ -2855,7 +2869,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
 
         const discountNum = convertedReceipt.discountAmount;
         if (discountNum < 0 || !ReceiptMath.isDiscountWithinSubtotal(discountNum, totalItemsCost, currency)) {
-          setStepError('⚠️ 整張單折扣不可多於已分攤品項小計，請核對折扣金額。'); focusField('discount-amount'); return;
+          setStepError('⚠️ 整張單折扣不可多於已分攤項目小計，請核對折扣金額。'); focusField('discount-amount'); return;
         }
         const preDiscountItemsCost = totalItemsCost;
         Object.keys(personTotals).forEach(person => {
@@ -2874,8 +2888,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
 
         const billTotal = ReceiptMath.roundMoney(totalItemsCost + taxNum, currency);
         setResults({ personTotals, totalItemsCost, itemsSubtotal: preDiscountItemsCost, discountAmount: discountNum, taxAmount: taxNum, billTotal, sourceCurrency: detectedCurrency, sourceTotal, exchangeRate: conversionRate, exchangeRateDate: exchangeRate.date || null, exchangeProvider: exchangeRate.provider || 'Frankfurter', reconciliationAllocations, date: new Date().toISOString().split('T')[0], currency });
-        updatePendingReceiptShare(false); setReceiptShareNudge(0);
-        setIsSaved(false); setIsSavingRecord(false); setIncludeReceiptImages(false); setStep(4);
+        setIsSaved(false); setIsSavingRecord(false); setStep(4);
         return true;
       };
 
@@ -2996,7 +3009,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
           : (english ? 'Split in proportion to spending' : '按消費比例分');
         let txt = english
           ? `🧾 *Detailed Bill Split | Shares & Amount Due* 🧾\n📅 ${results.date} · 💴 Settlement currency: ${reportCurrencyName(curr, language)}\n💳 Payer: ${payer}\n💵 Payment methods: ${paymentLabel}\n⚖️ Tax / service charge: ${splitLabel}\n────────\n\n`
-          : `🧾 *分帳詳細明細｜各人認帳項目與應付金額* 🧾\n📅 ${results.date} · 💴 結算貨幣：${reportCurrencyName(curr, language)}\n💳 墊支人：${payer}\n💵 付款方式：${paymentLabel}\n⚖️ 稅／服務費：${splitLabel}\n────────\n\n`;
+          : `🧾 *詳細分帳報告｜各人認帳項目與應付金額* 🧾\n📅 ${results.date} · 💴 結算貨幣：${reportCurrencyName(curr, language)}\n💳 墊支人：${payer}\n💵 付款方式：${paymentLabel}\n⚖️ 稅／服務費：${splitLabel}\n────────\n\n`;
         txt += conversionNote;
         let grandTotal = 0;
         Object.keys(results.personTotals).forEach(person => {
@@ -3116,7 +3129,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
 
           return (
               <React.Fragment>
-                  {/* 小巧底欄 (點擊觸發彈出視窗) */}
+                  {/* 小巧底欄 (撳一下會彈出視窗) */}
                   <div role="status" aria-live="polite" onClick={() => setExpanded(true)} className={`fixed bottom-0 left-0 right-0 z-30 border-t ${TONE.bg} ${TONE.border} shadow-[0_-2px_10px_rgba(0,0,0,0.05)] cursor-pointer hover:brightness-95 transition-all`} style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
                       <div className={`flex items-center gap-2.5 px-3 ${kbOpen ? 'py-1.5' : 'py-2'}`}>
                           <span className="shrink-0 text-sm leading-none">{TONE.dot}</span>
@@ -3127,7 +3140,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                               {!kbOpen && top.sub && (<div className="text-[10px] text-slate-500 font-medium mt-0.5 leading-tight line-clamp-1">{tr(top.sub)}</div>)}
                           </div>
                           {!kbOpen && (
-                              <div className="shrink-0 text-[10px] font-bold text-slate-500 bg-white/80 px-2 py-1 rounded-md border border-slate-500 shadow-sm">{tr("點擊展開 ⤴")}</div>
+                              <div className="shrink-0 text-[10px] font-bold text-slate-500 bg-white/80 px-2 py-1 rounded-md border border-slate-500 shadow-sm">{tr("撳一下展開 ⤴")}</div>
                           )}
                       </div>
                   </div>
@@ -3230,7 +3243,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                     <button onClick={() => setShowHistory(true)} title={tr("紀錄")} className="header-history-button flex items-center gap-1.5 px-2.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-400 rounded-lg text-sm font-semibold transition-colors">
                       <Icon path={icons.history} size={16}/>
                     </button>
-                    <button type="button" data-testid="header-clear-current" disabled={!draftReady} onClick={handleGoToStep1} title={bi('清空目前帳單（保留歷史及已存收據）', 'Clear current bill (keep history and saved receipts)')} aria-label={bi('清空目前帳單', 'Clear current bill')} className="header-clear-button flex items-center justify-center gap-1.5 px-2.5 py-2 border rounded-lg text-sm transition-colors">
+                    <button type="button" data-testid="header-clear-current" disabled={!draftReady} onClick={handleGoToStep1} title={bi('清空目前賬單（保留歷史及已存收據）', 'Clear current bill (keep history and saved receipts)')} aria-label={bi('清空目前賬單', 'Clear current bill')} className="header-clear-button flex items-center justify-center gap-1.5 px-2.5 py-2 border rounded-lg text-sm transition-colors">
                       <Icon path={icons.trash} size={16}/><span className="clear-label">{bi('清空', 'Clear')}</span>
                     </button>
                   </React.Fragment>
@@ -3265,13 +3278,13 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
 
           {/* Main Content Area */}
           <main data-current-step={step} className="w-full px-4 py-6 md:py-8 max-w-2xl mx-auto pb-24">
-            {!draftReady && <div className="fixed inset-0 z-[70] flex items-center justify-center bg-white/95 text-slate-700" role="status">{tr("正在檢查本機帳單草稿…")}</div>}
+            {!draftReady && <div className="fixed inset-0 z-[70] flex items-center justify-center bg-white/95 text-slate-700" role="status">{tr("正在檢查本機賬單草稿…")}</div>}
             {draftReady && (hasDraftWork || draftNotice || draftSaveError) && (
               <div data-testid="draft-status" className="mb-4 rounded-xl border border-slate-300 bg-slate-50 p-3 text-xs leading-relaxed text-slate-700" role="status" aria-live="polite">
                 {draftNotice && <p className="font-semibold mb-1">{tr(draftNotice)}</p>}
                 {draftSaveError || ((hasDraftAssets || draftAssets.unavailable) && draftAssetStatus === 'error') ? (
-                  <p role="alert" className="font-semibold text-red-700">{draftSaveError || tr("本機附件草稿未能保存，暫不切換 App；請檢查網站儲存權限及剩餘空間。")}</p>
-                ) : <p>{hasDraftAssets && draftAssetStatus === 'saving' ? tr("正在保存本機圖片／附件，完成後才可分享…") : bi('草稿已保存在這部機。', 'Draft saved on this device.')}</p>}
+                  <p role="alert" className="font-semibold text-red-700">{draftSaveError || tr("本機附件草稿未能儲存，暫不切換 App；請檢查網站儲存權限及剩餘空間。")}</p>
+                ) : <p>{hasDraftAssets && draftAssetStatus === 'saving' ? tr("正在儲存本機圖片／附件，完成後才可分享…") : bi('草稿已儲存在這部機。', 'Draft saved on this device.')}</p>}
               </div>
             )}
 
@@ -3388,7 +3401,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                       </span>
                       {!apiKey.trim() && (
                         <span className="block text-base font-medium leading-snug text-red-700">
-                          {bi('點擊此處設定免費鎖匙，先可以讀外語單據。', 'Tap here to set a free key before a foreign receipt can be read.')}
+                          {bi('撳呢度設定免費鎖匙，先可以讀外語單據。', 'Tap here to set a free key before a foreign receipt can be read.')}
                         </span>
                       )}
                     </div>
@@ -3502,7 +3515,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                 <div className="space-y-4">
                   {!receiptWasRead && (
                   <div className="flex justify-between items-end mb-1">
-                    <Label className="!mb-0 text-lg">{tr("消費明細清單")}</Label>
+                    <Label className="!mb-0 text-lg">{tr("消費項目清單")}</Label>
                     <span className="text-sm font-semibold text-brand-700 bg-brand-50 px-2.5 py-1 rounded-md border border-brand-500">{tr("共 ")}{items.length}{tr(" 項")}</span>
                   </div>
                   )}
@@ -3573,7 +3586,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
 
                 {items.length > 0 && <React.Fragment>
                 <Card className="bg-slate-50">
-                  <p className="text-sm text-slate-700 leading-relaxed mb-4">{bi('讀單會自動換算百分比稅費及折扣；已反映在品項／總額的調整不會重複計。', 'Scanning calculates percentage-based tax and discounts; amounts already reflected in item or final prices are not applied again.')}</p>
+                  <p className="text-sm text-slate-700 leading-relaxed mb-4">{bi('讀單會自動換算百分比稅費及折扣；已反映在項目／總額的調整不會重複計。', 'Scanning calculates percentage-based tax and discounts; amounts already reflected in item or final prices are not applied again.')}</p>
                   <div className="grid gap-4">
                     <div data-tutorial-target="fee" className="flex justify-between items-center gap-4">
                       <div className="flex-1">
@@ -3588,7 +3601,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                     <div className="flex justify-between items-center gap-4 border-t border-slate-300 pt-3">
                       <div className="flex-1">
                         <Label className="!mb-0.5">{bi('整張單折扣', 'Bill-wide discount')}</Label>
-                        <p className="text-xs text-slate-500 font-medium">{bi('整單折扣會按消費比例分攤；單品折扣已反映在品項金額。', 'Bill-wide discounts are split by spending; item discounts are already reflected in item amounts.')}</p>
+                        <p className="text-xs text-slate-500 font-medium">{bi('整單折扣會按消費比例分攤；單項折扣已反映在項目金額。', 'Bill-wide discounts are split by spending; item discounts are already reflected in item amounts.')}</p>
                       </div>
                       <div className="field-round flex items-center w-36 shrink-0 overflow-hidden shadow-sm">
                         <span className="pl-3 pr-1 text-slate-600 font-bold border-r border-slate-500 py-2">{getCurrencySymbol(detectedCurrency)}</span>
@@ -3645,7 +3658,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                           </ul>
                         </div>
                       )}
-                      <p className="mt-3 text-xs text-slate-600">{draftAssetStatus === 'saving' && hasDraftAssets ? tr("正在保存草稿附件，請稍候…") : tr("開啟分享選單前會確認本機草稿已保存。")}</p>
+                      <p className="mt-3 text-xs text-slate-600">{draftAssetStatus === 'saving' && hasDraftAssets ? tr("正在儲存草稿附件，請稍候…") : tr("開啟分享選單前會確認本機草稿已儲存。")}</p>
                       <Button data-tutorial-target="send-claim-link" variant="primary" onClick={shareFriendClaimLink} disabled={hasDraftAssets && draftAssetStatus === 'saving'} className="!w-full mt-4 text-sm"><Icon path={icons.share} size={18}/>{tr(" 第 1 步：分享一個認帳連結")}</Button>
                       {claimAttachments.length > 0 && (
                         <Button variant="outline" onClick={shareClaimAttachments} disabled={hasDraftAssets && draftAssetStatus === 'saving'} className="!w-full mt-3 text-sm"><Icon path={icons.share} size={18}/>{tr(" 第 2 步：另分享附件（")}{claimAttachments.length}{tr(" 個）")}</Button>
@@ -3839,14 +3852,9 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                 </div>
 
                 {lastImageData.length > 0 && (
-                  <Card className="!p-4 border-amber-500 bg-amber-50">
-                    <label className="flex items-start gap-3 cursor-pointer">
-                      <input type="checkbox" checked={includeReceiptImages} onChange={event => { const checked = event.target.checked; setIncludeReceiptImages(checked); if (!checked) { updatePendingReceiptShare(false); setReceiptShareNudge(0); } }} className="w-5 h-5 mt-0.5 text-brand-600 focus:ring-brand-500" />
-                      <div>
-                        <div className="font-bold text-slate-800">{bi('分享單據圖片（選項，非必要）', 'Share receipt images (optional)')}</div>
-                      </div>
-                    </label>
-                  </Card>
+                  <Button data-testid="share-receipt-images" onClick={shareCurrentReceipts} variant="primary" className="!w-full !bg-emerald-700 hover:!bg-emerald-800 !border-emerald-900 focus:!ring-emerald-600" style={{ backgroundColor: '#047857', borderColor: '#065f46', color: '#ffffff' }}>
+                    <Icon path={icons.share} size={20}/>{tr("分享單據圖片（")}{lastImageData.length}{tr(" 張）")}
+                  </Button>
                 )}
 
                 <div id="report-share-step" className="scroll-mt-56">
@@ -3873,34 +3881,28 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                 <Card className="report-detail-card !p-0 overflow-hidden">
                   <div className="p-4 bg-slate-50 border-b border-slate-400">
                     <div className="mb-3">
-                      <h3 className="font-bold text-slate-800 text-base">{tr("🧾 詳細明細版")}</h3>
+                      <h3 className="font-bold text-slate-800 text-base">{tr("🧾 詳細版")}</h3>
                     </div>
                     <div data-testid="detail-report-actions" className="flex items-center gap-2 mb-4">
-                      <Button onClick={() => shareCurrentReport(getDetailedResult(detailLang), tr("分帳詳細明細"))} variant="primary" className="flex-1 !w-auto !px-2 !py-2 text-sm">{tr("分享詳細版")}</Button>
+                      <Button onClick={() => shareCurrentReport(getDetailedResult(detailLang), tr("詳細分帳報告"))} variant="primary" className="flex-1 !w-auto !px-2 !py-2 text-sm">{tr("分享詳細版")}</Button>
                       <ChoiceDivider inline />
                       <Button onClick={() => copyCurrentReport(getDetailedResult(detailLang), tr("詳細版"))} variant="secondary" className="flex-1 !w-auto !px-2 !py-2 text-sm bg-white border-slate-500"><Icon path={icons.copy} size={16}/>{tr(" 複製文字")}</Button>
                     </div>
                     <p className="text-xs text-slate-600 mb-2">{bi('菜名顯示方式（擇一）', 'Item name display (choose one)')}</p>
-                    <div className="flex bg-slate-200/60 p-1 rounded-lg border border-slate-400">
-                      <button onClick={() => setDetailLang('zh')} aria-pressed={detailLang === 'zh'} className={`flex-1 py-1.5 rounded-md text-xs font-bold transition-all ${detailLang === 'zh' ? 'bg-white text-slate-800 shadow border border-slate-300' : 'text-slate-600 hover:text-slate-800'}`}>{bi('中文菜名版', 'Item names only')}</button>
-                      <button onClick={() => setDetailLang('full')} aria-pressed={detailLang === 'full'} className={`flex-1 py-1.5 rounded-md text-xs font-bold transition-all ${detailLang === 'full' ? 'bg-white text-slate-800 shadow border border-slate-300' : 'text-slate-600 hover:text-slate-800'}`}>{tr("包含原文 (供核對)")}</button>
+                    <div className="flex items-center gap-2 mb-4">
+                      <Button onClick={() => setDetailLang('full')} aria-pressed={detailLang === 'full'} variant={detailLang === 'full' ? 'primary' : 'secondary'} className="flex-1 !w-auto !px-2 !py-2 text-sm">{bi('中文菜名 + 原文', 'Chinese + original names')}</Button>
+                      <ChoiceDivider inline />
+                      <Button onClick={() => setDetailLang('zh')} aria-pressed={detailLang === 'zh'} variant={detailLang === 'zh' ? 'primary' : 'secondary'} className="flex-1 !w-auto !px-2 !py-2 text-sm">{bi('中文菜名', 'Chinese names only')}</Button>
                     </div>
                   </div>
                   <div data-testid="final-detail-preview" className="p-4 bg-white font-sans text-sm text-slate-600 whitespace-pre-wrap break-words leading-relaxed selection:bg-slate-200">{getDetailedResult(detailLang)}</div>
+                  <div className="border-t border-emerald-200 bg-emerald-50 p-4">
+                    <Button data-testid="open-detailed-table-preview" onClick={openDetailedTablePreview} variant="primary" className="!w-full !bg-emerald-700 hover:!bg-emerald-800 !border-emerald-900" style={{ backgroundColor: '#047857', borderColor: '#065f46', color: '#ffffff' }}>
+                      <Icon path={icons.fileImage} size={19}/>{bi('揀個名睇埋單', 'Choose your name to see what you owe')}
+                    </Button>
+                    <p className="mt-2 text-center text-xs text-emerald-900">{bi('揀好個名後，就會顯示嗰位朋友要埋單嘅項目、金額同收據相片；其他資料可按需要打開。內容只留喺本機。', 'Choose a name to see that person’s items, amount owed and receipt images; open other details only when needed. Data stays on this device.')}</p>
+                  </div>
                 </Card>
-
-                {(pendingReceiptShare || (includeReceiptImages && lastImageData.length > 0)) && (
-                  <section id="receipt-share-step" data-testid="receipt-next-step" tabIndex={-1} aria-labelledby="receipt-share-heading" className="scroll-mt-56 rounded-2xl border border-amber-800 bg-amber-100 p-4 shadow-lg focus:outline-none focus:ring-4 focus:ring-amber-700 focus:ring-offset-2">
-                    <div className="flex items-start gap-3">
-                      <span aria-hidden="true" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-amber-900 text-2xl font-bold text-white">2</span>
-                      <div className="min-w-0">
-                        <h3 id="receipt-share-heading" className="text-2xl font-extrabold leading-snug text-amber-950">{tr("第 2 步：分享單據圖片")}</h3>
-                      </div>
-                    </div>
-                    {!lastImageData.length && <p role="alert" className="mt-4 font-bold text-amber-950">{tr("本機圖片暫未能載入。請重新開啟同一網址重試讀取草稿，勿重設帳單。")}</p>}
-                    <Button onClick={shareCurrentReceipts} disabled={!lastImageData.length} variant="primary" className="mt-4 !w-full !bg-gradient-to-tr !from-amber-950 !to-amber-700 hover:!from-amber-900 hover:!to-amber-600 !text-white !border-amber-950 !py-4 !font-bold disabled:!opacity-100 disabled:!bg-slate-700" style={{ textShadow: '0 1px 2px rgba(0,0,0,.65)' }}><Icon path={icons.share} size={20}/>{tr(" 分享單據圖片（")}{lastImageData.length}{tr(" 張）")}</Button>
-                  </section>
-                )}
 
                 <div className="pt-2">
                   <Button onClick={saveCurrentRecord} disabled={isSaved || isSavingRecord} variant={isSaved ? 'secondary' : 'primary'} className={`w-full ${isSaved ? '!bg-emerald-50 !text-emerald-900 !border-emerald-700 disabled:!opacity-100 disabled:!cursor-default !shadow-none !transition-none' : ''}`}>
@@ -3958,7 +3960,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                 <section data-testid="interactive-guide-directory" aria-labelledby="interactive-guide-title">
                   <Card className="border-slate-500 bg-white shadow-sm">
                     <h2 id="interactive-guide-title" className="text-lg font-extrabold text-slate-800">{bi('16 步互動教學', '16-step interactive guide')}</h2>
-                    <p className="mt-1 mb-4 text-sm leading-relaxed text-slate-700">{bi('跟隨 16 步操作示範，不會修改你的帳單。', 'Try 16 steps with sample data; your bill stays unchanged.')}</p>
+                    <p className="mt-1 mb-4 text-sm leading-relaxed text-slate-700">{bi('跟隨 16 步操作示範，不會修改你的賬單。', 'Try 16 steps with sample data; your bill stays unchanged.')}</p>
                     <div data-testid="api-key-prerequisite" className="mb-4 rounded-lg border border-amber-300 bg-amber-50 p-3">
                       <p className="text-sm leading-relaxed text-slate-700">{bi('首次用單據相片辨識，需先設定 OpenRouter API Key；已有金鑰可略過。', 'Set up an OpenRouter API key first for receipt-photo recognition. Already have one? Skip this.')}</p>
                       <a data-testid="openrouter-key-video-link" href="#openrouter-key-video" className="mt-1 inline-block text-xs font-semibold text-brand-800 underline underline-offset-2">{bi('觀看 OpenRouter API Key 教學影片', 'Watch the OpenRouter API key video')}</a>

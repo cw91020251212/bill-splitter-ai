@@ -4,11 +4,11 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#67c99a">
-  <meta name="description" content="在手機上填寫帳單項目認帳，按一下就交返發起人。">
+  <meta name="description" content="在手機上填寫賬單項目認帳，按一下就交返發起人。">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="分帳管家">
-  <title>帳單認帳｜分帳管家 AI</title>
+  <title>賬單認帳｜分帳管家 AI</title>
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" sizes="180x180">
   <link rel="icon" href="./icons/icon.svg" type="image/svg+xml">
@@ -268,10 +268,10 @@
           </section>
 
           <div class="items-heading">
-            <h2 id="items-title">帳單項目</h2>
+            <h2 id="items-title">賬單項目</h2>
             <span id="item-count" class="count"></span>
           </div>
-          <section id="item-list" class="item-list" aria-label="帳單項目"></section>
+          <section id="item-list" class="item-list" aria-label="賬單項目"></section>
           <p id="form-feedback" class="form-feedback" role="status" aria-live="polite"></p>
 
           <details id="fallback-panel" class="panel preview-panel fallback-panel">
@@ -341,7 +341,7 @@
           title: '填寫你的認帳',
           errorTitle: '打不開這份認帳表', errorDescription: '連結資料不完整或格式不正確。請向發起人索取最新的認帳連結。',
           personLabel: '你的姓名', namePlaceholder: '例如：阿明', nameHint: '請用發起人認得的名字，回覆會用這個名字標示。',
-          items: '帳單項目', preview: '認帳回覆預覽', previewSubtitle: '後備用。分享或複製後，仍要你自己在 WhatsApp 發送。',
+          items: '賬單項目', preview: '認帳回覆預覽', previewSubtitle: '後備用。分享或複製後，仍要你自己在 WhatsApp 發送。',
           previewPlaceholder: '先填姓名和至少一項數量，回覆文字便會顯示在這裡。', previewLabel: '認帳回覆文字預覽',
           or: '或', share: '分享回覆', copy: '複製回覆文字', shareHelp: '選 WhatsApp 同發起人，再自己按發送。',
           fallbackSummary: 'WhatsApp 後備：分享或複製回覆',
@@ -442,10 +442,10 @@
         language = nextLanguage;
         const text = messages[language];
         document.documentElement.lang = language;
-        document.title = language === 'en' ? 'Your items | Bill Splitter AI' : '帳單認帳｜分帳管家 AI';
+        document.title = language === 'en' ? 'Your items | Bill Splitter AI' : '賬單認帳｜分帳管家 AI';
         document.querySelector('meta[name="description"]').content = language === 'en'
           ? 'Mark your items on your phone, then send them to the organizer in one tap.'
-          : '在手機上填寫帳單項目認帳，按一下就交返發起人。';
+          : '在手機上填寫賬單項目認帳，按一下就交返發起人。';
         document.getElementById('language-toggle').textContent = language === 'en' ? '繁體中文' : 'English';
         languageButton.setAttribute('aria-label', language === 'en' ? 'Switch to Traditional Chinese' : '切換至 English');
         document.getElementById('brand-name').textContent = language === 'en' ? 'Bill Splitter AI' : '分帳管家 AI';

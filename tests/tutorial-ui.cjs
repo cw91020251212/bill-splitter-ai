@@ -249,7 +249,7 @@ async function runTutorialHubSmoke(browser) {
   assert.deepEqual(directoryOrder, ['video-lessons-directory', 'interactive-guide-directory'], 'video directory must come first, interactive guide second');
   assert.match(await page.locator('#video-lessons-title').innerText(), /👍.*必看影片教學/);
   const videoSources = await page.locator('[data-testid="video-lessons-directory"] video source').evaluateAll(nodes => nodes.map(node => (node.getAttribute('src') || '').split('?')[0]));
-  assert.deepEqual(videoSources, ['./assets/OpenRouter_API_Key_Tutorial_Preview_Revised.mp4', './assets/bill-splitter-operation-cantonese.mp4'], 'OpenRouter setup must precede the operation clip');
+  assert.deepEqual(videoSources, ['./assets/OpenRouter_API_Key_Tutorial_Circled.mp4', './assets/bill-splitter-operation-cantonese.mp4'], 'OpenRouter setup must precede the operation clip');
   const videoStates = await page.locator('[data-testid="video-lessons-directory"] video').evaluateAll(nodes => nodes.map(node => ({ autoplay: node.hasAttribute('autoplay'), paused: node.paused, preload: node.getAttribute('preload') })));
   assert.deepEqual(videoStates, [{ autoplay: false, paused: true, preload: 'none' }, { autoplay: false, paused: true, preload: 'none' }], 'videos must wait for a user tap');
   assert.match(await page.getByTestId('api-key-prerequisite').innerText(), /首次用單據相片辨識.*OpenRouter API Key.*已有金鑰可略過/);
@@ -300,7 +300,7 @@ async function runKeyStatusHintSmoke(browser) {
       assert(!statusText.includes('Tap to change the model or key'));
     } else {
       assert.match(statusText, /尚未設定免費鎖匙/);
-      assert.match(statusText, /點擊此處設定免費鎖匙/);
+      assert.match(statusText, /撳呢度設定免費鎖匙/);
     }
     await context.close();
   }

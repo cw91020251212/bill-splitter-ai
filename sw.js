@@ -13,7 +13,7 @@
  * Bump CACHE_VERSION whenever you edit index.html so returning users get the
  * new build instead of the cached one.
  */
-const CACHE_VERSION = 'v91-cross-currency-settlement';
+const CACHE_VERSION = 'v93-member-select-hk-copy';
 const SHELL_CACHE = `bill-splitter-shell-${CACHE_VERSION}`;
 const ASSET_CACHE = `bill-splitter-assets-${CACHE_VERSION}`;
 const CDN_CACHE = `bill-splitter-cdn-${CACHE_VERSION}`;
@@ -22,6 +22,7 @@ const KEEP = [SHELL_CACHE, ASSET_CACHE, CDN_CACHE];
 const SHELL_URLS = [
   './',
   './index.html',
+  './detailed-view.html',
   './claim.html',
   './claim-relay.js',
   './ocr-cascade.js',
@@ -131,14 +132,22 @@ self.addEventListener('fetch', (event) => {
         try {
           const fresh = await fetch(request);
           const cache = await caches.open(SHELL_CACHE);
-          cache.put('./index.html', fresh.clone()).catch(() => {});
+          const path = new URL(request.url).pathname;
+          const cacheKey = path.endsWith('/detailed-view.html')
+            ? new URL('./detailed-view.html', self.location).toString()
+            : path.endsWith('/claim.html')
+              ? new URL('./claim.html', self.location).toString()
+              : new URL('./index.html', self.location).toString();
+          cache.put(cacheKey, fresh.clone()).catch(() => {});
           return fresh;
         } catch (e) {
           const cache = await caches.open(SHELL_CACHE);
           const requestPath = new URL(request.url).pathname;
           const requestedPage = requestPath.endsWith('/claim.html')
             ? new URL('./claim.html', self.location).toString()
-            : new URL('./index.html', self.location).toString();
+            : requestPath.endsWith('/detailed-view.html')
+              ? new URL('./detailed-view.html', self.location).toString()
+              : new URL('./index.html', self.location).toString();
           return (
             (await cache.match(requestedPage)) ||
             (await cache.match('./index.html')) ||
