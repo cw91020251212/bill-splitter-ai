@@ -969,6 +969,7 @@
       const [friendShareInfo, setFriendShareInfo] = useState(null);
       const [friendShareStatus, setFriendShareStatus] = useState('idle');
       const [friendShareError, setFriendShareError] = useState('');
+      const [friendShareWhatsAppStatus, setFriendShareWhatsAppStatus] = useState('idle');
       const friendShareRequestRef = useRef(false);
       const friendShareImageBatchesRef = useRef(new WeakMap());
       const friendShareImageBatchSequenceRef = useRef(0);
@@ -1940,6 +1941,18 @@
         return `${new Intl.DateTimeFormat('zh-HK', { timeZone: 'Asia/Hong_Kong', dateStyle: 'medium', timeStyle: 'short' }).format(date)}（香港時間）`;
       };
 
+      const getFriendWhatsAppShareText = shortUrl => `${bi('朋友埋單表（7日有效），揀你個名睇要埋單幾多：', 'Friend bill link (valid for 7 days). Choose your name to see your amount due:')}
+${shortUrl}`;
+      const getFriendWhatsAppShareUrl = shortUrl => `https://wa.me/?text=${encodeURIComponent(getFriendWhatsAppShareText(shortUrl))}`;
+      const openFriendWhatsAppShare = shortUrl => {
+        let popup = null;
+        try { popup = window.open(getFriendWhatsAppShareUrl(shortUrl), '_blank'); } catch (_) {}
+        if (!popup) { setFriendShareWhatsAppStatus('blocked'); return false; }
+        try { popup.opener = null; } catch (_) {}
+        setFriendShareWhatsAppStatus('opened');
+        return true;
+      };
+
       const createFriendShareLink = async () => {
         if (tutorialDemo) { onTutorialAction?.('report-preview'); return; }
         if (!results || !ensureDraftSavedForSharing()) return;
@@ -1952,14 +1965,34 @@
         const shareData = getFriendShareData();
         if (!shareData) return;
         friendShareRequestRef.current = true;
+        setFriendShareWhatsAppStatus('idle');
+        let whatsappWindow = null;
+        try {
+          whatsappWindow = window.open('about:blank', '_blank');
+          if (whatsappWindow) whatsappWindow.document.title = bi('正在準備 WhatsApp 分享…', 'Preparing WhatsApp share…');
+        } catch (_) {}
         setFriendShareStatus('uploading');
         setFriendShareError('');
         try {
           const created = await window.BillShareApi.createShortLink(shareData);
           setFriendShareInfo({ shortUrl: created.shortUrl, expiresAt: created.expiresAt, signature: currentFriendShareSignature });
           setFriendShareStatus('ready');
+          let whatsappOpened = false;
+          if (whatsappWindow && !whatsappWindow.closed) {
+            try {
+              whatsappWindow.location.replace(getFriendWhatsAppShareUrl(created.shortUrl));
+              try { whatsappWindow.opener = null; } catch (_) {}
+              whatsappOpened = true;
+            } catch (_) {}
+          }
+          if (!whatsappOpened && whatsappWindow && !whatsappWindow.closed) {
+            try { whatsappWindow.close(); } catch (_) {}
+          }
+          setFriendShareWhatsAppStatus(whatsappOpened ? 'opened' : 'blocked');
           toast('✅ 已建立朋友短連結；帳單和收據相片會在 7 日後自動刪除。', 'success');
         } catch (error) {
+          if (whatsappWindow && !whatsappWindow.closed) { try { whatsappWindow.close(); } catch (_) {} }
+          setFriendShareWhatsAppStatus('idle');
           setFriendShareStatus('error');
           setFriendShareError(error?.message || '未能建立朋友短連結，請稍後再試。');
         } finally {
@@ -4026,6 +4059,11 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                       <div data-testid="friend-share-ready" className="rounded-xl border border-emerald-300 bg-white p-4">
                         <a data-testid="friend-share-open" href={getDetailedTableShareUrl()} target="_blank" rel="noopener noreferrer" className="block text-center font-bold text-emerald-800 underline break-all">{bi('開啟朋友埋單表格', 'Open friend bill table')}<br/><span className="font-mono text-xs font-medium">{getDetailedTableShareUrl()}</span></a>
                         <p data-testid="friend-share-expiry" className="mt-2 text-center text-xs text-emerald-900">{bi('連結有效至：', 'Link expires: ')}{formatFriendShareExpiry(getDetailedTableShareExpiry())}。{bi('到期後伺服器副本會自動刪除。', 'The temporary server copy is deleted automatically at expiry.')}</p>
+                        <p data-testid="friend-share-whatsapp-status" role="status" className="mt-3 text-center text-xs text-emerald-900">{friendShareWhatsAppStatus === 'opened' ? bi('WhatsApp 已開啟並預填訊息；揀好收件人後按傳送。', 'WhatsApp is open with a prefilled message; choose a recipient and press Send.') : friendShareWhatsAppStatus === 'blocked' ? bi('未能自動開啟 WhatsApp；連結仍可用以下掣分享或複製。', 'WhatsApp could not be opened automatically; use the buttons below to share or copy the link.') : bi('你亦可直接分享或複製這條連結。', 'You can also share or copy this link.')}</p>
+                        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                          <Button data-testid="friend-whatsapp-share" onClick={() => openFriendWhatsAppShare(getDetailedTableShareUrl())} variant="primary" className="!w-full green-action-dark !bg-emerald-700 hover:!bg-emerald-800 !border-emerald-900" style={{ backgroundColor: '#047857', borderColor: '#065f46', boxShadow: 'none' }}><Icon path={icons.share} size={16}/>{bi('WhatsApp 分享', 'Share on WhatsApp')}</Button>
+                          <Button data-testid="copy-friend-share-link" onClick={() => copyToClipboard(getDetailedTableShareUrl(), bi('朋友連結', 'Friend link'))} variant="secondary" className="!w-full !py-2 text-sm bg-white border-slate-500"><Icon path={icons.copy} size={16}/>{bi('複製連結', 'Copy link')}</Button>
+                        </div>
                       </div>
                     ) : (
                       <div data-testid="friend-share-create" className="rounded-xl border border-emerald-300 bg-white p-4">
