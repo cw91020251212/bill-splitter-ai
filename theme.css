@@ -256,6 +256,11 @@ html[lang="en"] #root .header-actions .guide-label { display: none; }
 /* Primary actions and the brand: dark lower-left to light upper-right. */
 :root {
   --brand-action-gradient: linear-gradient(to top right, #49b88b 0%, #80d9aa 55%, #b5f2cf 100%);
+  --brand-action-gradient-hover: linear-gradient(to top right, #3fa87d 0%, #72d29f 55%, #a5e9c1 100%);
+  --brand-action-gradient-active: linear-gradient(to top right, #35996f 0%, #62c68f 55%, #95ddb4 100%);
+  --brand-action-gradient-dark: linear-gradient(to top right, #034f3a 0%, #047857 55%, #0c8260 100%);
+  --brand-action-gradient-dark-hover: linear-gradient(to top right, #02442f 0%, #035f45 55%, #0a7254 100%);
+  --brand-action-gradient-dark-active: linear-gradient(to top right, #023b29 0%, #034f3a 55%, #04694b 100%);
   --brand-wordmark-gradient: linear-gradient(to top right, #29835f 0%, #2a845f 55%, #2b8560 100%);
 }
 #root button.bg-brand-600:not(:disabled), #root .app-brand-icon {
@@ -762,4 +767,54 @@ html[lang="en"] #root .header-actions .guide-label { display: none; }
   stroke: var(--claim-mute-ink) !important;
   filter: none !important;
   opacity: 1 !important;
+}
+
+/* Green actions use directional gradients and contrast-aware labels/icons; white glyphs get a subtle text shadow only. */
+#root button.green-action:not(.green-action-dark) {
+  background-image: var(--brand-action-gradient) !important;
+}
+#root button.green-action:not(.green-action-dark):not(:disabled):hover {
+  background-image: var(--brand-action-gradient-hover) !important;
+}
+#root button.green-action:not(.green-action-dark):not(:disabled):active {
+  background-image: var(--brand-action-gradient-active) !important;
+}
+#root button.green-action.green-action-dark {
+  background-image: var(--brand-action-gradient-dark) !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, .35) !important;
+  box-shadow: none !important;
+}
+#root button.green-action.green-action-dark svg {
+  color: #fff !important;
+  stroke: #fff !important;
+  filter: none !important;
+}
+#root button.green-action.green-action-dark:not(:disabled):hover {
+  background-image: var(--brand-action-gradient-dark-hover) !important;
+}
+#root button.green-action.green-action-dark:not(:disabled):active {
+  background-image: var(--brand-action-gradient-dark-active) !important;
+}
+#root button.green-action {
+  transition: background-color .15s ease, transform .15s ease !important;
+}
+#root button.green-action:focus-visible {
+  outline: 3px solid #173c2e !important;
+  outline-offset: 3px;
+  box-shadow: none !important;
+}
+
+/* Base light-green CTA colors; dark modifiers above retain white labels/icons. */
+#root button.green-action {
+  color: #000 !important;
+  -webkit-text-fill-color: #000 !important;
+  text-shadow: none !important;
+  box-shadow: none !important;
+}
+#root button.green-action svg {
+  color: #000 !important;
+  stroke: #000 !important;
+  filter: none !important;
 }

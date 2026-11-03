@@ -69,7 +69,11 @@
     .personal-breakdown .detail-list { grid-template-columns:1fr auto; }
     .personal-breakdown .detail-list dt:last-of-type,.personal-breakdown .detail-list dd:last-of-type { color:var(--green-dark); font-weight:850; }
     .paid-notice-card { margin:0 0 18px; padding:16px 18px; }
-    .paid-notice-button { width:100%; min-height:48px; padding:10px 14px; border:1px solid #104d31; border-radius:11px; background:#176a43; color:#fff; font:inherit; font-weight:800; cursor:pointer; }
+    .paid-notice-button { width:100%; min-height:48px; padding:10px 14px; border:1px solid #104d31; border-radius:11px; background-color:#176a43; background-image:linear-gradient(to top right,#104d31 0%,#176a43 55%,#21845a 100%); color:#fff; box-shadow:none; text-shadow:0 1px 1px rgba(0,0,0,.35); font:inherit; font-weight:800; cursor:pointer; transition:background-color .15s ease,transform .15s ease; }
+    .paid-notice-button svg { color:#fff; stroke:#fff; filter:none; }
+    .paid-notice-button:not(:disabled):hover { background-image:linear-gradient(to top right,#0d4229 0%,#145c3b 55%,#1b754a 100%); }
+    .paid-notice-button:not(:disabled):active { background-image:linear-gradient(to top right,#0a3924 0%,#104d31 55%,#155e3c 100%); }
+    .paid-notice-button:focus-visible { outline:3px solid #173c2e; outline-offset:3px; box-shadow:none; }
     .paid-notice-button:disabled { opacity:.58; cursor:not-allowed; }
     .paid-notice-status { margin:7px 0 0; color:#3d5d47; font-size:12px; }
     .item-subline { margin-top:4px; color:#718076; font-size:12px; font-weight:500; }

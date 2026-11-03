@@ -156,7 +156,9 @@
         outline: "border border-brand-600 text-brand-700 bg-transparent hover:bg-brand-50 focus:ring-brand-500",
         danger: "bg-red-600 text-white hover:bg-red-700 shadow-md focus:ring-red-500 border border-red-700",
       };
-      return <button type={type} onClick={onClick} disabled={disabled} className={`${baseStyle} ${variants[variant]} ${className}`} {...rest}>{children}</button>;
+      const hasNonGreenBackground = className.split(/\s+/).some(token => /^!?bg-/.test(token) && !/^!?bg-(?:brand|emerald|green)-/.test(token));
+      const greenActionClass = variant === 'primary' && !hasNonGreenBackground ? 'green-action' : '';
+      return <button type={type} onClick={onClick} disabled={disabled} className={`${baseStyle} ${variants[variant]} ${greenActionClass} ${className}`} {...rest}>{children}</button>;
     };
 
     const Card = ({ children, className = '', ...rest }) => (
@@ -3421,7 +3423,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                     </div>
 
                     <div className="flex items-start gap-3 mb-4">
-                      <button type="button" data-testid="redaction-pen-toggle" aria-pressed={redactionDrawEnabled} onClick={() => setRedactionDrawingMode(!redactionDrawEnabledRef.current)} disabled={isPreparingRedacted} className={`shrink-0 min-h-[44px] px-3 py-2 rounded-xl border-2 font-bold text-sm flex items-center gap-2 disabled:opacity-50 ${redactionDrawEnabled ? 'bg-brand-600 text-white border-brand-700 shadow-md' : 'bg-white text-brand-900 border-brand-600 hover:bg-brand-50'}`}>
+                      <button type="button" data-testid="redaction-pen-toggle" aria-pressed={redactionDrawEnabled} onClick={() => setRedactionDrawingMode(!redactionDrawEnabledRef.current)} disabled={isPreparingRedacted} className={`shrink-0 min-h-[44px] px-3 py-2 rounded-xl border-2 font-bold text-sm flex items-center gap-2 disabled:opacity-50 ${redactionDrawEnabled ? 'green-action bg-brand-600 border-brand-700' : 'bg-white text-brand-900 border-brand-600 hover:bg-brand-50'}`}>
                         <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><g transform="rotate(-45 12 12)"><path d="M6 9H5l-3 3 3 3h1M18 9h1l3 3-3 3h-1"/><rect x="6" y="8" width="12" height="8" rx="1.5"/><path d="M9 8v8M15 8v8"/></g></svg>
                         <span>{redactionDrawEnabled ? bi('關閉遮蓋筆', 'Disable pen') : bi('啟用遮蓋筆', 'Enable pen')}</span>
                       </button>
@@ -3469,7 +3471,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                     </div>
 
                     <div className="flex flex-col gap-2">
-                      <button type="button" data-testid="redaction-recognize-now" onClick={startOcrWithRedactedImages} disabled={isPreparingRedacted} className="px-3 py-3 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-sm shadow-sm disabled:opacity-60">{isPreparingRedacted ? bi('正在準備圖片…', 'Preparing images…') : bi('直接識別', 'Recognize now')}</button>
+                      <button type="button" data-testid="redaction-recognize-now" onClick={startOcrWithRedactedImages} disabled={isPreparingRedacted} className="green-action px-3 py-3 rounded-xl bg-brand-600 hover:bg-brand-700 font-bold text-sm disabled:opacity-60">{isPreparingRedacted ? bi('正在準備圖片…', 'Preparing images…') : bi('直接識別', 'Recognize now')}</button>
                       <p className="text-base text-slate-700 leading-relaxed">{bi('遮蓋可選。已畫的黑框會遮走。', 'Redaction is optional. Boxes you drew stay covered.')}</p>
                       <div className="grid grid-cols-2 gap-2">
                         <button type="button" onClick={cancelReceiptRedaction} disabled={isPreparingRedacted} className="px-3 py-3 rounded-xl border border-slate-400 bg-white text-slate-700 font-bold text-sm disabled:opacity-50">{tr("取消此次掃描")}</button>
@@ -3967,8 +3969,8 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                 </div>
 
                 {lastImageData.length > 0 && (
-                  <Button data-testid="share-receipt-images" onClick={shareCurrentReceipts} variant="primary" className="!w-full !bg-emerald-700 hover:!bg-emerald-800 !border-emerald-900 focus:!ring-emerald-600" style={{ backgroundColor: '#047857', borderColor: '#065f46', color: '#ffffff' }}>
-                    <Icon path={icons.share} size={20}/>{bi('分享單據圖片（選項，非必要）', 'Share receipt images (optional)')}
+                  <Button data-testid="share-receipt-images" onClick={shareCurrentReceipts} variant="primary" className="!w-full green-action-dark !bg-emerald-700 hover:!bg-emerald-800 !border-emerald-900 !shadow-none focus:!ring-emerald-600" style={{ backgroundColor: '#047857', borderColor: '#065f46', boxShadow: 'none' }}>
+                    <Icon path={icons.share} size={20} className="!filter-none"/>{bi('分享單據圖片（選項，非必要）', 'Share receipt images (optional)')}
                   </Button>
                 )}
 
@@ -4014,7 +4016,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                       </div>
                     ) : (
                       <div data-testid="friend-share-create" className="mb-3 rounded-xl border border-emerald-300 bg-white p-4">
-                        <Button data-testid="create-friend-share-link" onClick={createFriendShareLink} disabled={friendShareStatus === 'uploading' || !window.BillShareConfig?.apiBaseUrl} variant="primary" className="!w-full !bg-emerald-700 hover:!bg-emerald-800 !border-emerald-900 disabled:!opacity-60" style={{ backgroundColor: '#047857', borderColor: '#065f46', color: '#ffffff' }}>
+                        <Button data-testid="create-friend-share-link" onClick={createFriendShareLink} disabled={friendShareStatus === 'uploading' || !window.BillShareConfig?.apiBaseUrl} variant="primary" className="!w-full green-action-dark !bg-emerald-700 hover:!bg-emerald-800 !border-emerald-900 disabled:!opacity-60" style={{ backgroundColor: '#047857', borderColor: '#065f46', boxShadow: 'none' }}>
                           <Icon path={friendShareStatus === 'uploading' ? icons.loader : icons.share} size={19}/>{friendShareStatus === 'uploading' ? bi('正在準備並上載帳單…', 'Preparing and uploading bill…') : bi(friendShareInfo ? '內容已更改，重新建立 7 日朋友連結' : '建立 7 日朋友連結（包括收據）', friendShareInfo ? 'Create a new 7-day friend link' : 'Create a 7-day friend link (with receipts)')}
                         </Button>
                         {friendShareStatus === 'uploading' && <p role="status" className="mt-2 text-center text-xs text-emerald-900">{bi('相片如有需要會先在此裝置壓縮；原本本機相片不會更改。', 'Photos are compressed on this device only if needed; local originals are unchanged.')}</p>}
@@ -4024,7 +4026,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                         <p className="mt-2 text-center text-xs text-emerald-900">{bi('按下後會把全單分帳及收據圖片暫存到短連結服務 7 日；任何持有連結者都可查看全部資料。', 'This uploads the full bill and receipt photos to temporary storage for 7 days; anyone holding the link can view all the data.')}</p>
                       </div>
                     )}
-                    <Button data-testid="open-detailed-table-preview" onClick={openDetailedTablePreview} variant="primary" className="!w-full !bg-emerald-700 hover:!bg-emerald-800 !border-emerald-900" style={{ backgroundColor: '#047857', borderColor: '#065f46', color: '#ffffff' }}>
+                    <Button data-testid="open-detailed-table-preview" onClick={openDetailedTablePreview} variant="primary" className="!w-full green-action-dark !bg-emerald-700 hover:!bg-emerald-800 !border-emerald-900" style={{ backgroundColor: '#047857', borderColor: '#065f46', boxShadow: 'none' }}>
                       <Icon path={icons.fileImage} size={19}/>{bi('揀個名睇埋單', 'Choose your name to see what you owe')}
                     </Button>
                     <p className="mt-2 text-center text-xs text-emerald-900">{bi('呢個按鈕只供你喺本機預覽；朋友請用上面的 7 日短連結。短連結包括收據圖片，持有人可查看全單資料，到期後伺服器副本自動刪除。', 'This button is a local preview only. Friends should use the 7-day short link above, which includes receipt photos; anyone holding it can view the full bill until the server copy expires.')}</p>
@@ -4271,8 +4273,8 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                 </div>
                 <video ref={cameraVideoRef} playsInline muted autoPlay className="w-full max-w-lg max-h-[68vh] rounded-2xl bg-black object-contain" />
                 <p className="text-white/80 text-sm mt-3">{tr("將單據放入畫面，按下面按鈕拍攝")}</p>
-                <button type="button" onClick={captureCameraPhoto} className="mt-4 w-20 h-20 rounded-full border-4 border-white bg-brand-500 shadow-lg active:scale-95" aria-label={tr("拍攝相片")}>
-                  <span className="block w-12 h-12 mx-auto rounded-full border-2 border-white/80" />
+                <button type="button" onClick={captureCameraPhoto} className="green-action mt-4 w-20 h-20 rounded-full border-4 border-white bg-brand-500 shadow-lg active:scale-95" aria-label={tr("拍攝相片")}>
+                  <span className="block w-12 h-12 mx-auto rounded-full border-2 border-black/80" />
                 </button>
               </div>
             )}
