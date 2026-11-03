@@ -1961,55 +1961,8 @@
         if (!Number.isFinite(date.getTime())) return '';
         return `${new Intl.DateTimeFormat('zh-HK', { timeZone: 'Asia/Hong_Kong', dateStyle: 'medium', timeStyle: 'short' }).format(date)}（香港時間）`;
       };
-
-      const getReducedFriendShareFraction = (quantity, allocationTotal) => {
-        const scale = 1000000;
-        const numerator = Math.round(Number(quantity) * scale);
-        const denominator = Math.round(Number(allocationTotal) * scale);
-        if (!Number.isSafeInteger(numerator) || !Number.isSafeInteger(denominator) || numerator <= 0 || denominator <= 0) return '';
-        let a = numerator;
-        let b = denominator;
-        while (b) { const remainder = a % b; a = b; b = remainder; }
-        return a > 0 ? `${numerator / a}/${denominator / a}` : '';
-      };
-      const formatFriendSourceShareAmount = (amount, currencyCode) => {
-        const value = Number(amount);
-        if (!Number.isFinite(value)) return bi('金額未提供', 'amount unavailable');
-        const code = String(currencyCode || '').toUpperCase();
-        let formatted;
-        try { formatted = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format(value); }
-        catch (_) { formatted = value.toFixed(2); }
-        return `${getCurrencySymbol(code)}${formatted}`;
-      };
-      const getFriendWhatsAppShareText = (shortUrl, shareData = getFriendShareData()) => {
-        const sourceCurrency = String(shareData?.bill?.sourceCurrency || results?.sourceCurrency || detectedCurrency || '').toUpperCase();
-        const settlementCurrency = String(shareData?.bill?.currency || results?.currency || currency || '').toUpperCase();
-        const itemLines = (Array.isArray(shareData?.items) ? shareData.items : []).map(item => {
-          const shares = (Array.isArray(item?.shares) ? item.shares : []).filter(share => String(share?.person || '').trim() && Number(share?.quantity) > 0);
-          if (!shares.length) return '';
-          const dinerCount = new Set(shares.map(share => String(share.person).trim())).size;
-          const shareParts = shares.map(share => {
-            const fraction = getReducedFriendShareFraction(share.quantity, share.allocationTotal) || bi('份額未提供', 'share unavailable');
-            return `${String(share.person).trim()} ${fraction}（${formatFriendSourceShareAmount(share.amount, sourceCurrency)}）`;
-          });
-          return `• ${item?.name || bi('未命名項目', 'Unnamed item')}：${bi(`共 ${dinerCount} 人分食`, `shared by ${dinerCount} people`)}｜${shareParts.join('；')}`;
-        }).filter(Boolean);
-        const participants = Array.isArray(shareData?.participants) ? shareData.participants : [];
-        const participantTotals = participants.map(person => `${person.name} ${formatMoney(person.total, settlementCurrency)}`);
-        const billTotal = Number(shareData?.bill?.billTotal);
-        const sections = [
-          bi('朋友埋單表（7日有效），揀你個名睇詳情：', 'Friend bill (valid for 7 days). Choose your name to see details:'),
-          [
-            `${bi('項目分攤', 'Item shares')}（${sourceCurrency}）`,
-            ...(itemLines.length ? itemLines : [bi('沒有項目分攤資料。', 'No item shares.')])
-          ].join('\n'),
-          `${bi('各人應付', 'Amounts due')}（${settlementCurrency}）：${participantTotals.join('；')}`,
-          Number.isFinite(billTotal) ? `${bi('全單結算總額', 'Final bill total')}：${formatMoney(billTotal, settlementCurrency)}` : '',
-          String(shortUrl || '')
-        ];
-        return sections.filter(Boolean).join('\n\n');
-      };
-      const getFriendWhatsAppShareUrl = (shortUrl, shareData) => `https://wa.me/?text=${encodeURIComponent(getFriendWhatsAppShareText(shortUrl, shareData))}`;
+      const getFriendWhatsAppShareText = shortUrl => `${bi('朋友埋單表（7日有效）', 'Friend bill (valid for 7 days)')}\n${shortUrl}`;
+      const getFriendWhatsAppShareUrl = shortUrl => `https://wa.me/?text=${encodeURIComponent(getFriendWhatsAppShareText(shortUrl))}`;
       const openFriendWhatsAppShare = shortUrl => {
         let popup = null;
         try { popup = window.open(getFriendWhatsAppShareUrl(shortUrl), '_blank'); } catch (_) {}
@@ -2046,7 +1999,7 @@
           let whatsappOpened = false;
           if (whatsappWindow && !whatsappWindow.closed) {
             try {
-              whatsappWindow.location.replace(getFriendWhatsAppShareUrl(created.shortUrl, shareData));
+              whatsappWindow.location.replace(getFriendWhatsAppShareUrl(created.shortUrl));
               try { whatsappWindow.opener = null; } catch (_) {}
               whatsappOpened = true;
             } catch (_) {}
@@ -2055,7 +2008,7 @@
             try { whatsappWindow.close(); } catch (_) {}
           }
           setFriendShareWhatsAppStatus(whatsappOpened ? 'opened' : 'blocked');
-          toast('✅ 已建立朋友短連結；帳單和收據相片會在 7 日後自動刪除。', 'success');
+          toast('✅ 已建立 7 日連結。', 'success');
         } catch (error) {
           if (whatsappWindow && !whatsappWindow.closed) { try { whatsappWindow.close(); } catch (_) {} }
           setFriendShareWhatsAppStatus('idle');
@@ -4125,15 +4078,13 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
 
                 <Card data-testid="friend-network-option" className="!p-0 overflow-hidden border-t-4 border-t-emerald-600">
                   <div className="p-4 bg-emerald-50 border-b border-emerald-200">
-                    <h3 className="font-bold text-slate-800 text-base">{bi('朋友網絡版（7 日有效）', '7-day friend link')}</h3>
-                    <p className="mt-1 text-xs text-slate-600">{bi('可與簡短版分開分享，讓朋友自行選擇。', 'A separate optional link to send alongside the short report.')}</p>
+                    <h3 className="font-bold text-slate-800 text-base">{bi('朋友埋單連結（7日有效）', 'Friend bill link (7 days)')}</h3>
                   </div>
                   <div className="space-y-3 p-4">
                     {getDetailedTableShareUrl() ? (
                       <div data-testid="friend-share-ready" className="rounded-xl border border-emerald-300 bg-white p-4">
-                        <a data-testid="friend-share-open" href={getDetailedTableShareUrl()} target="_blank" rel="noopener noreferrer" className="block text-center font-bold text-emerald-800 underline break-all">{bi('開啟朋友埋單表格', 'Open friend bill table')}<br/><span className="font-mono text-xs font-medium">{getDetailedTableShareUrl()}</span></a>
-                        <p data-testid="friend-share-expiry" className="mt-2 text-center text-xs text-emerald-900">{bi('連結有效至：', 'Link expires: ')}{formatFriendShareExpiry(getDetailedTableShareExpiry())}。{bi('到期後伺服器副本會自動刪除。', 'The temporary server copy is deleted automatically at expiry.')}</p>
-                        <p data-testid="friend-share-whatsapp-status" role="status" className="mt-3 text-center text-xs text-emerald-900">{friendShareWhatsAppStatus === 'opened' ? bi('WhatsApp 已開啟並預填訊息；揀好收件人後按傳送。', 'WhatsApp is open with a prefilled message; choose a recipient and press Send.') : friendShareWhatsAppStatus === 'blocked' ? bi('未能自動開啟 WhatsApp；連結仍可用以下掣分享或複製。', 'WhatsApp could not be opened automatically; use the buttons below to share or copy the link.') : bi('你亦可直接分享或複製這條連結。', 'You can also share or copy this link.')}</p>
+                        <a data-testid="friend-share-open" href={getDetailedTableShareUrl()} target="_blank" rel="noopener noreferrer" className="block text-center font-bold text-emerald-800 underline break-all">{bi('開啟連結', 'Open link')}<br/><span className="font-mono text-xs font-medium">{getDetailedTableShareUrl()}</span></a>
+                        {friendShareWhatsAppStatus !== 'idle' && <p data-testid="friend-share-whatsapp-status" role="status" className="mt-2 text-center text-xs text-emerald-900">{friendShareWhatsAppStatus === 'opened' ? bi('WhatsApp 已開啟。', 'WhatsApp opened.') : bi('WhatsApp 未開啟；可按下方分享。', 'WhatsApp did not open; use the button below.')}</p>}
                         <div className="mt-3 grid gap-2 sm:grid-cols-2">
                           <Button data-testid="friend-whatsapp-share" onClick={() => openFriendWhatsAppShare(getDetailedTableShareUrl())} variant="primary" className="!w-full green-action-dark !bg-emerald-700 hover:!bg-emerald-800 !border-emerald-900" style={{ backgroundColor: '#047857', borderColor: '#065f46', boxShadow: 'none' }}><Icon path={icons.share} size={16}/>{bi('WhatsApp 分享', 'Share on WhatsApp')}</Button>
                           <Button data-testid="copy-friend-share-link" onClick={() => copyToClipboard(getDetailedTableShareUrl(), bi('朋友連結', 'Friend link'))} variant="secondary" className="!w-full !py-2 text-sm bg-white border-slate-500"><Icon path={icons.copy} size={16}/>{bi('複製連結', 'Copy link')}</Button>
@@ -4155,7 +4106,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                         <Icon path={icons.fileImage} size={16}/>Sample
                       </Button>
                     </div>
-                    <p data-testid="friend-share-privacy-note" className="text-center text-emerald-900" style={{ fontSize: '0.7rem', lineHeight: 1.45 }}>{bi('建立後，全單分帳及收據圖片會暫存 7 日；任何持有連結者都可查看全部資料。', 'When created, the full bill and receipt photos are stored for 7 days; anyone with the link can view all data.')}</p>
+                    <p data-testid="friend-share-privacy-note" className="text-center text-emerald-900" style={{ fontSize: '0.7rem', lineHeight: 1.45 }}>{bi('持有連結者可查看完整帳單及收據。', 'Anyone with the link can view the full bill and receipts.')}</p>
                   </div>
                 </Card>
 

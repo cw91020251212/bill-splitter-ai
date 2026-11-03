@@ -125,17 +125,36 @@ function draft() {
     assert.equal(testState.payload.items.length, 2);
 
     const message = new URL(testState.navigation).searchParams.get('text');
-    const expected = [
-      '朋友埋單表（7日有效），揀你個名睇詳情：',
-      '項目分攤（JPY）\n• 壽司飯糰：共 3 人分食｜阿明 1/3（¥43.33）；小美 1/3（¥43.33）；阿強 1/3（¥43.33）\n• 共享刺身盤：共 3 人分食｜阿明 1/3（¥46.67）；小美 1/6（¥23.33）；阿強 1/2（¥70）',
-      '各人應付（HKD）：阿明 $4.05；小美 $3.00；阿強 $5.10',
-      '全單結算總額：$12.15',
-      'https://share.example.test/f/mock-7-day'
-    ].join('\n\n');
+    const expected = '朋友埋單表（7日有效）\nhttps://share.example.test/f/mock-7-day';
     assert.equal(message, expected, `unexpected prefilled WhatsApp text:\n${message}`);
     assert.equal(await page.getByTestId('friend-share-open').getAttribute('href'), 'https://share.example.test/f/mock-7-day');
+    assert.equal(await page.getByTestId('friend-network-option').locator('h3').innerText(), '朋友埋單連結（7日有效）');
+    assert.equal(await page.getByTestId('friend-share-privacy-note').innerText(), '持有連結者可查看完整帳單及收據。');
+    assert.equal(await page.getByTestId('friend-share-whatsapp-status').innerText(), 'WhatsApp 已開啟。');
+    assert.equal(await page.getByTestId('friend-share-open').innerText(), '開啟連結\nhttps://share.example.test/f/mock-7-day');
+    assert.equal(await page.locator('[data-testid="friend-share-expiry"]').count(), 0, 'no exact expiry/deletion paragraph');
+    assert.equal(await page.getByTestId('friend-network-option').getByText('可與簡短版分開分享，讓朋友自行選擇。').count(), 0, 'no redundant helper paragraph');
+    const readyText = await page.getByTestId('friend-share-ready').innerText();
+    assert.ok(!readyText.includes('到期後伺服器副本') && !readyText.includes('預填訊息；揀好收件人'), 'long status and expiry copy are absent');
+    assert.match(await page.getByTestId('friend-whatsapp-share').innerText(), /WhatsApp 分享/);
+    assert.match(await page.getByTestId('copy-friend-share-link').innerText(), /複製連結/);
+
+    await page.getByTestId('friend-whatsapp-share').click();
+    const shareButtonUrl = await page.evaluate(() => window.__friendWhatsAppOpenCalls[1]);
+    assert.equal(new URL(shareButtonUrl).searchParams.get('text'), expected, 'WhatsApp share button uses the same short text');
+
+    await page.evaluate(() => {
+      window.__copiedFriendShareText = '';
+      document.execCommand = command => {
+        if (command !== 'copy') return false;
+        window.__copiedFriendShareText = document.activeElement?.value || '';
+        return true;
+      };
+    });
+    await page.getByTestId('copy-friend-share-link').click();
+    assert.equal(await page.evaluate(() => window.__copiedFriendShareText), 'https://share.example.test/f/mock-7-day', 'copy button copies the short link');
     assert.equal(failures.length, 0, `page errors: ${failures.join('; ')}`);
-    console.log('PASS 390px WhatsApp prefill: exact source-currency item details, people counts, reduced fractions, per-person and final HKD totals, and link; mocked navigation only, no auto-send or live KV record.');
+    console.log('PASS 390px: short WhatsApp label + link, concise friend card/privacy note, working mock WhatsApp/copy buttons, no overflow; API/WhatsApp are mocked and nothing is sent or stored in production.');
     console.log('\n--- Exact prefilled message ---\n' + message);
   } finally {
     if (context) await context.close();
