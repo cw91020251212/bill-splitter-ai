@@ -1970,7 +1970,7 @@
       const shareDetailedCurrentReport = () => {
         if (tutorialDemo) { onTutorialAction?.('report-preview'); return; }
         if (!getDetailedTableShareUrl()) {
-          toast('請先按下「建立 7 日朋友連結」，報告才會包含可分享網址。', 'error');
+          toast('請先在「朋友網絡版」建立 7 日連結，詳細報告才會包含可分享網址。', 'error');
           document.querySelector('[data-testid="create-friend-share-link"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
           return;
         }
@@ -1981,7 +1981,7 @@
       const copyDetailedCurrentReport = () => {
         if (tutorialDemo) { onTutorialAction?.('report-preview'); return; }
         if (!getDetailedTableShareUrl()) {
-          toast('請先按下「建立 7 日朋友連結」，報告才會包含可分享網址。', 'error');
+          toast('請先在「朋友網絡版」建立 7 日連結，詳細報告才會包含可分享網址。', 'error');
           document.querySelector('[data-testid="create-friend-share-link"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
           return;
         }
@@ -3989,7 +3989,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                   </Card>
                 </div>
 
-                <div data-testid="report-choice-divider" className="my-4 flex items-center gap-3 px-4 text-slate-500" role="separator" aria-label={bi('報告二選一', 'Choose one report')}>
+                <div data-testid="report-choice-divider" className="my-4 flex items-center gap-3 px-4 text-slate-500" role="separator" aria-label={bi('分享版本分隔', 'Share option divider')}>
                   <span aria-hidden="true" className="h-px flex-1 bg-slate-400" />
                   <span className="rounded-full border border-slate-300 bg-slate-50 px-3 py-1 text-sm font-bold uppercase tracking-wider">OR</span>
                   <span aria-hidden="true" className="h-px flex-1 bg-slate-400" />
@@ -4008,28 +4008,42 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                     <p className="text-xs text-slate-600 mb-2">{bi('詳細版固定顯示中文菜名及單據原文，方便核對。', 'The detailed report always shows Chinese item names and the original receipt text.')}</p>
                   </div>
                   <div data-testid="final-detail-preview" className="p-4 bg-white font-sans text-sm text-slate-600 whitespace-pre-wrap break-words leading-relaxed selection:bg-slate-200">{renderDetailedResultPreview()}</div>
-                  <div className="border-t border-emerald-200 bg-emerald-50 p-4">
+                </Card>
+
+                <div data-testid="friend-network-choice-divider" className="my-4 flex items-center gap-3 px-4 text-slate-500" role="separator" aria-label={bi('分享版本分隔', 'Share option divider')}>
+                  <span aria-hidden="true" className="h-px flex-1 bg-slate-400" />
+                  <span className="rounded-full border border-slate-300 bg-slate-50 px-3 py-1 text-sm font-bold uppercase tracking-wider">OR</span>
+                  <span aria-hidden="true" className="h-px flex-1 bg-slate-400" />
+                </div>
+
+                <Card data-testid="friend-network-option" className="!p-0 overflow-hidden border-t-4 border-t-emerald-600">
+                  <div className="p-4 bg-emerald-50 border-b border-emerald-200">
+                    <h3 className="font-bold text-slate-800 text-base">{bi('朋友網絡版（7 日有效）', '7-day friend link')}</h3>
+                    <p className="mt-1 text-xs text-slate-600">{bi('可與簡短版分開分享，讓朋友自行選擇。', 'A separate optional link to send alongside the short report.')}</p>
+                  </div>
+                  <div className="space-y-3 p-4">
                     {getDetailedTableShareUrl() ? (
-                      <div data-testid="friend-share-ready" className="mb-3 rounded-xl border border-emerald-300 bg-white p-4">
+                      <div data-testid="friend-share-ready" className="rounded-xl border border-emerald-300 bg-white p-4">
                         <a data-testid="friend-share-open" href={getDetailedTableShareUrl()} target="_blank" rel="noopener noreferrer" className="block text-center font-bold text-emerald-800 underline break-all">{bi('開啟朋友埋單表格', 'Open friend bill table')}<br/><span className="font-mono text-xs font-medium">{getDetailedTableShareUrl()}</span></a>
                         <p data-testid="friend-share-expiry" className="mt-2 text-center text-xs text-emerald-900">{bi('連結有效至：', 'Link expires: ')}{formatFriendShareExpiry(getDetailedTableShareExpiry())}。{bi('到期後伺服器副本會自動刪除。', 'The temporary server copy is deleted automatically at expiry.')}</p>
                       </div>
                     ) : (
-                      <div data-testid="friend-share-create" className="mb-3 rounded-xl border border-emerald-300 bg-white p-4">
+                      <div data-testid="friend-share-create" className="rounded-xl border border-emerald-300 bg-white p-4">
                         <Button data-testid="create-friend-share-link" onClick={createFriendShareLink} disabled={friendShareStatus === 'uploading' || !window.BillShareConfig?.apiBaseUrl} variant="primary" className="!w-full green-action-dark !bg-emerald-700 hover:!bg-emerald-800 !border-emerald-900 disabled:!opacity-60" style={{ backgroundColor: '#047857', borderColor: '#065f46', boxShadow: 'none' }}>
-                          <Icon path={friendShareStatus === 'uploading' ? icons.loader : icons.share} size={19}/>{friendShareStatus === 'uploading' ? bi('正在準備並上載帳單…', 'Preparing and uploading bill…') : bi(friendShareInfo ? '內容已更改，重新建立 7 日朋友連結' : '建立 7 日朋友連結（包括收據）', friendShareInfo ? 'Create a new 7-day friend link' : 'Create a 7-day friend link (with receipts)')}
+                          <Icon path={friendShareStatus === 'uploading' ? icons.loader : icons.share} size={19}/>{friendShareStatus === 'uploading' ? bi('正在建立連結…', 'Creating link…') : bi('建立 7 日連結', 'Create 7-day link')}
                         </Button>
                         {friendShareStatus === 'uploading' && <p role="status" className="mt-2 text-center text-xs text-emerald-900">{bi('相片如有需要會先在此裝置壓縮；原本本機相片不會更改。', 'Photos are compressed on this device only if needed; local originals are unchanged.')}</p>}
                         {friendShareError && <p role="alert" className="mt-2 text-center text-xs font-semibold text-red-700">{friendShareError}</p>}
                         {!window.BillShareConfig?.apiBaseUrl && <p className="mt-2 text-center text-xs font-semibold text-amber-800">{bi('短連結後端尚未設定；目前是本機候選，不能建立正式朋友連結。', 'The short-link backend is not configured; this local candidate cannot create a live friend link yet.')}</p>}
                         {friendShareInfo && !getDetailedTableShareUrl() && <p className="mt-2 text-center text-xs text-amber-800">{bi('之前建立的連結仍可查看舊版本，直至到期；請重新建立新版本。', 'The previous link still shows the older bill until it expires; create a new link for this version.')}</p>}
-                        <p className="mt-2 text-center text-xs text-emerald-900">{bi('按下後會把全單分帳及收據圖片暫存到短連結服務 7 日；任何持有連結者都可查看全部資料。', 'This uploads the full bill and receipt photos to temporary storage for 7 days; anyone holding the link can view all the data.')}</p>
                       </div>
                     )}
-                    <Button data-testid="open-detailed-table-preview" onClick={openDetailedTablePreview} variant="primary" className="!w-full green-action-dark !bg-emerald-700 hover:!bg-emerald-800 !border-emerald-900" style={{ backgroundColor: '#047857', borderColor: '#065f46', boxShadow: 'none' }}>
-                      <Icon path={icons.fileImage} size={19}/>{bi('揀個名睇埋單', 'Choose your name to see what you owe')}
-                    </Button>
-                    <p className="mt-2 text-center text-xs text-emerald-900">{bi('呢個按鈕只供你喺本機預覽；朋友請用上面的 7 日短連結。短連結包括收據圖片，持有人可查看全單資料，到期後伺服器副本自動刪除。', 'This button is a local preview only. Friends should use the 7-day short link above, which includes receipt photos; anyone holding it can view the full bill until the server copy expires.')}</p>
+                    <div data-testid="detailed-preview-example" className="flex justify-center pt-1">
+                      <Button data-testid="open-detailed-table-preview" onClick={openDetailedTablePreview} variant="secondary" aria-label={bi('Sample 預覽（可選）', 'Optional sample preview')} className="!w-1/2 max-w-[9rem] !px-3 !py-2 text-xs !text-slate-600 !border-slate-300" style={{ boxShadow: 'none' }}>
+                        <Icon path={icons.fileImage} size={16}/>Sample
+                      </Button>
+                    </div>
+                    <p data-testid="friend-share-privacy-note" className="text-center text-emerald-900" style={{ fontSize: '0.7rem', lineHeight: 1.45 }}>{bi('建立後，全單分帳及收據圖片會暫存 7 日；任何持有連結者都可查看全部資料。', 'When created, the full bill and receipt photos are stored for 7 days; anyone with the link can view all data.')}</p>
                   </div>
                 </Card>
 
