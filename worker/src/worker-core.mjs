@@ -117,7 +117,9 @@ function normalizeShareData(input) {
         person: cleanText(share?.person, 120),
         quantity: cleanNumber(share?.quantity),
         unit: cleanText(share?.unit, 80),
-        amount: cleanNumber(share?.amount)
+        amount: cleanNumber(share?.amount),
+        allocationTotal: cleanNumber(share?.allocationTotal),
+        isActualUnit: share?.isActualUnit === true
       })) : []
     })),
     adjustments: Array.isArray(input.adjustments) ? input.adjustments.slice(0, 5000).map(entry => ({

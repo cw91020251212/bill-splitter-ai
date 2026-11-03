@@ -226,6 +226,52 @@ async function calculate(page) {
     }
 
     {
+      const context = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' });
+      const page = await context.newPage();
+      page.on('pageerror', error => failures.push(`portion label page error: ${error.message}`));
+      await page.route('https://api.frankfurter.dev/v2/rate/jpy/hkd', route => route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        headers: { 'access-control-allow-origin': '*' },
+        body: JSON.stringify({ base: 'JPY', quote: 'HKD', rate: 0.045, date: '2026-11-03' })
+      }));
+      await seed(page, draft({
+        sourceCurrency: 'JPY', currency: 'HKD',
+        items: [
+          { id: '01', name: '實際件數 130 円', price: 130, total: 130, totalQty: 3, unit: '件' },
+          { id: '02', name: '比例分攤 140 円（2/5）', price: 140, total: 140, totalQty: null, unit: '件' },
+          { id: '03', name: '比例分攤 140 円（2/6）', price: 140, total: 140, totalQty: null, unit: '件' }
+        ],
+        replies: '姓名：阿明\n01 = 1件\n02 = 2件\n03 = 2件\n姓名：小美\n01 = 2件\n02 = 3件\n03 = 4件'
+      }));
+      await page.waitForFunction(() => document.querySelector('[data-testid="exchange-rate-status"]')?.textContent.includes('Frankfurter'), null, { timeout: 20000 });
+      const summary = await calculate(page);
+      assert.match(summary, /原幣分帳總額：¥410 JPY → 結算總額：\$18\.45 HKD/);
+      await page.evaluate(() => { window.open = () => ({ opener: null }); });
+      await page.getByTestId('open-detailed-table-preview').click();
+      const preview = await page.evaluate(() => JSON.parse(localStorage.getItem('billSplitterDetailTablePreviewV1') || 'null'));
+      const selectedShares = preview.items.map(item => item.shares.find(share => share.person === '阿明'));
+      assert.deepEqual(selectedShares.map(share => [share.quantity, share.allocationTotal, share.isActualUnit]), [[1, 3, true], [2, 5, false], [2, 6, false]]);
+      assert.deepEqual(selectedShares.map(share => Number(share.amount.toFixed(6))), [43.333333, 56, 46.666667]);
+
+      const friendPage = await context.newPage();
+      friendPage.on('pageerror', error => failures.push(`portion label friend page error: ${error.message}`));
+      await friendPage.goto(new URL('detailed-view.html', base).href, { waitUntil: 'domcontentloaded' });
+      await friendPage.getByTestId('member-select').selectOption({ label: '阿明' });
+      const rows = await friendPage.locator('[data-testid="personal-item-row"]').allInnerTexts();
+      assert.match(rows[0], /你認領：1 件／全單共 3 件（1\/3）/);
+      assert.match(rows[0], /¥43\.333333/);
+      assert.match(rows[1], /你分攤：2／共 5 份（2\/5）/);
+      assert.match(rows[1], /¥56/);
+      assert.match(rows[2], /你分攤：2／共 6 份（2\/6）/);
+      assert.match(rows[2], /¥46\.666667/);
+      assert.equal(await friendPage.locator('#total-label').innerText(), '你要埋單幾多（HKD）');
+      assert.match(await friendPage.getByTestId('preview-grand-total').innerText(), /HK\$6\.57/);
+      console.log('PASS 390px friend portions: actual 1/3 and weighted shares 2/5, 2/6 show their true denominators; JPY rows and HKD payable remain correct.');
+      await context.close();
+    }
+
+    {
       const context = await browser.newContext({ serviceWorkers: 'block' });
       const page = await context.newPage();
       await page.route('https://api.frankfurter.dev/v2/rate/**', route => route.fulfill({ status: 503, contentType: 'application/json', body: '{"error":"test unavailable"}' }));

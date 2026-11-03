@@ -349,8 +349,18 @@
           if (item.ja) extras.push(`<div><strong>日文：</strong>${escapeHtml(item.ja)}</div>`);
           extras.push(`<div><strong>全單項目金額：</strong>${escapeHtml(formatMoney(item.sourceAmount, sourceCurrency, isSourceBreakdown))}</div>`);
           const quantity = number(share.quantity);
-          const unit = share.unit || item.unit || '';
-          const quantityText = quantity ? `你認領：${formatQuantity(quantity)}${unit ? ` ${unit}` : ''}` : '';
+          const unit = share.unit || item.unit || '件';
+          const allocatedQuantity = Array.isArray(item.shares) ? item.shares.reduce((sum, entry) => sum + number(entry.quantity), 0) : 0;
+          const allocationTotal = number(share.allocationTotal) || number(item.quantity) || allocatedQuantity;
+          const isActualUnit = share.isActualUnit === true;
+          const ratioText = allocationTotal > 0 ? `（${formatQuantity(quantity)}/${formatQuantity(allocationTotal)}）` : '';
+          const quantityText = !quantity ? '' : isActualUnit
+            ? allocationTotal > 0
+              ? `你認領：${formatQuantity(quantity)} ${unit}／全單共 ${formatQuantity(allocationTotal)} ${unit}${ratioText}`
+              : `你認領：${formatQuantity(quantity)} ${unit}`
+            : allocationTotal > 0
+              ? `你分攤：${formatQuantity(quantity)}／共 ${formatQuantity(allocationTotal)} 份${ratioText}`
+              : `你分攤：${formatQuantity(quantity)} 份`;
           return [`<tr class="item-row" data-testid="personal-item-row"><td><div class="item-name">${escapeHtml(item.name || '未命名項目')}</div>${quantityText ? `<div class="item-subline">${escapeHtml(quantityText)}</div>` : ''}<details class="item-details"><summary>睇單據原文</summary><div class="item-extra">${extras.join('')}</div></details></td><td class="amount">${escapeHtml(formatBreakdownMoney(share.amount))}</td></tr>`];
         });
         adjustments.filter(entry => entry.person === selected.name).forEach(entry => {

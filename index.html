@@ -1868,7 +1868,9 @@
               person,
               quantity: Number(entry.qty) || 0,
               unit: entry.unit || entry.unitName || '',
-              amount: Number(entry.amount) || 0
+              amount: Number(entry.amount) || 0,
+              allocationTotal: Number(entry.allocationTotal) || 0,
+              isActualUnit: Boolean(entry.isActualUnit)
             });
           });
           (summary.adjustments || []).forEach(entry => adjustments.push({
@@ -2969,10 +2971,11 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
             if (claimedQty <= 0) return;
             const enteredUnit = claimUnits[person]?.[item.id] || '';
             const isActualUnit = canUseActualUnits && Boolean(enteredUnit);
+            const allocationTotal = isActualUnit ? totalQty : (actualTotal > 0 ? shareTotal : totalClaimed);
             const cost = isActualUnit
               ? claimedQty * unitValue
               : (actualTotal > 0 ? (shareTotal > 0 ? claimedQty / shareTotal * remainingCost : 0) : claimedQty / totalClaimed * toNum(item.total));
-            personTotals[person].items.push({ name: item.name, nameEn: item.nameEn || '', original: item.original || '', ja: item.ja || '', id: item.id, amount: cost, qty: claimedQty, totalClaimed, unit: enteredUnit, unitName: item.unit || '', isActualUnit });
+            personTotals[person].items.push({ name: item.name, nameEn: item.nameEn || '', original: item.original || '', ja: item.ja || '', id: item.id, amount: cost, qty: claimedQty, totalClaimed, unit: enteredUnit, unitName: item.unit || '', allocationTotal, isActualUnit });
             personTotals[person].subtotal += cost; totalItemsCost += cost;
           });
         });
