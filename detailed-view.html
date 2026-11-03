@@ -347,17 +347,21 @@
           const extras = [];
           if (item.original) extras.push(`<div><strong>單據原文：</strong>${escapeHtml(item.original)}</div>`);
           if (item.ja) extras.push(`<div><strong>日文：</strong>${escapeHtml(item.ja)}</div>`);
-          extras.push(`<div><strong>全單項目金額：</strong>${escapeHtml(formatMoney(item.sourceAmount, sourceCurrency, isSourceBreakdown))}</div>`);
+          extras.push(`<div><strong>全單項目金額：</strong>${escapeHtml(formatMoney(item.sourceAmount, sourceCurrency, isSourceBreakdown))}`);
           const quantity = number(share.quantity);
-          const unit = share.unit || item.unit || '件';
+          const unit = share.unit || item.unit || '';
+          const unitLabel = unit || '件';
           const allocatedQuantity = Array.isArray(item.shares) ? item.shares.reduce((sum, entry) => sum + number(entry.quantity), 0) : 0;
           const allocationTotal = number(share.allocationTotal) || number(item.quantity) || allocatedQuantity;
           const isActualUnit = share.isActualUnit === true;
+          const hasAllocationMetadata = number(share.allocationTotal) > 0 && typeof share.isActualUnit === 'boolean';
           const ratioText = allocationTotal > 0 ? `（${formatQuantity(quantity)}/${formatQuantity(allocationTotal)}）` : '';
-          const quantityText = !quantity ? '' : isActualUnit
+          const quantityText = !quantity ? '' : !hasAllocationMetadata
+            ? `你認領：${formatQuantity(quantity)}${unit ? ` ${unit}` : ''}`
+            : isActualUnit
             ? allocationTotal > 0
-              ? `你認領：${formatQuantity(quantity)} ${unit}／全單共 ${formatQuantity(allocationTotal)} ${unit}${ratioText}`
-              : `你認領：${formatQuantity(quantity)} ${unit}`
+              ? `你認領：${formatQuantity(quantity)} ${unitLabel}／全單共 ${formatQuantity(allocationTotal)} ${unitLabel}${ratioText}`
+              : `你認領：${formatQuantity(quantity)} ${unitLabel}`
             : allocationTotal > 0
               ? `你分攤：${formatQuantity(quantity)}／共 ${formatQuantity(allocationTotal)} 份${ratioText}`
               : `你分攤：${formatQuantity(quantity)} 份`;

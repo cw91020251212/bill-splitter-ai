@@ -212,7 +212,7 @@ async function calculate(page) {
         version: 1,
         bill: { date: '2026-11-03', payer: '阿明', currency: 'HKD', sourceCurrency: 'JPY', sourceTotal: 1000, billTotal: 1.25, paymentMethods: [] },
         participants: [{ name: '舊連結友人', total: 1.25, subtotal: 1.25, tax: 0, discount: 0 }],
-        items: [{ id: '01', name: '舊版項目', sourceAmount: 1000, shares: [{ person: '舊連結友人', amount: 1.25, quantity: 1 }] }],
+        items: [{ id: '01', name: '舊版項目', unit: '件', sourceAmount: 1000, shares: [{ person: '舊連結友人', amount: 1.25, quantity: 1, unit: '件' }] }],
         adjustments: [], images: []
       })));
       await legacyPage.goto(new URL('detailed-view.html', base).href, { waitUntil: 'domcontentloaded' });
@@ -220,7 +220,10 @@ async function calculate(page) {
       assert.equal(await legacyPage.locator('#total-label').innerText(), '你要埋單幾多');
       assert.equal(await legacyPage.locator('#amount-heading').innerText(), '分攤金額');
       assert.equal(await legacyPage.getByTestId('preview-grand-total').innerText(), 'HK$1.25');
-      assert.match(await legacyPage.locator('[data-testid="personal-item-row"]').first().innerText(), /HK\$1\.25/);
+      const legacyRow = await legacyPage.locator('[data-testid="personal-item-row"]').first().innerText();
+      assert.match(legacyRow, /你認領：1 件/);
+      assert.doesNotMatch(legacyRow, /你分攤：/);
+      assert.match(legacyRow, /HK\$1\.25/);
       console.log('PASS legacy v1 friend preview: retains settlement-currency item shares and totals.');
       await context.close();
     }
