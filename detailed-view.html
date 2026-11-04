@@ -536,7 +536,7 @@
       copyPayableButton.addEventListener('click', async () => {
         const selected = getSelectedForNotice();
         if (!selected) return;
-        const amountText = `${formatMoney(selected.total, currency)} ${currency}`;
+        const amountText = formatMoney(selected.total, currency).replace(/,/g, '').replace(/[^\d.-]/g, '');
         const copied = await copyText(amountText);
         $('#copy-payable-status').textContent = copied ? `已複製應付金額：${amountText}` : '複製失敗，請手動抄寫金額。';
         copyPayableButton.textContent = copied ? '已複製' : '重試複製';

@@ -82,8 +82,21 @@ function claimUrl() {
     assert.equal(await detailPage.getByTestId('preview-grand-total').innerText(), 'HK$57.34');
     if (process.env.SCREENSHOT_PATH) await detailPage.screenshot({ path: process.env.SCREENSHOT_PATH, fullPage: true });
     await detailPage.getByTestId('copy-payable').click();
-    assert.deepEqual(await detailPage.evaluate(() => window.__copyResults), ['HK$57.34 HKD'], 'copy button includes payable amount and ISO currency');
+    assert.deepEqual(await detailPage.evaluate(() => window.__copyResults), ['57.34'], 'clipboard receives only the numeric amount');
     assert.equal(await detailPage.getByTestId('copy-payable').innerText(), '已複製');
+
+    await detailPage.evaluate(() => {
+      const data = JSON.parse(localStorage.getItem('billSplitterDetailTablePreviewV1'));
+      data.participants[0].total = 1234.5;
+      localStorage.setItem('billSplitterDetailTablePreviewV1', JSON.stringify(data));
+    });
+    await detailPage.goto(`${base}detailed-view.html?copy-amount-format-test=1`, { waitUntil: 'domcontentloaded' });
+    await detailPage.getByTestId('member-select').selectOption({ label: 'wai' });
+    assert.equal(await detailPage.getByTestId('preview-grand-total').innerText(), 'HK$1,234.50');
+    await detailPage.getByTestId('copy-payable').click();
+    const copiedLargeAmount = await detailPage.evaluate(() => window.__copyResults);
+    assert.deepEqual(copiedLargeAmount, ['1234.50'], 'grouping comma and currency are omitted while decimals remain');
+    assert.match(copiedLargeAmount[0], /^\d+(?:\.\d+)?$/, 'clipboard contains only digits and an optional decimal point');
 
     const paymentCardStyle = await detailPage.getByTestId('payment-instructions').evaluate(element => {
       const style = getComputedStyle(element);
@@ -131,7 +144,7 @@ function claimUrl() {
     assert.equal(await itemDetails.evaluateAll(elements => elements.every(element => !element.open)), true, 'second tap collapses all item details');
     assert.equal(await expandButton.innerText(), '展開全部明細');
     assert.equal(await detailPage.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, 'detail page fits the 390px viewport');
-    console.log('PASS 390px friend detail: dark gray-green 1px card outlines and dividers, copy amount, pale-yellow payment card, expand/collapse all details, no horizontal overflow.');
+    console.log('PASS 390px friend detail: copy clipboard is numeric-only (1234.50), dark 1px outlines/dividers, payment card and detail toggle unchanged, no overflow.');
     await detailContext.close();
 
     const claimContext = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' });
