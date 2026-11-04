@@ -80,6 +80,7 @@ function claimUrl() {
     await detailPage.getByTestId('member-select').selectOption({ label: 'wai' });
 
     assert.equal(await detailPage.getByTestId('preview-grand-total').innerText(), 'HK$57.34');
+    if (process.env.SCREENSHOT_PATH) await detailPage.screenshot({ path: process.env.SCREENSHOT_PATH, fullPage: true });
     await detailPage.getByTestId('copy-payable').click();
     assert.deepEqual(await detailPage.evaluate(() => window.__copyResults), ['HK$57.34 HKD'], 'copy button includes payable amount and ISO currency');
     assert.equal(await detailPage.getByTestId('copy-payable').innerText(), '已複製');
@@ -90,9 +91,33 @@ function claimUrl() {
         recipientSize: getComputedStyle(document.getElementById('payment-recipient')).fontSize };
     });
     assert.deepEqual(paymentCardStyle, {
-      background: 'rgb(255, 249, 232)', borderColor: 'rgb(128, 109, 70)', borderWidth: '1px', recipientSize: '24px'
+      background: 'rgb(255, 249, 232)', borderColor: 'rgb(104, 118, 108)', borderWidth: '1px', recipientSize: '24px'
     });
     assert.equal(await detailPage.locator('#payment-recipient').innerText(), 'ellie');
+
+    const borderAudit = await detailPage.evaluate(() => {
+      const read = (selector, widthProperty, colorProperty) => {
+        const style = getComputedStyle(document.querySelector(selector));
+        return { width: style[widthProperty], color: style[colorProperty] };
+      };
+      return {
+        outerCards: ['.items-card', '.receipt-card', '#payment-instructions', '#personal-breakdown', '.paid-notice-card', '.member-gate', '.optional']
+          .map(selector => [selector, read(selector, 'borderTopWidth', 'borderTopColor')]),
+        totalCard: read('#friend-amount-summary', 'borderTopWidth', 'borderTopColor'),
+        headingSeparator: read('.items-card .card-heading', 'borderBottomWidth', 'borderBottomColor'),
+        rowSeparator: read('#item-rows tr:nth-child(2) td', 'borderTopWidth', 'borderTopColor'),
+        detailSeparator: read('#personal-details dt', 'borderTopWidth', 'borderTopColor'),
+        receiptPlaceholder: read('#receipt-content .photo-placeholder', 'borderTopWidth', 'borderTopColor')
+      };
+    });
+    for (const [selector, style] of borderAudit.outerCards) {
+      assert.deepEqual(style, { width: '1px', color: 'rgb(104, 118, 108)' }, `${selector} uses a dark gray-green 1px outline`);
+    }
+    assert.deepEqual(borderAudit.totalCard, { width: '1px', color: 'rgb(19, 88, 55)' }, 'payable card keeps its existing dark 1px outline');
+    for (const [name, style] of Object.entries({ heading: borderAudit.headingSeparator, row: borderAudit.rowSeparator, detail: borderAudit.detailSeparator })) {
+      assert.deepEqual(style, { width: '1px', color: 'rgb(154, 166, 156)' }, `${name} separator uses a visible 1px gray-green line`);
+    }
+    assert.deepEqual(borderAudit.receiptPlaceholder, { width: '1px', color: 'rgb(104, 118, 108)' }, 'receipt placeholder outline is 1px and visible');
 
     const itemDetails = detailPage.locator('#item-rows details.item-details');
     assert.equal(await itemDetails.count(), 4);
@@ -106,7 +131,7 @@ function claimUrl() {
     assert.equal(await itemDetails.evaluateAll(elements => elements.every(element => !element.open)), true, 'second tap collapses all item details');
     assert.equal(await expandButton.innerText(), '展開全部明細');
     assert.equal(await detailPage.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, 'detail page fits the 390px viewport');
-    console.log('PASS 390px friend detail: copy amount with currency, pale-yellow payment card/thin border/large recipient, expand/collapse all item details, no horizontal overflow.');
+    console.log('PASS 390px friend detail: dark gray-green 1px card outlines and dividers, copy amount, pale-yellow payment card, expand/collapse all details, no horizontal overflow.');
     await detailContext.close();
 
     const claimContext = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' });
