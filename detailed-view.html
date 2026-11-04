@@ -30,11 +30,18 @@
     .member-gate--selected .share-privacy { grid-column:1/-1; margin-top:0; }
     .total-card { scroll-margin-top:66px; display:flex; justify-content:space-between; align-items:center; gap:18px; min-height:92px; margin-bottom:22px; padding:20px 25px; border:1px solid #135837; border-radius:19px; background:linear-gradient(120deg,#176a43,#104d31); color:#fff; box-shadow:var(--shadow); }
     .total-label { font-size:15px; font-weight:750; opacity:.92; }
-    .total-value { color:#fff; font-size:clamp(30px,5vw,38px); font-weight:900; line-height:1.1; letter-spacing:-.03em; font-variant-numeric:tabular-nums; text-align:right; }
+    .total-value-group { display:flex; min-width:0; flex-wrap:wrap; justify-content:flex-end; align-items:center; gap:8px; }
+    .total-value { color:#fff; font-size:clamp(30px,5vw,38px); font-weight:900; line-height:1.1; letter-spacing:-.03em; font-variant-numeric:tabular-nums; text-align:right; white-space:nowrap; }
+    .copy-amount-button { min-height:30px; padding:4px 9px; border:1px solid rgba(255,255,255,.78); border-radius:8px; background:rgba(255,255,255,.12); color:#fff; font:inherit; font-size:12px; font-weight:800; cursor:pointer; white-space:nowrap; }
+    .copy-amount-button:hover { background:rgba(255,255,255,.22); }
+    .copy-amount-button:disabled { opacity:.6; cursor:not-allowed; }
+    .visually-hidden { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
     .content-grid { display:grid; grid-template-columns:minmax(0,1.2fr) minmax(300px,.8fr); align-items:start; gap:22px; }
     .card { overflow:hidden; border:1px solid var(--line); border-radius:19px; background:#fff; box-shadow:0 7px 22px rgba(27,54,35,.045); }
     .card-heading { display:flex; justify-content:space-between; align-items:center; gap:12px; min-height:64px; padding:17px 21px; border-bottom:1px solid #edf0ed; }
     .card-heading h2 { margin:0; font-size:19px; }
+    .item-detail-toggle { flex:0 0 auto; min-height:32px; padding:5px 9px; border:1px solid #b9cbbb; border-radius:8px; background:#f7faf7; color:var(--green-dark); font:inherit; font-size:12px; font-weight:750; white-space:nowrap; cursor:pointer; }
+    .item-detail-toggle:disabled { opacity:.55; cursor:not-allowed; }
     .table-wrap { overflow-x:auto; }
     table { width:100%; border-collapse:collapse; text-align:left; }
     th { padding:11px 21px; background:#f8faf7; color:#748076; font-size:12px; font-weight:750; }
@@ -67,6 +74,8 @@
     .personal-breakdown { margin:0 0 18px; padding:18px 20px 20px; }
     .personal-breakdown h2 { margin:0 0 11px; font-size:17px; }
     .personal-breakdown .detail-list { grid-template-columns:1fr auto; }
+    #payment-instructions { border:1px solid #806d46; background:#fff9e8; }
+    #payment-recipient { color:#203729; font-size:24px; font-weight:850; }
     .personal-breakdown .detail-list dt:last-of-type,.personal-breakdown .detail-list dd:last-of-type { color:var(--green-dark); font-weight:850; }
     .paid-notice-card { margin:0 0 18px; padding:16px 18px; }
     .paid-notice-button { width:100%; min-height:48px; padding:10px 14px; border:1px solid #104d31; border-radius:11px; background-color:#176a43; background-image:linear-gradient(to top right,#104d31 0%,#176a43 55%,#21845a 100%); color:#fff; box-shadow:none; text-shadow:0 1px 1px rgba(0,0,0,.35); font:inherit; font-weight:800; cursor:pointer; transition:background-color .15s ease,transform .15s ease; }
@@ -93,7 +102,10 @@
       .topbar { min-height:52px; padding:8px 14px; }
       main { width:calc(100% - 22px); margin:18px auto 42px; }
       .page-title { margin-bottom:13px; font-size:22px; }
-      .total-card { min-height:78px; margin-bottom:15px; padding:17px 18px; }
+      .total-card { min-height:78px; margin-bottom:15px; padding:17px 14px; gap:10px; }
+      .total-label { min-width:0; }
+      .total-value-group { gap:6px; }
+      .total-value { font-size:clamp(25px,7.7vw,32px); }
       .member-gate { margin-top:12vh; padding:22px 17px; }
       .member-gate--selected { grid-template-columns:1fr; gap:5px; margin-bottom:12px; padding:11px 14px; }
       .member-gate--selected h1 { font-size:13px; }
@@ -133,7 +145,11 @@
       <h1 id="page-title" class="page-title"></h1>
       <section id="friend-amount-summary" class="total-card" data-testid="friend-amount-summary" aria-label="分帳總額">
         <span id="total-label" class="total-label">全單總額</span>
-        <strong id="grand-total" class="total-value" data-testid="preview-grand-total">—</strong>
+        <div class="total-value-group">
+          <strong id="grand-total" class="total-value" data-testid="preview-grand-total">—</strong>
+          <button id="copy-payable" class="copy-amount-button" data-testid="copy-payable" type="button" aria-label="複製應付金額" disabled>複製</button>
+          <span id="copy-payable-status" class="visually-hidden" role="status" aria-live="polite"></span>
+        </div>
       </section>
       <section id="personal-breakdown" class="card personal-breakdown" data-testid="personal-breakdown" hidden>
         <h2 id="personal-title"></h2>
@@ -149,7 +165,7 @@
       </section>
       <div class="content-grid">
         <section class="card items-card" aria-labelledby="items-title">
-          <div class="card-heading"><h2 id="items-title">全單項目金額</h2></div>
+          <div class="card-heading"><h2 id="items-title">全單項目金額</h2><button id="toggle-all-item-details" class="item-detail-toggle" data-testid="toggle-all-item-details" type="button" aria-controls="item-rows" aria-expanded="false" disabled>展開全部明細</button></div>
           <div class="table-wrap">
             <table data-testid="detail-items-table">
               <thead><tr><th id="item-heading" scope="col">項目名稱</th><th id="amount-heading" scope="col">全單金額</th></tr></thead>
@@ -284,7 +300,35 @@
       $('#payment-methods').textContent = Array.isArray(bill.paymentMethods) && bill.paymentMethods.length ? bill.paymentMethods.join('、') : '未指定';
       const paidNoticeButton = $('#share-paid-notice');
       const paidNoticeStatus = $('#paid-notice-status');
+      const copyPayableButton = $('#copy-payable');
+      const toggleAllItemDetailsButton = $('#toggle-all-item-details');
       const getSelectedForNotice = () => participants.find(person => person.name === memberSelect.value);
+      const copyText = async text => {
+        if (navigator.clipboard && window.isSecureContext) {
+          try { await navigator.clipboard.writeText(text); return true; } catch (_) {}
+        }
+        const temporary = document.createElement('textarea');
+        temporary.value = text; temporary.setAttribute('readonly', '');
+        temporary.style.position = 'fixed'; temporary.style.opacity = '0';
+        document.body.append(temporary); temporary.select();
+        let copied = false;
+        try { copied = document.execCommand('copy'); } catch (_) {}
+        temporary.remove();
+        return copied;
+      };
+      const syncItemDetailToggleButton = () => {
+        const details = Array.from($('#item-rows').querySelectorAll('details.item-details'));
+        const allOpen = details.length > 0 && details.every(detail => detail.open);
+        toggleAllItemDetailsButton.disabled = details.length === 0;
+        toggleAllItemDetailsButton.setAttribute('aria-expanded', String(allOpen));
+        toggleAllItemDetailsButton.textContent = allOpen ? '收起全部明細' : '展開全部明細';
+      };
+      toggleAllItemDetailsButton.addEventListener('click', () => {
+        const details = Array.from($('#item-rows').querySelectorAll('details.item-details'));
+        const shouldOpen = details.some(detail => !detail.open);
+        details.forEach(detail => { detail.open = shouldOpen; });
+        syncItemDetailToggleButton();
+      });
       const getShareContextUrl = () => {
         if (!isSharedLink || !shareId) return '';
         const apiBaseUrl = String(window.BillShareConfig?.apiBaseUrl || '').trim();
@@ -332,10 +376,15 @@
           $('#member-gate').classList.remove('member-gate--selected');
           memberGateHeading.textContent = '請選擇成員';
           paidNoticeButton.disabled = true;
+          copyPayableButton.disabled = true;
+          toggleAllItemDetailsButton.disabled = true;
           paidNoticeStatus.textContent = '';
           return;
         }
         $('#member-content').hidden = false;
+        copyPayableButton.disabled = false;
+        copyPayableButton.textContent = '複製';
+        $('#copy-payable-status').textContent = '';
         $('#local-tag').hidden = false;
         $('#local-tag').textContent = isSharedLink ? '朋友分享連結・7 日有效' : '本機預覽・不會公開';
         $('#member-gate').classList.add('member-gate--selected');
@@ -413,6 +462,8 @@
           rows.push(`<tr class="adjustment-row" data-testid="personal-adjustment-row"><td><div class="item-name">額外分攤：${escapeHtml(entry.name)}</div><div class="item-subline">${escapeHtml(entry.reason || '單據調整')}${escapeHtml(quantityText)}</div></td><td class="amount">${escapeHtml(formatBreakdownMoney(entry.amount))}</td></tr>`);
         });
         $('#item-rows').innerHTML = rows.length ? rows.join('') : '<tr><td colspan="2" class="empty-items">今次冇要埋單嘅項目</td></tr>';
+        $('#item-rows').querySelectorAll('details.item-details').forEach(detail => detail.addEventListener('toggle', syncItemDetailToggleButton));
+        syncItemDetailToggleButton();
         $('#other-details').open = false;
         if (!receiptsLoaded) {
           if (isSharedLink) {
@@ -482,6 +533,15 @@
       };
       $('#close-photo').addEventListener('click', () => $('#photo-dialog').close());
       $('#photo-dialog').addEventListener('click', event => { if (event.target === $('#photo-dialog')) $('#photo-dialog').close(); });
+      copyPayableButton.addEventListener('click', async () => {
+        const selected = getSelectedForNotice();
+        if (!selected) return;
+        const amountText = `${formatMoney(selected.total, currency)} ${currency}`;
+        const copied = await copyText(amountText);
+        $('#copy-payable-status').textContent = copied ? `已複製應付金額：${amountText}` : '複製失敗，請手動抄寫金額。';
+        copyPayableButton.textContent = copied ? '已複製' : '重試複製';
+        window.setTimeout(() => { copyPayableButton.textContent = '複製'; }, 1600);
+      });
       paidNoticeButton.addEventListener('click', notifyPayerOfPayment);
       memberSelect.addEventListener('change', () => {
         renderSelectedMember();

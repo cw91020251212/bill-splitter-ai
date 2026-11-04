@@ -320,6 +320,7 @@
       let items = [];
       let relayRoom = null;
       let submitting = false;
+      let lastSubmittedSignature = '';
       const unitOptions = [
         { id: 'portion', zh: '份', en: 'portions', aliases: ['份', 'portion', 'portions', 'share', 'shares', 'serving', 'servings', 'serving(s)'] },
         { id: 'cup', zh: '杯', en: 'cups', aliases: ['杯', 'cup', 'cups', 'cup(s)'] },
@@ -346,7 +347,7 @@
           or: '或', share: '分享回覆', copy: '複製回覆文字', shareHelp: '選 WhatsApp 同發起人，再自己按發送。',
           fallbackSummary: 'WhatsApp 後備：分享或複製回覆',
           submit: '交返發起人', submitting: '正在交返…', submittedToast: '已交返發起人',
-          submitted: '已交返。對方開住分帳頁就會收到；12 小時內打開都收得到。可以再按一次更新。',
+          submitted: '已交返。對方開住分帳頁就會收到；12 小時內打開都收得到。如需更新，請先更改認帳內容。',
           submitFail: '而家交唔到。請檢查網絡再按一次，或展開下面用 WhatsApp 後備。',
           rateLimit: '而家交返的人太多，請稍後再按，或用 WhatsApp 後備。',
           tooLarge: '認帳太長，交唔到。請改用 WhatsApp 後備。',
@@ -374,7 +375,7 @@
           or: 'or', share: 'Share reply', copy: 'Copy reply text', shareHelp: 'Choose WhatsApp and the organizer, then send it yourself.',
           fallbackSummary: 'WhatsApp fallback: share or copy the reply',
           submit: 'Send to organizer', submitting: 'Sending…', submittedToast: 'Sent to the organizer',
-          submitted: 'Sent. They will see it while their bill page is open, or if they open it within 12 hours. Tap again to update.',
+          submitted: 'Sent. They will see it while their bill page is open, or if they open it within 12 hours. Change your reply before sending an update.',
           submitFail: 'Could not send just now. Check your connection and tap again, or open the WhatsApp fallback below.',
           rateLimit: 'Too many people are sending right now. Wait and tap again, or use the WhatsApp fallback.',
           tooLarge: 'This reply is too long to send. Use the WhatsApp fallback.',
@@ -607,13 +608,19 @@
         return { text: lines.join('\n'), error: '', complete: true, person, claims: structured };
       }
 
+      function replySignature(result) {
+        if (!result?.complete) return '';
+        return JSON.stringify({ person: result.person, claims: result.claims });
+      }
+
       function updatePreview() {
         const result = getReply();
         preview.value = result.text;
         feedback.textContent = result.error;
         shareButton.disabled = !result.complete;
         copyButton.disabled = !result.complete;
-        submitButton.disabled = submitting || !relayRoom || !result.complete;
+        const unchangedSubmittedReply = Boolean(lastSubmittedSignature) && replySignature(result) === lastSubmittedSignature;
+        submitButton.disabled = submitting || !relayRoom || !result.complete || unchangedSubmittedReply;
       }
 
       function showToast(message) {
@@ -692,6 +699,7 @@
         submitStatus.textContent = '';
         try {
           await window.ClaimRelay.publishClaim(relayRoom, { v: 1, name: result.person, claims: result.claims });
+          lastSubmittedSignature = replySignature(result);
           submitStatus.classList.remove('error');
           submitStatus.textContent = text.submitted;
           showToast(text.submittedToast);
