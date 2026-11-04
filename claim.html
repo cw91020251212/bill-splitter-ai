@@ -238,6 +238,32 @@
       color: #294e7a; background: #f6f9fd; border-color: #678bb6;
     }
     #share-button:not(:disabled):hover { background: #e5eef8; }
+    .qty-control { position: relative; flex: 1; min-width: 0; }
+    .qty-control.picker-open { z-index: 30; }
+    .qty-control .qty-input { width: 100%; padding-right: 58px; }
+    .qty-picker-trigger {
+      position: absolute; top: 50%; right: 7px; z-index: 2; transform: translateY(-50%);
+      display: grid; place-items: center; width: 36px; height: 36px; padding: 0;
+      border: 1px solid #678bb6; border-radius: 9px; color: #294e7a; background: #e5eef8;
+      font-size: 18px; font-weight: 850; line-height: 1; cursor: pointer;
+      touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+    }
+    .qty-picker-trigger:focus-visible { outline: 3px solid rgba(41,78,122,.35); outline-offset: 2px; }
+    .qty-picker {
+      position: absolute; top: calc(100% + 5px); right: 0; z-index: 20;
+      width: 88px; max-height: 200px; padding: 4px; overflow-y: auto;
+      overscroll-behavior: contain; -webkit-overflow-scrolling: touch; touch-action: pan-y;
+      border: 1px solid #678bb6; border-radius: 10px; background: #fff;
+      box-shadow: 0 8px 20px rgba(23,35,31,.18);
+    }
+    .qty-picker-option {
+      display: flex; align-items: center; justify-content: center; width: 100%; height: 38px; min-height: 38px; padding: 0;
+      border: 0; border-radius: 7px; color: #294e7a; background: transparent;
+      font-size: 16px; font-weight: 750; cursor: pointer; touch-action: manipulation;
+    }
+    .qty-picker-option[aria-pressed="true"], .qty-picker-option:hover, .qty-picker-option:focus-visible {
+      color: #203f67; background: #e5eef8; outline: none;
+    }
     @media (max-width: 380px) {
       .submit-dock { margin-left: -12px; margin-right: -12px; }
     }
@@ -321,6 +347,7 @@
       let relayRoom = null;
       let submitting = false;
       let lastSubmittedSignature = '';
+      const quantityPickerValues = ['0.5', ...Array.from({ length: 50 }, (_, index) => String(index + 1))];
       const unitOptions = [
         { id: 'portion', zh: '份', en: 'portions', aliases: ['份', 'portion', 'portions', 'share', 'shares', 'serving', 'servings', 'serving(s)'] },
         { id: 'cup', zh: '杯', en: 'cups', aliases: ['杯', 'cup', 'cups', 'cup(s)'] },
@@ -503,7 +530,28 @@
           qtyInput.setAttribute('aria-label', text.qtyAria(item.id, displayName));
           qtyInput.dataset.itemIndex = String(index);
           qtyInput.value = savedValues[index] ?? '';
-          qtyRow.append(qtyInput);
+          const qtyControl = makeElement('div', 'qty-control');
+          qtyControl.append(qtyInput);
+          const pickerTrigger = makeElement('button', 'qty-picker-trigger', '▾');
+          pickerTrigger.type = 'button';
+          pickerTrigger.dataset.testid = 'quantity-picker-trigger';
+          pickerTrigger.setAttribute('aria-label', language === 'en' ? `Choose a share for ${displayName}` : `選擇「${displayName}」份數`);
+          pickerTrigger.setAttribute('aria-expanded', 'false');
+          pickerTrigger.setAttribute('aria-controls', `qty-picker-${index}`);
+          const quantityPicker = makeElement('div', 'qty-picker');
+          quantityPicker.id = `qty-picker-${index}`;
+          quantityPicker.setAttribute('role', 'group');
+          quantityPicker.setAttribute('aria-label', language === 'en' ? 'Common share amounts' : '常用份數');
+          quantityPicker.hidden = true;
+          quantityPickerValues.forEach(value => {
+            const option = makeElement('button', 'qty-picker-option', value);
+            option.type = 'button';
+            option.dataset.qtyValue = value;
+            option.setAttribute('aria-pressed', String(qtyInput.value === value));
+            quantityPicker.append(option);
+          });
+          qtyControl.append(pickerTrigger, quantityPicker);
+          qtyRow.append(qtyControl);
           const unitSelect = makeElement('select', 'unit-select');
           unitSelect.id = `unit-${index}`;
           unitSelect.setAttribute('aria-label', `${item.id} ${displayName} — ${text.unitLabel}`);
@@ -648,6 +696,48 @@
       nameInput.addEventListener('input', () => { clearSubmitStatus(); updatePreview(); });
       itemList.addEventListener('input', event => { if (event.target.matches('.qty-input, .unit-select')) clearSubmitStatus(); updatePreview(); });
       itemList.addEventListener('change', () => { clearSubmitStatus(); updatePreview(); });
+      const closeQuantityPickers = () => {
+        itemList.querySelectorAll('.qty-picker-trigger').forEach(trigger => trigger.setAttribute('aria-expanded', 'false'));
+        itemList.querySelectorAll('.qty-picker').forEach(picker => { picker.hidden = true; });
+        itemList.querySelectorAll('.qty-control.picker-open').forEach(control => control.classList.remove('picker-open'));
+      };
+      itemList.addEventListener('click', event => {
+        const trigger = event.target.closest('.qty-picker-trigger');
+        if (trigger) {
+          event.preventDefault();
+          const control = trigger.closest('.qty-control');
+          const picker = control.querySelector('.qty-picker');
+          const shouldOpen = picker.hidden;
+          closeQuantityPickers();
+          if (shouldOpen) {
+            const input = control.querySelector('.qty-input');
+            picker.querySelectorAll('.qty-picker-option').forEach(option => option.setAttribute('aria-pressed', String(option.dataset.qtyValue === input.value.trim())));
+            picker.hidden = false;
+            trigger.setAttribute('aria-expanded', 'true');
+            control.classList.add('picker-open');
+          }
+          return;
+        }
+        const option = event.target.closest('.qty-picker-option');
+        if (!option) return;
+        event.preventDefault();
+        const control = option.closest('.qty-control');
+        const input = control.querySelector('.qty-input');
+        input.value = option.dataset.qtyValue;
+        closeQuantityPickers();
+        control.querySelector('.qty-picker-trigger').focus({ preventScroll: true });
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+      });
+      document.addEventListener('pointerdown', event => {
+        if (!(event.target instanceof Element) || !event.target.closest('.qty-picker-trigger, .qty-picker')) closeQuantityPickers();
+      }, true);
+      itemList.addEventListener('keydown', event => {
+        if (event.key !== 'Escape' || !event.target.closest('.qty-picker-trigger, .qty-picker')) return;
+        const control = event.target.closest('.qty-control');
+        closeQuantityPickers();
+        control?.querySelector('.qty-picker-trigger')?.focus({ preventScroll: true });
+      });
       languageButton.addEventListener('click', () => {
         const nextLanguage = language === 'en' ? 'zh-HK' : 'en';
         try { localStorage.setItem('billSplitterLanguage', nextLanguage); } catch (_) {}
