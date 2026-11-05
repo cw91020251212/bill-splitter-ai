@@ -67,3 +67,16 @@ node --test ocr-cascade.test.cjs claim-relay.test.cjs
 `exchange-rates.test.cjs` 驗證同幣總額、實際取得的 JPY→HKD 匯率、目標貨幣的小數位四捨五入，以及查詢失敗或幣種配對錯誤時拒絕計算。`tests/cross-currency-ui.cjs` 以本機 Chromium 驗證使用者可見的來源幣／結算幣、實際換算報告，以及匯率服務失敗時不會產生報告。
 
 匯率來自 [Frankfurter 官方 API](https://frankfurter.dev/)，使用 `/v2/rate/{base}/{quote}` 並在報告列出服務回傳的日期。這是有日期的參考匯率，與銀行、信用卡或商戶實際成交匯率可能不同。
+
+
+## 分享前卡號遮蓋
+
+```sh
+node --test card-redaction.test.cjs
+PLAYWRIGHT_MODULE=/path/to/playwright \
+CHROMIUM_EXECUTABLE=/usr/bin/chromium \
+BASE_URL=http://127.0.0.1:4178/ \
+node tests/card-redaction-ui.cjs
+```
+
+UI 測試只對 localhost 執行，使用合成收據和假測試號碼，並 mock 本機 OCR／系統分享；它會在 320×800 和 390×844 擷取預覽、確認原圖逐 byte 不變、只分享遮蓋 JPEG 副本、手動補框／撤銷有效，以及 OCR 失敗時禁止分享。它不代表已在真實手機瀏覽器驗收。

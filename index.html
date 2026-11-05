@@ -89,6 +89,8 @@
   <script src="./receipt-adjustments.js"></script>
   <script src="./share-config.js"></script>
   <script src="./bill-share-api.js"></script>
+  <script src="./card-redaction.js?v=v97-card-number-redaction"></script>
+  <script src="./card-share-review.js?v=v97-card-number-redaction"></script>
   <script src="./exchange-rates.js?v=v90-cross-currency-settlement"></script>
   <script src="./tutorial.js?v=v90-cross-currency-settlement"></script>
   <script type="text/babel">
@@ -1001,6 +1003,8 @@
       const redactionImageRef = useRef(null);
       const redactionCanvasRef = useRef(null);
       const redactionDragRef = useRef(null);
+      const [shareReviewRequest, setShareReviewRequest] = useState(null);
+      const shareReviewSequenceRef = useRef(0);
       const [stepError, setStepError] = useState('');
       const [cameraOpen, setCameraOpen] = useState(false);
       const cameraStreamRef = useRef(null);
@@ -1839,20 +1843,20 @@
       };
 
       const shareTextWithFiles = (text, files, title) => {
-        if (tutorialDemo) return;
+        if (tutorialDemo) return false;
         const shareFiles = files || [];
         if (shareFiles.length) {
           let filesSupported = false;
           try { filesSupported = typeof navigator.canShare === 'function' && navigator.canShare({ files: shareFiles }); } catch (error) {}
           if (!filesSupported) {
             toast('⚠️ 此瀏覽器不支援分享附件；請改用手機 Safari／Chrome，或於 WhatsApp 手動附加檔案。', 'error');
-            return;
+            return false;
           }
         }
         if (typeof navigator.share !== 'function') {
-          if (shareFiles.length) { toast('⚠️ 此瀏覽器無法分享附件；請於 WhatsApp 手動附加圖片或檔案。', 'error'); return; }
+          if (shareFiles.length) { toast('⚠️ 此瀏覽器無法分享附件；請於 WhatsApp 手動附加圖片或檔案。', 'error'); return false; }
           copyToClipboard(text, title);
-          return;
+          return true;
         }
         const shareData = {};
         if (text) { shareData.title = title; shareData.text = text; }
@@ -1861,8 +1865,10 @@
           navigator.share(shareData).catch(error => {
             if (error?.name !== 'AbortError') toast('⚠️ 未能開啟手機分享選單，請再試一次。', 'error');
           });
+          return true;
         } catch (error) {
           if (error?.name !== 'AbortError') toast('⚠️ 未能開啟手機分享選單，請再試一次。', 'error');
+          return false;
         }
       };
 
@@ -1877,7 +1883,7 @@
         if (!lastImageData.length) return;
         if (!ensureDraftSavedForSharing()) return;
         try {
-          shareTextWithFiles('', receiptEntriesToFiles(lastImageData), '');
+          setShareReviewRequest({ id: ++shareReviewSequenceRef.current, files: receiptEntriesToFiles(lastImageData) });
         } catch (error) {
           toast('⚠️ 無法讀取本次單據圖片，請重新選擇圖片後再試。', 'error');
         }
@@ -2108,7 +2114,7 @@
           return;
         }
         try {
-          shareTextWithFiles('', receiptEntriesToFiles(entries), '');
+          setShareReviewRequest({ id: ++shareReviewSequenceRef.current, files: receiptEntriesToFiles(entries) });
         } catch (error) {
           toast('⚠️ 無法讀取本機收據圖片，請稍後再試。', 'error');
         }
@@ -3478,6 +3484,8 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                 ) : <p>{hasDraftAssets && draftAssetStatus === 'saving' ? tr("正在儲存本機圖片／附件，完成後才可分享…") : bi('草稿已儲存在這部機。', 'Draft saved on this device.')}</p>}
               </div>
             )}
+
+            {shareReviewRequest && <window.CardShareReview key={shareReviewRequest.id} files={shareReviewRequest.files} onCancel={() => setShareReviewRequest(null)} onShare={files => shareTextWithFiles('', files, '')} />}
 
             {showRedaction && pendingRedactionImages[redactionIndex] && (
               <div className="fixed inset-0 z-50 bg-slate-950/90 overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="receipt-redaction-title">
