@@ -16,8 +16,8 @@
   const MAX_MESSAGE_CHARS = 3800;
   const TOPIC_PATTERN = /^bs[a-z0-9]{22}$/;
   const KEY_PATTERN = /^[A-Za-z0-9_-]{43}$/;
-  const BLOCK_SPLIT = /\n+➖{3,}\n+/;
-  const BLOCK_SEP = '\n\n➖➖➖➖➖➖➖➖➖➖\n\n';
+  const BLOCK_SPLIT = /\n+(?:➖{3,}|─{3,})\n+/;
+  const BLOCK_SEP = '\n\n──────────\n\n';
 
   function bytesToBase64Url(bytes) {
     let binary = '';
@@ -138,12 +138,7 @@
     const clean = sanitizePayload(payload);
     if (!clean) return '';
     const byId = new Map((items || []).map(item => [String(item.id), item]));
-    const lines = [
-      '🧾 *認帳回覆* 🧾',
-      '👤 姓名：' + clean.name,
-      '━━━━━━━━━━━━━━',
-      '🍽️ *我認帳的項目*'
-    ];
+    const lines = ['姓名：' + clean.name, '認帳項目：'];
     clean.claims.forEach(claim => {
       const item = byId.get(claim.id);
       const name = cleanText((item && item.name) || '項目', 200) || '項目';
@@ -151,9 +146,9 @@
       let quantity = '認帳份數 = ' + qty;
       if (claim.unit) quantity = '實際數量 = ' + qty + ' ' + claim.unit;
       else if (claim.displayUnit) quantity = '認帳份數（' + claim.displayUnit + '） = ' + qty;
-      lines.push('🔶 *' + claim.id + ' ' + name + '*　👉🏻 ' + quantity);
+      lines.push(claim.id + ' ' + name + '：' + quantity);
     });
-    lines.push('━━━━━━━━━━━━━━', '✅ *已填妥，請發回給發起人。*');
+    lines.push('', '已填妥，請傳給發起人。');
     return lines.join('\n');
   }
 

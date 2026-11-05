@@ -20,12 +20,12 @@
   // - nvidia/nemotron-3.5-content-safety:free (classifier, not a receipt reader)
   // - every free Qwen VL id (still 0 endpoints)
   const FREE_MODELS = [
-    ['nvidia/nemotron-3.5-super-vl:free', 'Nemotron 3.5 VL（免費，預設）', 'Nemotron 3.5 VL (free, default)'],
-    ['thinkingmachines/inkling-small:free', 'Inkling Small（免費）', 'Inkling Small (free)'],
-    ['google/gemma-4-31b-it:free', 'Gemma 4 31B（免費）', 'Gemma 4 31B (free)'],
-    ['dots-studio/dots-3-note-preview:free', 'Dots3-Note（免費）', 'Dots3-Note (free)'],
-    ['google/gemma-4-26b-a4b-it:free', 'Gemma 4 26B（免費）', 'Gemma 4 26B (free)'],
-    ['thinkingmachines/inkling:free', 'Inkling（免費）', 'Inkling (free)']
+    ['nvidia/nemotron-3.5-super-vl:free', 'Nemotron 3.5 VL（預設）', 'Nemotron 3.5 VL (default)'],
+    ['thinkingmachines/inkling-small:free', 'Inkling Small', 'Inkling Small'],
+    ['google/gemma-4-31b-it:free', 'Gemma 4 31B', 'Gemma 4 31B'],
+    ['dots-studio/dots-3-note-preview:free', 'Dots3-Note', 'Dots3-Note'],
+    ['google/gemma-4-26b-a4b-it:free', 'Gemma 4 26B', 'Gemma 4 26B'],
+    ['thinkingmachines/inkling:free', 'Inkling', 'Inkling']
   ];
   const PAID_MODELS = [
     ['google/gemini-3.8-flash', 'Gemini 3.8 Flash（較快，可能收費）', 'Gemini 3.8 Flash (faster, may cost money)']

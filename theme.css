@@ -21,8 +21,8 @@ body.bg-slate-50 { background: var(--page-grey); color: var(--ink); }
 }
 #root .app-header-row { padding-top: 14px; padding-bottom: 12px; }
 #root .app-header-row h1 { color: var(--ink); line-height: 1.3; }
-#root .app-header-row > div:last-child button { border-color: #528e6b; background: #e5ebe2; color: #304437; }
-#root .app-header-row > div:last-child .guide-button { background: #f4efd9; color: #715222; border-color: #9c834d; }
+#root .app-header-row .header-actions > .header-back-button { border-color: #528e6b; background: #e5ebe2; color: #304437; }
+#root .app-header-row .header-actions > div > #header-action-menu-toggle { border-color: #064b35; background-color: #047857; }
 #root .language-switch-control {
   background: #dce4d9;
   border: 1px solid #639f7c;
@@ -210,48 +210,22 @@ body.bg-slate-50 { background: var(--page-grey); color: var(--ink); }
 
 #root .api-settings-card > button > div > span:first-child { text-wrap: balance; line-height: 1.5; }
 
-/* One compact toolbar: language, guide, settings, history. */
-#root .header-actions { flex-shrink: 0; gap: 6px; }
-#root .header-language-button { font-size: 12px; letter-spacing: .01em; }
-#root .header-actions button { min-height: 40px; }
-#root .app-header-row .header-actions > button.header-language-button {
-  width: 40px; height: 40px; position: relative; display: block; flex-shrink: 0; gap: 0; padding: 0;
-  white-space: nowrap; line-height: 1; letter-spacing: 0;
-}
-#root .header-language-button .language-divider {
-  position: absolute; inset: 3px; pointer-events: none;
-  background: linear-gradient(to bottom right,
-    transparent calc(50% - .55px), #7d93b3 calc(50% - .55px),
-    #7d93b3 calc(50% + .55px), transparent calc(50% + .55px));
-}
-#root .header-language-button :is(.language-zh, .language-en) {
-  position: absolute; z-index: 1;
-  text-shadow: -1px -1px 0 #e8eef8, 1px -1px 0 #e8eef8,
-    -1px 1px 0 #e8eef8, 1px 1px 0 #e8eef8,
-    0 -1px 0 #e8eef8, 0 1px 0 #e8eef8, -1px 0 0 #e8eef8, 1px 0 0 #e8eef8;
-}
-#root .header-language-button .language-zh { top: 3px; left: 4px; font-size: 12px; line-height: 14px; }
-#root .header-language-button .language-en { bottom: 3px; right: 3px; font-size: 10px; line-height: 11px; }
-@media (max-width: 359px) {
-  #root .app-header-row .header-actions > button.header-language-button { width: 36px; }
-}
+#root .header-actions { flex-shrink: 0; flex-wrap: nowrap; gap: 6px; }
+#root .app-header .app-header-row .header-actions button { min-height: 44px; }
+#root #header-action-menu { box-sizing: border-box; }
 @media (max-width: 479px) {
   #root .header-actions { gap: 5px; }
-  #root .header-actions > button:not(.header-back-button), #root .header-actions > .guide-button { width: 40px; padding: 8px; }
-  #root .header-actions .guide-label { display: none; }
   #root .app-header-row { column-gap: 8px; }
 }
 @media (max-width: 359px) {
   #root .header-actions { gap: 4px; }
-  #root .header-actions > button:not(.header-back-button), #root .header-actions > .guide-button { width: 36px; }
   #root .app-header-row > div:first-child { gap: 6px; }
   #root .app-header-row > div:first-child > div:first-child { width: 32px; height: 36px; }
   #root .app-header-row h1 { font-size: 18px; }
   html[lang="en"] #root .app-header-row h1 { font-size: 16px; }
+  #root .item-price-quantity-row { flex-direction: column; gap: 8px; }
+  #root .item-price-quantity-row > div:last-child { width: 100%; }
 }
-
-#root .app-header .app-header-row .header-actions button { min-height: 40px; }
-html[lang="en"] #root .header-actions .guide-label { display: none; }
 
 /* Primary actions and the brand: dark lower-left to light upper-right. */
 :root {
@@ -414,7 +388,6 @@ html[lang="en"] #root .header-actions .guide-label { display: none; }
 #root [class~="!border-emerald-700"] { border-color: #047857 !important; }
 
 #root :is(.text-brand-700.bg-brand-50,.text-brand-700.bg-brand-100,.text-brand-900.bg-brand-50) { color: #257b59; }
-#root .app-header-row > div:last-child button:not(.guide-button) { color: #29835f; }
 
 /* v51 local preview: black regular-weight labels without text shadows.
    Preserve gradient stops, geometry, icons, focus rings and disabled styling. */
@@ -431,17 +404,8 @@ html[lang="en"] #root .header-actions .guide-label { display: none; }
   filter: var(--action-icon-shadow);
 }
 
-/* V52: five actions stay on the existing header row. */
-#root .header-actions { flex-wrap: nowrap; }
-#root .header-actions > button { flex-shrink: 0; }
-#root .app-header-row .header-actions > .header-clear-button {
-  background: #fff1ed; border-color: #b86850; color: #943d2a;
-}
-#root .header-clear-button:hover { background: #ffe2d9; }
-#root .header-clear-button:focus-visible { outline: 2px solid #943d2a; outline-offset: 2px; }
-#root .header-clear-button:disabled { opacity: .5; }
+/* The top row keeps one compact menu beside the brand. */
 @media (max-width: 479px) {
-  #root .header-actions .clear-label { display: none; }
   #root .app-header-row > div:first-child { min-width: 0; flex-shrink: 1; }
   #root .app-header-row > div:first-child > div:last-child { min-width: 0; }
   #root .app-header-row h1 { font-size: 18px; }
@@ -456,8 +420,6 @@ html[lang="en"] #root .header-actions .guide-label { display: none; }
   #root .app-header-row > div:first-child > div.app-brand-icon:first-child { display: flex; width: 30px; height: 36px; border-radius: 10px; }
   #root .app-brand-icon svg { width: 20px; height: 20px; }
   #root .header-actions { gap: 4px; }
-  #root .app-header-row .header-actions > button:not(.header-back-button) { width: 36px; padding: 8px; justify-content: center; }
-  #root .app-header-row .header-actions > button.header-language-button { padding: 0; }
   #root .app-header-row h1 { font-size: 17px; }
   html[lang="en"] #root .app-header-row h1 { font-size: 13px; }
 }
@@ -480,8 +442,7 @@ html[lang="en"] #root .header-actions .guide-label { display: none; }
   #root [data-testid="receipt-source-actions"] .choice-divider-inline::after { display: block; }
 }
 
-/* Phone reading size. The header toolbar stays compact so five actions still fit.
-   Landing, settings, scan, and form labels use a larger scale than the tightened text-xs copy. */
+/* Phone reading size. Landing, settings, scan, and form labels use a larger scale than the tightened text-xs copy. */
 @media (max-width: 639px) {
   #root main :is(h2.text-xl, h2.text-2xl) {
     font-size: 26px;
@@ -524,17 +485,46 @@ html[lang="en"] #root .header-actions .guide-label { display: none; }
    frame and focus. These rules sit last so they beat the slate remap when a
    control also carries a semantic color class. */
 #root .language-switch-control { background: #e4eaf3; border-color: #7d93b3; }
-#root .app-header-row .header-actions > button.header-language-button {
-  background: #e8eef8; border-color: #6d86b0; color: #243e66;
+#root .app-header-row .header-actions > div > #header-action-menu-toggle {
+  min-height: 38px; border-width: 1px; border-color: #064b35; background-color: #047857;
 }
-#root .app-header-row .header-actions > button.guide-button {
-  background: #fff4d8; border-color: #c4922f; color: #7a4e08;
+#root #header-action-menu {
+  gap: 2px; padding: 3px; border: 1px solid #5f574e; background: #f3f6f1;
+  max-height: calc(100vh - 84px); overflow-y: auto; overscroll-behavior: contain;
 }
-#root .app-header-row .header-actions > button.header-settings-button {
-  background: #e7f1fb; border-color: #3d6ea5; color: #1a4a82;
+#root #header-action-menu > button.header-action-menu-item {
+  box-sizing: border-box; display: flex; align-items: center; width: 100%; min-height: 31px;
+  border: 1px solid #68756b; border-radius: 8px; padding: 3px 6px;
+  background: #ffffff; color: #26372b; font-size: 14px; font-weight: 650; line-height: 1.3;
+  text-align: left; box-shadow: none; transition: background-color .15s ease, border-color .15s ease, transform .15s ease;
 }
-#root .app-header-row .header-actions > button.header-history-button {
-  background: #f6ecfb; border-color: #8a5aa3; color: #5c2d78;
+#root #header-action-menu > button.header-action-menu-item:not(:disabled):hover {
+  border-color: #4d6655;
+}
+#root #header-action-menu > button.header-action-menu-item:not(:disabled):active {
+  transform: translateY(1px);
+}
+#root #header-action-menu > button.header-action-menu-item:focus-visible {
+  outline: 3px solid #29835f; outline-offset: 1px;
+}
+#root #header-action-menu > button.header-action-menu-item-danger {
+  flex-direction: column; align-items: flex-start; justify-content: center; gap: 0;
+  min-height: 42px; border-color: #b86850; background: #fff1ed; color: #943d2a;
+}
+#root #header-action-menu > button.header-action-menu-item-language { background: #e8eef8; border-color: #6d86b0; color: #243e66; }
+#root #header-action-menu > button.header-action-menu-item-guide { background: #fff4d8; border-color: #c4922f; color: #7a4e08; }
+#root #header-action-menu > button.header-action-menu-item-settings { background: #e7f1fb; border-color: #3d6ea5; color: #1a4a82; }
+#root #header-action-menu > button.header-action-menu-item-history { background: #f6ecfb; border-color: #8a5aa3; color: #5c2d78; }
+#root #header-action-menu > button.header-action-menu-item-language:not(:disabled):hover { background: #dce8f8; border-color: #516f98; }
+#root #header-action-menu > button.header-action-menu-item-guide:not(:disabled):hover { background: #ffedc1; border-color: #a97922; }
+#root #header-action-menu > button.header-action-menu-item-settings:not(:disabled):hover { background: #dceaf8; border-color: #315d8e; }
+#root #header-action-menu > button.header-action-menu-item-history:not(:disabled):hover { background: #eeddf6; border-color: #74438c; }
+#root #header-action-menu > button.header-action-menu-item-danger #header-clear-current-help { white-space: nowrap; font-size: 11px; line-height: 1.2; color: #80564f; }
+#root #header-action-menu > button.header-action-menu-item-danger:not(:disabled):hover {
+  border-color: #943d2a; background: #ffe2d9;
+}
+#root #header-action-menu > button.header-action-menu-item-danger:not(:disabled):active {
+  background: #f8d8d0;
 }
 #root .app-header-row .header-actions > button.header-back-button {
   background: #f4f1ec; border-color: #8a7f72; color: #3d3832;

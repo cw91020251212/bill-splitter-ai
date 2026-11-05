@@ -97,7 +97,6 @@
     .lightbox-head { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:10px 13px; color:#fff; }
     .lightbox-head button { min-width:40px; min-height:38px; border:1px solid #718077; border-radius:9px; background:#26352b; color:#fff; font-size:20px; cursor:pointer; }
     .lightbox-image { display:block; width:100%; max-height:calc(92vh - 60px); object-fit:contain; }
-    footer { margin-top:21px; color:#808a82; font-size:11px; text-align:center; }
     @media(max-width:720px) {
       .topbar { min-height:52px; padding:8px 14px; }
       main { width:calc(100% - 22px); margin:18px auto 42px; }
@@ -128,8 +127,7 @@
   </header>
   <main>
     <section id="loading-state" class="empty" aria-live="polite">
-      <h1>正在載入朋友分帳資料…</h1>
-      <p>資料由短連結暫存服務讀取，請稍候。</p>
+      <h1>載入中…</h1>
     </section>
     <section id="empty-state" class="empty" hidden>
       <h1>未有分帳資料</h1>
@@ -137,9 +135,9 @@
     </section>
     <div id="preview-content" hidden>
       <section id="member-gate" class="member-gate">
-        <h1 id="member-gate-heading">請選擇成員</h1>
+        <h1 id="member-gate-heading">朋友埋單</h1>
         <select id="member-select" data-testid="member-select" aria-label="請選擇成員"><option value="">請揀你個名</option></select>
-        <p id="share-privacy" class="share-privacy" hidden>此連結包含全單分帳資料及收據相片。任何持有連結的人都可查看；伺服器副本只暫存 7 日，到期後自動刪除。<br><strong id="share-expiry" data-testid="share-expiry"></strong></p>
+        <p id="share-privacy" class="share-privacy" hidden>持有此連結者可查看全單及收據。<br><strong id="share-expiry" data-testid="share-expiry"></strong></p>
       </section>
       <div id="member-content" hidden>
       <h1 id="page-title" class="page-title"></h1>
@@ -155,20 +153,20 @@
         <h2 id="personal-title"></h2>
         <dl id="personal-details" class="detail-list"></dl>
       </section>
-      <section id="payment-instructions" class="card personal-breakdown" data-testid="payment-instructions" aria-label="收款資料">
-        <h2>收款資料</h2>
-        <dl class="detail-list"><dt>請將款項還給</dt><dd id="payment-recipient">未指定</dd><dt>可用付款方式</dt><dd id="payment-methods">未指定</dd></dl>
+      <section id="payment-instructions" class="card personal-breakdown" data-testid="payment-instructions" aria-label="付款">
+        <h2>付款</h2>
+        <dl class="detail-list"><dt>收款人</dt><dd id="payment-recipient">未指定</dd><dt>方式</dt><dd id="payment-methods">未指定</dd></dl>
       </section>
       <section class="card paid-notice-card" data-testid="paid-notice-card" aria-label="WhatsApp 通知收款人">
-        <button id="share-paid-notice" data-testid="share-paid-notice" class="paid-notice-button" type="button">付款後請通知收款人，謝謝</button>
+        <button id="share-paid-notice" data-testid="share-paid-notice" class="paid-notice-button" type="button">付款後通知收款人</button>
         <p id="paid-notice-status" data-testid="paid-notice-status" class="paid-notice-status" role="status" aria-live="polite"></p>
       </section>
       <div class="content-grid">
         <section class="card items-card" aria-labelledby="items-title">
-          <div class="card-heading"><h2 id="items-title">全單項目金額</h2><button id="toggle-all-item-details" class="item-detail-toggle" data-testid="toggle-all-item-details" type="button" aria-controls="item-rows" aria-expanded="false" disabled>展開全部明細</button></div>
+          <div class="card-heading"><h2 id="items-title">項目明細</h2><button id="toggle-all-item-details" class="item-detail-toggle" data-testid="toggle-all-item-details" type="button" aria-controls="item-rows" aria-expanded="false" disabled>展開全部明細</button></div>
           <div class="table-wrap">
             <table data-testid="detail-items-table">
-              <thead><tr><th id="item-heading" scope="col">項目名稱</th><th id="amount-heading" scope="col">全單金額</th></tr></thead>
+              <thead><tr><th id="item-heading" scope="col">項目／分食比例</th><th id="amount-heading" scope="col">分攤金額</th></tr></thead>
               <tbody id="item-rows"></tbody>
             </table>
           </div>
@@ -177,7 +175,7 @@
           <div class="card-heading">
             <div class="receipt-heading"><h2 id="receipt-title">單據相片</h2><span id="image-count" class="image-count"></span></div>
           </div>
-          <div id="receipt-content" class="receipt-content"><div class="photo-placeholder">正在讀取本機單據相片…</div></div>
+          <div id="receipt-content" class="receipt-content"><div class="photo-placeholder">載入中…</div></div>
         </aside>
       </div>
       <details id="other-details" class="optional" data-testid="other-details">
@@ -187,7 +185,6 @@
           <p id="adjustment-note" class="notice" hidden></p>
         </div>
       </details>
-      <footer id="page-footer">此頁只讀取本機報告資料；不會公開或更改原分帳。</footer>
       </div>
     </div>
   </main>
@@ -252,8 +249,8 @@
         } catch (error) {
           $('#loading-state').hidden = true;
           $('#empty-state').hidden = false;
-          $('#empty-state h1').textContent = /到期/.test(error?.message || '') ? '朋友分享連結已到期' : '未能載入朋友分享資料';
-          $('#empty-state p').textContent = error?.message || '請向建立者索取新的朋友連結。';
+          $('#empty-state h1').textContent = /到期/.test(error?.message || '') ? '連結已到期' : '未能載入分帳';
+          $('#empty-state p').textContent = '請向發起人索取新連結。';
           return;
         }
       } else {
@@ -263,8 +260,8 @@
         $('#loading-state').hidden = true;
         $('#empty-state').hidden = false;
         if (isSharedLink) {
-          $('#empty-state h1').textContent = '朋友分享連結無效或已到期';
-          $('#empty-state p').textContent = '請向建立者索取新的朋友埋單連結。';
+          $('#empty-state h1').textContent = '連結無效或已到期';
+          $('#empty-state p').textContent = '請向發起人索取新連結。';
         }
         return;
       }
@@ -272,11 +269,9 @@
       $('#preview-content').hidden = false;
       const bill = data.bill;
       if (isSharedLink) {
-        $('#local-tag').hidden = false;
-        $('#local-tag').textContent = '朋友分享連結・7 日有效';
+        $('#local-tag').hidden = true;
         $('#share-privacy').hidden = false;
-        $('#share-expiry').textContent = shareExpiresAt ? `連結有效至：${new Intl.DateTimeFormat('zh-HK', { timeZone: 'Asia/Hong_Kong', dateStyle: 'medium', timeStyle: 'short' }).format(new Date(shareExpiresAt))}（香港時間）` : '伺服器副本會在建立後 7 日自動刪除。';
-        $('#page-footer').textContent = '分帳及收據相片由短連結服務暫存，7 日後自動刪除。任何持有連結者都可查看全單資料、收款方式及收據相片。';
+        $('#share-expiry').textContent = shareExpiresAt ? `有效至 ${new Intl.DateTimeFormat('zh-HK', { timeZone: 'Asia/Hong_Kong', dateStyle: 'medium', timeStyle: 'short' }).format(new Date(shareExpiresAt))}` : '有效 7 日';
       }
       const currency = bill.currency || 'HKD';
       const sourceCurrency = bill.sourceCurrency || currency;
@@ -374,7 +369,7 @@
           $('#member-content').hidden = true;
           $('#local-tag').hidden = true;
           $('#member-gate').classList.remove('member-gate--selected');
-          memberGateHeading.textContent = '請選擇成員';
+          memberGateHeading.textContent = '朋友埋單';
           paidNoticeButton.disabled = true;
           copyPayableButton.disabled = true;
           toggleAllItemDetailsButton.disabled = true;
@@ -385,28 +380,28 @@
         copyPayableButton.disabled = false;
         copyPayableButton.textContent = '複製';
         $('#copy-payable-status').textContent = '';
-        $('#local-tag').hidden = false;
-        $('#local-tag').textContent = isSharedLink ? '朋友分享連結・7 日有效' : '本機預覽・不會公開';
+        $('#local-tag').hidden = isSharedLink;
+        if (!isSharedLink) $('#local-tag').textContent = '本機預覽';
         $('#member-gate').classList.add('member-gate--selected');
         const isPayer = Boolean(payerName) && selected.name === payerName;
         paidNoticeButton.disabled = !payerName || isPayer;
         paidNoticeStatus.textContent = !payerName ? '未設定收款人' : '';
-        memberGateHeading.textContent = `你揀咗：${selected.name}`;
+        memberGateHeading.textContent = '切換成員';
         $('#page-title').textContent = `${selected.name}嘅賬單`;
         $('#total-label').textContent = isSourceBreakdown ? `你要埋單幾多（${currency}）` : '你要埋單幾多';
         $('#grand-total').textContent = formatMoney(selected.total, currency);
-        $('#items-title').textContent = `${selected.name}要埋單嘅項目`;
+        $('#items-title').textContent = '項目明細';
         $('#item-heading').textContent = '項目／分食比例';
         $('#amount-heading').textContent = isSourceBreakdown ? `分攤金額（${sourceCurrency}）` : '分攤金額';
         const preDiscount = number(selected.subtotal) + number(selected.discount);
         const personalEntries = [];
         if (isSourceBreakdown || number(selected.discount) || number(selected.tax)) {
-          personalEntries.push([isSourceBreakdown ? `項目及額外分攤小計（${breakdownCurrency}）` : '項目及額外分攤小計', `${formatBreakdownMoney(preDiscount)}${isSourceBreakdown ? ` ${breakdownCurrency}` : ''}`]);
-          if (number(selected.discount)) personalEntries.push([isSourceBreakdown ? `折扣（${breakdownCurrency}）` : '折扣', `−${formatBreakdownMoney(selected.discount)}${isSourceBreakdown ? ` ${breakdownCurrency}` : ''}`]);
-          if (number(selected.tax)) personalEntries.push([isSourceBreakdown ? `稅項／服務費（${breakdownCurrency}）` : '稅項／服務費', `${formatBreakdownMoney(selected.tax)}${isSourceBreakdown ? ` ${breakdownCurrency}` : ''}`]);
-          personalEntries.push([isSourceBreakdown ? `你要埋單（${currency}）` : '你要埋單', `${formatMoney(selected.total, currency)}${isSourceBreakdown ? ` ${currency}` : ''}`]);
+          personalEntries.push([isSourceBreakdown ? `項目及額外分攤小計（${breakdownCurrency}）` : '項目及額外分攤小計', formatBreakdownMoney(preDiscount)]);
+          if (number(selected.discount)) personalEntries.push([isSourceBreakdown ? `折扣（${breakdownCurrency}）` : '折扣', `−${formatBreakdownMoney(selected.discount)}`]);
+          if (number(selected.tax)) personalEntries.push([isSourceBreakdown ? `稅項／服務費（${breakdownCurrency}）` : '稅項／服務費', formatBreakdownMoney(selected.tax)]);
+          personalEntries.push([isSourceBreakdown ? `你要埋單（${currency}）` : '你要埋單', formatMoney(selected.total, currency)]);
           $('#personal-breakdown').hidden = false;
-          $('#personal-title').textContent = '埋單金額點計';
+          $('#personal-title').textContent = '金額明細';
           $('#personal-details').innerHTML = personalEntries.map(([label, value]) => `<dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd>`).join('');
         } else {
           $('#personal-breakdown').hidden = true;
@@ -450,10 +445,10 @@
           const quantityText = fraction && dinerCount
             ? `共 ${dinerCount} 人分食，你分 ${fraction} 份`
             : fraction
-              ? `分食人數未能從此連結確認，你分 ${fraction} 份`
+              ? `你分 ${fraction} 份`
               : dinerCount
-                ? `共 ${dinerCount} 人分食；此連結未保存分攤比例，請向發起人索取新連結。`
-                : '此連結未保存分食人數及比例，請向發起人索取新連結。';
+                ? `共 ${dinerCount} 人分食`
+                : '';
           return [`<tr class="item-row" data-testid="personal-item-row"><td><div class="item-name">${escapeHtml(item.name || '未命名項目')}</div>${quantityText ? `<div class="item-subline">${escapeHtml(quantityText)}</div>` : ''}<details class="item-details"><summary>睇單據原文</summary><div class="item-extra">${extras.join('')}</div></details></td><td class="amount">${escapeHtml(formatBreakdownMoney(share.amount))}</td></tr>`];
         });
         adjustments.filter(entry => entry.person === selected.name).forEach(entry => {
@@ -473,7 +468,7 @@
               imageCountLabel.textContent = `${sharedImages.length} 張`;
               renderPhotos(sharedImages);
             } else {
-              showPhotoMessage('這份朋友分享沒有附上收據相片。');
+              showPhotoMessage('沒有收據相片。');
             }
           } else {
             loadReceiptImages();
@@ -489,20 +484,20 @@
       imageCountLabel.textContent = imageCount ? `${imageCount} 張` : '';
       const showPhotoMessage = message => { receiptContent.innerHTML = `<div class="photo-placeholder">${escapeHtml(message)}</div>`; };
       const renderPhotos = files => {
-        receiptContent.innerHTML = `<div class="receipt-grid" data-count="${files.length}">${files.map((image,index) => `<button class="receipt-photo" type="button" data-photo-index="${index}" aria-label="放大單據相片 ${index + 1}"><img loading="eager" src="data:${image.mimeType};base64,${image.data}" alt="單據相片 ${index + 1}"><span>單據相片 ${index + 1} · 按圖放大</span></button>`).join('')}</div>`;
+        receiptContent.innerHTML = `<div class="receipt-grid" data-count="${files.length}">${files.map((image,index) => `<button class="receipt-photo" type="button" data-photo-index="${index}" aria-label="放大收據 ${index + 1}"><img loading="eager" src="data:${image.mimeType};base64,${image.data}" alt="收據 ${index + 1}"><span>第 ${index + 1} 張 · 點圖放大</span></button>`).join('')}</div>`;
         receiptContent.querySelectorAll('[data-photo-index]').forEach(button => button.addEventListener('click', () => {
           const image = files[Number(button.dataset.photoIndex)];
           if (!image) return;
           $('#lightbox-image').src = `data:${image.mimeType};base64,${image.data}`;
-          $('#photo-caption').textContent = `單據相片 ${Number(button.dataset.photoIndex) + 1}`;
+          $('#photo-caption').textContent = `收據 ${Number(button.dataset.photoIndex) + 1}`;
           $('#photo-dialog').showModal();
         }));
       };
       const loadReceiptImages = async () => {
         if (receiptsLoaded) return;
         receiptsLoaded = true;
-        if (!imageCount) { showPhotoMessage('這份分帳沒有附上單據相片。'); return; }
-        if (!window.indexedDB) { showPhotoMessage('此瀏覽器不支援本機圖片儲存。'); return; }
+        if (!imageCount) { showPhotoMessage('沒有收據相片。'); return; }
+        if (!window.indexedDB) { showPhotoMessage('無法讀取本機收據相片。'); return; }
         try {
           const db = await new Promise((resolve,reject) => {
             const request = indexedDB.open('billSplitterLocalData',1);
@@ -521,14 +516,14 @@
             transaction.onerror = () => reject(transaction.error || new Error('讀取失敗'));
           });
           db.close();
-          if (!record || record.revision !== data.assetRevision) { showPhotoMessage('找不到這份報告的本機單據相片；可能已清除網站資料。'); return; }
+          if (!record || record.revision !== data.assetRevision) { showPhotoMessage('找不到本機收據相片。'); return; }
           const files = (Array.isArray(record.images) ? record.images : []).filter(image => image && typeof image.data === 'string' && /^[A-Za-z0-9+/]+={0,2}$/.test(image.data) && ['image/jpeg','image/png','image/webp'].includes(image.mimeType));
-          if (!files.length) { showPhotoMessage('本機沒有可顯示的單據相片。'); return; }
+          if (!files.length) { showPhotoMessage('沒有可顯示的收據相片。'); return; }
           images.push(...files);
           imageCountLabel.textContent = `${files.length} 張`;
           renderPhotos(files);
         } catch (_) {
-          showPhotoMessage('未能讀取本機單據相片，請返回分帳頁稍後重試。');
+          showPhotoMessage('未能讀取收據相片，請稍後再試。');
         }
       };
       $('#close-photo').addEventListener('click', () => $('#photo-dialog').close());

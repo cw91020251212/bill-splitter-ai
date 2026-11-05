@@ -2,7 +2,7 @@
 <html lang="zh-HK">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>分帳管家 AI Pro</title>
   <meta name="theme-color" content="#80d9aa">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -522,8 +522,8 @@
       return pendingLabel;
     };
 
-    const STEP_LABELS = ['上載睇單', '各自認帳', '分帳運算', '最終結果'];
-    const SEP  = '\n\n➖➖➖➖➖➖➖➖➖➖\n\n';
+      const STEP_LABELS = ['上載睇單', '各自認帳', '分帳運算', '最終結果'];
+      const SEP  = '\n\n──────────\n\n';
     const TAIL = '\n\n';
 
     const appendReply = (existing, incoming) => {
@@ -552,7 +552,7 @@
       const lines = String(raw || '').split('\n');
       const out = [];
       const isNameLine = (s) => /(?:👤(?:\s*Name)?|姓名|Name)\s*[:：=＝]/i.test(s);
-      const isSepLine  = (s) => /➖{3,}/.test(s);
+      const isSepLine  = (s) => /(?:➖{3,}|─{3,})/.test(s);
 
       lines.forEach((line, i) => {
         if (i > 0 && isNameLine(line)) {
@@ -561,7 +561,7 @@
           const prev = j >= 0 ? out[j] : '';
           if (prev && !isSepLine(prev)) {
             while (out.length && out[out.length - 1].trim() === '') out.pop();
-            out.push('', '➖➖➖➖➖➖➖➖➖➖', '');
+            out.push('', '──────────', '');
           }
         }
         out.push(line);
@@ -1054,6 +1054,33 @@
       const [showSettings, setShowSettings] = useState(false);
       const [showTutorial, setShowTutorial] = useState(false);
       const tutorialMenuOrigin = useRef(null);
+      const [showHeaderMenu, setShowHeaderMenu] = useState(false);
+      const headerActionRootRef = useRef(null);
+      const headerActionMenuTriggerRef = useRef(null);
+      const headerActionPanelRef = useRef(null);
+      useEffect(() => {
+        if (!showHeaderMenu) return undefined;
+        const focusFrame = requestAnimationFrame(() => headerActionPanelRef.current?.querySelector('button:not(:disabled)')?.focus({ preventScroll: true }));
+        const closeOnOutsidePointer = event => {
+          if (!headerActionRootRef.current?.contains(event.target)) setShowHeaderMenu(false);
+        };
+        const closeOnEscape = event => {
+          if (event.key !== 'Escape') return;
+          event.preventDefault();
+          headerActionMenuTriggerRef.current?.focus({ preventScroll: true });
+          setShowHeaderMenu(false);
+        };
+        document.addEventListener('pointerdown', closeOnOutsidePointer);
+        document.addEventListener('keydown', closeOnEscape);
+        return () => {
+          cancelAnimationFrame(focusFrame);
+          document.removeEventListener('pointerdown', closeOnOutsidePointer);
+          document.removeEventListener('keydown', closeOnEscape);
+        };
+      }, [showHeaderMenu]);
+      useEffect(() => {
+        if (showHistory || showSettings || showTutorial) setShowHeaderMenu(false);
+      }, [showHistory, showSettings, showTutorial]);
       const tutorialVideoJumpRef = useRef(false);
       const firstVisitStateRef = useRef(null);
       const firstVisitPromptCheckedRef = useRef(false);
@@ -1405,8 +1432,8 @@
         return names;
       }, [friendsReplies]);
       const hasInboundClaim = inboxPeople.length >= 1;
-      // The tutorial prefills sample replies, so that demo still waits for its share step.
-      const claimFollowupOpen = tutorialDemo ? claimLinkShared : hasInboundClaim;
+      // In the demo, keep the guided share step; normally allow a pasted WhatsApp reply after link copy.
+      const claimFollowupOpen = tutorialDemo ? claimLinkShared : (claimLinkShared || hasInboundClaim);
 
       useEffect(() => {
         const node = claimFollowupRef.current;
@@ -3072,35 +3099,20 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
         const english = language === 'en';
         const others = Object.keys(results.personTotals).filter(p => p !== payer);
         const curr = results.currency;
-        const sourceBillTotal = Number.isFinite(Number(results.sourceBillTotal)) ? Number(results.sourceBillTotal) : (Number(results.sourceTotal) || 0);
-        const conversionNote = results.sourceCurrency && results.sourceCurrency !== curr
-          ? (english
-            ? `🔄 Split total in source currency: ${formatSourceMoney(sourceBillTotal, results.sourceCurrency)} ${results.sourceCurrency} → Settlement total: ${formatMoney(results.billTotal, curr)} ${curr}\n📈 Exchange rate: 1 ${results.sourceCurrency} = ${formatExchangeRate(results.exchangeRate)} ${curr} (${results.exchangeRateDate || 'latest available'}${results.exchangeProvider ? ` · ${results.exchangeProvider}` : ''})\n`
-            : `🔄 原幣分帳總額：${formatSourceMoney(sourceBillTotal, results.sourceCurrency)} ${results.sourceCurrency} → 結算總額：${formatMoney(results.billTotal, curr)} ${curr}\n📈 匯率：1 ${results.sourceCurrency} = ${formatExchangeRate(results.exchangeRate)} ${curr}（${results.exchangeRateDate || '最新可用'}${results.exchangeProvider ? ` · ${results.exchangeProvider}` : ''}）\n`)
-          : '';
         const paymentLabel = paymentMethods.length ? paymentMethods.map(method => paymentDisplay(method, language)).join(english ? ', ' : '、') : (english ? 'Not specified' : '未指定');
-        if (!english) {
-          let txt = `💰 *分帳結果｜各人應付金額與收款資料* 💰\n📅 ${results.date} · 💴 結算貨幣：*${reportCurrencyName(curr, language)}*\n💳 請過數俾：*${payer}*\n💵 付款方式：${paymentLabel}\n────────\n`;
-          txt += conversionNote;
-          others.forEach(person => { txt += `👤 *${person}* — 應付 ➡️ *${formatMoney(results.personTotals[person].total, curr)}*\n\n`; });
-          if (others.length === 0) txt += `（只有墊支人一位，無需過數）\n`;
-          txt += `────────\n`;
-          const owed = others.reduce((s, p) => s + results.personTotals[p].total, 0);
-          txt += `📊 應收合計：*${formatMoney(owed, curr)}*\n`;
-          if (results.personTotals[payer]) txt += `🙋 ${payer} 自己一份：${formatMoney(results.personTotals[payer].total, curr)}\n`;
-          txt += `\n🙏 收到請覆「已轉」，多謝合作！`;
-          return txt;
+        const owed = others.reduce((sum, person) => sum + Number(results.personTotals[person].total || 0), 0);
+        const lines = [english ? `Amount due (${curr})` : `應付金額（${curr}）`];
+        if (others.length) {
+          others.forEach(person => {
+            lines.push('', `【${person}】 ${english ? 'Owes' : '應付'} ${formatMoney(results.personTotals[person].total, curr)}`);
+          });
+          lines.push('', `${english ? 'Total to collect' : '合計收款'}：${formatMoney(owed, curr)}`, '', english ? 'Payment details' : '收款資料');
+          lines.push(`${english ? 'Payee' : '收款人'}：${payer || (english ? 'Not specified' : '未指定')}`);
+          lines.push(`${english ? 'Method' : '付款方式'}：${paymentLabel}`);
+        } else {
+          lines.push(english ? 'No transfer needed.' : '毋須轉帳');
         }
-        let txt = `💰 *Bill Split | Amounts Due & Payment Details* 💰\n📅 ${results.date} · 💴 Settlement currency: *${reportCurrencyName(curr, language)}*\n💳 Pay to: *${payer}*\n💵 Payment methods: ${paymentLabel}\n────────\n`;
-        txt += conversionNote;
-        others.forEach(person => { txt += `👤 *${person}* — Amount due ➡️ *${formatMoney(results.personTotals[person].total, curr)}*\n\n`; });
-        if (others.length === 0) txt += `(Only the payer is included; no transfer is needed.)\n`;
-        txt += `────────\n`;
-        const owed = others.reduce((s, p) => s + results.personTotals[p].total, 0);
-        txt += `📊 Total to collect: *${formatMoney(owed, curr)}*\n`;
-        if (results.personTotals[payer]) txt += `🙋 Payer's own share: ${formatMoney(results.personTotals[payer].total, curr)}\n`;
-        txt += `\n🙏 Please reply “Paid” once transferred. Thank you!`;
-        return txt;
+        return lines.join('\n');
       };
 
       const getReceiptAdjustmentNote = (language = uiLang) => {
@@ -3151,75 +3163,72 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
 
       const getDetailedResult = (mode = 'full', language = uiLang) => {
         if (!results) return '';
-        const full = mode === 'full';
         const english = language === 'en';
         const curr = results.currency;
         const sourceCurr = results.sourceCurrency || detectedCurrency || curr;
-        const sourceBillTotal = Number.isFinite(Number(results.sourceBillTotal)) ? Number(results.sourceBillTotal) : (Number(results.sourceTotal) || 0);
-        const formatSourceAmount = amount => `${formatSourceMoney(amount, sourceCurr)} ${sourceCurr}`;
+        const sourceCurrencyDigits = new Intl.NumberFormat('zh-HK', { style: 'currency', currency: sourceCurr }).resolvedOptions().minimumFractionDigits;
+        const formatSourceAmount = amount => {
+          const value = Number(amount) || 0;
+          const fractionDigits = Number.isInteger(value) ? sourceCurrencyDigits : Math.max(2, sourceCurrencyDigits);
+          const formatted = new Intl.NumberFormat('zh-HK', { style: 'currency', currency: sourceCurr, minimumFractionDigits: fractionDigits, maximumFractionDigits: Math.max(2, sourceCurrencyDigits) }).format(value);
+          return formatted;
+        };
         const conversionNote = results.sourceCurrency && results.sourceCurrency !== curr
           ? (english
-            ? `🔄 Split total in source currency: ${formatSourceMoney(sourceBillTotal, sourceCurr)} ${sourceCurr} → Settlement total: ${formatMoney(results.billTotal, curr)} ${curr}\n📈 Exchange rate: 1 ${sourceCurr} = ${formatExchangeRate(results.exchangeRate)} ${curr} (${results.exchangeRateDate || 'latest available'}${results.exchangeProvider ? ` · ${results.exchangeProvider}` : ''})\n`
-            : `🔄 原幣分帳總額：${formatSourceMoney(sourceBillTotal, sourceCurr)} ${sourceCurr} → 結算總額：${formatMoney(results.billTotal, curr)} ${curr}\n📈 匯率：1 ${sourceCurr} = ${formatExchangeRate(results.exchangeRate)} ${curr}（${results.exchangeRateDate || '最新可用'}${results.exchangeProvider ? ` · ${results.exchangeProvider}` : ''}）\n`)
+            ? `Items are split in ${sourceCurr}; amounts due are in ${curr}. Rate: 1 ${sourceCurr} = ${formatExchangeRate(results.exchangeRate)} ${curr}.`
+            : `項目按 ${sourceCurr} 分攤；應付金額以 ${curr} 計。匯率：1 ${sourceCurr} = ${formatExchangeRate(results.exchangeRate)} ${curr}。`)
           : '';
         const paymentLabel = paymentMethods.length ? paymentMethods.map(method => paymentDisplay(method, language)).join(english ? ', ' : '、') : (english ? 'Not specified' : '未指定');
         const oneLineName = value => String(value || '').replace(/\s+/g, ' ').trim();
-        const splitLabel = taxSplitMethod === 'equal'
-          ? (english ? 'Split equally among everyone' : '全部人平均分')
-          : (english ? 'Split in proportion to spending' : '按消費比例分');
-        let txt = english
-          ? `🧾 *Detailed Bill Split | Shares & Amount Due* 🧾\n📅 ${results.date} · 💴 Settlement currency: ${reportCurrencyName(curr, language)}\n💳 Payer: ${payer}\n💵 Payment methods: ${paymentLabel}\n⚖️ Tax / service charge: ${splitLabel}\n────────\n\n`
-          : `🧾 *詳細分帳報告｜各人認帳項目與應付金額* 🧾\n📅 ${results.date} · 💴 結算貨幣：${reportCurrencyName(curr, language)}\n💳 墊支人：${payer}\n💵 付款方式：${paymentLabel}\n⚖️ 稅／服務費：${splitLabel}\n────────\n\n`;
-        txt += conversionNote;
-        let grandTotal = 0;
+        const lines = [english ? `Bill details · ${results.date}` : `分帳明細 · ${results.date}`, ''];
+        if (conversionNote) lines.push(conversionNote, '');
+        lines.push(english ? `Item shares (${sourceCurr})` : `項目分攤（${sourceCurr}）`);
+        const others = Object.keys(results.personTotals).filter(person => person !== payer);
+        const owed = others.reduce((sum, person) => sum + Number(results.personTotals[person].total || 0), 0);
         Object.keys(results.personTotals).forEach(person => {
           const p = results.personTotals[person];
-          txt += `👤 *${person}*\n`;
+          const payerNote = person === payer ? (english ? ' · payer' : '（墊支人）') : '';
+          lines.push('', `【${person}${payerNote}】`);
           p.items.forEach(i => {
             const itemName = receiptPrimaryLabel(i.name, i.nameEn, i.original, english);
-            txt += `*${i.id}* ${oneLineName(itemName)}\n`;
-            if (full && i.original && oneLineName(i.original) !== oneLineName(itemName)) txt += english ? `🌐 Original: ${oneLineName(i.original)}\n` : `🌐 原文：${oneLineName(i.original)}\n`;
-            if (full && i.ja && oneLineName(i.ja) !== oneLineName(i.original) && oneLineName(i.ja) !== oneLineName(itemName)) txt += english ? `🇯🇵 Japanese: ${oneLineName(i.ja)}\n` : `🇯🇵 日文：${oneLineName(i.ja)}\n`;
+            const itemLabel = oneLineName(itemName);
+            const sourceText = oneLineName(i.original);
+            const japaneseText = oneLineName(i.ja);
+            const sourceNotes = [];
+            if (sourceText && sourceText !== itemLabel) sourceNotes.push(`${english ? 'Original' : '原文'}：${sourceText}`);
+            if (japaneseText && japaneseText !== sourceText && japaneseText !== itemLabel) sourceNotes.push(`${english ? 'Japanese' : '日文'}：${japaneseText}`);
+            const sourceSuffix = sourceNotes.length ? (english ? ` (${sourceNotes.join('; ')})` : `（${sourceNotes.join('；')}）`) : '';
             const shownUnit = unitDisplay(i.unit || i.unitName || (english ? 'unit(s)' : '單位'), language, i.qty);
             const share = i.isActualUnit
-              ? (english ? `(${i.qty} ${shownUnit}, actual quantity)` : `（${i.qty} ${shownUnit}，按實際單位）`)
-              : (english ? `(${i.qty}/${i.totalClaimed} shares)` : `（${i.qty}/${i.totalClaimed} 份比例）`);
-            txt += `💲 ${formatSourceAmount(i.amount)} ${share}\n\n`;
+              ? (english ? `${i.qty} ${shownUnit}` : `${i.qty} ${shownUnit}`)
+              : (english ? `${i.qty}/${i.totalClaimed} share(s)` : `${i.qty}/${i.totalClaimed} 份`);
+            lines.push(`- ${itemLabel}${sourceSuffix} — ${share} — ${formatSourceAmount(i.amount)}`);
           });
           (p.adjustments || []).forEach(a => {
             const adjustmentName = receiptPrimaryLabel(a.name, a.nameEn, a.original, english);
-            const reasonMap = { '墊支人承擔未認帳數量': 'Unclaimed quantity covered by the payer', '已認帳人士平均承擔未認帳數量': 'Unclaimed quantity shared equally', '指定承擔未認帳數量': 'Unclaimed quantity assigned to this person' };
-            txt += `${oneLineName(adjustmentName)}\n${english ? 'Unclaimed quantity covered by this person' : '未認帳數量由此人承擔'}\n`;
-            txt += english
-              ? `💲 ${formatSourceAmount(a.amount)} (${a.qty} ${unitDisplay(a.unit, language)}, ${reasonMap[a.reason] || a.reason})\n\n`
-              : `💲 ${formatSourceAmount(a.amount)}（${a.qty} ${unitDisplay(a.unit, language)}，${a.reason}）\n\n`;
+            const adjustmentQty = `${a.qty} ${unitDisplay(a.unit, language)}`;
+            lines.push(`- ${english ? 'Unclaimed share' : '未認帳分攤'}：${oneLineName(adjustmentName)} (${adjustmentQty}) — ${formatSourceAmount(a.amount)}`);
           });
-          if (p.discount > 0) txt += english ? `▫️ Receipt discount share −${formatSourceAmount(p.discount)}\n` : `▫️ 整單折扣分攤 −${formatSourceAmount(p.discount)}\n`;
-          if (p.tax > 0) txt += english ? `▫️ Tax / service charge share 💲 ${formatSourceAmount(p.tax)}\n` : `▫️ 稅／服務費分攤 💲 ${formatSourceAmount(p.tax)}\n`;
-          txt += english
-            ? `\n━━━━━━━━━━\n💰 *TOTAL DUE (${curr})*\n\n*${formatMoney(p.total, curr)} ${curr}*\n━━━━━━━━━━\n`
-            : `\n━━━━━━━━━━\n💰 *應付總額（${curr}）*\n\n*${formatMoney(p.total, curr)} ${curr}*\n━━━━━━━━━━\n`;
-          grandTotal += p.total;
+          if (p.discount > 0) lines.push(`${english ? 'Discount share' : '折扣分攤'}：−${formatSourceAmount(p.discount)}`);
+          if (p.tax > 0) lines.push(`${english ? 'Tax / fee share' : '稅／服務費分攤'}：+${formatSourceAmount(p.tax)}`);
+          if (person === payer) {
+            lines.push(`${english ? 'Payer share' : '墊支人分攤'}：${formatMoney(p.total, curr)}`);
+          } else {
+            lines.push(`${english ? 'Amount due' : '應付'}：${formatMoney(p.total, curr)}`);
+          }
         });
-        const itemsSum = Number.isFinite(Number(results.itemsSubtotal)) ? Number(results.itemsSubtotal) : items.reduce((sum, item) => sum + toNum(item.total), 0);
-        const billTax = Number.isFinite(Number(results.taxAmount)) ? Number(results.taxAmount) : ReceiptMath.roundMoney(toNum(taxAmount), sourceCurr);
-        const billDiscount = Number.isFinite(Number(results.discountAmount)) ? Number(results.discountAmount) : ReceiptMath.roundMoney(toNum(discountAmount), sourceCurr);
-        const billTotal = getResultsBillTotal(results);
-        const diff = Math.abs(grandTotal - billTotal);
-        const totalsMatch = ReceiptMath.withinRoundingTolerance(diff, curr);
-        txt += english
-          ? `\n📊 *Totals check*\nItems subtotal (${sourceCurr}): ${formatSourceAmount(itemsSum)}\nReceipt discount (${sourceCurr}): −${formatSourceAmount(billDiscount)}\nTax / service charge (${sourceCurr}): ${formatSourceAmount(billTax)}\nSource-currency split total: ${formatSourceAmount(sourceBillTotal)}\nSettlement total (${curr}): ${formatMoney(billTotal, curr)} ${curr}\nSum of individual amounts: ${formatMoney(grandTotal, curr)} ${curr}\nDifference: ${formatMoney(diff, curr)} ${curr} ${totalsMatch ? '✅' : '⚠️ Check the quantities'}\n`
-          : `\n📊 *總核對*\n項目小計（${sourceCurr}）：${formatSourceAmount(itemsSum)}\n整單折扣（${sourceCurr}）：−${formatSourceAmount(billDiscount)}\n稅／服務費（${sourceCurr}）：${formatSourceAmount(billTax)}\n原幣分帳總額：${formatSourceAmount(sourceBillTotal)}\n結算總額（${curr}）：${formatMoney(billTotal, curr)} ${curr}\n各人合計：${formatMoney(grandTotal, curr)} ${curr}\n差額：${formatMoney(diff, curr)} ${curr} ${totalsMatch ? '✅' : '⚠️ 請檢查認帳數量'}\n`;
-        const receiptAdjustmentNote = getReceiptAdjustmentNote(language);
-        if (receiptAdjustmentNote) txt += `\n🧾 ${receiptAdjustmentNote}\n`;
+        if (others.length) {
+          lines.push('', `${english ? 'Total to collect' : '合計收款'}：${formatMoney(owed, curr)}`, '', english ? 'Payment details' : '收款資料');
+          lines.push(`${english ? 'Payee' : '收款人'}：${payer || (english ? 'Not specified' : '未指定')}`);
+          lines.push(`${english ? 'Method' : '付款方式'}：${paymentLabel}`);
+        } else {
+          lines.push('', english ? 'No transfer needed.' : '毋須轉帳');
+        }
         const friendTableUrl = getDetailedTableShareUrl();
         if (friendTableUrl) {
-          const expiryText = formatFriendShareExpiry(getDetailedTableShareExpiry());
-          txt += english
-            ? `\n🔗 Friend bill table (choose your name to see payable items, amount, and receipt photos):\n${friendTableUrl}\n⏳ Link expires ${expiryText}.\n⚠️ Anyone holding the link can view the full bill and receipt photos; the temporary server copy is automatically deleted after 7 days.\n`
-            : `\n🔗 朋友埋單表格（揀自己個名睇應付項目、金額及收據相片）：\n${friendTableUrl}\n⏳ 連結有效至：${expiryText}。\n⚠️ 持有連結者都可查看全單資料及收據相片；伺服器暫存副本會在 7 日後自動刪除。\n`;
+          lines.push('', english ? `Friend details (7 days): ${friendTableUrl}` : `朋友詳細版（7日有效）：${friendTableUrl}`);
         }
-        return txt;
+        return lines.join('\n');
       };
       const renderDetailedResultPreview = () => {
         const report = getDetailedResult(detailLang);
@@ -3388,40 +3397,47 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                   <h1 className="text-xl font-extrabold text-slate-800 tracking-tight"><span className="app-brand-name block sm:inline whitespace-nowrap">{tr("分帳管家")}</span><span className="inline-flex items-baseline gap-1 sm:ml-1 whitespace-nowrap"><span data-testid="app-pro-label" className="text-brand-600 font-black">Pro</span><span data-testid="app-version-label" className="text-[10px] leading-3 font-semibold tracking-normal text-brand-700">V1.0.1</span></span></h1>
                 </div>
               </div>
-              <div className="header-actions flex items-center gap-1.5 sm:gap-2">
-                <button type="button" data-testid="header-language-toggle" data-ui-language={uiLang === 'en' ? 'zh-HK' : 'en'} onClick={() => changeUiLanguage(uiLang === 'en' ? 'zh-HK' : 'en')} title={uiLang === 'en' ? 'Switch to Traditional Chinese' : '切換至 English'} aria-label={uiLang === 'en' ? 'Switch to Traditional Chinese' : '切換至 English'} className="header-language-button flex items-center justify-center px-2.5 py-2 bg-slate-100 text-slate-700 border border-slate-400 rounded-lg text-xs font-bold transition-colors">
-                  <span className="language-divider" aria-hidden="true"></span><span className="language-zh" lang="zh-HK">中</span><span className="language-en" lang="en">Eng</span>
-                </button>
+              <div className="header-actions relative flex items-center gap-1.5 sm:gap-2">
                 {(showHistory || showSettings || showTutorial) ? (
-                  <button onClick={() => {
+                  <button data-testid="header-back-button" onClick={() => {
                     setShowHistory(false); setShowSettings(false); setShowTutorial(false);
                     const origin = tutorialMenuOrigin.current;
                     requestAnimationFrame(() => {
-                      document.querySelector('[data-testid="start-tutorial"]')?.focus({ preventScroll: true });
+                      document.querySelector('[data-testid="header-action-menu-toggle"]')?.focus({ preventScroll: true });
                       if (origin) window.scrollTo({ left: origin.x, top: origin.y, behavior: 'instant' });
                     });
                   }} className="header-back-button flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-semibold transition-colors border border-slate-400">
                     <Icon path={icons.arrowLeft} size={16}/>{tr(" 返回")}</button>
                 ) : (
-                  <React.Fragment>
-                    <button data-testid="start-tutorial" disabled={!draftReady || isAnalyzing || isSavingRecord} onClick={event => {
-                      event.currentTarget.focus({ preventScroll: true });
-                      tutorialMenuOrigin.current = { x: window.scrollX, y: window.scrollY };
-                      setShowTutorial(true);
-                      requestAnimationFrame(() => window.scrollTo({ left: 0, top: 0, behavior: 'smooth' }));
-                    }} title={bi('教學方式選擇', 'Choose a tutorial')} className="guide-button flex items-center gap-1.5 px-3 py-2 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-500 rounded-lg text-sm font-semibold transition-colors">
-                      <Icon path={icons.bookOpen} size={16}/> <span className="guide-label">{tr("教學")}</span>
+                  <div ref={headerActionRootRef} className="relative">
+                    <button type="button" id="header-action-menu-toggle" data-testid="header-action-menu-toggle" ref={headerActionMenuTriggerRef} aria-controls="header-action-menu" aria-expanded={showHeaderMenu} aria-label={bi('開啟功能選單', 'Open actions menu')} onClick={() => setShowHeaderMenu(open => !open)} className="header-action-menu-trigger green-action green-action-dark flex min-h-[38px] items-center justify-center rounded-lg border border-emerald-900 bg-brand-600 px-2.5 py-1.5 text-sm font-semibold text-white transition-all active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-emerald-900">
+                      {tr("選單")}
                     </button>
-                    <button onClick={() => setShowSettings(true)} title={tr("設定")} className="header-settings-button flex items-center gap-1.5 px-2.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-400 rounded-lg text-sm font-semibold transition-colors">
-                      <Icon path={icons.settings} size={16}/>
-                    </button>
-                    <button onClick={() => setShowHistory(true)} title={tr("紀錄")} className="header-history-button flex items-center gap-1.5 px-2.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-400 rounded-lg text-sm font-semibold transition-colors">
-                      <Icon path={icons.history} size={16}/>
-                    </button>
-                    <button type="button" data-testid="header-clear-current" disabled={!draftReady} onClick={handleGoToStep1} title={bi('清空目前賬單（保留歷史及已存收據）', 'Clear current bill (keep history and saved receipts)')} aria-label={bi('清空目前賬單', 'Clear current bill')} className="header-clear-button flex items-center justify-center gap-1.5 px-2.5 py-2 border rounded-lg text-sm transition-colors">
-                      <Icon path={icons.trash} size={16}/><span className="clear-label">{bi('清空', 'Clear')}</span>
-                    </button>
-                  </React.Fragment>
+                    <div ref={headerActionPanelRef} id="header-action-menu" role="group" aria-label={bi('首頁操作', 'Home actions')} hidden={!showHeaderMenu} className={`${showHeaderMenu ? 'absolute' : 'hidden'} right-0 top-full z-[70] mt-1 flex w-40 max-w-[calc(100vw-1rem)] flex-col gap-[2px] rounded-xl border border-slate-400 bg-white p-[3px] shadow-lg`}>
+                      <button type="button" data-testid="header-language-toggle" data-ui-language={uiLang === 'en' ? 'zh-HK' : 'en'} onClick={() => changeUiLanguage(uiLang === 'en' ? 'zh-HK' : 'en')} aria-label={uiLang === 'en' ? 'Switch to Traditional Chinese' : '切換至 English'} className="header-action-menu-item header-action-menu-item-language min-h-[32px] w-full rounded-lg border border-slate-500 bg-slate-100 px-2 py-1 text-left text-sm font-semibold text-slate-800 transition-all hover:bg-brand-50 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500">
+                        {uiLang === 'en' ? '繁體中文' : '切換至 English'}
+                      </button>
+                      <button type="button" data-testid="start-tutorial" disabled={!draftReady || isAnalyzing || isSavingRecord} onClick={() => {
+                        headerActionMenuTriggerRef.current?.focus({ preventScroll: true });
+                        tutorialMenuOrigin.current = { x: window.scrollX, y: window.scrollY };
+                        setShowHeaderMenu(false);
+                        setShowTutorial(true);
+                        requestAnimationFrame(() => window.scrollTo({ left: 0, top: 0, behavior: 'smooth' }));
+                      }} title={bi('教學方式選擇', 'Choose a tutorial')} className="header-action-menu-item header-action-menu-item-guide min-h-[32px] w-full rounded-lg border border-slate-500 bg-slate-100 px-2 py-1 text-left text-sm font-semibold text-slate-800 transition-all hover:bg-brand-50 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500">
+                        {tr("教學")}
+                      </button>
+                      <button type="button" data-testid="header-settings-button" onClick={() => { setShowHeaderMenu(false); setShowSettings(true); }} title={tr("設定")} className="header-action-menu-item header-action-menu-item-settings header-settings-button min-h-[32px] w-full rounded-lg border border-slate-500 bg-slate-100 px-2 py-1 text-left text-sm font-semibold text-slate-800 transition-all hover:bg-brand-50 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500">
+                        {tr("設定")}
+                      </button>
+                      <button type="button" data-testid="header-history-button" onClick={() => { setShowHeaderMenu(false); setShowHistory(true); }} title={tr("紀錄")} className="header-action-menu-item header-action-menu-item-history header-history-button min-h-[32px] w-full rounded-lg border border-slate-500 bg-slate-100 px-2 py-1 text-left text-sm font-semibold text-slate-800 transition-all hover:bg-brand-50 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500">
+                        {tr("紀錄")}
+                      </button>
+                      <button type="button" data-testid="header-clear-current" disabled={!draftReady} onClick={() => { setShowHeaderMenu(false); handleGoToStep1(); }} aria-label={bi('清空目前賬單', 'Clear current bill')} aria-describedby="header-clear-current-help" className="header-action-menu-item header-action-menu-item-danger header-clear-button min-h-[32px] w-full rounded-lg border border-red-400 bg-red-50 px-2 py-1 text-left text-sm font-semibold text-red-800 transition-all hover:bg-red-100 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500">
+                        <span className="block">{bi('清空本單', 'Clear bill')}</span>
+                        <span id="header-clear-current-help" className="block text-xs font-normal text-slate-600">{bi('保留歷史及收據', 'History & receipts stay')}</span>
+                      </button>
+                    </div>
+                  </div>
                 )}
               </div>
             </div>
@@ -3476,8 +3492,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                     </div>
 
                     <div className="rounded-xl border border-amber-500 bg-amber-50 p-3 mb-4">
-                      <p className="text-sm font-semibold text-amber-900">{bi('要遮電話、卡號或會員號，先開筆再拖框。', 'To hide a phone, card or membership number, turn on the pen and drag a box.')}</p>
-                      <p className="text-xs text-amber-900 mt-1.5 leading-relaxed">{bi('請留低菜名、價錢同日期。黑框會遮走。', 'Keep item names, prices and the date. Black boxes are covered.')}</p>
+                      <p className="text-sm font-semibold text-amber-900">{bi('開筆框住電話、卡號或會員號；保留菜名、價錢和日期。黑框會遮走。', 'Turn on the pen to cover phone, card or member numbers. Keep item names, prices and the date.')}</p>
                     </div>
 
                     <div className="flex items-start gap-3 mb-4">
@@ -3486,7 +3501,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                         <span>{redactionDrawEnabled ? bi('關閉遮蓋筆', 'Disable pen') : bi('啟用遮蓋筆', 'Enable pen')}</span>
                       </button>
                       <p data-testid="redaction-mode-status" role="status" className={`min-w-0 text-sm leading-relaxed ${redactionDrawEnabled ? 'font-semibold text-brand-900' : 'text-slate-700'}`}>
-                        {redactionDrawEnabled ? bi('遮蓋已啟用：拖動可畫黑框；再按筆鍵退出。', 'Pen on: drag to draw black boxes. Tap the pen again to stop.') : bi('瀏覽模式：可上下滑動，不會畫黑框。', 'View mode: swipe to scroll. No marks will be drawn.')}
+                        {redactionDrawEnabled ? bi('拖動畫黑框；再按筆鍵關閉。', 'Drag to draw; tap the pen to stop.') : bi('瀏覽模式。', 'View mode.')}
                       </p>
                     </div>
 
@@ -3523,17 +3538,15 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                       </div>
                     </div>
 
-                    <div className="flex justify-between items-center gap-2 mt-2 mb-4">
-                      <p className="text-xs text-slate-500">{redactionDrawEnabled ? bi('可畫多個黑框；不想遮蓋的位置可撤銷。', 'Draw multiple boxes; undo a box if needed.') : bi('需要遮蓋時才啟用筆鍵。', 'Enable the pen only when you want to redact.')}</p>
+                    <div className="flex justify-end items-center gap-2 mt-2 mb-4">
                       <button type="button" onClick={() => setRedactionMasks(current => { const next = current.slice(); next[redactionIndex] = (next[redactionIndex] || []).slice(0, -1); return next; })} disabled={!(redactionMasks[redactionIndex] || []).length || isPreparingRedacted} className="px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-600 border border-slate-400 disabled:opacity-40">{tr("撤銷上一框")}</button>
                     </div>
 
                     <div className="flex flex-col gap-2">
-                      <button type="button" data-testid="redaction-recognize-now" onClick={startOcrWithRedactedImages} disabled={isPreparingRedacted} className="green-action px-3 py-3 rounded-xl bg-brand-600 hover:bg-brand-700 font-bold text-sm disabled:opacity-60">{isPreparingRedacted ? bi('正在準備圖片…', 'Preparing images…') : bi('直接識別', 'Recognize now')}</button>
-                      <p className="text-base text-slate-700 leading-relaxed">{bi('遮蓋可選。已畫的黑框會遮走。', 'Redaction is optional. Boxes you drew stay covered.')}</p>
+                      {redactionIndex < pendingRedactionImages.length - 1 && <button type="button" data-testid="redaction-recognize-now" onClick={startOcrWithRedactedImages} disabled={isPreparingRedacted} className="green-action px-3 py-3 rounded-xl bg-brand-600 hover:bg-brand-700 font-bold text-sm disabled:opacity-60">{isPreparingRedacted ? bi('正在準備圖片…', 'Preparing images…') : bi('直接識別', 'Recognize now')}</button>}
                       <div className="grid grid-cols-2 gap-2">
                         <button type="button" onClick={cancelReceiptRedaction} disabled={isPreparingRedacted} className="px-3 py-3 rounded-xl border border-slate-400 bg-white text-slate-700 font-bold text-sm disabled:opacity-50">{tr("取消此次掃描")}</button>
-                        <button type="button" onClick={() => redactionIndex < pendingRedactionImages.length - 1 ? setRedactionIndex(index => index + 1) : startOcrWithRedactedImages()} disabled={isPreparingRedacted} className="px-3 py-3 rounded-xl border border-brand-600 bg-white text-brand-800 font-bold text-sm disabled:opacity-60">{isPreparingRedacted ? bi('正在準備圖片…', 'Preparing images…') : redactionIndex < pendingRedactionImages.length - 1 ? tr("下一張圖片") : tr("遮蓋完成，開始識別")}</button>
+                        <button type="button" data-testid="redaction-next-or-finish" onClick={() => redactionIndex < pendingRedactionImages.length - 1 ? setRedactionIndex(index => index + 1) : startOcrWithRedactedImages()} disabled={isPreparingRedacted} className="px-3 py-3 rounded-xl border border-brand-600 bg-white text-brand-800 font-bold text-sm disabled:opacity-60">{isPreparingRedacted ? bi('正在準備圖片…', 'Preparing images…') : redactionIndex < pendingRedactionImages.length - 1 ? tr("下一張圖片") : tr("遮蓋完成，開始識別")}</button>
                       </div>
                     </div>
                   </Card>
@@ -3550,7 +3563,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                   <span className="w-8 h-8 rounded-full bg-brand-100 border border-brand-500 text-brand-700 flex items-center justify-center font-bold">1</span>
                   <h2 className="text-2xl font-bold text-slate-800 tracking-tight">{tr("上載並分析單據")}</h2>
                 </div>
-                <p className="text-base text-slate-700 leading-relaxed">{bi('影張出差或外語單據，讀出項目同價錢。', 'Photograph a travel receipt to read the items and prices.')}</p>
+                <p className="text-base text-slate-700 leading-relaxed">{bi('影相讀取單據項目和價錢。', 'Scan a receipt to read its items and prices.')}</p>
 
                 <Card className="api-settings-card bg-gradient-to-br from-brand-50 to-white border-brand-500">
                   <button
@@ -3576,7 +3589,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                       </span>
                       {!apiKey.trim() && (
                         <span className="block text-base font-medium leading-snug text-red-700">
-                          {bi('撳呢度設定免費鎖匙，先可以讀外語單據。', 'Tap here to set a free key before a foreign receipt can be read.')}
+                          {bi('設定後即可讀取外語單據。', 'Set a key to read foreign-language receipts.')}
                         </span>
                       )}
                     </div>
@@ -3614,12 +3627,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                           {uploadError.detail && <p className="text-sm text-slate-600 mt-1 break-words">{uploadError.detail}</p>}
                         </div>
                       ) : (
-                        <p className="text-base font-medium text-slate-600 mt-2">{lastImageData.length ? bi('可以用同一批圖片重新識別，或直接影新收據。', 'Re-recognize the same images, or take a new receipt photo.') : tr("可以直接影相，或者從手機選擇圖片（最多 5 張）")}</p>
-                      )}
-                      {receiptWasRead && lastImageData.length > 0 && (
-                        <p data-testid="reuse-last-batch-hint" className="mt-4 max-w-sm text-left text-xs leading-relaxed text-slate-600">
-                          {bi('小提示：可以用返上一次成批相片重新識別。', 'Tip: you can re-recognize the full previous batch of photos.')}
-                        </p>
+                        <p className="text-base font-medium text-slate-600 mt-2">{lastImageData.length ? bi('可重試或拍新單。', 'Retry or take a new receipt.') : bi('最多選 5 張圖片。', 'Up to 5 images.')}</p>
                       )}
                       <div data-testid="receipt-source-actions" className="flex flex-col sm:flex-row items-stretch gap-3 mt-5 w-full max-w-sm">
                         <Button data-testid="receipt-camera" variant="primary" className="flex-1 !py-3" onClick={triggerCamera}><Icon path={'<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3Z"/><circle cx="12" cy="13" r="4"/>'} size={20}/>{tr("📷 直接影相").replace("📷", "").trim()}</Button>
@@ -3632,7 +3640,6 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                             <div className="mb-3 flex items-start justify-between gap-3">
                               <div>
                                 <h3 id="receipt-image-action-title" className="text-lg font-bold text-slate-900">{bi('選擇圖片操作', 'Choose a photo action')}</h3>
-                                <p className="mt-1 text-sm leading-relaxed text-slate-600">{bi('選擇新相片，或者重用上一批相片。', 'Choose new photos or reuse the previous batch.')}</p>
                               </div>
                               <button type="button" data-testid="close-receipt-image-menu" onClick={() => setShowImageActionMenu(false)} aria-label={tr('關閉')} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-400 text-2xl leading-none text-slate-600 hover:bg-slate-100">×</button>
                             </div>
@@ -3655,7 +3662,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                 <div data-testid="entry-method-choice" className="text-center py-2">
                   <ChoiceDivider />
                   <Button data-testid="start-manual" variant="secondary" className="w-full mt-4 border-slate-500" onClick={startManualEntry}>{bi('手動輸入項目', 'Enter items manually')}<Icon path={icons.arrowRight} size={18}/></Button>
-                  <p className="text-base text-slate-600 mt-2 leading-relaxed">{bi('識別失敗，或者只想改幾項，可以喺度手動加。', 'Use this when recognition fails, or when you only need to edit a few items.')}</p>
+                  <p className="text-base text-slate-600 mt-2 leading-relaxed">{bi('讀唔到？手動輸入。', 'Could not scan? Enter items manually.')}</p>
                 </div>
               </div>
             )}
@@ -3729,7 +3736,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                           <input type="text" ref={el => fieldRefs.current[`item-name-${idx}`] = el} value={displayItemName(item)} onChange={(e) => updateItem(idx, uiLang === 'en' && (item.nameEn || item.nameEnEdited) ? 'nameEn' : 'name', e.target.value)} onKeyDown={(e) => handleItemKeyDown(e, 'name', idx)} className="field-round w-full text-base font-semibold text-slate-800 outline-none" placeholder={tr("輸入項目名稱...")} />
                           {(item.original || item.ja) && <div className="mt-1 text-xs font-normal text-slate-500 italic truncate" title={item.original || item.ja}>{tr("原文：")}{item.original || item.ja}</div>}
                         </div>
-                        <div data-tutorial-target={idx === 0 ? "item-fields" : undefined} className="flex gap-4">
+                        <div data-tutorial-target={idx === 0 ? "item-fields" : undefined} className="item-price-quantity-row flex gap-4">
                           <div className="min-w-0 flex-1">
                             <label className="text-base font-bold text-slate-700 uppercase tracking-wider mb-1.5 block">{tr("單價")}</label>
                             <div className="field-round flex items-center">
@@ -3743,8 +3750,8 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                           </div>
                         </div>
                         <div>
-                          <label className="text-base font-bold text-slate-700 uppercase tracking-wider mb-1.5 block">{tr("單位（留空＝按份數比例）")}</label>
-                          <input type="text" value={item.unit || ''} onChange={(e) => updateItem(idx, 'unit', e.target.value)} className="field-round w-full text-base font-semibold text-slate-800 outline-none" placeholder={tr("例如：件、杯、碟、罐（可留空）")} />
+                          <label className="text-base font-bold text-slate-700 uppercase tracking-wider mb-1.5 block">{bi('單位（留空按份數比例）', 'Unit (leave blank to split by shares)')}</label>
+                          <input type="text" value={item.unit || ''} onChange={(e) => updateItem(idx, 'unit', e.target.value)} className="field-round w-full text-base font-semibold text-slate-800 outline-none" placeholder={bi('件、杯、碟', 'e.g. item, cup, plate')} />
                         </div>
                       </div>
                       )}
@@ -3761,12 +3768,12 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
 
                 {items.length > 0 && <React.Fragment>
                 <Card className="bg-slate-50">
-                  <p className="text-sm text-slate-700 leading-relaxed mb-4">{bi('讀單會自動換算百分比稅費及折扣；已反映在項目／總額的調整不會重複計。', 'Scanning calculates percentage-based tax and discounts; amounts already reflected in item or final prices are not applied again.')}</p>
+                  <p className="text-sm text-slate-700 leading-relaxed mb-4">{bi('讀單會計入稅費／折扣；已計入金額勿重複填。', 'Scanning includes tax/discounts. Do not enter amounts already included.')}</p>
                   <div className="grid gap-4">
                     <div data-tutorial-target="fee" className="flex justify-between items-center gap-4">
                       <div className="flex-1">
                         <Label className="!mb-0.5">{tr("附加稅金／服務費")}</Label>
-                        <p className="text-xs text-slate-500 font-medium">{bi('核對自動換算金額；手動輸入時填金額，不用填百分比。', 'Check the calculated amount; if entering manually, enter money, not a percentage.')}</p>
+                        <p className="text-xs text-slate-500 font-medium">{bi('輸入金額，不是百分比。', 'Enter an amount, not a percentage.')}</p>
                       </div>
                       <div className="field-round flex items-center w-36 shrink-0 overflow-hidden shadow-sm">
                         <span className="pl-3 pr-1 text-slate-600 font-bold border-r border-slate-500 py-2">{getCurrencySymbol(detectedCurrency)}</span>
@@ -3776,7 +3783,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                     <div className="flex justify-between items-center gap-4 border-t border-slate-300 pt-3">
                       <div className="flex-1">
                         <Label className="!mb-0.5">{bi('整張單折扣', 'Bill-wide discount')}</Label>
-                        <p className="text-xs text-slate-500 font-medium">{bi('整單折扣會按消費比例分攤；單項折扣已反映在項目金額。', 'Bill-wide discounts are split by spending; item discounts are already reflected in item amounts.')}</p>
+                        <p className="text-xs text-slate-500 font-medium">{bi('整單按消費比例分攤；單項折扣已計入金額。', 'Bill-wide discount is split by spending; item discounts are included.')}</p>
                       </div>
                       <div className="field-round flex items-center w-36 shrink-0 overflow-hidden shadow-sm">
                         <span className="pl-3 pr-1 text-slate-600 font-bold border-r border-slate-500 py-2">{getCurrencySymbol(detectedCurrency)}</span>
@@ -3789,20 +3796,19 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
 
                 <div className="border-t border-slate-400 my-6 pt-6 space-y-6">
                   <div data-testid="claim-share-block" className="claim-share-block">
-                    <Label className="flex items-center justify-between mb-3"><span>{tr("1. 產生認帳連結發送給朋友")}</span></Label>
-                    <p className="text-base text-slate-700 mb-3 leading-relaxed">{bi('複製連結畀朋友填份數，填完撳交返發起人。', 'Copy the link. Friends enter their shares, then tap Send to organizer.')}</p>
-                    <p data-testid="claim-share-hint" className="claim-share-hint">{tr("核對無誤就可以㩒分享")}</p>
+                    <Label className="flex items-center justify-between mb-3"><span>{tr("1. 分享認帳連結")}</span></Label>
+                    <p className="text-base text-slate-700 mb-3 leading-relaxed">{bi('朋友填妥後會自動交回。', 'Friends’ completed replies return automatically.')}</p>
                     <div data-testid="claim-link-actions" className="flex flex-col gap-3">
                       <Button variant="secondary" onClick={generateFriendClaimLink} className="!w-full text-sm bg-white hover:bg-slate-50 border-slate-500">
                         <Icon path={icons.copy} size={18} className="text-slate-600"/>{tr(" 複製認帳連結")}</Button>
                       <ChoiceDivider />
-                      <Button data-tutorial-target="open-claim-share" variant="primary" onClick={openClaimShareDialog} className="!w-full text-sm">
-                        <Icon path={icons.share} size={18}/>{tr(" 分享認帳連結＋（單據圖片）")}</Button>
+                        <Button data-tutorial-target="open-claim-share" variant="primary" onClick={openClaimShareDialog} className="!w-full text-sm">
+                        <Icon path={icons.share} size={18}/>{tr(" 分享認帳連結及附件")}</Button>
                     </div>
                     {showClaimShareDialog && (
                     <dialog open={tutorialDemo ? true : undefined} ref={claimShareDialogRef} onCancel={() => setShowClaimShareDialog(false)} aria-labelledby="claim-share-title" className="m-auto max-w-lg rounded-2xl border border-slate-400 bg-white p-4 text-slate-800 shadow-xl overflow-y-auto backdrop:bg-slate-950/60" style={{ width: 'calc(100% - 2rem)', maxHeight: '85dvh' }}>
                       <div className="flex items-center justify-between gap-2 mb-3">
-                        <h2 id="claim-share-title" className="font-bold text-base">{tr("分享認帳連結＋（單據圖片）")}</h2>
+                        <h2 id="claim-share-title" className="font-bold text-base">{tr("分享認帳連結及附件")}</h2>
                         <button type="button" aria-label={tr("關閉分享視窗")} onClick={() => setShowClaimShareDialog(false)} className="shrink-0 rounded-lg p-2 hover:bg-slate-100"><Icon path={icons.x} size={20}/></button>
                       </div>
                       <label htmlFor="claim-share-files" className="block text-sm font-semibold mb-2">{tr("單據圖片／其他附件（可選）")}</label>
@@ -3815,7 +3821,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                         ref={claimAttachmentInputRef}
                         onChange={handleClaimAttachmentSelection}
                       />
-                      <p className="text-xs text-slate-500 mt-2 leading-relaxed">{bi('先分享連結，再另分享附件。最多 10 個檔，合共 20 MB。', 'Share the link first, then the attachments. Up to 10 files, 20 MB total.')}</p>
+                      <p className="text-xs text-slate-500 mt-2 leading-relaxed">{bi('附件上限：10 個，總共 20 MB。', 'Attachments: up to 10 files, 20 MB total.')}</p>
                       {claimAttachments.length > 0 && (
                         <div className="mt-3 border-t border-slate-300 pt-3">
                           <div className="flex items-center justify-between gap-2 mb-2">
@@ -3833,8 +3839,8 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                           </ul>
                         </div>
                       )}
-                      <p className="mt-3 text-xs text-slate-600">{draftAssetStatus === 'saving' && hasDraftAssets ? tr("正在儲存草稿附件，請稍候…") : tr("開啟分享選單前會確認本機草稿已儲存。")}</p>
-                      <Button data-tutorial-target="send-claim-link" variant="primary" onClick={shareFriendClaimLink} disabled={hasDraftAssets && draftAssetStatus === 'saving'} className="!w-full mt-4 text-sm"><Icon path={icons.share} size={18}/>{tr(" 第 1 步：分享一個認帳連結")}</Button>
+                      {draftAssetStatus === 'saving' && hasDraftAssets && <p className="mt-3 text-xs text-slate-600">{tr("正在儲存草稿附件，請稍候…")}</p>}
+                      <Button data-tutorial-target="send-claim-link" variant="primary" onClick={shareFriendClaimLink} disabled={hasDraftAssets && draftAssetStatus === 'saving'} className="!w-full mt-4 text-sm"><Icon path={icons.share} size={18}/>{tr(" 第 1 步：分享認帳連結")}</Button>
                       {claimAttachments.length > 0 && (
                         <Button variant="outline" onClick={shareClaimAttachments} disabled={hasDraftAssets && draftAssetStatus === 'saving'} className="!w-full mt-3 text-sm"><Icon path={icons.share} size={18}/>{tr(" 第 2 步：另分享附件（")}{claimAttachments.length}{tr(" 個）")}</Button>
                       )}
@@ -3852,8 +3858,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                     {...(claimFollowupOpen ? {} : { inert: '' })}
                   >
                     <Card data-testid="claim-inbox" className="!p-4 mb-4 border-brand-600">
-                      <h3 className="text-lg font-extrabold text-slate-800">{bi('朋友一按交返', 'Friends send their share')}</h3>
-                      <p className="text-base text-slate-700 mt-2 leading-relaxed">{bi('朋友撳「交返發起人」後，認帳會出現在下面。', 'After a friend taps Send to organizer, their share appears below.')}</p>
+                      <h3 className="text-lg font-extrabold text-slate-800">{bi('認帳回覆', 'Share replies')}</h3>
                       <p data-testid="claim-inbox-status" className="mt-3 text-base font-bold leading-relaxed text-slate-800" role="status">
                         {claimFollowupOpen && inboxPeople.length >= 1
                           ? bi(`已收到 ${inboxPeople.length} 位：${inboxPeople.join('、')}`, `Received ${inboxPeople.length}: ${inboxPeople.join(', ')}`)
@@ -3876,7 +3881,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                     <textarea
                       data-testid="claim-replies"
                       ref={el => fieldRefs.current.replies = el} value={friendsReplies} onChange={(e) => {setFriendsReplies(e.target.value); setReconciliation(null); setStepError('');}} onPaste={handlePasteReplies} onFocus={onFocusReplies} onBlur={onBlurReplies}
-                      placeholder={bi('認帳會出現在這裡，亦可以貼上 WhatsApp 後備。', 'Shares appear here. You can also paste a WhatsApp backup.')}
+                      placeholder={bi('朋友回覆會顯示於此；亦可貼上 WhatsApp 後備。', 'Friend replies appear here. You can also paste a WhatsApp backup.')}
                       className="w-full h-48 bg-white border border-slate-500 rounded-xl p-4 text-base font-mono text-slate-700 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none resize-y shadow-inner leading-relaxed">
                     </textarea>
                     <div className="flex gap-3 pt-2">
@@ -3934,20 +3939,20 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
 
                 <Card className="space-y-8">
                   <div data-tutorial-target="calculation-settings">
-                    <Label required={!payer} className="text-lg">{tr("墊支人姓名 (Payee)")}</Label>
-                    <input type="text" ref={el => fieldRefs.current.payer = el} value={payer} onChange={(e) => {setPayer(e.target.value); setStepError('');}} placeholder={tr("請輸入先付款人的姓名...")} className="w-full rounded-xl p-3.5 text-base font-semibold text-slate-800 outline-none transition-all bg-slate-50 focus:bg-white" />
+                    <Label required={!payer} className="text-lg">{bi('墊支人', 'Payer')}</Label>
+                    <input type="text" ref={el => fieldRefs.current.payer = el} value={payer} onChange={(e) => {setPayer(e.target.value); setStepError('');}} placeholder={tr("輸入姓名")} className="w-full rounded-xl p-3.5 text-base font-semibold text-slate-800 outline-none transition-all bg-slate-50 focus:bg-white" />
                   </div>
 
                   <div data-testid="receipt-currency-control" className="space-y-2">
-                    <Label className="text-lg">{bi('收據原幣（收據／輸入金額所用）', 'Receipt currency (the currency used on the receipt and in the fields)')}</Label>
+                    <Label className="text-lg">{bi('單據原幣', 'Receipt currency')}</Label>
                     <select data-testid="source-currency" value={detectedCurrency} onChange={event => { setDetectedCurrency(event.target.value); setReceiptAdjustmentDetails(null); setReconciliation(null); setStepError(''); setResults(null); setIsSaved(false); }} className="w-full rounded-xl border border-slate-400 bg-white p-3.5 text-base font-semibold text-slate-800">
                       {sourceCurrencyOptions.map(code => <option key={code} value={code}>{getCurrencyName(code)}</option>)}
                     </select>
-                    <p className="text-xs text-slate-600">{bi('單據項目、稅費及折扣都以此貨幣輸入；讀單辨識後可在這裡核對或更改。', 'Receipt items, tax and discounts are entered in this currency. Confirm or change the detected currency here.')}</p>
+                    <p className="text-xs text-slate-600">{bi('項目、稅費和折扣均以此貨幣輸入。', 'Items, tax and discounts use this currency.')}</p>
                   </div>
 
                   <div data-tutorial-target="currency">
-                    <Label className="text-lg mb-3">{tr("結算貨幣 (Currency)")} <span className="text-xs font-normal">{bi('（擇一）', '(choose one)')}</span></Label>
+                    <Label className="text-lg mb-3">{bi('結算貨幣', 'Settlement currency')}</Label>
                     <div className="flex flex-wrap gap-2.5">
                       {displayCurrencies.map(c => (
                           <button
@@ -3968,7 +3973,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                   </div>
 
                   <div>
-                    <Label className="text-lg mb-3">{tr("收款方式 (Payment Method，可多選)")}</Label>
+                    <Label className="text-lg mb-3">{bi('收款方式', 'Payment method')}</Label>
                     <div data-testid="payment-methods" className="flex flex-wrap gap-2.5">
                       {paymentOptions.map(pm => {
                         const selected = Array.isArray(paymentMethods) && paymentMethods.includes(pm);
@@ -3998,14 +4003,13 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                   </div>
 
                   <div className="border-t border-slate-400 pt-6">
-                    <Label className="text-lg mb-3">{tr("附加費用分攤邏輯 (Tax/Fee Split)")} <span className="text-xs font-normal">{bi('（擇一）', '(choose one)')}</span></Label>
+                    <Label className="text-lg mb-3">{bi('附加費用分攤', 'Tax / fee split')}</Label>
                     <div data-tutorial-target="tax-method" className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {[{ id: 'proportional', label: tr("按消費比例分攤"), desc: tr("食得多出得多") }, { id: 'equal', label: tr("所有人平均分攤"), desc: tr("人頭均分") }].map(opt => (
+                      {[{ id: 'proportional', label: tr("按消費比例分攤") }, { id: 'equal', label: tr("所有人平均分攤") }].map(opt => (
                         <label key={opt.id} className={`flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-all ${taxSplitMethod === opt.id ? 'bg-brand-50 border-brand-500 shadow-sm' : 'bg-white border-slate-500 hover:bg-slate-50'}`}>
                           <input type="radio" name="taxSplit" checked={taxSplitMethod === opt.id} onChange={() => setTaxSplitMethod(opt.id)} className="w-5 h-5 mt-0.5 text-brand-600 focus:ring-brand-500" />
                           <div>
                             <div className={`font-bold text-base ${taxSplitMethod === opt.id ? 'text-brand-900' : 'text-slate-800'}`}>{tr(opt.label)}</div>
-                            <div className="text-xs text-slate-500 mt-1">{tr(opt.desc)}</div>
                           </div>
                         </label>
                       ))}
@@ -4025,24 +4029,23 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
               <div className="space-y-6 animate-in fade-in duration-500">
                 <div className="page-section-heading flex items-center gap-2 mb-2">
                   <span className="w-8 h-8 rounded-full bg-brand-600 text-white flex items-center justify-center font-bold"><Icon path={icons.check} size={18}/></span>
-                  <h2 className="text-2xl font-bold text-slate-800 tracking-tight">{tr("最終分帳報告")}</h2>
+                  <h2 className="text-2xl font-bold text-slate-800 tracking-tight">{bi('分帳結果', 'Bill-splitting results')}</h2>
                 </div>
 
                 {lastImageData.length > 0 && (
                   <Button data-testid="share-receipt-images" onClick={shareCurrentReceipts} variant="primary" className="!w-full green-action-dark !bg-emerald-700 hover:!bg-emerald-800 !border-emerald-900 !shadow-none focus:!ring-emerald-600" style={{ backgroundColor: '#047857', borderColor: '#065f46', boxShadow: 'none' }}>
-                    <Icon path={icons.share} size={20} className="!filter-none"/>{bi('分享單據圖片（選項，非必要）', 'Share receipt images (optional)')}
+                    <Icon path={icons.share} size={20} className="!filter-none"/>{bi(`分享單據圖片（${lastImageData.length} 張）`, `Share receipt images (${lastImageData.length})`)}
                   </Button>
                 )}
 
                 <div id="report-share-step" className="scroll-mt-56">
                   <Card className="!p-0 overflow-hidden border-t-4 border-t-brand-600">
                     <div className="p-4 bg-slate-50 border-b border-slate-400">
-                      <h3 className="font-bold text-slate-800 text-base">{tr("💰 追數版報告 (精簡)")}</h3>
-                      <p className="text-xs text-slate-500 font-medium mt-0.5">{tr("第 1 步：分享純文字報告，不附圖片")}</p>
+                      <h3 className="font-bold text-slate-800 text-base">{bi('簡單版', 'Summary')}</h3>
                       <div data-testid="summary-report-actions" className="flex items-center gap-2 mt-3">
                         <Button onClick={() => shareCurrentReport(getSimplifiedResult(), tr("分帳追數結果"))} variant="primary" className="flex-1 !w-auto !px-2 !py-2 text-sm">{tr("分享報告")}</Button>
                         <ChoiceDivider inline />
-                        <Button onClick={() => copyCurrentReport(getSimplifiedResult(), tr("追數版"))} variant="outline" className="flex-1 !w-auto !px-2 !py-2 text-sm bg-white hover:bg-brand-50 border-slate-500 text-slate-700 hover:text-brand-700 hover:border-brand-500"><Icon path={icons.copy} size={16}/>{tr(" 複製文字")}</Button>
+                        <Button onClick={() => copyCurrentReport(getSimplifiedResult(), tr("追數版"))} variant="outline" className="flex-1 !w-auto !px-2 !py-2 text-sm bg-white hover:bg-brand-50 border-slate-500 text-slate-700 hover:text-brand-700 hover:border-brand-500"><Icon path={icons.copy} size={16}/>{bi(' 複製', ' Copy')}</Button>
                       </div>
                     </div>
                     <div data-testid="final-summary-preview" className="p-4 bg-white font-sans text-sm text-slate-700 whitespace-pre-wrap break-words leading-relaxed selection:bg-brand-100">{getSimplifiedResult()}</div>
@@ -4051,28 +4054,27 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
 
                 <div data-testid="report-choice-divider" className="my-4 flex items-center gap-3 px-4 text-slate-500" role="separator" aria-label={bi('分享版本分隔', 'Share option divider')}>
                   <span aria-hidden="true" className="h-px flex-1 bg-slate-400" />
-                  <span className="rounded-full border border-slate-300 bg-slate-50 px-3 py-1 text-sm font-bold uppercase tracking-wider">OR</span>
+                  <span className="rounded-full border border-slate-300 bg-slate-50 px-3 py-1 text-sm font-bold tracking-wider">{tr("或")}</span>
                   <span aria-hidden="true" className="h-px flex-1 bg-slate-400" />
                 </div>
 
                 <Card className="report-detail-card !p-0 overflow-hidden">
                   <div className="p-4 bg-slate-50 border-b border-slate-400">
                     <div className="mb-3">
-                      <h3 className="font-bold text-slate-800 text-base">{tr("🧾 詳細版")}</h3>
+                      <h3 className="font-bold text-slate-800 text-base">{bi('詳細版', 'Detailed')}</h3>
                     </div>
                     <div data-testid="detail-report-actions" className="flex items-center gap-2 mb-4">
                       <Button onClick={shareDetailedCurrentReport} variant="primary" className="flex-1 !w-auto !px-2 !py-2 text-sm">{tr("分享詳細版")}</Button>
                       <ChoiceDivider inline />
-                      <Button onClick={copyDetailedCurrentReport} variant="secondary" className="flex-1 !w-auto !px-2 !py-2 text-sm bg-white border-slate-500"><Icon path={icons.copy} size={16}/>{tr(" 複製文字")}</Button>
+                      <Button onClick={copyDetailedCurrentReport} variant="secondary" className="flex-1 !w-auto !px-2 !py-2 text-sm bg-white border-slate-500"><Icon path={icons.copy} size={16}/>{bi(' 複製', ' Copy')}</Button>
                     </div>
-                    <p className="text-xs text-slate-600 mb-2">{bi('詳細版固定顯示中文菜名及單據原文，方便核對。', 'The detailed report always shows Chinese item names and the original receipt text.')}</p>
                   </div>
                   <div data-testid="final-detail-preview" className="p-4 bg-white font-sans text-sm text-slate-600 whitespace-pre-wrap break-words leading-relaxed selection:bg-slate-200">{renderDetailedResultPreview()}</div>
                 </Card>
 
                 <div data-testid="friend-network-choice-divider" className="my-4 flex items-center gap-3 px-4 text-slate-500" role="separator" aria-label={bi('分享版本分隔', 'Share option divider')}>
                   <span aria-hidden="true" className="h-px flex-1 bg-slate-400" />
-                  <span className="rounded-full border border-slate-300 bg-slate-50 px-3 py-1 text-sm font-bold uppercase tracking-wider">OR</span>
+                  <span className="rounded-full border border-slate-300 bg-slate-50 px-3 py-1 text-sm font-bold tracking-wider">{tr("或")}</span>
                   <span aria-hidden="true" className="h-px flex-1 bg-slate-400" />
                 </div>
 
@@ -4114,7 +4116,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                   <Button onClick={saveCurrentRecord} disabled={isSaved || isSavingRecord} variant={isSaved ? 'secondary' : 'primary'} className={`w-full ${isSaved ? '!bg-emerald-50 !text-emerald-900 !border-emerald-700 disabled:!opacity-100 disabled:!cursor-default !shadow-none !transition-none' : ''}`}>
                     {isSavingRecord ? tr("正在儲存…") : isSaved ? <><Icon path={icons.check} size={20}/> {lastImageData.length ? tf("紀錄及 {0} 張單據已儲存在本機", [lastImageData.length]) : tr("紀錄已儲存")}</> : <><Icon path={icons.save} size={20}/> {lastImageData.length ? tf("儲存分帳紀錄及 {0} 張實體單", [lastImageData.length]) : tr("儲存此分帳紀錄")}</>}
                   </Button>
-                  {lastImageData.length > 0 && <p className="text-xs text-slate-500 text-center mt-2">{bi('圖片只留在這部機。', 'Images stay on this device.')}</p>}
+                  {lastImageData.length > 0 && <p className="text-xs text-slate-500 text-center mt-2">{bi('已存紀錄的相片只留在這部機。', 'Saved record photos stay on this device.')}</p>}
                 </div>
 
                 <div className="flex gap-3 pt-2">
@@ -4133,13 +4135,13 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                       <h2 className="text-xl font-bold text-slate-800 tracking-tight">{bi('教學中心', 'Tutorials')}</h2>
                     </div>
                   </div>
-                  <Button data-testid="skip-tutorials" variant="secondary" className="w-full border-slate-500" onClick={() => setShowTutorial(false)}>{bi('略過教學，直接開始使用', 'Skip tutorials and use the app')}</Button>
+                  <Button data-testid="skip-tutorials" variant="secondary" className="w-full border-slate-500" onClick={() => setShowTutorial(false)}>{bi('返回使用', 'Back to app')}</Button>
                 </Card>
 
                 <section data-testid="video-lessons-directory" aria-labelledby="video-lessons-title" className="space-y-3">
                   <Card className="p-0 overflow-hidden border-brand-600 bg-white shadow-sm">
                     <div className="px-5 pt-4 pb-3">
-                      <h2 id="video-lessons-title" className="text-lg font-extrabold text-slate-800">{bi('👍 必看影片教學', '👍 Must-watch video lessons')}</h2>
+                      <h2 id="video-lessons-title" className="text-lg font-extrabold text-slate-800">{bi('影片教學', 'Video lessons')}</h2>
                     </div>
                     <div className="space-y-4 px-4 pb-4">
                       <article id="openrouter-key-video" data-testid="openrouter-video-card" className="scroll-mt-24 rounded-xl border border-slate-400 bg-slate-50 p-3">
@@ -4165,18 +4167,14 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
 
                 <section data-testid="interactive-guide-directory" aria-labelledby="interactive-guide-title">
                   <Card className="border-slate-500 bg-white shadow-sm">
-                    <h2 id="interactive-guide-title" className="text-lg font-extrabold text-slate-800">{bi('16 步互動教學', '16-step interactive guide')}</h2>
-                    <p className="mt-1 mb-4 text-sm leading-relaxed text-slate-700">{bi('跟隨 16 步操作示範，不會修改你的賬單。', 'Try 16 steps with sample data; your bill stays unchanged.')}</p>
-                    <div data-testid="api-key-prerequisite" className="mb-4 rounded-lg border border-amber-300 bg-amber-50 p-3">
-                      <p className="text-sm leading-relaxed text-slate-700">{bi('首次用單據相片辨識，需先設定 OpenRouter API Key；已有金鑰可略過。', 'Set up an OpenRouter API key first for receipt-photo recognition. Already have one? Skip this.')}</p>
-                      <a data-testid="openrouter-key-video-link" href="#openrouter-key-video" className="mt-1 inline-block text-xs font-semibold text-brand-800 underline underline-offset-2">{bi('觀看 OpenRouter API Key 教學影片', 'Watch the OpenRouter API key video')}</a>
-                    </div>
+                    <h2 id="interactive-guide-title" className="text-lg font-extrabold text-slate-800">{bi('互動教學', 'Interactive guide')}</h2>
+                    <p className="mt-1 mb-4 text-sm leading-relaxed text-slate-700">{bi('使用示例，不會修改你的賬單。', 'Uses sample data; your bill stays unchanged.')}</p>
                     <Button data-testid="start-interactive-tutorial" className="w-full" onClick={() => {
                       if (!onStartTutorial || typeof window.BillTutorial !== 'function') return;
                       const origin = tutorialMenuOrigin.current || { x: window.scrollX, y: window.scrollY };
                       setShowTutorial(false);
                       onStartTutorial(() => setShowTutorial(true), origin);
-                    }}>{bi('開始 16 步互動教學', 'Start the 16-step guide')}</Button>
+                    }}>{bi('開始教學', 'Start guide')}</Button>
                   </Card>
                 </section>
               </div>
@@ -4217,7 +4215,6 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                           </div>
                         </div>
                         {!record.reportData && uiLang === 'en' && <p className="px-4 pt-3 text-xs text-amber-800">{bi('已儲存報告：原文語言（舊紀錄不會翻譯）。', 'Saved report: original language (legacy records are not translated).')}</p>}
-                        <p className="px-4 pt-3 text-xs text-slate-600">{bi('複製追數版或詳細版，擇一即可。', 'Copy either the summary or the detailed version; one is enough.')}</p>
                         <div className="p-4 bg-white flex flex-wrap gap-2.5">
                           <Button variant="outline" className="flex-1 !py-2 !text-sm !px-2 bg-white hover:bg-brand-50 border-slate-400 text-slate-700 hover:text-brand-700 hover:border-brand-500" onClick={() => copyToClipboard(getSavedReportText(record, 'simplified'), bi('追數版', 'Summary'))}><Icon path={icons.copy} size={16}/> {bi('追數版', 'Summary')}</Button>
                           <Button variant="secondary" className="flex-1 !py-2 !text-sm !px-2 bg-white border-slate-500" onClick={() => copyToClipboard(getSavedReportText(record, 'detailed'), bi('詳細版', 'Detailed'))}><Icon path={icons.copy} size={16}/> {bi('詳細版', 'Detailed')}</Button>
@@ -4225,12 +4222,11 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                         </div>
                         {Number(record.receiptImageCount) > 0 && (
                           <div className="px-4 pb-4">
-                            <p className="text-xs text-slate-600 mb-2">{tr("📎 本機收據副本：")}{record.receiptImageCount}{tr(" 張")}</p>
-                            <p className="text-xs text-slate-600 mb-2">{bi('先發一款文字，再另發圖片。', 'Send one text report, then share the images separately.')}</p>
+                            <p className="text-xs text-slate-600 mb-2">{bi('文字與圖片分開分享。', 'Reports and images are shared separately.')}</p>
                             <div className="grid grid-cols-2 gap-2">
                               <Button variant="outline" className="!w-auto !py-2 !px-2 !text-xs bg-white" onClick={() => shareSavedRecord(record, 'simplified')}>{tr("分享追數版（純文字）")}</Button>
                               <Button variant="secondary" className="!w-auto !py-2 !px-2 !text-xs bg-white" onClick={() => shareSavedRecord(record, 'detailed')}>{tr("分享詳細版（純文字）")}</Button>
-                              <Button variant="outline" className="col-span-2 !w-auto !py-2 !px-2 !text-xs bg-white" disabled={!Array.isArray(savedReceiptFiles[record.id]) || !savedReceiptFiles[record.id].length} onClick={() => shareSavedRecord(record, 'receipts')}>{receiptHistoryLoading[record.id] ? tr("正在讀取…") : tr("另分享歷史單據圖片")}</Button>
+                              <Button variant="outline" className="col-span-2 !w-auto !py-2 !px-2 !text-xs bg-white" disabled={!Array.isArray(savedReceiptFiles[record.id]) || !savedReceiptFiles[record.id].length} onClick={() => shareSavedRecord(record, 'receipts')}>{receiptHistoryLoading[record.id] ? tr("正在讀取…") : bi(`分享單據圖片（${record.receiptImageCount} 張）`, `Share receipt images (${record.receiptImageCount})`)}</Button>
                             </div>
                             {savedReceiptFiles[record.id] === null && <p className="text-xs text-red-600 mt-2">{tr("此裝置找不到收據圖片；可能已清除網站資料。")}</p>}
                             {Array.isArray(savedReceiptFiles[record.id]) && savedReceiptFiles[record.id].length === 0 && <p className="text-xs text-red-600 mt-2">{tr("本機歷史中沒有收據圖片副本。")}</p>}
@@ -4260,12 +4256,12 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                     </div>
                     <div className="mb-6 rounded-xl border border-brand-500 bg-brand-50 p-4">
                       <div className="font-bold text-base text-brand-900">OpenRouter</div>
-                      <p className="text-base text-slate-700 font-medium mt-1 leading-relaxed">{bi('用來讀外語單據。預設免費。鎖匙只留在這部機。', 'Used to read foreign receipts. Free by default. The key stays on this device.')}</p>
+                      <p className="text-base text-slate-700 font-medium mt-1 leading-relaxed">{bi('讀取外語單據。', 'Reads foreign receipts.')}</p>
                     </div>
 
                     <div className="border-t border-slate-400 pt-6 space-y-5">
                       <div>
-                          <Label className="text-base">{bi('免費識別模型', 'Free recognition model')}</Label>
+                          <Label className="text-base">{bi('辨識模型', 'Recognition model')}</Label>
                         <select
                           data-testid="model-select"
                           value={resolveBillModel(apiModel, allowPaidModels)}
@@ -4279,11 +4275,11 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                             {FREE_MODELS.map(([id, zh, en]) => <option key={id} value={id}>{bi(zh, en)}</option>)}
                           </optgroup>
                         </select>
-                        <p className="text-base text-slate-700 mt-2 leading-relaxed">{bi('讀唔到時會自動改試其他免費模型。', 'If it cannot read the receipt, the app tries other free models.')}</p>
+                        <p className="text-base text-slate-700 mt-2 leading-relaxed">{bi('讀唔到時會自動試其他模型。', 'If it cannot read the receipt, it tries another model.')}</p>
                       </div>
 
                       <div>
-                        <Label className="text-base flex justify-between items-center">{bi('免費 API 金鑰', 'Free API key')}<a data-testid="get-free-api-key" data-key-saved={!isEditingKey && Boolean(apiKey.trim()) ? 'true' : 'false'} href="https://openrouter.ai/settings/keys" target="_blank" rel="noreferrer" className={`text-sm underline font-semibold ${!isEditingKey && apiKey.trim() ? 'text-brand-700 hover:text-brand-800' : 'text-red-700 hover:text-red-900'}`}>{bi('取得免費金鑰 ↗', 'Get a free key ↗')}</a>
+                        <Label className="text-base flex justify-between items-center">{bi('API 金鑰', 'API key')}<a data-testid="get-free-api-key" data-key-saved={!isEditingKey && Boolean(apiKey.trim()) ? 'true' : 'false'} href="https://openrouter.ai/settings/keys" target="_blank" rel="noreferrer" className={`text-sm underline font-semibold ${!isEditingKey && apiKey.trim() ? 'text-brand-700 hover:text-brand-800' : 'text-red-700 hover:text-red-900'}`}>{bi('取得免費金鑰 ↗', 'Get a free key ↗')}</a>
                         </Label>
                         {!isEditingKey && apiKey ? (
                           <div className="bg-slate-50 border border-slate-400 rounded-xl p-4 mt-2">
@@ -4332,8 +4328,8 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                           }
                         }} className="w-5 h-5 mt-0.5 text-brand-600 focus:ring-brand-500 rounded" />
                         <div>
-                          <div className="font-bold text-slate-800 text-base">{tr("將金鑰永久儲存於此瀏覽器（建議保持勾選）")}</div>
-                          <div className="text-base text-slate-700 mt-1 font-medium leading-relaxed">{bi('只存在這部機，不會上傳。', 'Stored only on this device. It is not uploaded.')}</div>
+                          <div className="font-bold text-slate-800 text-base">{bi('記住金鑰', 'Remember key')}</div>
+                          <div className="text-base text-slate-700 mt-1 font-medium leading-relaxed">{bi('只保存在此瀏覽器，不會上傳。', 'Stored only in this browser; not uploaded.')}</div>
                         </div>
                       </label>
                     </div>
@@ -4378,7 +4374,11 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
         restoreFrame.current = requestAnimationFrame(() => {
           if (showHelp) window.scrollTo({ left: 0, top: 0, behavior: 'instant' });
           else if (saved) {
-            (saved.focus?.isConnected ? saved.focus : document.querySelector('[data-testid="start-tutorial"]'))?.focus({ preventScroll: true });
+            const savedFocus = saved.focus?.isConnected && saved.focus.getClientRects().length ? saved.focus : null;
+            const fallbackFocus = document.querySelector('[data-testid="header-action-menu-toggle"]')
+              || document.querySelector('[data-testid="start-interactive-tutorial"]')
+              || document.querySelector('[data-testid="start-tutorial"]');
+            (savedFocus || fallbackFocus)?.focus({ preventScroll: true });
             window.scrollTo({ left: saved.x, top: saved.y, behavior: 'instant' });
           }
         });
