@@ -40,6 +40,10 @@
     .brand { display: inline-flex; align-items: center; gap: 8px; color: var(--green-dark); font-size: 13px; font-weight: 800; letter-spacing: .02em; }
     .brand-mark { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 10px; background: var(--green); color: white; font-size: 16px; }
     h1 { margin: 14px 0 6px; font-size: clamp(25px, 7vw, 32px); line-height: 1.2; letter-spacing: -.03em; }
+    .hero .activity-title { margin: 0 0 4px; color: var(--green-dark); font-size: 15px; font-weight: 800; line-height: 1.45; overflow-wrap: anywhere; }
+    .hero .expiry-countdown { margin: 0; color: #294e7a; font-size: 13px; font-weight: 750; line-height: 1.5; }
+    .expired-panel { margin: 0 0 14px; padding: 17px; color: #7a271a; border: 1px solid #b56b61; border-radius: 15px; background: #f3e9e7; line-height: 1.6; }
+    .expired-panel strong { display: block; margin-bottom: 4px; }
     .hero p { margin: 0; color: var(--muted); font-size: 15px; line-height: 1.55; }
     .panel { margin: 0 0 14px; padding: 18px; border: 1px solid var(--line); border-radius: 18px; background: var(--paper); box-shadow: 0 5px 18px rgba(19, 53, 38, .045); }
     .notice { display: flex; gap: 11px; align-items: flex-start; color: #305b48; background: var(--green-soft); border-color: #c8e6d5; font-size: 13px; line-height: 1.55; }
@@ -277,9 +281,15 @@
         <button id="language-toggle" class="language-toggle" type="button" aria-label="Switch language">English</button>
       </div>
       <h1 id="page-title">填寫你的認帳</h1>
+      <p id="activity-title" class="activity-title" hidden></p>
+      <p id="expiry-countdown" class="expiry-countdown" hidden></p>
     </header>
 
     <main>
+      <section id="expired-panel" class="expired-panel" role="status" hidden>
+        <strong id="expired-title">活動連結已失效</strong>
+        <span id="expired-description">已超過有效期限，不能再填寫認帳。請向發起人索取新連結。</span>
+      </section>
       <section id="load-error" class="load-error" role="alert" hidden>
         <strong id="error-title">打不開這份認帳表</strong>
         <span id="error-description">連結資料不完整或格式不正確。請向發起人索取最新的認帳連結。</span>
@@ -329,6 +339,9 @@
     (() => {
       const loadError = document.getElementById('load-error');
       const content = document.getElementById('claim-content');
+      const activityTitle = document.getElementById('activity-title');
+      const expiryCountdown = document.getElementById('expiry-countdown');
+      const expiredPanel = document.getElementById('expired-panel');
       const form = document.getElementById('claim-form');
       const itemList = document.getElementById('item-list');
       const itemCount = document.getElementById('item-count');
@@ -346,6 +359,9 @@
       let toastTimer;
       let items = [];
       let relayRoom = null;
+      let linkMetadata = null;
+      let isExpired = false;
+      let expiryTimer = null;
       let submitting = false;
       let lastSubmittedSignature = '';
       const quantityPickerValues = ['0.5', ...Array.from({ length: 50 }, (_, index) => String(index + 1))];
@@ -368,6 +384,11 @@
       const messages = {
         'zh-HK': {
           title: '填寫你的認帳',
+          activity: title => `活動：${title}`,
+          expiresIn: remaining => `連結有效期：${remaining}`,
+          expiredCountdown: '連結已到期', expiredTitle: '活動連結已失效',
+          expiredDescription: '已超過有效期限，不能再填寫認帳。請向發起人索取新連結。',
+          daysUnit: '日', hoursUnit: '小時', minutesUnit: '分', lessThanMinute: '少於 1 分鐘',
           errorTitle: '打不開認帳表', errorDescription: '連結無效，請索取新連結。',
           personLabel: '你的姓名', namePlaceholder: '例如：阿明', nameHint: '填發起人認得的名字。',
           items: '賬單項目', sharingRule: '冇單位大家分，有單位自己付。', preview: '認帳回覆預覽', previewSubtitle: '提交未成功可用。',
@@ -396,6 +417,11 @@
         },
         en: {
           title: 'Your items',
+          activity: title => `Activity: ${title}`,
+          expiresIn: remaining => `Link expires in: ${remaining}`,
+          expiredCountdown: 'Link expired', expiredTitle: 'This activity link has expired',
+          expiredDescription: 'The validity period has ended. You can no longer submit a reply. Ask the organizer for a new link.',
+          daysUnit: 'd', hoursUnit: 'h', minutesUnit: 'm', lessThanMinute: 'less than 1 minute',
           errorTitle: 'This page could not be opened', errorDescription: 'Invalid link. Ask for a new one.',
           personLabel: 'Your name', namePlaceholder: 'For example: Alex', nameHint: 'Use a name the organizer recognizes.',
           items: 'Bill items', sharingRule: 'No unit: everyone shares. With a unit: the person claiming it pays.', preview: 'Reply preview', previewSubtitle: 'Use if submission fails.',
@@ -467,6 +493,50 @@
         return node;
       }
 
+      function formatRemaining(milliseconds) {
+        const totalMinutes = Math.ceil(milliseconds / 60000);
+        if (totalMinutes <= 0) return messages[language].lessThanMinute;
+        const days = Math.floor(totalMinutes / 1440);
+        const hours = Math.floor((totalMinutes % 1440) / 60);
+        const minutes = totalMinutes % 60;
+        const text = messages[language];
+        const parts = [];
+        if (days) parts.push(`${days}${text.daysUnit}`);
+        if (hours) parts.push(`${hours}${text.hoursUnit}`);
+        if (minutes || !parts.length) parts.push(`${minutes}${text.minutesUnit}`);
+        return parts.join(' ');
+      }
+
+      function updateExpiryUI() {
+        if (!linkMetadata) return true;
+        const text = messages[language];
+        activityTitle.textContent = text.activity(linkMetadata.title);
+        activityTitle.hidden = false;
+        expiryCountdown.hidden = false;
+        document.title = `${linkMetadata.title} | ${language === 'en' ? 'Your items | Bill Splitter AI' : '填寫認帳｜分帳管家 AI'}`;
+        const remaining = linkMetadata.expiresAt - Date.now();
+        if (remaining <= 0) {
+          isExpired = true;
+          expiryCountdown.textContent = text.expiredCountdown;
+          document.getElementById('expired-title').textContent = text.expiredTitle;
+          document.getElementById('expired-description').textContent = text.expiredDescription;
+          expiredPanel.hidden = false;
+          content.hidden = true;
+          submitDock.hidden = true;
+          if (expiryTimer !== null) {
+            window.clearInterval(expiryTimer);
+            expiryTimer = null;
+          }
+          return false;
+        }
+        isExpired = false;
+        expiryCountdown.textContent = text.expiresIn(formatRemaining(remaining));
+        expiredPanel.hidden = true;
+        content.hidden = false;
+        submitDock.hidden = false;
+        return true;
+      }
+
       function applyLanguage(nextLanguage) {
         language = nextLanguage;
         const text = messages[language];
@@ -499,6 +569,7 @@
         document.getElementById('share-help').textContent = text.shareHelp;
         renderItems();
         updatePreview();
+        updateExpiryUI();
       }
 
       function renderItems() {
@@ -668,7 +739,7 @@
         shareButton.disabled = !result.complete;
         copyButton.disabled = !result.complete;
         const unchangedSubmittedReply = Boolean(lastSubmittedSignature) && replySignature(result) === lastSubmittedSignature;
-        submitButton.disabled = submitting || !relayRoom || !result.complete || unchangedSubmittedReply;
+        submitButton.disabled = isExpired || submitting || !relayRoom || !result.complete || unchangedSubmittedReply;
       }
 
       function showToast(message) {
@@ -766,6 +837,7 @@
         }
       });
       submitButton.addEventListener('click', async () => {
+        if (!updateExpiryUI()) return;
         const result = getReply();
         const text = messages[language];
         if (!result.complete) { updatePreview(); return; }
@@ -810,11 +882,16 @@
       applyLanguage(language);
       try {
         items = loadItems();
+        linkMetadata = window.ClaimRelay ? window.ClaimRelay.readLinkMetadataFromHash(window.location.hash) : null;
         relayRoom = window.ClaimRelay ? window.ClaimRelay.readRoomFromHash(window.location.hash) : null;
         renderItems();
-        content.hidden = false;
-        submitDock.hidden = false;
-        if (!relayRoom) {
+        if (linkMetadata) {
+          if (updateExpiryUI()) expiryTimer = window.setInterval(updateExpiryUI, 1000);
+        } else {
+          content.hidden = false;
+          submitDock.hidden = false;
+        }
+        if (!isExpired && !relayRoom) {
           fallbackPanel.open = true;
           submitStatus.textContent = messages[language].noRoom;
           submitStatus.classList.add('error');
@@ -823,6 +900,7 @@
       } catch (_) {
         loadError.hidden = false;
       }
+      window.addEventListener('pagehide', () => window.clearInterval(expiryTimer));
     })();
   </script>
   <script>

@@ -52,16 +52,49 @@
     return { topic: 'bs' + randomTopicSuffix(22), key };
   }
 
+  function sanitizeLinkMetadata(metadata) {
+    if (!metadata || typeof metadata !== 'object') return null;
+    const title = String(metadata.title || '').replace(/[\r\n=＝]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80);
+    const createdAt = Number(metadata.createdAt);
+    const expiresAt = Number(metadata.expiresAt);
+    if (!title || !Number.isSafeInteger(createdAt) || !Number.isSafeInteger(expiresAt)
+      || createdAt <= 0 || expiresAt <= createdAt || expiresAt - createdAt > 31 * 24 * 60 * 60 * 1000) return null;
+    return { title, createdAt, expiresAt };
+  }
+
+  function readLinkMetadataFromHash(hash) {
+    const params = new URLSearchParams(String(hash || '').replace(/^#/, ''));
+    const title = params.get('title');
+    const createdAt = params.get('created');
+    const expiresAt = params.get('expires');
+    if (title === null && createdAt === null && expiresAt === null) return null;
+    const metadata = sanitizeLinkMetadata({ title, createdAt, expiresAt });
+    if (!metadata) throw Object.assign(new Error('bad-link-metadata'), { code: 'bad-link-metadata' });
+    return metadata;
+  }
+
   function readRoomFromHash(hash) {
     const params = new URLSearchParams(String(hash || '').replace(/^#/, ''));
     const room = { topic: params.get('room') || '', key: params.get('k') || '' };
     return isRoom(room) ? room : null;
   }
 
-  function buildHash(dataToken, room) {
+  function buildHash(dataToken, room, metadata) {
     const token = String(dataToken || '');
-    if (!isRoom(room)) return 'data=' + token;
-    return 'data=' + token + '&room=' + room.topic + '&k=' + room.key;
+    const params = new URLSearchParams();
+    params.set('data', token);
+    if (isRoom(room)) {
+      params.set('room', room.topic);
+      params.set('k', room.key);
+    }
+    if (metadata !== undefined && metadata !== null) {
+      const cleanMetadata = sanitizeLinkMetadata(metadata);
+      if (!cleanMetadata) throw Object.assign(new Error('bad-link-metadata'), { code: 'bad-link-metadata' });
+      params.set('title', cleanMetadata.title);
+      params.set('created', String(cleanMetadata.createdAt));
+      params.set('expires', String(cleanMetadata.expiresAt));
+    }
+    return params.toString();
   }
 
   function cleanText(value, max) {
@@ -253,6 +286,8 @@
     isRoom,
     createRoom,
     readRoomFromHash,
+    readLinkMetadataFromHash,
+    sanitizeLinkMetadata,
     buildHash,
     sanitizePayload,
     encryptPayload,

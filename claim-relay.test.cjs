@@ -34,6 +34,19 @@ test('room round-trips through the claim hash and encrypts the payload', async (
   assert.equal(await relay.decryptPayload(relay.createRoom().key, message), null);
 });
 
+test('claim link metadata round-trips and legacy links remain valid', () => {
+  const room = relay.createRoom();
+  const createdAt = 1794000000000;
+  const metadata = { title: '東京旅行 11月', createdAt, expiresAt: createdAt + 7 * 24 * 60 * 60 * 1000 };
+  const hash = relay.buildHash('items_token', room, metadata);
+  assert.equal(relay.readLinkMetadataFromHash('#' + hash).title, metadata.title);
+  assert.equal(relay.readLinkMetadataFromHash(hash).createdAt, createdAt);
+  assert.equal(relay.readLinkMetadataFromHash(hash).expiresAt, metadata.expiresAt);
+  assert.equal(relay.readLinkMetadataFromHash('data=legacy_token'), null);
+  assert.throws(() => relay.readLinkMetadataFromHash('data=x&title=bad&created=10&expires=5'), { code: 'bad-link-metadata' });
+  assert.throws(() => relay.buildHash('x', room, { ...metadata, expiresAt: createdAt }), { code: 'bad-link-metadata' });
+});
+
 test('upsert keeps every friend and replaces a resubmission', () => {
   const items = sampleItems();
   const ming = { v: 1, name: '阿明', claims: [{ id: '01', qty: 1, unit: '', displayUnit: '' }] };
