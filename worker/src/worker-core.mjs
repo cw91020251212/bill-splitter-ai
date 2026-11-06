@@ -5,6 +5,8 @@ const MAX_PARTICIPANTS = 500;
 const MAX_ITEMS = 2000;
 const ID_RE = /^[A-Za-z0-9_-]{22}$/;
 const IMAGE_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+const SESSION_TTL_DAYS = new Set([1, 3, 7, 14]);
+const MAX_SESSION_TTL_SECONDS = 14 * 24 * 60 * 60;
 
 const baseHeaders = {
   'Cache-Control': 'private, no-store, max-age=0',
@@ -21,8 +23,8 @@ function jsonResponse(body, status = 200, origin = null, extra = {}) {
   });
   if (origin) {
     headers.set('Access-Control-Allow-Origin', origin);
-    headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    headers.set('Access-Control-Allow-Headers', 'Content-Type');
+    headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, OPTIONS');
+    headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
     headers.set('Access-Control-Max-Age', '600');
     headers.append('Vary', 'Origin');
   }
@@ -142,6 +144,36 @@ function makeId() {
   return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
 }
 
+function makeWriteToken() {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  let binary = '';
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+}
+
+async function hashWriteToken(token) {
+  const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token)));
+  return Array.from(digest, byte => byte.toString(16).padStart(2, '0')).join('');
+}
+
+function safeHashEqual(left, right) {
+  if (typeof left !== 'string' || typeof right !== 'string' || left.length !== right.length) return false;
+  let difference = 0;
+  for (let index = 0; index < left.length; index += 1) difference |= left.charCodeAt(index) ^ right.charCodeAt(index);
+  return difference === 0;
+}
+
+async function readRecord(namespace, id) {
+  const raw = await namespace.get(`share:${id}`);
+  return typeof raw === 'string' ? JSON.parse(raw) : raw;
+}
+
+function sessionTtlSeconds(ttlDays) {
+  const days = Number(ttlDays);
+  return SESSION_TTL_DAYS.has(days) ? Math.min(days * 24 * 60 * 60, MAX_SESSION_TTL_SECONDS) : 0;
+}
+
 function parseTtl(env) {
   const requested = Number(env.SHARE_TTL_SECONDS);
   return Number.isFinite(requested) && requested >= 60
@@ -152,8 +184,8 @@ function parseTtl(env) {
 function apiBaseHeaders(origin) {
   return {
     'Access-Control-Allow-Origin': origin,
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     'Access-Control-Max-Age': '600',
     Vary: 'Origin'
   };
@@ -168,6 +200,25 @@ export async function handleRequest(request, env, now = Date.now()) {
     const origin = allowedOrigin(request, env);
     if (!origin) return jsonResponse({ error: '此來源不可使用分享服務。' }, 403);
     if (method === 'OPTIONS') return new Response(null, { status: 204, headers: new Headers({ ...baseHeaders, ...apiBaseHeaders(origin) }) });
+
+    if (url.pathname === '/api/shares/sessions' && method === 'POST') {
+      if (!env.BILL_SHARES) return jsonResponse({ error: '分享暫存服務尚未設定。' }, 503, origin);
+      let input;
+      try { input = await request.json(); }
+      catch (_) { return jsonResponse({ error: 'Session 設定不是有效的 JSON。' }, 400, origin); }
+      const ttlSeconds = sessionTtlSeconds(input?.ttlDays);
+      if (!ttlSeconds) return jsonResponse({ error: '有效期只可選 1、3、7 或 14 日。' }, 400, origin);
+      const id = makeId();
+      const writeToken = makeWriteToken();
+      const expiresAt = now + ttlSeconds * 1000;
+      const record = { version: 1, kind: 'claim-session', status: 'pending', createdAt: now, expiresAt, writeKeyHash: await hashWriteToken(writeToken) };
+      try {
+        await env.BILL_SHARES.put(`share:${id}`, JSON.stringify(record), { expirationTtl: ttlSeconds });
+      } catch (_) {
+        return jsonResponse({ error: '暫時無法建立認帳連結，請稍後再試。' }, 503, origin);
+      }
+      return jsonResponse({ id, writeToken, status: 'pending', createdAt: new Date(now).toISOString(), expiresAt: new Date(expiresAt).toISOString(), ttlSeconds }, 201, origin);
+    }
 
     if (url.pathname === '/api/shares' && method === 'POST') {
       if (!env.BILL_SHARES) return jsonResponse({ error: '分享暫存服務尚未設定。' }, 503, origin);
@@ -204,8 +255,7 @@ export async function handleRequest(request, env, now = Date.now()) {
       if (!env.BILL_SHARES) return jsonResponse({ error: '分享暫存服務尚未設定。' }, 503, origin);
       let record;
       try {
-        const raw = await env.BILL_SHARES.get(`share:${match[1]}`);
-        record = typeof raw === 'string' ? JSON.parse(raw) : raw;
+        record = await readRecord(env.BILL_SHARES, match[1]);
       } catch (_) {
         return jsonResponse({ error: '無法讀取分享資料。' }, 503, origin);
       }
@@ -214,7 +264,55 @@ export async function handleRequest(request, env, now = Date.now()) {
         try { await env.BILL_SHARES.delete(`share:${match[1]}`); } catch (_) {}
         return jsonResponse({ error: '這條分享連結已到期。', code: 'expired' }, 410, origin);
       }
-      return jsonResponse({ data: record.data, expiresAt: new Date(record.expiresAt).toISOString() }, 200, origin);
+      if (record.kind === 'claim-session' && record.status === 'pending') {
+        return jsonResponse({ status: 'pending', expiresAt: new Date(record.expiresAt).toISOString() }, 202, origin);
+      }
+      return jsonResponse({ status: 'ready', data: record.data, expiresAt: new Date(record.expiresAt).toISOString() }, 200, origin);
+    }
+
+    if (match && method === 'PUT') {
+      if (!env.BILL_SHARES) return jsonResponse({ error: '分享暫存服務尚未設定。' }, 503, origin);
+      let record;
+      try { record = await readRecord(env.BILL_SHARES, match[1]); }
+      catch (_) { return jsonResponse({ error: '無法讀取分享資料。' }, 503, origin); }
+      if (!record) return jsonResponse({ error: '連結已到期或不存在。', code: 'not_found' }, 404, origin);
+      if (!Number.isFinite(record.expiresAt) || record.expiresAt <= now) {
+        try { await env.BILL_SHARES.delete(`share:${match[1]}`); } catch (_) {}
+        return jsonResponse({ error: '這條分享連結已到期。', code: 'expired' }, 410, origin);
+      }
+      if (record.kind !== 'claim-session' || typeof record.writeKeyHash !== 'string') {
+        return jsonResponse({ error: '這條連結不是可更新的認帳活動。' }, 409, origin);
+      }
+      const bearer = (request.headers.get('Authorization') || '').match(/^Bearer ([A-Za-z0-9_-]{43})$/);
+      if (!bearer || !safeHashEqual(record.writeKeyHash, await hashWriteToken(bearer[1]))) {
+        return jsonResponse({ error: '沒有更新此活動結果的權限。' }, 403, origin);
+      }
+      const declaredLength = Number(request.headers.get('Content-Length') || 0);
+      if (declaredLength > MAX_SHARE_BYTES) return jsonResponse({ error: '帳單及收據合計超過 8 MiB 上限，請減少或縮小收據相片。' }, 413, origin);
+      const bodyText = await request.text();
+      if (new TextEncoder().encode(bodyText).byteLength > MAX_SHARE_BYTES) return jsonResponse({ error: '帳單及收據合計超過 8 MiB 上限，請減少或縮小收據相片。' }, 413, origin);
+      let input;
+      try { input = JSON.parse(bodyText); }
+      catch (_) { return jsonResponse({ error: '分享資料不是有效的 JSON。' }, 400, origin); }
+      let data;
+      try { data = normalizeShareData(input); }
+      catch (error) { return jsonResponse({ error: error.message || '分享資料格式不正確。' }, 400, origin); }
+      if (new TextEncoder().encode(JSON.stringify(data)).byteLength > MAX_SHARE_BYTES) {
+        return jsonResponse({ error: '帳單及收據合計超過 8 MiB 上限，請減少或縮小收據相片。' }, 413, origin);
+      }
+      const lastWriteAt = Number(record.updatedAt) || Number(record.createdAt) || 0;
+      const waitMs = Math.max(0, 1050 - (now - lastWriteAt));
+      if (waitMs) await new Promise(resolve => setTimeout(resolve, waitMs));
+      const updatedAt = Math.max(now + waitMs, Date.now());
+      const remainingTtl = Math.floor((record.expiresAt - updatedAt) / 1000);
+      if (remainingTtl < 60) return jsonResponse({ error: '這條分享連結已到期。', code: 'expired' }, 410, origin);
+      const updatedRecord = { ...record, status: 'ready', updatedAt, data };
+      try {
+        await env.BILL_SHARES.put(`share:${match[1]}`, JSON.stringify(updatedRecord), { expirationTtl: remainingTtl });
+      } catch (_) {
+        return jsonResponse({ error: '暫時無法更新活動結果，請稍後重試。' }, 503, origin);
+      }
+      return jsonResponse({ id: match[1], status: 'ready', expiresAt: new Date(record.expiresAt).toISOString() }, 200, origin);
     }
     return jsonResponse({ error: '找不到分享 API。' }, 404, origin);
   }

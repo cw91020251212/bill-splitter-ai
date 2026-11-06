@@ -21,6 +21,16 @@ node tests/cross-currency-ui.cjs
 node tests/recognition-retry-ui.cjs
 ```
 
+同一條認帳／結果連結的 UI 測試（390px 手機視窗）會 mock Worker 寫入和 WhatsApp，不會建立正式分享資料；Worker 的 pending→ready、主辦人 token 和期限可另以 `node --test worker/worker-core.test.mjs` 測試。先啟動 localhost 靜態伺服器，再執行：
+
+```sh
+PLAYWRIGHT_MODULE=/path/to/playwright \
+CHROMIUM_EXECUTABLE=/usr/bin/chromium \
+BASE_URL=http://127.0.0.1:4178/ \
+node tests/friend-whatsapp-details.cjs
+node --test worker/worker-core.test.mjs
+```
+
 若 Playwright 或 Chromium 不在預設路徑，可用環境變數指定：
 
 ```sh

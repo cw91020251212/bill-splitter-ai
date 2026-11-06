@@ -1,11 +1,29 @@
 'use strict';
 
-// Local-only E2E: short-link creation and WhatsApp navigation are mocked; no live share is created or sent.
+// Local-only E2E: Worker calls and WhatsApp navigation are mocked; no live share is created or sent.
 // BASE_URL=http://127.0.0.1:4192/ PLAYWRIGHT_MODULE=/path/to/playwright CHROMIUM_EXECUTABLE=/usr/bin/chromium node tests/friend-whatsapp-details.cjs
 const assert = require('node:assert/strict');
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
+const relay = require('../claim-relay.js');
 const base = process.env.BASE_URL || 'http://127.0.0.1:4192/';
 if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?\//.test(base)) throw new Error('This state-writing test is local-only.');
+
+const sessionId = 'A'.repeat(22);
+const writeToken = 'B'.repeat(43);
+const createdAt = Date.now();
+const expiresAt = createdAt + 7 * 24 * 60 * 60 * 1000;
+const claimRoom = relay.createRoom();
+const itemPayload = Buffer.from(JSON.stringify([
+  { id: '01', name: '壽司飯糰', totalQty: 3, unit: '件' },
+  { id: '02', name: '共享刺身盤', totalQty: null, unit: '份' }
+])).toString('base64url');
+const claimUrl = new URL('./claim.html', base);
+claimUrl.searchParams.set('lang', 'zh-HK');
+claimUrl.searchParams.set('session', sessionId);
+claimUrl.hash = relay.buildHash(itemPayload, claimRoom, {
+  title: '週末聚餐', createdAt, expiresAt, customName: '週末聚餐', expiryDays: '7'
+});
+const sameLink = claimUrl.href;
 
 function draft() {
   return {
@@ -19,56 +37,37 @@ function draft() {
         { id: '02', name: '共享刺身盤', price: 140, total: 140, totalQty: null, unit: '份' }
       ],
       readReceipt: true,
-      taxAmount: '0',
-      discountAmount: '0',
-      taxNote: '',
-      receiptAdjustmentDetails: null,
+      taxAmount: '0', discountAmount: '0', taxNote: '', receiptAdjustmentDetails: null,
       friendsReplies: '姓名：阿明\n01 = 1\n02 = 2\n姓名：小美\n01 = 1\n02 = 1\n姓名：阿強\n01 = 1\n02 = 3',
-      payer: '阿明',
-      detectedCurrency: 'JPY',
-      currency: 'HKD',
-      taxSplitMethod: 'proportional',
-      paymentMethods: ['現金'],
-      results: null,
-      reconciliation: null,
-      isSaved: false,
-      includeReceiptImages: false,
-      detailLang: 'zh',
-      pendingReceiptShare: false,
-      claimRoom: null,
-      claimInboxSeen: [],
-      claimLinkShared: true
+      payer: '阿明', detectedCurrency: 'JPY', currency: 'HKD', taxSplitMethod: 'proportional',
+      paymentMethods: ['現金'], results: null, reconciliation: null, isSaved: false,
+      claimRoom: null, claimActivityName: '週末聚餐', claimExpiryDays: '7',
+      claimLinkMeta: { title: '週末聚餐', createdAt, expiresAt, customName: '週末聚餐', expiryDays: '7' },
+      claimSession: { id: sessionId, writeToken, expiresAt, ttlDays: '7', link: sameLink },
+      claimInboxSeen: [], claimLinkShared: true
     }
   };
 }
 
 (async () => {
-  const browser = await chromium.launch({
-    headless: true,
-    executablePath: process.env.CHROMIUM_EXECUTABLE || undefined,
-    args: ['--no-sandbox', '--disable-dev-shm-usage']
-  });
-  const failures = [];
+  const browser = await chromium.launch({ headless: true, executablePath: process.env.CHROMIUM_EXECUTABLE || undefined, args: ['--no-sandbox', '--disable-dev-shm-usage'] });
   let context;
+  const failures = [];
   try {
     context = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' });
     const page = await context.newPage();
     page.on('pageerror', error => failures.push(error.message));
     let liveShareApiRequests = 0;
-    page.on('request', request => {
-      if (/\/api\/shares(?:\?|$)/.test(request.url())) liveShareApiRequests += 1;
-    });
+    page.on('request', request => { if (/\/api\/shares/.test(request.url())) liveShareApiRequests += 1; });
     await page.route('**/api/shares**', route => route.abort('blockedbyclient'));
     await page.route('https://api.frankfurter.dev/v2/rate/jpy/hkd', route => route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      headers: { 'access-control-allow-origin': '*' },
+      status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' },
       body: JSON.stringify({ base: 'JPY', quote: 'HKD', rate: 0.045, date: '2026-11-04' })
     }));
+    await page.route('https://ntfy.sh/**', route => route.abort('blockedbyclient'));
     await page.goto(base + 'tests/README.md', { waitUntil: 'domcontentloaded' });
     await page.evaluate(data => {
-      localStorage.clear();
-      sessionStorage.clear();
+      localStorage.clear(); sessionStorage.clear();
       localStorage.setItem('billSplitterActiveDraftV1', JSON.stringify(data));
       localStorage.setItem('billSplitterFirstVisitVideoHubSeenV1', '1');
       localStorage.setItem('billSplitterLanguage', 'zh-HK');
@@ -76,86 +75,61 @@ function draft() {
     }, draft());
     await page.goto(base, { waitUntil: 'domcontentloaded' });
     await page.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '3', null, { timeout: 60000 });
-    await page.getByTestId('calculate-split').waitFor({ state: 'visible' });
     await page.getByTestId('calculate-split').click();
     await page.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '4', null, { timeout: 20000 });
 
-    await page.evaluate(() => {
+    await page.evaluate(({ sameLink, sessionId, writeToken }) => {
       const original = window.BillShareApi;
+      window.__published = null;
       Object.defineProperty(window, 'BillShareApi', {
         configurable: true,
         value: Object.freeze({
           ...original,
-          createShortLink: async payload => {
-            window.__friendShareMockPayload = JSON.parse(JSON.stringify(payload));
-            return { shortUrl: 'https://share.example.test/f/mock-7-day', expiresAt: '2026-11-11T00:00:00.000Z' };
+          createSession: async () => { throw new Error('A prior activity session should be reused, not recreated.'); },
+          publishSession: async (id, token, payload) => {
+            window.__published = { id, token, payload: JSON.parse(JSON.stringify(payload)) };
+            return { id, status: 'ready' };
           }
         })
       });
-      window.__friendWhatsAppOpenCalls = [];
-      window.__friendWhatsAppNavigation = '';
-      window.open = url => {
-        window.__friendWhatsAppOpenCalls.push(String(url));
-        return {
-          closed: false,
-          document: { title: '' },
-          location: { replace: target => { window.__friendWhatsAppNavigation = String(target); } },
-          opener: null,
-          close() { this.closed = true; }
-        };
-      };
-    });
-
-    await page.getByTestId('create-friend-share-link').click();
-    await page.waitForFunction(() => document.querySelector('[data-testid="friend-share-whatsapp-status"]')?.textContent.includes('WhatsApp 已開啟'), null, { timeout: 15000 });
-    const testState = await page.evaluate(() => ({
-      opened: window.__friendWhatsAppOpenCalls,
-      navigation: window.__friendWhatsAppNavigation,
-      payload: window.__friendShareMockPayload,
-      viewportWidth: window.innerWidth,
-      scrollWidth: document.documentElement.scrollWidth
-    }));
-    assert.deepEqual(testState.opened, ['about:blank'], 'the user gesture only preopens a blank tab before async link creation');
-    assert.match(testState.navigation, /^https:\/\/wa\.me\/\?text=/, 'the prepared tab is directed to WhatsApp, not sent');
-    assert.equal(testState.viewportWidth, 390);
-    assert.ok(testState.scrollWidth <= testState.viewportWidth, 'the create/share UI has no horizontal overflow at 390px');
-    assert.equal(liveShareApiRequests, 0, 'no request was sent to the live share Worker');
-    assert.equal(testState.payload.bill.sourceCurrency, 'JPY');
-    assert.equal(testState.payload.bill.currency, 'HKD');
-    assert.equal(testState.payload.items.length, 2);
-
-    const message = new URL(testState.navigation).searchParams.get('text');
-    const expected = '朋友埋單表（7日有效）\nhttps://share.example.test/f/mock-7-day';
-    assert.equal(message, expected, `unexpected prefilled WhatsApp text:\n${message}`);
-    assert.equal(await page.getByTestId('friend-share-open').getAttribute('href'), 'https://share.example.test/f/mock-7-day');
-    assert.equal(await page.getByTestId('friend-network-option').locator('h3').innerText(), '朋友埋單連結（7日有效）');
-    assert.equal(await page.getByTestId('friend-share-privacy-note').innerText(), '持有連結者可查看完整帳單及收據。');
-    assert.equal(await page.getByTestId('friend-share-whatsapp-status').innerText(), 'WhatsApp 已開啟。');
-    assert.equal(await page.getByTestId('friend-share-open').innerText(), '開啟連結\nhttps://share.example.test/f/mock-7-day');
-    assert.equal(await page.locator('[data-testid="friend-share-expiry"]').count(), 0, 'no exact expiry/deletion paragraph');
-    assert.equal(await page.getByTestId('friend-network-option').getByText('可與簡短版分開分享，讓朋友自行選擇。').count(), 0, 'no redundant helper paragraph');
-    const readyText = await page.getByTestId('friend-share-ready').innerText();
-    assert.ok(!readyText.includes('到期後伺服器副本') && !readyText.includes('預填訊息；揀好收件人'), 'long status and expiry copy are absent');
-    assert.match(await page.getByTestId('friend-whatsapp-share').innerText(), /WhatsApp 分享/);
-    assert.match(await page.getByTestId('copy-friend-share-link').innerText(), /複製連結/);
-
-    await page.getByTestId('friend-whatsapp-share').click();
-    const shareButtonUrl = await page.evaluate(() => window.__friendWhatsAppOpenCalls[1]);
-    assert.equal(new URL(shareButtonUrl).searchParams.get('text'), expected, 'WhatsApp share button uses the same short text');
-
-    await page.evaluate(() => {
-      window.__copiedFriendShareText = '';
+      window.__expectedLink = sameLink;
+      window.__expectedSessionId = sessionId;
+      window.__expectedToken = writeToken;
+      window.__whatsappCalls = [];
+      window.open = url => { window.__whatsappCalls.push(String(url)); return { opener: null }; };
       document.execCommand = command => {
         if (command !== 'copy') return false;
-        window.__copiedFriendShareText = document.activeElement?.value || '';
+        window.__copiedLink = document.activeElement?.value || '';
         return true;
       };
-    });
+    }, { sameLink, sessionId, writeToken });
+
+    await page.getByTestId('publish-same-link-result').click();
+    await page.waitForFunction(() => document.querySelector('[data-testid="friend-share-ready"]')?.textContent.includes('已更新'), null, { timeout: 15000 });
+    const state = await page.evaluate(() => ({
+      published: window.__published,
+      link: document.querySelector('[data-testid="friend-share-open"]')?.href,
+      title: document.querySelector('[data-testid="friend-network-option"] h3')?.textContent,
+      width: window.innerWidth, scrollWidth: document.documentElement.scrollWidth
+    }));
+    assert.equal(state.published.id, sessionId, 'result is published to the existing session');
+    assert.equal(state.published.token, writeToken, 'organizer uses the local write token');
+    assert.equal(state.link, sameLink, 'the exact original claim URL remains the result URL');
+    assert.equal(state.title, '同一條朋友認帳及結果連結');
+    assert.equal(state.width, 390);
+    assert.ok(state.scrollWidth <= state.width, 'no horizontal overflow at 390px');
+    assert.equal(state.published.payload.bill.sourceCurrency, 'JPY');
+    assert.equal(state.published.payload.bill.currency, 'HKD');
+    assert.equal(state.published.payload.items.length, 2);
+    assert.equal(liveShareApiRequests, 0, 'Worker requests are mocked; no live share data was uploaded');
+
+    await page.getByTestId('friend-whatsapp-share').click();
+    const waUrl = await page.evaluate(() => window.__whatsappCalls[0]);
+    assert.equal(new URL(waUrl).searchParams.get('text'), `同一條認帳及結果連結\n${sameLink}`);
     await page.getByTestId('copy-friend-share-link').click();
-    assert.equal(await page.evaluate(() => window.__copiedFriendShareText), 'https://share.example.test/f/mock-7-day', 'copy button copies the short link');
+    assert.equal(await page.evaluate(() => window.__copiedLink), sameLink);
     assert.equal(failures.length, 0, `page errors: ${failures.join('; ')}`);
-    console.log('PASS 390px: short WhatsApp label + link, concise friend card/privacy note, working mock WhatsApp/copy buttons, no overflow; API/WhatsApp are mocked and nothing is sent or stored in production.');
-    console.log('\n--- Exact prefilled message ---\n' + message);
+    console.log('PASS 390px: publishes the result to the existing session with its organizer token; the exact original claim URL remains unchanged, WhatsApp/copy use that URL; no live share API calls.');
   } finally {
     if (context) await context.close();
     await browser.close();

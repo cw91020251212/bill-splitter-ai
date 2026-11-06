@@ -149,11 +149,62 @@
     }
   }
 
+  async function createSession(ttlDays, explicitApiBase) {
+    const apiBase = getApiBase(explicitApiBase);
+    const response = await fetch(`${apiBase}/api/shares/sessions`, {
+      method: 'POST', mode: 'cors', credentials: 'omit', cache: 'no-store',
+      headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ttlDays: Number(ttlDays) })
+    }).catch(() => { throw new Error('暫時連不到分享服務；請檢查網絡後再試。'); });
+    let result = {};
+    try { result = await response.json(); } catch (_) {}
+    if (!response.ok || !result.id || !result.writeToken || !result.expiresAt) {
+      throw new Error(result.error || '未能建立共用認帳連結，請稍後再試。');
+    }
+    return result;
+  }
+
+  async function publishSession(shareId, writeToken, data, explicitApiBase) {
+    if (!/^[A-Za-z0-9_-]{22}$/.test(String(shareId || '')) || !/^[A-Za-z0-9_-]{43}$/.test(String(writeToken || ''))) {
+      throw new Error('認帳活動資料不完整，請返回產生新的認帳連結。');
+    }
+    const apiBase = getApiBase(explicitApiBase);
+    const prepared = await prepareShareData(data);
+    const body = JSON.stringify(prepared);
+    if (new TextEncoder().encode(body).byteLength > MAX_BODY_BYTES) throw new Error('分享資料超過 8 MiB 限制。');
+    const response = await fetch(`${apiBase}/api/shares/${encodeURIComponent(shareId)}`, {
+      method: 'PUT', mode: 'cors', credentials: 'omit', cache: 'no-store',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${writeToken}` }, body
+    }).catch(() => { throw new Error('暫時連不到分享服務；請檢查網絡後再試。'); });
+    let result = {};
+    try { result = await response.json(); } catch (_) {}
+    if (!response.ok) throw new Error(result.error || '未能更新同一條連結的結算結果。');
+    return result;
+  }
+
+  async function getSession(shareId, explicitApiBase) {
+    if (!/^[A-Za-z0-9_-]{22}$/.test(String(shareId || ''))) throw new Error('認帳活動連結格式不正確。');
+    const apiBase = getApiBase(explicitApiBase);
+    let response;
+    try {
+      response = await fetch(`${apiBase}/api/shares/${encodeURIComponent(shareId)}`, {
+        method: 'GET', mode: 'cors', credentials: 'omit', cache: 'no-store'
+      });
+    } catch (_) { throw new Error('暫時連不到分享服務；請檢查網絡後再試。'); }
+    let result = {};
+    try { result = await response.json(); } catch (_) {}
+    if (response.status === 202 || result.status === 'pending') return { status: 'pending', expiresAt: result.expiresAt || '' };
+    if (!response.ok) throw new Error(result.error || '這條認帳活動連結已到期或不存在。');
+    return { ...result, status: result.status || 'ready' };
+  }
+
   root.BillShareApi = Object.freeze({
     MAX_BODY_BYTES,
     prepareShareData,
     createShortLink,
     getShare,
+    createSession,
+    publishSession,
+    getSession,
     formatBytes
   });
 })(window);

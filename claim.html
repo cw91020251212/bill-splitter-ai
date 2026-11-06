@@ -50,6 +50,10 @@
     .notice .icon { flex: 0 0 auto; font-size: 18px; }
     .field-label, legend { display: block; margin: 0 0 8px; font-size: 14px; font-weight: 750; }
     .hint { margin: 7px 0 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+    .quantity-unit-fields { display: grid; gap: 7px; }
+    .quantity-unit-labels, .qty-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(92px, 28%); align-items: end; gap: 9px; }
+    .quantity-unit-labels .field-label { margin: 0; }
+    .qty-row .qty-control { min-width: 0; }
     .name-input, .qty-input, .preview {
       width: 100%; min-height: 48px; border: 1px solid #b9c9c0; border-radius: 12px; background: white; color: var(--ink);
       outline: none; transition: border-color .15s, box-shadow .15s;
@@ -59,6 +63,8 @@
     .items-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 22px 2px 10px; }
     .items-heading h2 { margin: 0; font-size: 17px; }
     .count { flex: 0 0 auto; padding: 5px 9px; border-radius: 999px; color: var(--green-dark); background: var(--green-soft); font-size: 12px; font-weight: 750; }
+    .session-note { margin: 0 2px 10px; color: #294e7a; font-size: 12px; line-height: 1.5; }
+    .same-link-result { width: 100%; height: calc(100dvh - 18px); min-height: 700px; border: 0; border-radius: 14px; background: white; }
     .item-list { display: grid; gap: 11px; }
     .item-card { padding: 15px; border: 1px solid var(--line); border-radius: 15px; background: white; }
     .item-heading { display: flex; align-items: flex-start; gap: 11px; }
@@ -68,7 +74,6 @@
     .item-meta { margin: 4px 0 0 46px; color: var(--muted); font-size: 12px; }
     fieldset { min-width: 0; margin: 15px 0 12px; padding: 0; border: 0; }
     legend { margin-bottom: 8px; font-size: 12px; color: var(--muted); }
-    .qty-row { display: flex; align-items: center; gap: 9px; }
     .qty-input { flex: 1; min-width: 0; }
     .form-feedback { min-height: 19px; margin: 9px 2px 0; color: var(--danger); font-size: 13px; line-height: 1.4; }
     .preview-panel { margin-top: 18px; }
@@ -191,7 +196,7 @@
       }
     }
     .unit-select {
-      flex: 0 0 auto; width: 44px; max-width: 44%; min-height: 52px;
+      width: 100%; min-width: 0; max-width: none; min-height: 52px;
       padding: 12px 23px 12px 10px; border: 1px solid #4b8f68; border-radius: 11px;
       background-color: #edf4ee; color: var(--green-dark); font-size: 16px; font-weight: 650;
       appearance: none; -webkit-appearance: none;
@@ -199,7 +204,7 @@
       background-repeat: no-repeat; background-position: right 10px center; cursor: pointer;
     }
     .unit-select:not(.has-unit) { color: transparent; }
-    .unit-select.has-unit { width: auto; min-width: 64px; }
+    .unit-select.has-unit { width: 100%; min-width: 0; }
     .unit-select:focus-visible { outline: 3px solid rgba(8,127,91,.2); outline-offset: 1px; }
     .unit-select option { color: var(--ink); background: #fff; }
     .unit-select option:disabled { color: #6f7f73; }
@@ -307,7 +312,7 @@
             <h2 id="items-title">賬單項目</h2>
             <span id="item-count" class="count"></span>
           </div>
-          <p id="sharing-rule" class="hint">冇單位大家分，有單位自己付。</p>
+          <p id="session-note" class="session-note" hidden>填好後請保留此連結；主辦人計完帳，同一條連結會顯示結果。</p>
           <section id="item-list" class="item-list" aria-label="賬單項目"></section>
           <p id="form-feedback" class="form-feedback" role="status" aria-live="polite"></p>
 
@@ -334,6 +339,8 @@
   </div>
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
+  <script src="./share-config.js"></script>
+  <script src="./bill-share-api.js"></script>
   <script src="./claim-relay.js"></script>
   <script>
     (() => {
@@ -342,6 +349,7 @@
       const activityTitle = document.getElementById('activity-title');
       const expiryCountdown = document.getElementById('expiry-countdown');
       const expiredPanel = document.getElementById('expired-panel');
+      const sessionNote = document.getElementById('session-note');
       const form = document.getElementById('claim-form');
       const itemList = document.getElementById('item-list');
       const itemCount = document.getElementById('item-count');
@@ -362,6 +370,9 @@
       let linkMetadata = null;
       let isExpired = false;
       let expiryTimer = null;
+      let sessionPollTimer = null;
+      let sessionPollBusy = false;
+      let showingSharedResult = false;
       let submitting = false;
       let lastSubmittedSignature = '';
       const quantityPickerValues = ['0.5', ...Array.from({ length: 50 }, (_, index) => String(index + 1))];
@@ -392,6 +403,7 @@
           errorTitle: '打不開認帳表', errorDescription: '連結無效，請索取新連結。',
           personLabel: '你的姓名', namePlaceholder: '例如：阿明', nameHint: '填發起人認得的名字。',
           items: '賬單項目', sharingRule: '冇單位大家分，有單位自己付。', preview: '認帳回覆預覽', previewSubtitle: '提交未成功可用。',
+          unitField: '單位', sessionNote: '填好後請保留此連結；主辦人計完帳，同一條連結會顯示結果。',
           previewPlaceholder: '填姓名和數量後，回覆會顯示於此。', previewLabel: '認帳回覆文字預覽',
           or: '或', share: '分享回覆', copy: '複製回覆文字', shareHelp: 'WhatsApp 開啟後請按傳送。',
           fallbackSummary: 'WhatsApp 後備',
@@ -425,6 +437,7 @@
           errorTitle: 'This page could not be opened', errorDescription: 'Invalid link. Ask for a new one.',
           personLabel: 'Your name', namePlaceholder: 'For example: Alex', nameHint: 'Use a name the organizer recognizes.',
           items: 'Bill items', sharingRule: 'No unit: everyone shares. With a unit: the person claiming it pays.', preview: 'Reply preview', previewSubtitle: 'Use if submission fails.',
+          unitField: 'Unit', sessionNote: 'Keep this link after submitting. The organizer’s final result will appear here on the same link.',
           previewPlaceholder: 'Enter your name and quantities to see the reply here.', previewLabel: 'Reply preview',
           or: 'or', share: 'Share reply', copy: 'Copy reply text', shareHelp: 'Tap Send in WhatsApp.',
           fallbackSummary: 'WhatsApp fallback',
@@ -527,6 +540,10 @@
             window.clearInterval(expiryTimer);
             expiryTimer = null;
           }
+          if (sessionPollTimer !== null) {
+            window.clearInterval(sessionPollTimer);
+            sessionPollTimer = null;
+          }
           return false;
         }
         isExpired = false;
@@ -555,7 +572,7 @@
         nameInput.placeholder = text.namePlaceholder;
         document.getElementById('person-hint').textContent = text.nameHint;
         document.getElementById('items-title').textContent = text.items;
-        document.getElementById('sharing-rule').textContent = text.sharingRule;
+        document.getElementById('session-note').textContent = text.sessionNote;
         document.getElementById('item-list').setAttribute('aria-label', text.items);
         document.getElementById('preview-title').textContent = text.preview;
         document.getElementById('preview-subtitle').textContent = text.previewSubtitle;
@@ -592,9 +609,11 @@
             card.append(makeElement('p', 'item-meta', text.total(item.totalQty, unitLabel(item.unit))));
           }
 
+          const fieldLabels = makeElement('div', 'quantity-unit-labels');
           const qtyLabel = makeElement('label', 'field-label', text.qtyLabel);
           qtyLabel.htmlFor = `qty-${index}`;
-          card.append(qtyLabel);
+          fieldLabels.append(qtyLabel, makeElement('label', 'field-label', text.unitField));
+          const fieldGrid = makeElement('div', 'quantity-unit-fields');
           const qtyRow = makeElement('div', 'qty-row');
           const qtyInput = document.createElement('input');
           qtyInput.className = 'qty-input'; qtyInput.id = `qty-${index}`;
@@ -648,10 +667,44 @@
           unitSelect.classList.toggle('has-unit', Boolean(unitSelect.value));
           unitSelect.addEventListener('change', () => { unitSelect.classList.toggle('has-unit', Boolean(unitSelect.value)); });
           qtyRow.append(unitSelect);
-          card.append(qtyRow);
+          fieldGrid.append(fieldLabels, qtyRow);
+          card.append(fieldGrid);
+          card.append(makeElement('p', 'hint', text.sharingRule));
           card.append(makeElement('p', 'hint', text.qtyHint(item)));
           itemList.append(card);
         });
+      }
+
+      async function checkSharedSession() {
+        const sessionId = new URLSearchParams(window.location.search).get('session');
+        if (!sessionId || !/^[A-Za-z0-9_-]{22}$/.test(sessionId) || sessionPollBusy || showingSharedResult || isExpired) return;
+        if (!window.BillShareApi?.getSession) return;
+        sessionPollBusy = true;
+        try {
+          const session = await window.BillShareApi.getSession(sessionId);
+          if (session.status !== 'ready') return;
+          showingSharedResult = true;
+          window.clearInterval(sessionPollTimer);
+          sessionPollTimer = null;
+          expiryCountdown.hidden = true;
+          activityTitle.hidden = true;
+          document.title = language === 'en' ? 'Bill result | Bill Splitter AI' : '分帳結果｜分帳管家 AI';
+          const frame = document.createElement('iframe');
+          frame.className = 'same-link-result';
+          frame.title = language === 'en' ? 'Final bill result' : '最終分帳結果';
+          const resultUrl = new URL('./detailed-view.html', window.location.href);
+          resultUrl.searchParams.set('share', sessionId);
+          if (session.expiresAt) resultUrl.searchParams.set('e', String(Math.floor(new Date(session.expiresAt).getTime() / 1000)));
+          frame.src = resultUrl.href;
+          document.body.append(frame);
+          document.querySelector('.hero').hidden = true;
+          document.querySelector('main').hidden = true;
+          submitDock.hidden = true;
+        } catch (_) {
+          sessionNote.textContent = language === 'en'
+            ? 'Could not check for the final result. This link is still valid; reopen it or check your connection.'
+            : '暫時未能檢查結算結果；此連結仍有效，請檢查網絡或稍後重新開啟。';
+        } finally { sessionPollBusy = false; }
       }
 
       function getReply() {
@@ -883,6 +936,8 @@
       try {
         items = loadItems();
         linkMetadata = window.ClaimRelay ? window.ClaimRelay.readLinkMetadataFromHash(window.location.hash) : null;
+        const sessionId = new URLSearchParams(window.location.search).get('session');
+        if (sessionId && /^[A-Za-z0-9_-]{22}$/.test(sessionId)) sessionNote.hidden = false;
         relayRoom = window.ClaimRelay ? window.ClaimRelay.readRoomFromHash(window.location.hash) : null;
         renderItems();
         if (linkMetadata) {
@@ -890,6 +945,10 @@
         } else {
           content.hidden = false;
           submitDock.hidden = false;
+        }
+        if (sessionId && /^[A-Za-z0-9_-]{22}$/.test(sessionId)) {
+          checkSharedSession();
+          sessionPollTimer = window.setInterval(checkSharedSession, 6000);
         }
         if (!isExpired && !relayRoom) {
           fallbackPanel.open = true;
@@ -900,7 +959,10 @@
       } catch (_) {
         loadError.hidden = false;
       }
-      window.addEventListener('pagehide', () => window.clearInterval(expiryTimer));
+      window.addEventListener('pagehide', () => {
+        window.clearInterval(expiryTimer);
+        window.clearInterval(sessionPollTimer);
+      });
     })();
   </script>
   <script>

@@ -1127,11 +1127,14 @@
       const [claimActivityName, setClaimActivityName] = useState('');
       const [claimExpiryDays, setClaimExpiryDays] = useState('7');
       const [claimLinkMeta, setClaimLinkMeta] = useState(null);
+      const [claimSession, setClaimSession] = useState(null);
       const [claimInboxSeen, setClaimInboxSeen] = useState([]);
       const [inboxPhase, setInboxPhase] = useState('idle');
       const [inboxNote, setInboxNote] = useState('');
       const claimRoomRef = useRef(null);
       const claimLinkMetaRef = useRef(null);
+      const claimSessionRef = useRef(null);
+      const claimSessionRequestRef = useRef(null);
       const claimInboxSeenRef = useRef([]);
       const inboxGenerationRef = useRef(0);
       const pullLockRef = useRef(false);
@@ -1203,7 +1206,7 @@
         assetRevision: draftAssets.revision, hasAssets: hasDraftAssets || draftAssets.unavailable,
         data: { step, items, taxAmount, discountAmount, taxNote, receiptAdjustmentDetails, friendsReplies, payer, detectedCurrency, currency,
           taxSplitMethod, paymentMethods, results, reconciliation, isSaved,
-          claimRoom, claimActivityName, claimExpiryDays, claimLinkMeta, claimInboxSeen, readReceipt, lastRecognitionModel, claimLinkShared: claimLinkSharedRef.current }
+          claimRoom, claimActivityName, claimExpiryDays, claimLinkMeta, claimSession, claimInboxSeen, readReceipt, lastRecognitionModel, claimLinkShared: claimLinkSharedRef.current }
       };
       const persistActiveDraft = () => {
         if (tutorialDemo) return true;
@@ -1289,6 +1292,13 @@
             } : null;
             claimLinkMetaRef.current = restoredMeta;
             setClaimLinkMeta(restoredMeta);
+            const restoredSession = data.claimSession && /^[A-Za-z0-9_-]{22}$/.test(data.claimSession.id || '')
+              && /^[A-Za-z0-9_-]{43}$/.test(data.claimSession.writeToken || '')
+              && Number(data.claimSession.expiresAt) > Date.now()
+              ? { id: data.claimSession.id, writeToken: data.claimSession.writeToken, expiresAt: Number(data.claimSession.expiresAt), ttlDays: ['1', '3', '7', '14'].includes(String(data.claimSession.ttlDays)) ? String(data.claimSession.ttlDays) : restoredExpiryDays, link: typeof data.claimSession.link === 'string' ? data.claimSession.link : '' }
+              : null;
+            claimSessionRef.current = restoredSession;
+            setClaimSession(restoredSession);
             const restoredShared = data.claimLinkShared === true
               || (typeof data.claimLinkShared !== 'boolean' && (Boolean(restoredRoom) || String(data.friendsReplies || '').trim().length > 0));
             claimLinkSharedRef.current = restoredShared;
@@ -1331,7 +1341,7 @@
         if (tutorialDemo || !draftReady) return;
         persistActiveDraft();
       }, [draftReady, step, items, readReceipt, taxAmount, discountAmount, taxNote, receiptAdjustmentDetails, friendsReplies, payer, detectedCurrency, currency,
-        taxSplitMethod, paymentMethods, results, reconciliation, isSaved, draftAssets, claimRoom, claimActivityName, claimExpiryDays, claimLinkMeta, claimInboxSeen, claimLinkShared, lastRecognitionModel]);
+        taxSplitMethod, paymentMethods, results, reconciliation, isSaved, draftAssets, claimRoom, claimActivityName, claimExpiryDays, claimLinkMeta, claimSession, claimInboxSeen, claimLinkShared, lastRecognitionModel]);
 
       useEffect(() => {
         if (tutorialDemo || !draftReady) return;
@@ -2001,16 +2011,22 @@
       };
 
       const getDetailedTableShareUrl = () => {
-        return friendShareInfo && friendShareInfo.signature === currentFriendShareSignature ? friendShareInfo.shortUrl : '';
+        if (friendShareInfo && friendShareInfo.signature === currentFriendShareSignature) return friendShareInfo.shortUrl;
+        const session = claimSessionRef.current;
+        if (!session || session.expiresAt <= Date.now()) return '';
+        if (session.link) return session.link;
+        try { return buildFriendClaimLink(session, uiLang) || ''; } catch (_) { return ''; }
       };
 
-      const getDetailedTableShareExpiry = () => friendShareInfo && friendShareInfo.signature === currentFriendShareSignature ? friendShareInfo.expiresAt : '';
+      const getDetailedTableShareExpiry = () => friendShareInfo && friendShareInfo.signature === currentFriendShareSignature
+        ? friendShareInfo.expiresAt
+        : claimSessionRef.current?.expiresAt ? new Date(claimSessionRef.current.expiresAt).toISOString() : '';
       const formatFriendShareExpiry = value => {
         const date = new Date(value);
         if (!Number.isFinite(date.getTime())) return '';
         return `${new Intl.DateTimeFormat('zh-HK', { timeZone: 'Asia/Hong_Kong', dateStyle: 'medium', timeStyle: 'short' }).format(date)}（香港時間）`;
       };
-      const getFriendWhatsAppShareText = shortUrl => `${bi('朋友埋單表（7日有效）', 'Friend bill (valid for 7 days)')}\n${shortUrl}`;
+      const getFriendWhatsAppShareText = shortUrl => `${bi('同一條認帳及結果連結', 'Same claim and result link')}\n${shortUrl}`;
       const getFriendWhatsAppShareUrl = shortUrl => `https://wa.me/?text=${encodeURIComponent(getFriendWhatsAppShareText(shortUrl))}`;
       const openFriendWhatsAppShare = shortUrl => {
         let popup = null;
@@ -2034,35 +2050,21 @@
         if (!shareData) return;
         friendShareRequestRef.current = true;
         setFriendShareWhatsAppStatus('idle');
-        let whatsappWindow = null;
-        try {
-          whatsappWindow = window.open('about:blank', '_blank');
-          if (whatsappWindow) whatsappWindow.document.title = bi('正在準備 WhatsApp 分享…', 'Preparing WhatsApp share…');
-        } catch (_) {}
         setFriendShareStatus('uploading');
         setFriendShareError('');
         try {
-          const created = await window.BillShareApi.createShortLink(shareData);
-          setFriendShareInfo({ shortUrl: created.shortUrl, expiresAt: created.expiresAt, signature: currentFriendShareSignature });
+          const sameLink = await prepareFriendClaimLink();
+          const session = claimSessionRef.current;
+          if (!sameLink || !session) throw new Error('未能準備原認帳連結，請返回第二步重新產生。');
+          await window.BillShareApi.publishSession(session.id, session.writeToken, shareData);
+          setFriendShareInfo({ shortUrl: sameLink, expiresAt: new Date(session.expiresAt).toISOString(), signature: currentFriendShareSignature });
           setFriendShareStatus('ready');
-          let whatsappOpened = false;
-          if (whatsappWindow && !whatsappWindow.closed) {
-            try {
-              whatsappWindow.location.replace(getFriendWhatsAppShareUrl(created.shortUrl));
-              try { whatsappWindow.opener = null; } catch (_) {}
-              whatsappOpened = true;
-            } catch (_) {}
-          }
-          if (!whatsappOpened && whatsappWindow && !whatsappWindow.closed) {
-            try { whatsappWindow.close(); } catch (_) {}
-          }
-          setFriendShareWhatsAppStatus(whatsappOpened ? 'opened' : 'blocked');
-          toast('✅ 已建立 7 日連結。', 'success');
+          setFriendShareWhatsAppStatus('idle');
+          toast('✅ 結算結果已更新到原本同一條認帳連結。', 'success');
         } catch (error) {
-          if (whatsappWindow && !whatsappWindow.closed) { try { whatsappWindow.close(); } catch (_) {} }
           setFriendShareWhatsAppStatus('idle');
           setFriendShareStatus('error');
-          setFriendShareError(error?.message || '未能建立朋友短連結，請稍後再試。');
+          setFriendShareError(error?.message || '未能更新同一條認帳連結，請稍後再試。');
         } finally {
           friendShareRequestRef.current = false;
         }
@@ -2071,7 +2073,7 @@
       const shareDetailedCurrentReport = () => {
         if (tutorialDemo) { onTutorialAction?.('report-preview'); return; }
         if (!getDetailedTableShareUrl()) {
-          toast('請先在「朋友網絡版」建立 7 日連結，詳細報告才會包含可分享網址。', 'error');
+          toast('請先在第二步建立朋友認帳連結；詳細報告會沿用同一條網址。', 'error');
           document.querySelector('[data-testid="create-friend-share-link"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
           return;
         }
@@ -2082,7 +2084,7 @@
       const copyDetailedCurrentReport = () => {
         if (tutorialDemo) { onTutorialAction?.('report-preview'); return; }
         if (!getDetailedTableShareUrl()) {
-          toast('請先在「朋友網絡版」建立 7 日連結，詳細報告才會包含可分享網址。', 'error');
+          toast('請先在第二步建立朋友認帳連結；詳細報告會沿用同一條網址。', 'error');
           document.querySelector('[data-testid="create-friend-share-link"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
           return;
         }
@@ -2171,7 +2173,9 @@
         inboxGenerationRef.current += 1;
         claimRoomRef.current = null; claimInboxSeenRef.current = [];
         claimLinkMetaRef.current = null;
+        claimSessionRef.current = null;
         setClaimActivityName(''); setClaimExpiryDays('7'); setClaimLinkMeta(null);
+        setClaimSession(null);
         setClaimRoom(null); setClaimInboxSeen([]); setInboxPhase('idle'); setInboxNote('');
         [fileInputRef, cameraInputRef, claimAttachmentInputRef].forEach(ref => { if (ref.current) ref.current.value = ''; });
         closeCamera(); setRedactionDrawingMode(false); setShowRedaction(false);
@@ -2883,8 +2887,33 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
         return metadata;
       };
 
-      const buildFriendClaimLink = (lang = uiLang) => {
+      const ensureClaimSession = async (metadata) => {
+        if (claimSessionRequestRef.current) return claimSessionRequestRef.current;
+        const previous = claimSessionRef.current;
+        if (previous && previous.expiresAt > Date.now() && String(previous.ttlDays) === String(metadata.expiryDays)) return previous;
+        if (!window.BillShareApi?.createSession) throw new Error('共用認帳服務尚未載入；請重新整理頁面後再試。');
+        claimSessionRequestRef.current = (async () => {
+          try {
+            const created = await window.BillShareApi.createSession(metadata.expiryDays);
+            const session = { id: created.id, writeToken: created.writeToken, expiresAt: new Date(created.expiresAt).getTime(), ttlDays: String(metadata.expiryDays), link: '' };
+            claimSessionRef.current = session;
+            setClaimSession(session);
+            const updatedMetadata = { ...metadata, createdAt: new Date(created.createdAt).getTime(), expiresAt: session.expiresAt };
+            claimLinkMetaRef.current = updatedMetadata;
+            setClaimLinkMeta(updatedMetadata);
+            if (draftSnapshotRef.current?.data) {
+              draftSnapshotRef.current.data = { ...draftSnapshotRef.current.data, claimSession: session, claimLinkMeta: updatedMetadata };
+            }
+            persistActiveDraft();
+            return session;
+          } finally { claimSessionRequestRef.current = null; }
+        })();
+        return claimSessionRequestRef.current;
+      };
+
+      const buildFriendClaimLink = (session, lang = uiLang) => {
         if (tutorialDemo) return;
+        if (!session?.id) throw new Error('共用認帳連結尚未準備好，請再試一次。');
         if (!items.length) { setStepError('⚠️ 請先新增至少一個賬單項目。'); return null; }
         const invalidIndex = items.findIndex(item => !String(item.name || '').trim());
         if (invalidIndex !== -1) {
@@ -2904,6 +2933,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
         const metadata = getClaimLinkMetadata();
         const link = new URL('./claim.html', window.location.href);
         link.searchParams.set('lang', lang === 'en' ? 'en' : 'zh-HK');
+        link.searchParams.set('session', session.id);
         link.hash = window.ClaimRelay
           ? window.ClaimRelay.buildHash(encodeClaimLinkPayload(payload), room, metadata)
           : `data=${encodeClaimLinkPayload(payload)}`;
@@ -2922,12 +2952,33 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
         persistActiveDraft();
       };
 
-      const generateFriendClaimLink = () => {
+      const prepareFriendClaimLink = async () => {
+        setStepError('');
+        if (!items.length) { setStepError('⚠️ 請先新增至少一個賬單項目。'); return null; }
+        const invalidIndex = items.findIndex(item => !String(item.name || '').trim());
+        if (invalidIndex !== -1) { setStepError(`⚠️ 項目 ${items[invalidIndex].id} 未填寫名稱，請先補上。`); focusField(`item-name-${invalidIndex}`); return null; }
+        const metadata = getClaimLinkMetadata();
+        const session = await ensureClaimSession(metadata);
+        if (session.link) return session.link;
+        const link = buildFriendClaimLink(session);
+        if (link) {
+          const linkedSession = { ...session, link };
+          claimSessionRef.current = linkedSession;
+          setClaimSession(linkedSession);
+          if (draftSnapshotRef.current?.data) draftSnapshotRef.current.data = { ...draftSnapshotRef.current.data, claimSession: linkedSession };
+          persistActiveDraft();
+        }
+        return link;
+      };
+
+      const generateFriendClaimLink = async () => {
         if (tutorialDemo) { onTutorialAction?.('shared'); return; }
-        const link = buildFriendClaimLink();
-        if (!link) return;
-        copyToClipboard(link, tr('認帳連結'));
-        markClaimLinkShared();
+        try {
+          const link = await prepareFriendClaimLink();
+          if (!link) return;
+          copyToClipboard(link, tr('認帳連結'));
+          markClaimLinkShared();
+        } catch (error) { setStepError(`⚠️ ${error?.message || '未能建立共用認帳連結。'}`); }
       };
 
       const handleClaimAttachmentSelection = (event) => {
@@ -2946,23 +2997,26 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
         toast(`✅ 已加入 ${selectedFiles.length} 個附件`);
       };
 
-      const openClaimShareDialog = () => {
+      const openClaimShareDialog = async () => {
         if (tutorialDemo) { setShowClaimShareDialog(true); onTutorialAction?.('share-open'); return; }
-        if (!buildFriendClaimLink()) return;
-        markClaimLinkShared();
-        setShowClaimShareDialog(true);
+        try {
+          if (!await prepareFriendClaimLink()) return;
+          markClaimLinkShared();
+          setShowClaimShareDialog(true);
+        } catch (error) { setStepError(`⚠️ ${error?.message || '未能建立共用認帳連結。'}`); }
       };
 
-      const shareFriendClaimLink = () => {
+      const shareFriendClaimLink = async () => {
         if (tutorialDemo) { onTutorialAction?.('shared'); return; }
-        const link = buildFriendClaimLink();
-        if (!link) return;
-        if (!ensureDraftSavedForSharing()) return;
-        markClaimLinkShared();
-        const message = uiLang === 'en'
-          ? `Open this link, enter your shares, then tap “Send to organizer”:\n${link}`
-          : `請打開連結填份數，填好按「交返發起人」：\n${link}`;
-        shareTextWithFiles(message, [], tr('認帳連結'));
+        try {
+          const link = await prepareFriendClaimLink();
+          if (!link || !ensureDraftSavedForSharing()) return;
+          markClaimLinkShared();
+          const message = uiLang === 'en'
+            ? `Open this link to enter your shares. After the organizer calculates, reopen this same link to view the result:\n${link}`
+            : `請打開呢條連結填認帳；主辦人計算後，再開返同一條連結睇結果：\n${link}`;
+          shareTextWithFiles(message, [], tr('認帳連結'));
+        } catch (error) { setStepError(`⚠️ ${error?.message || '未能建立共用認帳連結。'}`); }
       };
 
       const shareClaimAttachments = () => {
@@ -3864,7 +3918,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                           type="text"
                           maxLength={80}
                           value={claimActivityName}
-                          disabled={tutorialDemo}
+                          disabled={tutorialDemo || Boolean(claimSession?.link)}
                           onChange={(e) => {
                             setClaimActivityName(e.target.value.slice(0, 80));
                             claimLinkMetaRef.current = null;
@@ -3881,11 +3935,13 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                           id="claim-expiry-days"
                           data-testid="claim-expiry-days"
                           value={claimExpiryDays}
-                          disabled={tutorialDemo}
+                          disabled={tutorialDemo || Boolean(claimSession?.link)}
                           onChange={(e) => {
                             setClaimExpiryDays(e.target.value);
                             claimLinkMetaRef.current = null;
+                            claimSessionRef.current = null;
                             setClaimLinkMeta(null);
+                            setClaimSession(null);
                           }}
                           className="field-round w-full text-base font-semibold text-slate-800 outline-none"
                         >
@@ -3898,6 +3954,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                       </div>
                     </div>
                     <p className="text-base text-slate-700 mb-3 leading-relaxed">{bi('朋友填妥後會自動交回。', 'Friends’ completed replies return automatically.')}</p>
+                    <p className="text-sm text-emerald-800 mb-3 leading-relaxed">{bi('朋友收到同一條連結先填認帳；你產生分帳結果後，再按「把結算結果更新到同一條連結」，朋友重開原連結就會看到結果。', 'Friends use this link to submit claims. After calculating, publish the result here; reopening the same link will show it.')}</p>
                     <div data-testid="claim-link-actions" className="flex flex-col gap-3">
                       <Button variant="secondary" onClick={generateFriendClaimLink} className="!w-full text-sm bg-white hover:bg-slate-50 border-slate-500">
                         <Icon path={icons.copy} size={18} className="text-slate-600"/>{tr(" 複製認帳連結")}</Button>
@@ -4180,12 +4237,18 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
 
                 <Card data-testid="friend-network-option" className="!p-0 overflow-hidden border-t-4 border-t-emerald-600">
                   <div className="p-4 bg-emerald-50 border-b border-emerald-200">
-                    <h3 className="font-bold text-slate-800 text-base">{bi('朋友埋單連結（7日有效）', 'Friend bill link (7 days)')}</h3>
+                    <h3 className="font-bold text-slate-800 text-base">{bi('同一條朋友認帳及結果連結', 'One link for friend claims and results')}</h3>
                   </div>
                   <div className="space-y-3 p-4">
                     {getDetailedTableShareUrl() ? (
                       <div data-testid="friend-share-ready" className="rounded-xl border border-emerald-300 bg-white p-4">
-                        <a data-testid="friend-share-open" href={getDetailedTableShareUrl()} target="_blank" rel="noopener noreferrer" className="block text-center font-bold text-emerald-800 underline break-all">{bi('開啟連結', 'Open link')}<br/><span className="font-mono text-xs font-medium">{getDetailedTableShareUrl()}</span></a>
+                        <a data-testid="friend-share-open" href={getDetailedTableShareUrl()} target="_blank" rel="noopener noreferrer" className="block text-center font-bold text-emerald-800 underline break-all">{bi('同一條連結（認帳後顯示結果）', 'Same link (shows results after calculation)')}<br/><span className="font-mono text-xs font-medium">{getDetailedTableShareUrl()}</span></a>
+                        <Button data-testid="publish-same-link-result" onClick={createFriendShareLink} disabled={friendShareStatus === 'uploading'} variant="primary" className="!w-full green-action-dark !bg-emerald-700 hover:!bg-emerald-800 !border-emerald-900 disabled:!opacity-60" style={{ backgroundColor: '#047857', borderColor: '#065f46', boxShadow: 'none' }}>
+                          <Icon path={friendShareStatus === 'uploading' ? icons.loader : icons.share} size={18}/>{friendShareStatus === 'uploading' ? bi('正在更新同一條連結…', 'Updating the same link…') : bi('把結算結果更新到同一條連結', 'Publish results to the same link')}
+                        </Button>
+                        {friendShareStatus === 'uploading' && <p role="status" className="text-center text-xs text-emerald-900">{bi('相片如有需要會先在此裝置壓縮；原本本機相片不會更改。', 'Photos are compressed on this device only if needed; local originals are unchanged.')}</p>}
+                        {friendShareStatus === 'error' && friendShareError && <p role="alert" className="text-center text-xs font-semibold text-red-700">{friendShareError}</p>}
+                        {friendShareInfo?.signature === currentFriendShareSignature && <p role="status" className="text-center text-xs font-semibold text-emerald-800">{bi('已更新；朋友重新開啟同一條連結即可查看。全球同步可能需少量時間。', 'Updated. Friends can reopen the same link; global propagation may take a short time.')}</p>}
                         {friendShareWhatsAppStatus !== 'idle' && <p data-testid="friend-share-whatsapp-status" role="status" className="mt-2 text-center text-xs text-emerald-900">{friendShareWhatsAppStatus === 'opened' ? bi('WhatsApp 已開啟。', 'WhatsApp opened.') : bi('WhatsApp 未開啟；可按下方分享。', 'WhatsApp did not open; use the button below.')}</p>}
                         <div className="mt-3 grid gap-2 sm:grid-cols-2">
                           <Button data-testid="friend-whatsapp-share" onClick={() => openFriendWhatsAppShare(getDetailedTableShareUrl())} variant="primary" className="!w-full green-action-dark !bg-emerald-700 hover:!bg-emerald-800 !border-emerald-900" style={{ backgroundColor: '#047857', borderColor: '#065f46', boxShadow: 'none' }}><Icon path={icons.share} size={16}/>{bi('WhatsApp 分享', 'Share on WhatsApp')}</Button>
@@ -4195,11 +4258,11 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                     ) : (
                       <div data-testid="friend-share-create" className="rounded-xl border border-emerald-300 bg-white p-4">
                         <Button data-testid="create-friend-share-link" onClick={createFriendShareLink} disabled={friendShareStatus === 'uploading' || !window.BillShareConfig?.apiBaseUrl} variant="primary" className="!w-full green-action-dark !bg-emerald-700 hover:!bg-emerald-800 !border-emerald-900 disabled:!opacity-60" style={{ backgroundColor: '#047857', borderColor: '#065f46', boxShadow: 'none' }}>
-                          <Icon path={friendShareStatus === 'uploading' ? icons.loader : icons.share} size={19}/>{friendShareStatus === 'uploading' ? bi('正在建立連結…', 'Creating link…') : bi('建立 7 日連結', 'Create 7-day link')}
+                          <Icon path={friendShareStatus === 'uploading' ? icons.loader : icons.share} size={19}/>{friendShareStatus === 'uploading' ? bi('正在建立同一條連結…', 'Preparing the same link…') : bi('建立連結並發布結算結果', 'Create link and publish result')}
                         </Button>
-                        {friendShareStatus === 'uploading' && <p role="status" className="mt-2 text-center text-xs text-emerald-900">{bi('相片如有需要會先在此裝置壓縮；原本本機相片不會更改。', 'Photos are compressed on this device only if needed; local originals are unchanged.')}</p>}
+                        {friendShareStatus === 'uploading' && <p role="status" className="mt-2 text-center text-xs text-emerald-900">{bi('會建立同一條認帳及結果連結，相片如有需要會先在此裝置壓縮。', 'This creates one claim-and-result link; photos are compressed locally only if needed.')}</p>}
                         {friendShareError && <p role="alert" className="mt-2 text-center text-xs font-semibold text-red-700">{friendShareError}</p>}
-                        {!window.BillShareConfig?.apiBaseUrl && <p className="mt-2 text-center text-xs font-semibold text-amber-800">{bi('短連結後端尚未設定；目前是本機候選，不能建立正式朋友連結。', 'The short-link backend is not configured; this local candidate cannot create a live friend link yet.')}</p>}
+                        {!window.BillShareConfig?.apiBaseUrl && <p className="mt-2 text-center text-xs font-semibold text-amber-800">{bi('共用連結服務尚未設定；目前不能建立正式朋友連結。', 'The shared-link service is not configured; no live friend link can be created.')}</p>}
                         {friendShareInfo && !getDetailedTableShareUrl() && <p className="mt-2 text-center text-xs text-amber-800">{bi('之前建立的連結仍可查看舊版本，直至到期；請重新建立新版本。', 'The previous link still shows the older bill until it expires; create a new link for this version.')}</p>}
                       </div>
                     )}
