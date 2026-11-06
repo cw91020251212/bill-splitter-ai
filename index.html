@@ -79,16 +79,18 @@
   </style>
   <link rel="stylesheet" href="./theme.css?v=v86-free-models-only">
   <link rel="stylesheet" href="./tutorial.css?v=v86-free-models-only">
+  <meta name="bill-app-release" content="v101-visible-single-link">
+  <script defer src="./pwa.js?v=v101-visible-single-link"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
 
   <script src="./i18n.js"></script>
-  <script src="./claim-relay.js"></script>
+  <script src="./claim-relay.js?v=v101-visible-single-link"></script>
   <script src="./ocr-cascade.js"></script>
   <script src="./receipt-adjustments.js"></script>
   <script src="./share-config.js"></script>
-  <script src="./bill-share-api.js"></script>
+  <script src="./bill-share-api.js?v=v101-visible-single-link"></script>
   <script src="./card-redaction.js?v=v97-card-number-redaction"></script>
   <script src="./card-share-review.js?v=v97-card-number-redaction"></script>
   <script src="./exchange-rates.js?v=v90-cross-currency-settlement"></script>
@@ -987,6 +989,7 @@
       const [friendShareError, setFriendShareError] = useState('');
       const [friendShareWhatsAppStatus, setFriendShareWhatsAppStatus] = useState('idle');
       const friendShareRequestRef = useRef(false);
+      const autoPublishResultRef = useRef(null);
       const friendShareImageBatchesRef = useRef(new WeakMap());
       const friendShareImageBatchSequenceRef = useRef(0);
       const [showImageActionMenu, setShowImageActionMenu] = useState(false);
@@ -3170,7 +3173,9 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
         }
         Object.entries(convertedTotals.amounts).forEach(([person, amount]) => { personTotals[person].total = amount; });
         const billTotal = convertedTotals.total;
-        setResults({ calculationVersion: 2, personTotals, totalItemsCost, itemsSubtotal: preDiscountItemsCost, discountAmount: discountNum, taxAmount: taxNum, sourceBillTotal, settlementRoundingAdjustmentUnits: convertedTotals.roundingAdjustmentUnits, billTotal, sourceCurrency: detectedCurrency, sourceTotal, exchangeRate: conversionRate, exchangeRateDate: exchangeRate.date || null, exchangeProvider: exchangeRate.provider || 'Frankfurter', reconciliationAllocations, date: new Date().toISOString().split('T')[0], currency });
+        const calculatedResults = { calculationVersion: 2, personTotals, totalItemsCost, itemsSubtotal: preDiscountItemsCost, discountAmount: discountNum, taxAmount: taxNum, sourceBillTotal, settlementRoundingAdjustmentUnits: convertedTotals.roundingAdjustmentUnits, billTotal, sourceCurrency: detectedCurrency, sourceTotal, exchangeRate: conversionRate, exchangeRateDate: exchangeRate.date || null, exchangeProvider: exchangeRate.provider || 'Frankfurter', reconciliationAllocations, date: new Date().toISOString().split('T')[0], currency };
+        autoPublishResultRef.current = !tutorialDemo && claimSessionRef.current?.link ? calculatedResults : null;
+        setResults(calculatedResults);
         setIsSaved(false); setIsSavingRecord(false); setStep(4);
         return true;
       };
@@ -3270,6 +3275,14 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
         }
         return JSON.stringify({ ...shareable, imageBatchId });
       }, [results, items, payer, currency, detectedCurrency, taxSplitMethod, paymentMethods, draftAssets.revision, uiLang, lastImageData, receiptAdjustmentDetails, taxAmount, discountAmount]);
+
+      useEffect(() => {
+        // Publish only a newly computed bill, never a restored draft or tutorial.
+        // The committed render supplies fresh results and its matching signature.
+        if (tutorialDemo || !results || autoPublishResultRef.current !== results || friendShareRequestRef.current) return;
+        autoPublishResultRef.current = null;
+        createFriendShareLink();
+      }, [results, friendShareStatus, tutorialDemo]);
 
       const getDetailedResult = (mode = 'full', language = uiLang) => {
         if (!results) return '';
@@ -3504,7 +3517,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
               <div className="flex items-center gap-2 sm:gap-3 shrink-0">
                 <img src="./icons/icon.svg" alt="" width="48" height="48" className="app-brand-icon shrink-0" />
                 <div>
-                  <h1 className="text-xl font-extrabold text-slate-800 tracking-tight"><span className="app-brand-name block sm:inline whitespace-nowrap">{tr("分帳管家")}</span><span className="inline-flex items-baseline gap-1 sm:ml-1 whitespace-nowrap"><span data-testid="app-pro-label" className="text-brand-600 font-black">Pro</span><span data-testid="app-version-label" className="text-[10px] leading-3 font-semibold tracking-normal text-brand-700">V1.0.1</span></span></h1>
+                  <h1 className="text-xl font-extrabold text-slate-800 tracking-tight"><span className="app-brand-name block sm:inline whitespace-nowrap">{tr("分帳管家")}</span><span className="inline-flex items-baseline gap-1 sm:ml-1 whitespace-nowrap"><span data-testid="app-pro-label" className="text-brand-600 font-black">Pro</span><span data-testid="app-version-label" className="text-[10px] leading-3 font-semibold tracking-normal text-brand-700">V1.0.1 · R101</span></span></h1>
                 </div>
               </div>
               <div className="header-actions relative flex items-center gap-1.5 sm:gap-2">
@@ -3524,6 +3537,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                       {tr("選單")}
                     </button>
                     <div ref={headerActionPanelRef} id="header-action-menu" role="group" aria-label={bi('首頁操作', 'Home actions')} hidden={!showHeaderMenu} className={`${showHeaderMenu ? 'absolute' : 'hidden'} right-0 top-full z-[70] mt-1 flex w-40 max-w-[calc(100vw-1rem)] flex-col gap-[2px] rounded-xl border border-slate-400 bg-white p-[3px] shadow-lg`}>
+                      <button type="button" data-testid="header-update-app" onClick={() => { if (tutorialDemo || !ensureDraftSavedForSharing()) return; window.BillAppUpdate?.reloadLatest(); }} className="header-action-menu-item min-h-[32px] w-full rounded-lg border border-slate-500 bg-slate-100 px-2 py-1 text-left text-sm font-semibold text-slate-800">{bi('更新程式（保留帳單）', 'Update app (keep bill)')}</button>
                       <button type="button" data-testid="header-language-toggle" data-ui-language={uiLang === 'en' ? 'zh-HK' : 'en'} onClick={() => changeUiLanguage(uiLang === 'en' ? 'zh-HK' : 'en')} aria-label={uiLang === 'en' ? 'Switch to Traditional Chinese' : '切換至 English'} className="header-action-menu-item header-action-menu-item-language min-h-[32px] w-full rounded-lg border border-slate-500 bg-slate-100 px-2 py-1 text-left text-sm font-semibold text-slate-800 transition-all hover:bg-brand-50 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500">
                         {uiLang === 'en' ? '繁體中文' : '切換至 English'}
                       </button>
@@ -3806,6 +3820,32 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                 )}
                 {items.length === 0 && <p className="text-base text-slate-700 leading-relaxed">{bi('有項目之後，先會出現認帳連結。', 'The share link appears once there is an item.')}</p>}
 
+                <Card data-testid="activity-settings" className="!p-4 space-y-3">
+                  <div>
+                    <label htmlFor="claim-activity-name" className="block text-base font-bold text-slate-800 mb-1.5">{bi('活動名稱（選填）', 'Activity name (optional)')}</label>
+                    <input id="claim-activity-name" data-testid="claim-activity-name" type="text" maxLength={80} value={claimActivityName}
+                      disabled={tutorialDemo || Boolean(claimSession?.link)}
+                      onChange={(e) => { setClaimActivityName(e.target.value.slice(0, 80)); claimLinkMetaRef.current = null; setClaimLinkMeta(null); }}
+                      placeholder={bi('例如：大阪旅行／週末聚餐', 'e.g. Osaka trip / Weekend dinner')}
+                      className="field-round w-full text-base font-semibold text-slate-800 outline-none" />
+                    <p className="text-xs text-slate-600 mt-1">{bi('留空會用建立連結的日期和時間。', 'Leave blank to use the link creation date and time.')}</p>
+                  </div>
+                  <div>
+                    <label htmlFor="claim-expiry-days" className="block text-base font-bold text-slate-800 mb-1.5">{bi('連結有效期', 'Link validity')}</label>
+                    <select id="claim-expiry-days" data-testid="claim-expiry-days" value={claimExpiryDays}
+                      disabled={tutorialDemo || Boolean(claimSession?.link)}
+                      onChange={(e) => { setClaimExpiryDays(e.target.value); claimLinkMetaRef.current = null; claimSessionRef.current = null; setClaimLinkMeta(null); setClaimSession(null); }}
+                      className="field-round w-full text-base font-semibold text-slate-800 outline-none">
+                      <option value="1">{bi('1 日', '1 day')}</option>
+                      <option value="3">{bi('3 日', '3 days')}</option>
+                      <option value="7">{bi('7 日', '7 days')}</option>
+                      <option value="14">{bi('14 日', '14 days')}</option>
+                    </select>
+                    <p className="text-xs text-slate-600 mt-1">{bi('按伺服器時間倒數，到期後停用。', 'Countdown uses server time; the link closes at expiry.')}</p>
+                  </div>
+                  {claimSession?.link && <p className="text-xs font-semibold text-emerald-800">{bi('連結已建立，名稱及期限已固定。', 'Link created; its name and expiry are fixed.')}</p>}
+                </Card>
+
                 <div className="space-y-4">
                   {!receiptWasRead && (
                   <div className="flex justify-between items-end mb-1">
@@ -3909,52 +3949,8 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                 <div className="border-t border-slate-400 my-6 pt-6 space-y-6">
                   <div data-testid="claim-share-block" className="claim-share-block">
                     <Label className="flex items-center justify-between mb-3"><span>{tr("1. 分享認帳連結")}</span></Label>
-                    <div className="rounded-xl border border-slate-400 bg-white p-3 mb-3 space-y-3">
-                      <div>
-                        <label htmlFor="claim-activity-name" className="block text-sm font-bold text-slate-700 mb-1.5">{bi('活動名稱（選填）', 'Activity name (optional)')}</label>
-                        <input
-                          id="claim-activity-name"
-                          data-testid="claim-activity-name"
-                          type="text"
-                          maxLength={80}
-                          value={claimActivityName}
-                          disabled={tutorialDemo || Boolean(claimSession?.link)}
-                          onChange={(e) => {
-                            setClaimActivityName(e.target.value.slice(0, 80));
-                            claimLinkMetaRef.current = null;
-                            setClaimLinkMeta(null);
-                          }}
-                          placeholder={bi('例如：大阪旅行／週末聚餐', 'e.g. Osaka trip / Weekend dinner')}
-                          className="field-round w-full text-base font-semibold text-slate-800 outline-none"
-                        />
-                        <p className="text-xs text-slate-600 mt-1">{bi('留空會自動用建立連結的日期和時間命名。', 'Leave blank to use the link creation date and time.')}</p>
-                      </div>
-                      <div>
-                        <label htmlFor="claim-expiry-days" className="block text-sm font-bold text-slate-700 mb-1.5">{bi('連結有效期', 'Link validity')}</label>
-                        <select
-                          id="claim-expiry-days"
-                          data-testid="claim-expiry-days"
-                          value={claimExpiryDays}
-                          disabled={tutorialDemo || Boolean(claimSession?.link)}
-                          onChange={(e) => {
-                            setClaimExpiryDays(e.target.value);
-                            claimLinkMetaRef.current = null;
-                            claimSessionRef.current = null;
-                            setClaimLinkMeta(null);
-                            setClaimSession(null);
-                          }}
-                          className="field-round w-full text-base font-semibold text-slate-800 outline-none"
-                        >
-                          <option value="1">{bi('1 日', '1 day')}</option>
-                          <option value="3">{bi('3 日', '3 days')}</option>
-                          <option value="7">{bi('7 日', '7 days')}</option>
-                          <option value="14">{bi('14 日', '14 days')}</option>
-                        </select>
-                        <p className="text-xs text-slate-600 mt-1">{bi('到期後朋友不能再提交認帳；時間按朋友手機顯示。', 'Replies close at expiry; the countdown uses each friend’s device time.')}</p>
-                      </div>
-                    </div>
                     <p className="text-base text-slate-700 mb-3 leading-relaxed">{bi('朋友填妥後會自動交回。', 'Friends’ completed replies return automatically.')}</p>
-                    <p className="text-sm text-emerald-800 mb-3 leading-relaxed">{bi('朋友收到同一條連結先填認帳；你產生分帳結果後，再按「把結算結果更新到同一條連結」，朋友重開原連結就會看到結果。', 'Friends use this link to submit claims. After calculating, publish the result here; reopening the same link will show it.')}</p>
+                    <p className="text-sm text-emerald-800 mb-3 leading-relaxed">{bi('只需發一次連結：朋友先填認帳，你計完帳後，結果會自動更新到原連結。', 'Share one link: friends enter their items, and your calculated result updates the same link automatically.')}</p>
                     <div data-testid="claim-link-actions" className="flex flex-col gap-3">
                       <Button variant="secondary" onClick={generateFriendClaimLink} className="!w-full text-sm bg-white hover:bg-slate-50 border-slate-500">
                         <Icon path={icons.copy} size={18} className="text-slate-600"/>{tr(" 複製認帳連結")}</Button>
@@ -4188,6 +4184,14 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                   <span className="w-8 h-8 rounded-full bg-brand-600 text-white flex items-center justify-center font-bold"><Icon path={icons.check} size={18}/></span>
                   <h2 className="text-2xl font-bold text-slate-800 tracking-tight">{bi('分帳結果', 'Bill-splitting results')}</h2>
                 </div>
+
+                {claimSession?.link && <div data-testid="same-link-sync-status" role="status" className={`rounded-xl border p-3 text-sm font-semibold leading-relaxed ${friendShareStatus === 'error' ? 'border-red-400 bg-red-50 text-red-800' : 'border-emerald-400 bg-emerald-50 text-emerald-900'}`}>
+                  {friendShareStatus === 'uploading' ? bi('正在把結果更新到原本同一條連結…', 'Updating the result on the same link…')
+                    : friendShareInfo?.signature === currentFriendShareSignature ? bi('結果已自動更新。朋友打開原本嗰條連結就睇到，唔使再發第二條。', 'Result updated automatically. Friends can use the original link; no second link needed.')
+                    : friendShareStatus === 'error' ? `${bi('結果未同步成功：', 'Result sync failed: ')}${friendShareError}`
+                    : bi('朋友結果會沿用原本同一條連結。', 'Friends use the original link for results.')}
+                  {friendShareStatus === 'error' && <button type="button" data-testid="retry-same-link-sync" onClick={createFriendShareLink} className="ml-2 underline">{bi('重試', 'Retry')}</button>}
+                </div>}
 
                 {lastImageData.length > 0 && (
                   <Button data-testid="share-receipt-images" onClick={shareCurrentReceipts} variant="primary" className="!w-full green-action-dark !bg-emerald-700 hover:!bg-emerald-800 !border-emerald-900 !shadow-none focus:!ring-emerald-600" style={{ backgroundColor: '#047857', borderColor: '#065f46', boxShadow: 'none' }}>

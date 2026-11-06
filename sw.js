@@ -13,7 +13,7 @@
  * Bump CACHE_VERSION whenever you edit index.html so returning users get the
  * new build instead of the cached one.
  */
-const CACHE_VERSION = 'v100-server-synced-expiry';
+const CACHE_VERSION = 'v101-visible-single-link';
 const SHELL_CACHE = `bill-splitter-shell-${CACHE_VERSION}`;
 const ASSET_CACHE = `bill-splitter-assets-${CACHE_VERSION}`;
 const CDN_CACHE = `bill-splitter-cdn-${CACHE_VERSION}`;
@@ -22,6 +22,7 @@ const KEEP = [SHELL_CACHE, ASSET_CACHE, CDN_CACHE];
 const SHELL_URLS = [
   './',
   './index.html',
+  './pwa.js',
   './detailed-view.html',
   './claim.html',
   './claim-relay.js',
@@ -71,7 +72,8 @@ self.addEventListener('install', (event) => {
           cache.add(new Request(url, { cache: 'reload' })).catch(() => {})
         )
       );
-      self.skipWaiting();
+      // First installs activate normally. Replacements wait for the user's
+      // SKIP_WAITING message so an active draft is not interrupted.
     })()
   );
 });
@@ -81,7 +83,9 @@ self.addEventListener('activate', (event) => {
     (async () => {
       const names = await caches.keys();
       await Promise.all(
-        names.filter((n) => !KEEP.includes(n)).map((n) => caches.delete(n))
+        names
+          .filter((n) => n.startsWith('bill-splitter-') && !KEEP.includes(n))
+          .map((n) => caches.delete(n))
       );
       await self.clients.claim();
     })()
@@ -134,7 +138,8 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       (async () => {
         try {
-          const fresh = await fetch(request);
+          // Revalidate the browser HTTP cache too (GitHub Pages uses max-age).
+          const fresh = await fetch(request, { cache: 'no-cache' });
           const cache = await caches.open(SHELL_CACHE);
           const path = new URL(request.url).pathname;
           const cacheKey = path.endsWith('/detailed-view.html')

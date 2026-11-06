@@ -40,41 +40,106 @@
     window.navigator.standalone === true;
 
   /* ---------------------------------------------------------- service worker */
+  var RELEASE_VERSION = 'v101-visible-single-link';
   var waitingWorker = null;
+  var registrationPromise = null;
+  var reloadRequested = false;
+
+  function afterLoad(callback) {
+    if (document.readyState === 'complete') callback();
+    else window.addEventListener('load', callback, { once: true });
+  }
+
+  function offerUpdate(reg, sw) {
+    // A first install may claim this page, but must never reload or offer an update.
+    if (!sw || sw.state !== 'installed' ||
+        !(reg.active || navigator.serviceWorker.controller)) return;
+    waitingWorker = sw;
+    if (!reloadRequested) showBar('🔄 有新版本可用', '更新', reloadLatest);
+  }
+
+  function registerWorker() {
+    if (registrationPromise) return registrationPromise;
+    if (!('serviceWorker' in navigator) || !SECURE) return Promise.resolve(null);
+    registrationPromise = navigator.serviceWorker
+      .register('sw.js', { scope: './', updateViaCache: 'none' })
+      .then(function (reg) {
+        function watchInstalling() {
+          var sw = reg.installing;
+          if (!sw) return;
+          offerUpdate(reg, sw);
+          sw.addEventListener('statechange', function () { offerUpdate(reg, sw); });
+        }
+        // Registration can resolve with an update already waiting or installing.
+        offerUpdate(reg, reg.waiting);
+        watchInstalling();
+        reg.addEventListener('updatefound', watchInstalling);
+        return reg;
+      })
+      .catch(function () {
+        /* registration failure is non-fatal; the app still works online */
+        return null;
+      });
+    return registrationPromise;
+  }
+
+  function reloadLatest() {
+    if (reloadRequested) return;
+    reloadRequested = true;
+    removeBar();
+
+    // Only an explicit action navigates. Preserve draft storage, deep links and
+    // all unrelated query parameters; the timestamp bypasses the HTTP max-age.
+    var url = new URL(location.href);
+    url.searchParams.set('v', RELEASE_VERSION);
+    url.searchParams.set('_update', String(Date.now()));
+    var navigated = false;
+    var worker = null;
+    var activationRequested = false;
+    var swSupported = 'serviceWorker' in navigator && SECURE;
+
+    function navigate() {
+      if (navigated) return;
+      navigated = true;
+      clearTimeout(fallback);
+      if (swSupported) navigator.serviceWorker.removeEventListener('controllerchange', navigate);
+      if (worker) worker.removeEventListener('statechange', activate);
+      location.replace(url.toString());
+    }
+
+    function activate() {
+      if (navigated || !worker) return;
+      if (worker.state === 'installed' && !activationRequested) {
+        activationRequested = true;
+        try { worker.postMessage('SKIP_WAITING'); } catch (e) { navigate(); }
+      } else if (worker.state === 'activated' || worker.state === 'redundant') {
+        navigate();
+      }
+    }
+
+    // A failed update/activation must not leave the user's update action stuck.
+    var fallback = setTimeout(navigate, 5000);
+    if (!swSupported) { navigate(); return; }
+    navigator.serviceWorker.addEventListener('controllerchange', navigate);
+    registerWorker().then(function (reg) {
+      if (!reg || navigated) { navigate(); return; }
+      // Check now as well: the header action may precede an updatefound event.
+      return reg.update().catch(function () {}).then(function () {
+        if (navigated) return;
+        worker = reg.installing || reg.waiting ||
+          (waitingWorker && waitingWorker.state === 'installed' ? waitingWorker : null);
+        if (!worker) { navigate(); return; }
+        worker.addEventListener('statechange', activate);
+        activate();
+      });
+    }).catch(navigate);
+  }
+
+  // The app can save its active draft before invoking this explicit navigation.
+  window.BillAppUpdate = { version: 'R101', reloadLatest: reloadLatest };
 
   if ('serviceWorker' in navigator && SECURE) {
-    window.addEventListener('load', function () {
-      navigator.serviceWorker
-        .register('sw.js', { scope: './' })
-        .then(function (reg) {
-          reg.addEventListener('updatefound', function () {
-            var sw = reg.installing;
-            if (!sw) return;
-            sw.addEventListener('statechange', function () {
-              if (sw.state === 'installed' && navigator.serviceWorker.controller) {
-                waitingWorker = sw;
-                showBar(
-                  '🔄 有新版本可用',
-                  '更新',
-                  function () {
-                    if (waitingWorker) waitingWorker.postMessage('SKIP_WAITING');
-                  }
-                );
-              }
-            });
-          });
-        })
-        .catch(function () {
-          /* registration failure is non-fatal; the app still works online */
-        });
-
-      var reloaded = false;
-      navigator.serviceWorker.addEventListener('controllerchange', function () {
-        if (reloaded) return;
-        reloaded = true;
-        location.reload();
-      });
-    });
+    afterLoad(function () { registerWorker(); });
   }
 
   /* ------------------------------------------------------------------- UI bar */
@@ -183,7 +248,7 @@
   var isSafari = /Safari/.test(ua) && !/CriOS|FxiOS|EdgiOS|OPiOS/.test(ua);
 
   if (isIOS && isSafari && !isStandalone && !stored(IOS_HINT_KEY) && !stored(DISMISS_KEY)) {
-    window.addEventListener('load', function () {
+    afterLoad(function () {
       setTimeout(function () {
         if (bar) return;
         store(IOS_HINT_KEY, '1');

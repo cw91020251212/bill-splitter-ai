@@ -75,8 +75,6 @@ function draft() {
     }, draft());
     await page.goto(base, { waitUntil: 'domcontentloaded' });
     await page.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '3', null, { timeout: 60000 });
-    await page.getByTestId('calculate-split').click();
-    await page.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '4', null, { timeout: 20000 });
 
     await page.evaluate(({ sameLink, sessionId, writeToken }) => {
       const original = window.BillShareApi;
@@ -104,8 +102,10 @@ function draft() {
       };
     }, { sameLink, sessionId, writeToken });
 
-    await page.getByTestId('publish-same-link-result').click();
+    await page.getByTestId('calculate-split').click();
+    await page.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '4', null, { timeout: 20000 });
     await page.waitForFunction(() => document.querySelector('[data-testid="friend-share-ready"]')?.textContent.includes('已更新'), null, { timeout: 15000 });
+    assert.match(await page.getByTestId('same-link-sync-status').innerText(), /結果已自動更新/);
     const state = await page.evaluate(() => ({
       published: window.__published,
       link: document.querySelector('[data-testid="friend-share-open"]')?.href,
