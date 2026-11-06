@@ -45,7 +45,9 @@ test('one claim session changes from pending to ready only with organizer token'
 
   const pendingResponse = await handleRequest(request(`https://worker.test/api/shares/${created.id}`), storage, now + 1100);
   assert.equal(pendingResponse.status, 202);
-  assert.equal((await json(pendingResponse)).status, 'pending');
+  const pending = await json(pendingResponse);
+  assert.equal(pending.status, 'pending');
+  assert.equal(Date.parse(pending.serverNow), now + 1100);
 
   const denied = await handleRequest(request(`https://worker.test/api/shares/${created.id}`, 'PUT', sample, { Authorization: 'Bearer wrong' }), storage, now + 2200);
   assert.equal(denied.status, 403);
@@ -59,6 +61,7 @@ test('one claim session changes from pending to ready only with organizer token'
   assert.equal(ready.status, 200);
   const result = await json(ready);
   assert.equal(result.status, 'ready');
+  assert.equal(Date.parse(result.serverNow), publishTime + 1200);
   assert.equal(result.data.participants[0].name, '阿明');
 });
 
@@ -74,6 +77,12 @@ test('claim session expires and old result-share creation remains supported', as
   const created = await json(await handleRequest(request('https://worker.test/api/shares/sessions', 'POST', { ttlDays: 1 }), storage, now));
   const expired = await handleRequest(request(`https://worker.test/api/shares/${created.id}`), storage, now + 24 * 60 * 60 * 1000 + 1);
   assert.equal(expired.status, 410);
+  const expiredBody = await json(expired);
+  assert.equal(expiredBody.status, 'expired');
+  assert.equal(Date.parse(expiredBody.serverNow), now + 24 * 60 * 60 * 1000 + 1);
+  const missing = await handleRequest(request(`https://worker.test/api/shares/${created.id}`), storage, now + 24 * 60 * 60 * 1000 + 2);
+  assert.equal(missing.status, 404);
+  assert.equal(Date.parse((await json(missing)).serverNow), now + 24 * 60 * 60 * 1000 + 2);
 
   const legacy = await handleRequest(request('https://worker.test/api/shares', 'POST', sample), storage, now + 5000);
   assert.equal(legacy.status, 201);

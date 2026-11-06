@@ -259,15 +259,15 @@ export async function handleRequest(request, env, now = Date.now()) {
       } catch (_) {
         return jsonResponse({ error: '無法讀取分享資料。' }, 503, origin);
       }
-      if (!record) return jsonResponse({ error: '連結已到期或不存在。', code: 'not_found' }, 404, origin);
+      if (!record) return jsonResponse({ error: '連結已到期或不存在。', code: 'not_found', serverNow: new Date(now).toISOString() }, 404, origin);
       if (!Number.isFinite(record.expiresAt) || record.expiresAt <= now) {
         try { await env.BILL_SHARES.delete(`share:${match[1]}`); } catch (_) {}
-        return jsonResponse({ error: '這條分享連結已到期。', code: 'expired' }, 410, origin);
+        return jsonResponse({ error: '這條分享連結已到期。', code: 'expired', status: 'expired', serverNow: new Date(now).toISOString(), expiresAt: new Date(record.expiresAt).toISOString() }, 410, origin);
       }
       if (record.kind === 'claim-session' && record.status === 'pending') {
-        return jsonResponse({ status: 'pending', expiresAt: new Date(record.expiresAt).toISOString() }, 202, origin);
+        return jsonResponse({ status: 'pending', serverNow: new Date(now).toISOString(), expiresAt: new Date(record.expiresAt).toISOString() }, 202, origin);
       }
-      return jsonResponse({ status: 'ready', data: record.data, expiresAt: new Date(record.expiresAt).toISOString() }, 200, origin);
+      return jsonResponse({ status: 'ready', data: record.data, serverNow: new Date(now).toISOString(), expiresAt: new Date(record.expiresAt).toISOString() }, 200, origin);
     }
 
     if (match && method === 'PUT') {

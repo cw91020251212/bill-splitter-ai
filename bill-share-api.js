@@ -192,7 +192,10 @@
     } catch (_) { throw new Error('暫時連不到分享服務；請檢查網絡後再試。'); }
     let result = {};
     try { result = await response.json(); } catch (_) {}
-    if (response.status === 202 || result.status === 'pending') return { status: 'pending', expiresAt: result.expiresAt || '' };
+    if (response.status === 202 || result.status === 'pending') return { status: 'pending', expiresAt: result.expiresAt || '', serverNow: result.serverNow || '' };
+    if (response.status === 404 || response.status === 410) {
+      return { status: response.status === 410 || result.code === 'expired' ? 'expired' : 'unknown', expiresAt: result.expiresAt || '', serverNow: result.serverNow || '' };
+    }
     if (!response.ok) throw new Error(result.error || '這條認帳活動連結已到期或不存在。');
     return { ...result, status: result.status || 'ready' };
   }

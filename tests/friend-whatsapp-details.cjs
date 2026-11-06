@@ -129,7 +129,34 @@ function draft() {
     await page.getByTestId('copy-friend-share-link').click();
     assert.equal(await page.evaluate(() => window.__copiedLink), sameLink);
     assert.equal(failures.length, 0, `page errors: ${failures.join('; ')}`);
-    console.log('PASS 390px: publishes the result to the existing session with its organizer token; the exact original claim URL remains unchanged, WhatsApp/copy use that URL; no live share API calls.');
+
+    const claimPage = await context.newPage();
+    claimPage.on('pageerror', error => failures.push(error.message));
+    const serverNow = Date.now();
+    const authoritativeExpiry = serverNow + 7 * 24 * 60 * 60 * 1000;
+    await claimPage.addInitScript(() => {
+      const realDateNow = Date.now.bind(Date);
+      Date.now = () => realDateNow() + 30 * 24 * 60 * 60 * 1000;
+    });
+    await claimPage.route('https://bill-splitter-share.cw9102025.workers.dev/api/shares/**', route => route.fulfill({
+      status: 202,
+      headers: { 'access-control-allow-origin': '*', 'content-type': 'application/json' },
+      body: JSON.stringify({ status: 'pending', serverNow: new Date(serverNow).toISOString(), expiresAt: new Date(authoritativeExpiry).toISOString() })
+    }));
+    await claimPage.goto(sameLink, { waitUntil: 'domcontentloaded' });
+    await claimPage.waitForFunction(() => document.querySelector('#submit-dock')?.hidden === false, null, { timeout: 10000 });
+    const clockState = await claimPage.evaluate(() => ({
+      dockHidden: document.querySelector('#submit-dock').hidden,
+      expiredHidden: document.querySelector('#expired-panel').hidden,
+      countdown: document.querySelector('#expiry-countdown').textContent,
+      deviceNow: Date.now()
+    }));
+    assert.ok(clockState.deviceNow - serverNow > 29 * 24 * 60 * 60 * 1000, 'the test device clock is intentionally more than 29 days ahead');
+    assert.equal(clockState.dockHidden, false, 'the form is open according to server time, despite a device clock 30 days ahead');
+    assert.equal(clockState.expiredHidden, true, 'the link is not falsely marked expired by the device clock');
+    assert.match(clockState.countdown, /7日/, 'the countdown is based on Worker serverNow');
+    assert.equal(failures.length, 0, `page errors: ${failures.join('; ')}`);
+    console.log('PASS 390px: same-link publishing and sharing; claim form uses Worker server time even when device clock is 30 days ahead.');
   } finally {
     if (context) await context.close();
     await browser.close();

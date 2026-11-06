@@ -372,6 +372,8 @@
       let expiryTimer = null;
       let sessionPollTimer = null;
       let sessionPollBusy = false;
+      let serverTimeAnchorMs = null;
+      let serverTimeAnchorPerf = null;
       let showingSharedResult = false;
       let submitting = false;
       let lastSubmittedSignature = '';
@@ -396,6 +398,7 @@
         'zh-HK': {
           title: '填寫你的認帳',
           activity: title => `活動：${title}`,
+          checkingExpiry: '正在連線核對連結有效期…',
           expiresIn: remaining => `連結有效期：${remaining}`,
           expiredCountdown: '連結已到期', expiredTitle: '活動連結已失效',
           expiredDescription: '已超過有效期限，不能再填寫認帳。請向發起人索取新連結。',
@@ -430,6 +433,7 @@
         en: {
           title: 'Your items',
           activity: title => `Activity: ${title}`,
+          checkingExpiry: 'Checking link expiry online…',
           expiresIn: remaining => `Link expires in: ${remaining}`,
           expiredCountdown: 'Link expired', expiredTitle: 'This activity link has expired',
           expiredDescription: 'The validity period has ended. You can no longer submit a reply. Ask the organizer for a new link.',
@@ -520,6 +524,13 @@
         return parts.join(' ');
       }
 
+      function getEffectiveNow() {
+        if (serverTimeAnchorMs !== null && serverTimeAnchorPerf !== null) {
+          return serverTimeAnchorMs + (performance.now() - serverTimeAnchorPerf);
+        }
+        return Date.now();
+      }
+
       function updateExpiryUI() {
         if (!linkMetadata) return true;
         const text = messages[language];
@@ -527,7 +538,17 @@
         activityTitle.hidden = false;
         expiryCountdown.hidden = false;
         document.title = `${linkMetadata.title} | ${language === 'en' ? 'Your items | Bill Splitter AI' : '填寫認帳｜分帳管家 AI'}`;
-        const remaining = linkMetadata.expiresAt - Date.now();
+        const sessionId = new URLSearchParams(window.location.search).get('session');
+        const needsServerClock = /^[A-Za-z0-9_-]{22}$/.test(sessionId || '');
+        if (needsServerClock && serverTimeAnchorMs === null) {
+          isExpired = false;
+          expiryCountdown.textContent = text.checkingExpiry;
+          expiredPanel.hidden = true;
+          content.hidden = true;
+          submitDock.hidden = true;
+          return true;
+        }
+        const remaining = linkMetadata.expiresAt - getEffectiveNow();
         if (remaining <= 0) {
           isExpired = true;
           expiryCountdown.textContent = text.expiredCountdown;
@@ -681,7 +702,18 @@
         if (!window.BillShareApi?.getSession) return;
         sessionPollBusy = true;
         try {
+          const requestStartedAt = performance.now();
           const session = await window.BillShareApi.getSession(sessionId);
+          const requestFinishedAt = performance.now();
+          const serverNow = Date.parse(session.serverNow || '');
+          const sessionExpiry = Date.parse(session.expiresAt || '');
+          if (Number.isFinite(sessionExpiry) && linkMetadata) linkMetadata.expiresAt = sessionExpiry;
+          if (Number.isFinite(serverNow)) {
+            serverTimeAnchorMs = serverNow;
+            serverTimeAnchorPerf = (requestStartedAt + requestFinishedAt) / 2;
+            updateExpiryUI();
+          }
+          if (isExpired) return;
           if (session.status !== 'ready') return;
           showingSharedResult = true;
           window.clearInterval(sessionPollTimer);
@@ -702,8 +734,8 @@
           submitDock.hidden = true;
         } catch (_) {
           sessionNote.textContent = language === 'en'
-            ? 'Could not check for the final result. This link is still valid; reopen it or check your connection.'
-            : '暫時未能檢查結算結果；此連結仍有效，請檢查網絡或稍後重新開啟。';
+            ? 'Could not verify the link expiry or final result. Check your connection and retry; the form stays closed until the expiry is verified.'
+            : '暫時未能核對連結期限或結算結果；請檢查網絡後重試，核對期限前認帳表會暫時關閉。';
         } finally { sessionPollBusy = false; }
       }
 
