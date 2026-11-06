@@ -297,6 +297,7 @@
             <h2 id="items-title">賬單項目</h2>
             <span id="item-count" class="count"></span>
           </div>
+          <p id="sharing-rule" class="hint">冇單位大家分，有單位自己付。</p>
           <section id="item-list" class="item-list" aria-label="賬單項目"></section>
           <p id="form-feedback" class="form-feedback" role="status" aria-live="polite"></p>
 
@@ -369,7 +370,7 @@
           title: '填寫你的認帳',
           errorTitle: '打不開認帳表', errorDescription: '連結無效，請索取新連結。',
           personLabel: '你的姓名', namePlaceholder: '例如：阿明', nameHint: '填發起人認得的名字。',
-          items: '賬單項目', preview: '認帳回覆預覽', previewSubtitle: '提交未成功可用。',
+          items: '賬單項目', sharingRule: '冇單位大家分，有單位自己付。', preview: '認帳回覆預覽', previewSubtitle: '提交未成功可用。',
           previewPlaceholder: '填姓名和數量後，回覆會顯示於此。', previewLabel: '認帳回覆文字預覽',
           or: '或', share: '分享回覆', copy: '複製回覆文字', shareHelp: 'WhatsApp 開啟後請按傳送。',
           fallbackSummary: 'WhatsApp 後備',
@@ -397,7 +398,7 @@
           title: 'Your items',
           errorTitle: 'This page could not be opened', errorDescription: 'Invalid link. Ask for a new one.',
           personLabel: 'Your name', namePlaceholder: 'For example: Alex', nameHint: 'Use a name the organizer recognizes.',
-          items: 'Bill items', preview: 'Reply preview', previewSubtitle: 'Use if submission fails.',
+          items: 'Bill items', sharingRule: 'No unit: everyone shares. With a unit: the person claiming it pays.', preview: 'Reply preview', previewSubtitle: 'Use if submission fails.',
           previewPlaceholder: 'Enter your name and quantities to see the reply here.', previewLabel: 'Reply preview',
           or: 'or', share: 'Share reply', copy: 'Copy reply text', shareHelp: 'Tap Send in WhatsApp.',
           fallbackSummary: 'WhatsApp fallback',
@@ -484,6 +485,7 @@
         nameInput.placeholder = text.namePlaceholder;
         document.getElementById('person-hint').textContent = text.nameHint;
         document.getElementById('items-title').textContent = text.items;
+        document.getElementById('sharing-rule').textContent = text.sharingRule;
         document.getElementById('item-list').setAttribute('aria-label', text.items);
         document.getElementById('preview-title').textContent = text.preview;
         document.getElementById('preview-subtitle').textContent = text.previewSubtitle;
