@@ -57,6 +57,10 @@ async function seed(page, record) {
 async function calculate(page) {
   await page.getByTestId('calculate-split').click();
   await page.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '4', null, { timeout: 15000 });
+  if (!await page.getByTestId('final-summary-preview').count()) {
+    await page.getByTestId('report-fallback-options').getByRole('button').click();
+  }
+  await page.getByTestId('final-summary-preview').waitFor({ state: 'visible' });
   return page.getByTestId('final-summary-preview').innerText();
 }
 

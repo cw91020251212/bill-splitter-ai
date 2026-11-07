@@ -185,6 +185,7 @@ async function hostFixture() {
   assert.equal(await host.getByTestId('claim-inbox').isVisible(), true, 'friend inbox is available on step 3');
   assert.equal(await host.getByTestId('claim-replies').isVisible(), true, 'reply text area is available on step 3');
   assert.equal(await host.getByTestId('calculate-split').isDisabled(), true, 'report remains disabled before any friend reply');
+  assert.match(await host.getByTestId('calculate-split-hint').innerText(), /按下後會計算並產生分帳報告/, 'disabled CTA still explains its action');
   await host.getByPlaceholder('輸入姓名', { exact: true }).fill('QA墊支人');
   assert.equal(await host.getByTestId('receipt-currency-control').isVisible(), true, 'organizer can fill currency before replies');
   const sectionOrder = await host.evaluate(() => {
@@ -213,7 +214,7 @@ async function hostFixture() {
   assert(c, 'actual host creates real session'); assert.equal(c.claimSecurity, 'password'); assert.equal(new URL(link).searchParams.get('session'), c.id); secretFree(link); return { host, c, link };
 }
 async function hostSettle(fixture, qty, initial = false, names = [A, B]) {
-  const { host, c } = fixture;
+  const { host, c, link } = fixture;
   if (!host) return publish(c, [payload(A, qty), payload(B)]);
   await host.bringToFront(); await host.evaluate(() => window.dispatchEvent(new Event('focus')));
   const nav = host.locator('.step-nav').getByRole('button', { name: '分帳運算' });
@@ -221,6 +222,7 @@ async function hostSettle(fixture, qty, initial = false, names = [A, B]) {
   await until(async () => { const replies = host.getByTestId('claim-replies'); if (!await replies.count()) { if (await nav.count()) await nav.click(); return false; } const text = await replies.inputValue(); return names.every(name => text.includes(`姓名：${name}`)) && Number(text.split(`姓名：${A}`)[1]?.match(/認帳份數\s*=\s*([\d.]+)/)?.[1]) === qty; }, 'host sees one exact current revision');
   const text = await host.getByTestId('claim-replies').inputValue(); assert.equal(text.split(`姓名：${A}`).length - 1, 1); secretFree(text);
   await until(async () => await host.getByTestId('calculate-split').isEnabled(), 'friend replies enable report generation');
+  assert.match(await host.getByTestId('calculate-split-hint').innerText(), /朋友可在原本連結查看結果/, 'shared-link CTA explains friends can view the result at their original link');
   const payer = host.getByPlaceholder('輸入姓名', { exact: true }); if (await payer.inputValue() !== A) await payer.fill(A);
   const before = harness.requests.length;
   await host.getByTestId('calculate-split').click();
@@ -229,6 +231,22 @@ async function hostSettle(fixture, qty, initial = false, names = [A, B]) {
   await until(() => harness.requests.slice(before).some(r => r.id === c.id && r.method === 'PUT' && r.status === 200 && r.input?.items?.[0]?.shares?.find(s => s.person === A)?.quantity === qty && names.every(name => r.input.participants.some(p => p.name === name))), 'host recalculation publishes original-session PUT', 35000);
   const request = harness.requests.slice(before).find(r => r.id === c.id && r.method === 'PUT' && r.status === 200); assert.equal(request.authorization, `Bearer ${c.writeToken}`); secretFree(request.input);
   assert.equal(harness.record(c.id).data.items[0].shares.find(s => s.person === A).quantity, qty); await stored(host, true);
+  const webBeforeFallback = await host.evaluate(() => {
+    const web = document.querySelector('[data-testid="friend-network-option"]');
+    const fallback = document.querySelector('[data-testid="report-fallback-options"]');
+    return Boolean(web && fallback && (web.compareDocumentPosition(fallback) & Node.DOCUMENT_POSITION_FOLLOWING));
+  });
+  assert.equal(webBeforeFallback, true, 'preferred web option appears before collapsed text backups');
+  const friendLink = host.getByTestId('friend-share-open');
+  assert.equal(await friendLink.getAttribute('href'), link, 'clickable href remains the complete original friend link');
+  const visibleUrl = await host.getByTestId('friend-share-url-display').innerText();
+  assert(visibleUrl.length < link.length, 'visible URL is shortened');
+  if (link.length > 52) assert.match(visibleUrl, /…/, 'long URL is shortened with a middle ellipsis');
+  assert.equal(await host.getByTestId('final-summary-preview').count(), 0, 'fallback reports are collapsed by default');
+  const backups = host.getByTestId('report-fallback-options');
+  await backups.getByRole('button').click();
+  await host.getByTestId('final-summary-preview').waitFor({ state: 'visible' });
+  await host.getByTestId('final-detail-preview').waitFor({ state: 'visible' });
 }
 async function ui() {
   stage = 'actual host and compact optional initial form';
