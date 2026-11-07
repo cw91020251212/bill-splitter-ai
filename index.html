@@ -79,9 +79,9 @@
   </style>
   <link rel="stylesheet" href="./theme.css?v=v86-free-models-only">
   <link rel="stylesheet" href="./tutorial.css?v=v86-free-models-only">
-  <!-- R110: friend replies move to step 3; report generation waits for a reply. -->
-  <meta name="bill-app-release" content="v110-step3-friend-replies">
-  <script defer src="./pwa.js?v=v110-step3-friend-replies"></script>
+  <!-- R111: friend replies sit above the report action, after settlement settings. -->
+  <meta name="bill-app-release" content="v111-step3-replies-before-report">
+  <script defer src="./pwa.js?v=v111-step3-replies-before-report"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
@@ -3146,7 +3146,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
         const metadata = getClaimLinkMetadata();
         const link = new URL('./claim.html', window.location.href);
         link.searchParams.set('lang', lang === 'en' ? 'en' : 'zh-HK');
-        link.searchParams.set('v', 'v110-step3-friend-replies');
+        link.searchParams.set('v', 'v111-step3-replies-before-report');
         link.searchParams.set('session', session.id);
         link.hash = window.ClaimRelay
           ? window.ClaimRelay.buildHash(encodeClaimLinkPayload(payload), room, metadata)
@@ -3778,7 +3778,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
               <div className="flex items-center gap-2 sm:gap-3 shrink-0">
                 <img src="./icons/icon.svg" alt="" width="48" height="48" className="app-brand-icon shrink-0" />
                 <div>
-                  <h1 className="text-xl font-extrabold text-slate-800 tracking-tight"><span className="app-brand-name block sm:inline whitespace-nowrap">{tr("分帳管家")}</span><span className="inline-flex items-baseline gap-1 sm:ml-1 whitespace-nowrap"><span data-testid="app-pro-label" className="text-brand-600 font-black">Pro</span><span data-testid="app-version-label" className="text-[10px] leading-3 font-semibold tracking-normal text-brand-700">V1.0.1 · R110</span></span></h1>
+                  <h1 className="text-xl font-extrabold text-slate-800 tracking-tight"><span className="app-brand-name block sm:inline whitespace-nowrap">{tr("分帳管家")}</span><span className="inline-flex items-baseline gap-1 sm:ml-1 whitespace-nowrap"><span data-testid="app-pro-label" className="text-brand-600 font-black">Pro</span><span data-testid="app-version-label" className="text-[10px] leading-3 font-semibold tracking-normal text-brand-700">V1.0.1 · R111</span></span></h1>
                 </div>
               </div>
               <div className="header-actions relative flex items-center gap-1.5 sm:gap-2">
@@ -4283,47 +4283,6 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                   <h2 className="text-2xl font-bold text-slate-800 tracking-tight">{tr("結算細節設定")}</h2>
                 </div>
 
-                <div
-                  ref={claimFollowupRef}
-                  data-testid="claim-followup"
-                  data-claim-shared={claimLinkShared ? 'true' : 'false'}
-                  data-claim-returned={claimFollowupOpen ? 'true' : 'false'}
-                  className={claimFollowupOpen ? 'space-y-6' : 'claim-await-share space-y-6'}
-                  aria-disabled={claimFollowupOpen ? undefined : true}
-                  {...(claimFollowupOpen ? {} : { inert: '' })}
-                >
-                  <Card data-testid="claim-inbox" className="!p-4 mb-4 border-brand-600">
-                    <h3 className="text-lg font-extrabold text-slate-800">{bi('認帳回覆', 'Share replies')}</h3>
-                    <p data-testid="claim-inbox-status" className="mt-3 text-base font-bold leading-relaxed text-slate-800" role="status">
-                      {!tutorialDemo && claimRoom && !claimSession
-                        ? bi('舊公開自動接收已停用。請建立新的受保護連結，或手動貼回覆。', 'Old public receiving is disabled. Create a protected link, or paste replies manually.')
-                        : !tutorialDemo && claimSecureError
-                          ? claimSecureError
-                          : !tutorialDemo && claimSecurePhase === 'setting-up'
-                            ? bi('正在準備認帳接收…', 'Preparing claim receiving…')
-                            : claimSession && inboxPhase === 'receiving'
-                              ? bi('正在接收認帳…', 'Receiving claims…')
-                              : claimFollowupOpen && inboxPeople.length >= 1
-                                ? bi(`現有認帳 ${inboxPeople.length} 位：${inboxPeople.join('、')}`, `Current claims ${inboxPeople.length}: ${inboxPeople.join(', ')}`)
-                                : tutorialDemo
-                                  ? bi('先複製或分享上面的連結。', 'Copy or share the link above first.')
-                                  : bi('等候朋友交返認帳。', 'Waiting for friends to send their claims.')}
-                    </p>
-                    {inboxNote && claimSession && <p className="mt-2 text-base font-semibold text-brand-800">{bi(`最新交到：${inboxNote}`, `Latest: ${inboxNote}`)}</p>}
-                    <Button data-testid="claim-inbox-refresh" variant="outline" className="!w-full mt-3" disabled={!claimSession || inboxPhase === 'receiving' || claimSecurePhase === 'setting-up'} onClick={() => pullClaimsRef.current(true)}>{bi('重新接收', 'Check again')}</Button>
-                  </Card>
-                  <Label className="flex items-center justify-between mb-3">
-                    <span>{bi('朋友交返的認帳', 'Friends’ claims')}</span>
-                    <span className="text-sm font-normal text-slate-600">{bi('可稍後填', 'Optional')}</span>
-                  </Label>
-                  <textarea
-                    data-testid="claim-replies"
-                    ref={el => fieldRefs.current.replies = el} value={friendsReplies} onChange={(e) => {setFriendsReplies(e.target.value); setReconciliation(null); setStepError('');}} onPaste={handlePasteReplies} onFocus={onFocusReplies} onBlur={onBlurReplies}
-                    placeholder={bi('朋友回覆會顯示於此；亦可貼上 WhatsApp 後備。', 'Friend replies appear here. You can also paste a WhatsApp backup.')}
-                    className="w-full h-48 bg-white border border-slate-500 rounded-xl p-4 text-base font-mono text-slate-700 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none resize-y shadow-inner leading-relaxed">
-                  </textarea>
-                </div>
-
                 {stepError && <div role="alert" data-testid="step-error" className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm font-semibold text-amber-900">{stepError}</div>}
 
                 {reconciliation?.issues?.length > 0 && (
@@ -4438,6 +4397,47 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                     </div>
                   </div>
                 </Card>
+
+                <div
+                  ref={claimFollowupRef}
+                  data-testid="claim-followup"
+                  data-claim-shared={claimLinkShared ? 'true' : 'false'}
+                  data-claim-returned={claimFollowupOpen ? 'true' : 'false'}
+                  className={claimFollowupOpen ? 'space-y-6' : 'claim-await-share space-y-6'}
+                  aria-disabled={claimFollowupOpen ? undefined : true}
+                  {...(claimFollowupOpen ? {} : { inert: '' })}
+                >
+                  <Card data-testid="claim-inbox" className="!p-4 mb-4 border-brand-600">
+                    <h3 className="text-lg font-extrabold text-slate-800">{bi('認帳回覆', 'Share replies')}</h3>
+                    <p data-testid="claim-inbox-status" className="mt-3 text-base font-bold leading-relaxed text-slate-800" role="status">
+                      {!tutorialDemo && claimRoom && !claimSession
+                        ? bi('舊公開自動接收已停用。請建立新的受保護連結，或手動貼回覆。', 'Old public receiving is disabled. Create a protected link, or paste replies manually.')
+                        : !tutorialDemo && claimSecureError
+                          ? claimSecureError
+                          : !tutorialDemo && claimSecurePhase === 'setting-up'
+                            ? bi('正在準備認帳接收…', 'Preparing claim receiving…')
+                            : claimSession && inboxPhase === 'receiving'
+                              ? bi('正在接收認帳…', 'Receiving claims…')
+                              : claimFollowupOpen && inboxPeople.length >= 1
+                                ? bi(`現有認帳 ${inboxPeople.length} 位：${inboxPeople.join('、')}`, `Current claims ${inboxPeople.length}: ${inboxPeople.join(', ')}`)
+                                : tutorialDemo
+                                  ? bi('先複製或分享上面的連結。', 'Copy or share the link above first.')
+                                  : bi('等候朋友交返認帳。', 'Waiting for friends to send their claims.')}
+                    </p>
+                    {inboxNote && claimSession && <p className="mt-2 text-base font-semibold text-brand-800">{bi(`最新交到：${inboxNote}`, `Latest: ${inboxNote}`)}</p>}
+                    <Button data-testid="claim-inbox-refresh" variant="outline" className="!w-full mt-3" disabled={!claimSession || inboxPhase === 'receiving' || claimSecurePhase === 'setting-up'} onClick={() => pullClaimsRef.current(true)}>{bi('重新接收', 'Check again')}</Button>
+                  </Card>
+                  <Label className="flex items-center justify-between mb-3">
+                    <span>{bi('朋友交返的認帳', 'Friends’ claims')}</span>
+                    <span className="text-sm font-normal text-slate-600">{bi('可稍後填', 'Optional')}</span>
+                  </Label>
+                  <textarea
+                    data-testid="claim-replies"
+                    ref={el => fieldRefs.current.replies = el} value={friendsReplies} onChange={(e) => {setFriendsReplies(e.target.value); setReconciliation(null); setStepError('');}} onPaste={handlePasteReplies} onFocus={onFocusReplies} onBlur={onBlurReplies}
+                    placeholder={bi('朋友回覆會顯示於此；亦可貼上 WhatsApp 後備。', 'Friend replies appear here. You can also paste a WhatsApp backup.')}
+                    className="w-full h-48 bg-white border border-slate-500 rounded-xl p-4 text-base font-mono text-slate-700 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none resize-y shadow-inner leading-relaxed">
+                  </textarea>
+                </div>
 
                 <div className="flex gap-3 pt-2">
                   <Button variant="secondary" className="w-1/3 !px-2 border-slate-500" onClick={() => setStep(2)}>{tr("上一步")}</Button>

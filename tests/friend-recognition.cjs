@@ -187,6 +187,22 @@ async function hostFixture() {
   assert.equal(await host.getByTestId('calculate-split').isDisabled(), true, 'report remains disabled before any friend reply');
   await host.getByPlaceholder('輸入姓名', { exact: true }).fill('QA墊支人');
   assert.equal(await host.getByTestId('receipt-currency-control').isVisible(), true, 'organizer can fill currency before replies');
+  const sectionOrder = await host.evaluate(() => {
+    const entries = [
+      ['payer', 'input[placeholder="輸入姓名"]'],
+      ['currency', '[data-testid="receipt-currency-control"]'],
+      ['payment', '[data-testid="payment-methods"]'],
+      ['fee-split', '[data-tutorial-target="tax-method"]'],
+      ['replies', '[data-testid="claim-followup"]'],
+      ['report', '[data-testid="calculate-split"]']
+    ].map(([name, selector]) => ({ name, node: document.querySelector(selector) }));
+    return {
+      missing: entries.filter(entry => !entry.node).map(entry => entry.name),
+      order: entries.filter(entry => entry.node).sort((a, b) => a.node.compareDocumentPosition(b.node) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1).map(entry => entry.name)
+    };
+  });
+  assert.deepEqual(sectionOrder.missing, [], 'all settlement controls are present');
+  assert.deepEqual(sectionOrder.order, ['payer', 'currency', 'payment', 'fee-split', 'replies', 'report'], 'friend replies sit after all settlement settings and immediately before the report action');
   await host.locator('.step-nav').getByRole('button', { name: '各自認帳' }).click();
   await until(async () => await host.getByTestId('claim-expiry-days').isVisible(), 'can return to replies after advancing');
   assert.equal(await host.getByTestId('claim-inbox').count(), 0, 'inbox is no longer duplicated on step 2');
