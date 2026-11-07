@@ -82,7 +82,7 @@
     .text-action { border: 0; padding: 3px 0; background: transparent; color: #294e7a; font-size: 12px; line-height: 1.5; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
     .text-action:focus-visible { outline: 3px solid rgba(41,78,122,.3); outline-offset: 2px; border-radius: 3px; }
     .code-input-row .text-action { flex: 0 0 auto; font-size: 10px; text-decoration: none; }
-    .identity-row .pin-input { flex: 0 0 84px; width: 84px; min-height: 34px; height: 34px; border-radius: 7px; padding: 5px 0 5px calc(10.25px - .3em); font: 16px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: calc(20.5px - .6em); font-variant-numeric: tabular-nums; background-image: repeating-linear-gradient(90deg, #f6faf7 0, #f6faf7 calc(25% - 1px), #b9c9c0 calc(25% - 1px), #b9c9c0 25%); }
+    .identity-row .pin-input { flex: 0 0 84px; width: 84px; min-height: 34px; height: 34px; border-radius: 7px; padding: 5px 8px; text-align: center; font: 16px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: normal; font-variant-numeric: tabular-nums; background-image: none; }
     .identity-row .legacy-password { width: 100%; min-height: 52px; padding: 13px 10px; font-size: 16px; letter-spacing: normal; }
     .identity-tools, .recovery-tools { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 5px; }
     .identity-hint { margin-top: 7px; font-size: 12px; }
@@ -452,9 +452,9 @@
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
   <script src="./share-config.js"></script>
-  <script src="./bill-share-api.js?v=v106-small-optional-code"></script>
-  <script src="./claim-relay.js?v=v106-small-optional-code"></script>
-  <script src="./claim-revisions.js?v=v106-small-optional-code"></script>
+  <script src="./bill-share-api.js?v=v107-code-focus-visible"></script>
+  <script src="./claim-relay.js?v=v107-code-focus-visible"></script>
+  <script src="./claim-revisions.js?v=v107-code-focus-visible"></script>
   <script>
     (() => {
       const loadError = document.getElementById('load-error');
@@ -1015,7 +1015,7 @@
           resultFrame.className = 'same-link-result';
           resultFrame.title = language === 'en' ? 'Final bill result' : '最終分帳結果';
           const resultUrl = new URL('./detailed-view.html', location.href);
-          resultUrl.searchParams.set('v', 'v106-small-optional-code');
+          resultUrl.searchParams.set('v', 'v107-code-focus-visible');
           resultUrl.searchParams.set('share', sessionId);
           if (session.expiresAt) resultUrl.searchParams.set('e', String(Math.floor(Date.parse(session.expiresAt) / 1000)));
           resultFrame.src = resultUrl.href;

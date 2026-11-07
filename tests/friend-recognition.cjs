@@ -121,7 +121,12 @@ async function compactInitial(page) {
   const n = await name.boundingBox(), c = await code.boundingBox(); assert(n && c);
   metrics.initial = { name: n, code: c };
   assert(Math.abs(n.y + n.height / 2 - c.y - c.height / 2) <= 3 && n.x + n.width <= c.x + 8, '390px: small optional code is centered alongside name');
-  assert(c.width <= 88 && c.height <= 36 && c.width < n.width / 2 && c.height < n.height, 'R106 code field is noticeably smaller than name');
+  assert(c.width <= 88 && c.height <= 36 && c.width < n.width / 2 && c.height < n.height, 'R107 code field remains noticeably smaller than name');
+  assert.equal(c.width, 84, 'R107 keeps the original 84px compact code width');
+  const codeStyle = await code.evaluate(n => ({ background: getComputedStyle(n).backgroundImage, letterSpacing: getComputedStyle(n).letterSpacing, textAlign: getComputedStyle(n).textAlign }));
+  assert.equal(codeStyle.background, 'none', 'R107 uses one plain input, not four segmented cells');
+  assert.equal(codeStyle.letterSpacing, 'normal', 'R107 avoids extra tracking that caused horizontal scrolling');
+  assert.equal(codeStyle.textAlign, 'center', 'R107 centers the code inside the single field');
   assert(/選填|optional/i.test(await page.locator('#first-password-label').innerText()), 'optional is explicit beside the code label');
   assert.equal(await code.getAttribute('required'), null, 'recognition code is optional');
   assert.equal(await page.locator('#claim-password-repeat:visible').count(), 0, 'no repeated password field');
@@ -129,13 +134,35 @@ async function compactInitial(page) {
   assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), '390px has no horizontal overflow');
   return code;
 }
+async function focusedCode(page, input, label) {
+  await input.focus(); await input.pressSequentially('1234');
+  assert.equal(await input.inputValue(), '1234', `${label}: retains all four entered digits`);
+  const focused = await input.evaluate(n => ({ scrollLeft: n.scrollLeft, scrollWidth: n.scrollWidth, clientWidth: n.clientWidth }));
+  assert.equal(focused.scrollLeft, 0, `${label}: caret at end must not scroll first digit out of view`);
+  assert(focused.scrollWidth <= focused.clientWidth, `${label}: four digits fit while focused`);
+  await input.fill('1234'); await input.press('End');
+  const pasted = await input.evaluate(n => ({ value: n.value, scrollLeft: n.scrollLeft, scrollWidth: n.scrollWidth, clientWidth: n.clientWidth }));
+  assert.equal(pasted.value, '1234', `${label}: accepts a pasted four-digit code`);
+  assert.equal(pasted.scrollLeft, 0, `${label}: pasted value remains visible with caret at end`);
+  assert(pasted.scrollWidth <= pasted.clientWidth, `${label}: pasted digits fit the compact field`);
+  await input.press('End'); assert.equal(await input.inputValue(), '1234');
+  await input.press('Backspace'); assert.equal(await input.inputValue(), '123');
+  await input.pressSequentially('4'); assert.equal(await input.inputValue(), '1234');
+  await input.blur(); assert.equal(await input.inputValue(), '1234', `${label}: blur preserves value`);
+  await input.focus(); assert.equal(await input.inputValue(), '1234', `${label}: refocus preserves value`);
+  const refocused = await input.evaluate(n => ({ scrollLeft: n.scrollLeft, scrollWidth: n.scrollWidth, clientWidth: n.clientWidth }));
+  assert.equal(refocused.scrollLeft, 0, `${label}: refocus keeps first digit visible`);
+  await input.fill('');
+  pass(`${label}: typed and pasted digits fit with caret at end; delete, retype, blur and refocus work`);
+}
 async function result(page, name) { await page.locator('iframe.same-link-result:not([hidden])').waitFor({ state: 'visible' }); const f = page.frameLocator('iframe.same-link-result'); await f.locator('#member-select').selectOption({ label: name }); return f; }
 async function gate(page, name) {
   const f = await result(page, name); await f.locator('#edit-claims').click(); await page.locator('#claim-auth-panel').waitFor({ state: 'visible' });
   assert.equal(await page.locator('#auth-name').inputValue(), name); assert.equal(await page.locator('#claim-content').isVisible(), false, 'protected previous claims not editable before proof');
   await until(() => page.locator('#auth-confirm').isEnabled(), 'identity status ready');
   const box = await page.locator('#claim-auth-panel').boundingBox(); metrics.inlineCard = box; assert(box.height <= 390, 'identity check is a compact inline card, not a large authentication screen');
-  assert.equal(await page.locator('#claim-password-repeat:visible').count(), 0); return authCode(page);
+  assert.equal(await page.locator('#claim-password-repeat:visible').count(), 0);
+  const input = authCode(page); await focusedCode(page, input, 'authenticated edit'); return input;
 }
 async function submit(page, c, codeValue, qty) {
   const before = harness.requests.length; await page.locator('#qty-0').fill(String(qty)); await until(() => page.locator('#submit-button').isEnabled(), 'blank or valid code permits submit'); await page.locator('#submit-button').click();
@@ -179,7 +206,7 @@ async function ui() {
   const fixture = process.argv.includes('--friends-only') ? await (async () => { const c = await create(); return { c, link: linkFor(c), host: null }; })() : await hostFixture();
   const { c, link } = fixture, a = await pageFor('blank friend'), b = await pageFor('PIN friend');
   await a.goto(link, { waitUntil: 'domcontentloaded' }); await a.locator('#claim-content').waitFor({ state: 'visible' }); await a.locator('#person-name').fill(A);
-  const code = await compactInitial(a); assert.equal(await code.inputValue(), '');
+  const code = await compactInitial(a); assert.equal(await code.inputValue(), ''); await focusedCode(a, code, 'new claim');
   const random = await visible(a, '#random-code');
   const randomBox = await random.boundingBox(); assert(randomBox.width <= 52 && randomBox.height <= 52, 'random control is tiny'); await random.click(); const generated = await code.inputValue(); assert.match(generated, /^\d{4}$/); secrets.add(generated); await code.fill(''); assert.equal(await code.inputValue(), '');
   await shot(a, 'initial-compact-name-code'); await submit(a, c, '', INITIAL_QTY); assert.equal(a.url(), link);
@@ -195,7 +222,7 @@ async function ui() {
   await a.locator('#person-name').fill(A); await (await firstCode(a)).click(); await a.locator('#first-retrieve').waitFor({ state: 'visible' }); await a.locator('#first-retrieve').click();
   await a.locator('#claim-auth-panel').waitFor({ state: 'visible' }); await until(() => a.locator('#auth-confirm').isEnabled(), 'initial-name retrieve status ready');
   const authNameBox = await a.locator('#auth-name').boundingBox(), authCodeBox = await (await authCode(a)).boundingBox(); metrics.authCompact = { name: authNameBox, code: authCodeBox };
-  assert(Math.abs(authNameBox.y - authCodeBox.y) <= 8 && authNameBox.x + authNameBox.width <= authCodeBox.x + 8, '390px auth name/code adjacent');
+  assert(Math.abs(authNameBox.y + authNameBox.height / 2 - authCodeBox.y - authCodeBox.height / 2) <= 3 && authNameBox.x + authNameBox.width <= authCodeBox.x + 8, '390px auth name/code adjacent');
   assert((await a.locator('#claim-auth-panel').boundingBox()).height <= 390, 'initial retrieve uses compact inline authentication');
   assert.equal(await a.locator('#auth-password').inputValue(), ''); await shot(a, 'auth-compact-name-code');
   await a.locator('#auth-confirm').click(); await a.locator('#claim-content').waitFor({ state: 'visible' }); assert.equal(await a.locator('#qty-0').inputValue(), String(INITIAL_QTY));
