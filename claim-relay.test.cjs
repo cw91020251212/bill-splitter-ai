@@ -65,6 +65,22 @@ test('upsert keeps every friend and replaces a resubmission', () => {
   assert.match(updated, /姓名：小美/);
 });
 
+test('explicit clear replaces only that friend and survives encryption', async () => {
+  const room = relay.createRoom();
+  const clear = { v: 1, name: '阿明', claims: [], clear: true };
+  assert.equal(relay.sanitizePayload({ v: 1, name: '阿明', claims: [] }), null);
+  const encrypted = await relay.encryptPayload(room.key, clear);
+  assert.deepEqual(await relay.decryptPayload(room.key, encrypted), clear);
+  const before = relay.applyClaimUpdates('', [
+    { v: 1, name: '阿明', claims: [{ id: '01', qty: 1 }] },
+    { v: 1, name: '小美', claims: [{ id: '02', qty: 2 }] }
+  ], sampleItems());
+  const after = relay.applyClaimUpdates(before, [clear], sampleItems());
+  assert.doesNotMatch(after, /姓名：阿明/);
+  assert.match(after, /姓名：小美/);
+  assert.match(after, /認帳份數 = 2/);
+});
+
 test('rejects names and quantities the organizer parser cannot trust', () => {
   assert.equal(relay.sanitizePayload({ v: 1, name: '阿明:額外', claims: [{ id: '01', qty: 1 }] }), null);
   assert.equal(relay.sanitizePayload({ v: 1, name: '阿明', claims: [{ id: '1', qty: 1 }] }), null);

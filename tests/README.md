@@ -33,6 +33,8 @@ node --test worker/worker-core.test.mjs
 
 朋友結果頁導覽測試：`PLAYWRIGHT_MODULE=/path/to/playwright CHROMIUM_EXECUTABLE=/usr/bin/chromium BASE_URL=http://127.0.0.1:4178/ node tests/friend-navigation.cjs`。涵蓋載入、成功、失效、網絡失敗、空白分享 ID、同一連結 iframe 及本機預覽返回入口。此測試全部 Worker/ntfy 请求均被攔截，只在隔離瀏覽器建立合成預覽；也可把 `BASE_URL` 設為本專案正式 GitHub Pages 作唯讀部署驗收，不會讀取或修改任何真實帳單。`SCREENSHOT_DIR` 可指定驗收截圖輸出目錄。
 
+修改認帳測試：`node --test claim-revisions.test.cjs` 及 `PLAYWRIGHT_MODULE=/path/to/playwright CHROMIUM_EXECUTABLE=/usr/bin/chromium BASE_URL=http://127.0.0.1:4178/ node tests/friend-revisions.cjs`。測試全部分享與認帳 API 均攔截使用合成資料，涵蓋返回修改、從結果恢復、本機保存、重新提交、舊結果等待、數量／實際單位比對、重新結算、失敗重試及到期封鎖。Relay 全部撤回與同名覆蓋以 `node --test --test-name-pattern='explicit clear|upsert keeps' claim-relay.test.cjs` 驗證，不會呼叫公開 ntfy。
+
 若 Playwright 或 Chromium 不在預設路徑，可用環境變數指定：
 
 ```sh

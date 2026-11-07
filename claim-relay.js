@@ -112,7 +112,8 @@
     if (!obj || obj.v !== 1) return null;
     const name = String(obj.name || '').trim().replace(/[\r\n]+/g, ' ');
     if (!name || name.length > 60 || /[:：=＝]/.test(name)) return null;
-    if (!Array.isArray(obj.claims) || obj.claims.length < 1 || obj.claims.length > 200) return null;
+    if (!Array.isArray(obj.claims) || obj.claims.length > 200) return null;
+    if (obj.claims.length === 0) return obj.clear === true ? { v: 1, name, claims: [], clear: true } : null;
     const claims = [];
     const ids = new Set();
     for (const claim of obj.claims) {
@@ -215,6 +216,13 @@
   function applyClaimUpdates(existing, updates, items) {
     let text = String(existing || '');
     (updates || []).forEach(update => {
+      const clean = sanitizePayload(update);
+      if (clean?.clear === true) {
+        const blocks = text.trim().split(BLOCK_SPLIT).map(block => block.trim()).filter(Boolean);
+        const kept = blocks.filter(block => personFromBlock(block) !== clean.name);
+        text = kept.length ? kept.join(BLOCK_SEP) + '\n\n' : '';
+        return;
+      }
       const reply = formatClaimReply(update, items);
       if (reply) text = upsertClaimReply(text, reply, update.name);
     });

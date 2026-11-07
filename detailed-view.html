@@ -14,6 +14,8 @@
     a:focus-visible,button:focus-visible,summary:focus-visible { outline:3px solid #b38830; outline-offset:3px; border-radius:7px; }
     .topbar { position:sticky; top:0; z-index:10; display:flex; justify-content:space-between; align-items:center; gap:12px; min-height:58px; padding:10px max(20px,calc((100vw - 1020px)/2)); border-bottom:1px solid var(--line); background:rgba(255,255,255,.96); backdrop-filter:blur(10px); }
     .back { color:var(--green-dark); font-weight:750; text-decoration:none; }
+    .edit-claims-button { margin-right:auto; min-height:32px; padding:5px 9px; border:1px solid #b9cbbb; border-radius:8px; background:#f7faf7; color:var(--green-dark); font:inherit; font-size:12px; font-weight:750; white-space:nowrap; cursor:pointer; }
+    .edit-claims-button:disabled { opacity:.55; cursor:not-allowed; }
     .local-tag { padding:4px 9px; border:1px solid #cee0d0; border-radius:99px; background:#f5faf5; color:#4b6652; font-size:11px; font-weight:700; white-space:nowrap; }
     main { width:min(100% - 36px,1000px); margin:26px auto 64px; }
     .empty { max-width:480px; margin:14vh auto; padding:30px 24px; border:1px solid var(--line); border-radius:20px; background:#fff; box-shadow:var(--shadow); text-align:center; }
@@ -123,6 +125,7 @@
 <body>
   <header class="topbar">
     <span id="friend-page-heading" class="back">分帳結果</span>
+    <button id="edit-claims" class="edit-claims-button" type="button" hidden disabled>修改認帳</button>
     <a id="local-back" class="back" hidden>← 返回分帳報告</a>
     <span id="local-tag" class="local-tag" hidden>本機預覽・不會公開</span>
   </header>
@@ -241,6 +244,19 @@
       // A shared URL never exposes the organizer's local-preview navigation,
       // even during loading, on errors, or when the share id is empty.
       const isSharedLink = shareParams.has('share');
+      const isEmbeddedShared = isSharedLink && window.parent !== window;
+      let claimResultReady = false;
+      let pendingClaimContext = null;
+      let applyClaimContext = null;
+      if (isEmbeddedShared) {
+        window.addEventListener('message', event => {
+          if (event.origin !== location.origin || event.source !== window.parent) return;
+          const context = event.data;
+          if (!context || context.type !== 'bill-claim-result-context' || context.sessionId !== shareId) return;
+          pendingClaimContext = context;
+          if (claimResultReady) applyClaimContext(context);
+        });
+      }
       if (!isSharedLink) {
         $('#friend-page-heading').hidden = true;
         $('#local-back').href = './index.html';
@@ -290,6 +306,13 @@
       const sharedImages = isSharedLink && Array.isArray(data.images) ? data.images.filter(image => image && typeof image.data === 'string' && /^[A-Za-z0-9+/]+={0,2}$/.test(image.data) && ['image/jpeg','image/png','image/webp'].includes(image.mimeType)) : [];
       const memberSelect = $('#member-select');
       const memberGateHeading = $('#member-gate-heading');
+      const editClaimsButton = $('#edit-claims');
+      let canEditClaims = false;
+      let ownClaimName = '';
+      const syncEditClaimsButton = () => {
+        editClaimsButton.hidden = !isEmbeddedShared || !canEditClaims;
+        editClaimsButton.disabled = !canEditClaims || !memberSelect.value || !participants.some(person => person.name === memberSelect.value) || Boolean(ownClaimName && memberSelect.value !== ownClaimName);
+      };
       const adjustments = Array.isArray(data.adjustments) ? data.adjustments : [];
       if (participants.length) {
         memberSelect.innerHTML = '<option value="">請揀你個名</option>' + participants.map(person => `<option value="${escapeHtml(person.name)}">${escapeHtml(person.name)}</option>`).join('');
@@ -372,6 +395,7 @@
       }
 
       const renderSelectedMember = () => {
+        syncEditClaimsButton();
         const selected = participants.find(person => person.name === memberSelect.value);
         if (!selected) {
           $('#member-content').hidden = true;
@@ -551,6 +575,34 @@
         if (!memberSelect.value) return;
         requestAnimationFrame(() => $('#friend-amount-summary').scrollIntoView({ behavior:'smooth', block:'start' }));
       });
+      editClaimsButton.addEventListener('click', () => {
+        if (!isEmbeddedShared || !claimResultReady || !canEditClaims || !memberSelect.value || !getSelectedForNotice()) return;
+        window.parent.postMessage({ type:'bill-claim-edit', sessionId:shareId, name:memberSelect.value }, location.origin);
+      });
+      applyClaimContext = context => {
+        canEditClaims = context.canEdit === true;
+        editClaimsButton.textContent = context.language === 'en' ? 'Edit my items' : '修改認帳';
+        const personName = typeof context.person === 'string' && context.person.trim() ? context.person : '';
+        ownClaimName = personName;
+        if (personName && context.cleared === true && !participants.some(person => person.name === personName)) {
+          participants.push({ name:personName, total:0, sourceTotal:0, subtotal:0,tax:0,discount:0 });
+          memberSelect.append(new Option(personName, personName));
+          memberSelect.options[0].textContent = '請揀你個名';
+          memberSelect.disabled = false;
+        }
+        if (personName && participants.some(person => person.name === personName)) {
+          memberSelect.value = personName;
+          renderSelectedMember();
+        } else {
+          syncEditClaimsButton();
+        }
+      };
+      // All render dependencies and listeners must exist before parent preselection.
+      claimResultReady = true;
+      if (pendingClaimContext) applyClaimContext(pendingClaimContext);
+      if (isEmbeddedShared) {
+        window.parent.postMessage({ type:'bill-claim-result-ready', sessionId:shareId }, location.origin);
+      }
     })();
   </script>
 </body>

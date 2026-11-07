@@ -65,6 +65,12 @@
     .count { flex: 0 0 auto; padding: 5px 9px; border-radius: 999px; color: var(--green-dark); background: var(--green-soft); font-size: 12px; font-weight: 750; }
     .session-note { margin: 0 2px 10px; color: #294e7a; font-size: 12px; line-height: 1.5; }
     .same-link-result { width: 100%; height: calc(100dvh - 18px); min-height: 700px; border: 0; border-radius: 14px; background: white; }
+    .revision-panel { padding: 18px; margin-bottom: 16px; border: 1px solid #bd963d; border-radius: 15px; background: #fff8e6; color: #66491a; line-height: 1.6; }
+    .revision-panel h2 { margin: 0 0 8px; font-size: 19px; }
+    .revision-panel p { margin: 0 0 12px; }
+    .revision-actions { margin-bottom: 14px; }
+    .revision-actions .button { width: 100%; }
+    .name-input[readonly] { background: #eef3ef; color: #365044; }
     .item-list { display: grid; gap: 11px; }
     .item-card { padding: 15px; border: 1px solid var(--line); border-radius: 15px; background: white; }
     .item-heading { display: flex; align-items: flex-start; gap: 11px; }
@@ -300,6 +306,16 @@
         <span id="error-description">連結資料不完整或格式不正確。請向發起人索取最新的認帳連結。</span>
       </section>
 
+      <section id="revision-waiting" class="revision-panel" role="status" hidden>
+        <h2 id="revision-waiting-title">認帳已修改，等候重新結算</h2>
+        <p id="revision-waiting-description">發起人收到新認帳後會重新計算。結果更新後，仍會顯示喺同一條連結。</p>
+        <button id="edit-claim-again" class="button" type="button">再次修改認帳</button>
+      </section>
+      <div id="revision-actions" class="revision-actions" hidden>
+        <button id="cancel-claim-edit" class="button" type="button">返回結果</button>
+        <p id="revision-edit-hint" class="hint">保留同一姓名；重新提交會取代之前嘅認帳。</p>
+      </div>
+      <p id="claim-storage-warning" class="load-error" role="status" hidden>此瀏覽器未能保存填寫資料；重新開啟後可能需要再填。</p>
       <div id="claim-content" hidden>
         <form id="claim-form" novalidate>
           <section class="panel">
@@ -341,7 +357,8 @@
 
   <script src="./share-config.js"></script>
   <script src="./bill-share-api.js?v=v101-visible-single-link"></script>
-  <script src="./claim-relay.js?v=v101-visible-single-link"></script>
+  <script src="./claim-relay.js?v=v103-edit-friend-claims"></script>
+  <script src="./claim-revisions.js?v=v103-edit-friend-claims"></script>
   <script>
     (() => {
       const loadError = document.getElementById('load-error');
@@ -375,6 +392,13 @@
       let serverTimeAnchorMs = null;
       let serverTimeAnchorPerf = null;
       let showingSharedResult = false;
+      let resultFrame = null;
+      let latestSession = null;
+      let editingClaim = false;
+      let lockedClaimName = '';
+      let submittedClaim = null;
+      let pendingClaim = null;
+      let friendStorageKey = '';
       let submitting = false;
       let lastSubmittedSignature = '';
       const quantityPickerValues = ['0.5', ...Array.from({ length: 50 }, (_, index) => String(index + 1))];
@@ -412,6 +436,9 @@
           fallbackSummary: 'WhatsApp 後備',
           submit: '交返發起人', submitting: '正在交返…', submittedToast: '已交返發起人',
           submitted: '已提交；發起人 12 小時內開啟分帳頁即可收到。修改後可重交。',
+          editTitle: '修改你的認帳', resubmit: '重新提交', cancelEdit: '返回結果', cancelWaiting: '返回等候頁', editAgain: '再次修改認帳',
+          waitingTitle: '認帳已修改，等候重新結算', initialWaitingTitle: '認帳已提交，等候結算', waitingDescription: '發起人收到新認帳後會重新計算。結果更新後，仍會顯示喺同一條連結。',
+          editHint: '保留同一姓名；重新提交會取代之前嘅認帳。', storageWarning: '此瀏覽器未能保存填寫資料；重新開啟後可能需要再填。', clearClaim: '取消之前所有認帳',
           submitFail: '暫時未能提交，請重試或用 WhatsApp 後備。',
           rateLimit: '提交人數太多，請稍後重試。',
           tooLarge: '回覆太長，請用 WhatsApp 後備。',
@@ -447,6 +474,9 @@
           fallbackSummary: 'WhatsApp fallback',
           submit: 'Send to organizer', submitting: 'Sending…', submittedToast: 'Sent to the organizer',
           submitted: 'Sent; the organizer receives it when opening the bill within 12 hours. Edit to resend.',
+          editTitle: 'Edit your items', resubmit: 'Resubmit', cancelEdit: 'Back to result', cancelWaiting: 'Back to waiting page', editAgain: 'Edit items again',
+          waitingTitle: 'Items updated; waiting for recalculation', initialWaitingTitle: 'Items submitted; waiting for calculation', waitingDescription: 'The organizer will calculate your updated items. The result will appear on this same link.',
+          editHint: 'Keep the same name. Resubmitting replaces your previous reply.', storageWarning: 'This browser cannot save your entries. You may need to enter them again after reopening.', clearClaim: 'Cancel all previous item claims',
           submitFail: 'Could not submit. Try again or use the WhatsApp fallback.',
           rateLimit: 'Too many replies. Try again later.',
           tooLarge: 'Reply too long. Use the WhatsApp fallback.',
@@ -531,8 +561,70 @@
         return Date.now();
       }
 
+      function saveFriendState() {
+        if (!friendStorageKey) return;
+        const fields = { name: nameInput.value, values: Array.from(itemList.querySelectorAll('.item-card'), card => ({
+          id: items[Number(card.querySelector('.qty-input').dataset.itemIndex)]?.id,
+          quantity: card.querySelector('.qty-input').value,
+          unit: card.querySelector('.unit-select').value
+        })) };
+        try {
+          localStorage.setItem(friendStorageKey, JSON.stringify({ schema: 1, fields, submitted: submittedClaim, pending: pendingClaim, editing: editingClaim, lockedName: lockedClaimName }));
+          document.getElementById('claim-storage-warning').hidden = true;
+        } catch (_) { document.getElementById('claim-storage-warning').hidden = false; }
+      }
+
+      function restoreFriendState() {
+        if (!friendStorageKey) return;
+        try {
+          const saved = JSON.parse(localStorage.getItem(friendStorageKey) || 'null');
+          if (!saved || saved.schema !== 1) return;
+          submittedClaim = window.ClaimRelay?.sanitizePayload(saved.submitted) || null;
+          const pendingPayload = window.ClaimRelay?.sanitizePayload(saved.pending?.payload);
+          pendingClaim = pendingPayload ? { payload: pendingPayload, revision: saved.pending.revision === true } : null;
+          editingClaim = saved.editing === true;
+          lockedClaimName = String(submittedClaim?.name || saved.lockedName || '').trim().slice(0, 60);
+          nameInput.value = String(saved.fields?.name || lockedClaimName).slice(0, 60);
+          const values = new Map((Array.isArray(saved.fields?.values) ? saved.fields.values : []).map(entry => [String(entry.id), entry]));
+          itemList.querySelectorAll('.item-card').forEach((card, index) => {
+            const value = values.get(items[index].id);
+            if (!value) return;
+            card.querySelector('.qty-input').value = String(value.quantity || '').slice(0, 24);
+            const select = card.querySelector('.unit-select');
+            const option = Array.from(select.options).find(entry => entry.value === value.unit && !entry.disabled);
+            select.value = option ? option.value : '';
+            select.classList.toggle('has-unit', Boolean(select.value));
+          });
+          if (submittedClaim) lastSubmittedSignature = JSON.stringify({ person: submittedClaim.name, claims: submittedClaim.claims });
+        } catch (_) { /* A corrupt/missing optional draft cannot invalidate the link. */ }
+      }
+
+      function updateClaimView() {
+        const sessionId = new URLSearchParams(location.search).get('session');
+        const checkingClock = /^[A-Za-z0-9_-]{22}$/.test(sessionId || '') && serverTimeAnchorMs === null;
+        const showResult = showingSharedResult && !editingClaim && !pendingClaim && !isExpired && !checkingClock;
+        document.querySelector('.hero').hidden = showResult;
+        document.querySelector('main').hidden = showResult;
+        if (resultFrame) resultFrame.hidden = !showResult;
+        const showWaiting = Boolean(pendingClaim) && !editingClaim && !isExpired && !checkingClock;
+        document.getElementById('revision-waiting').hidden = !showWaiting;
+        document.getElementById('revision-actions').hidden = !editingClaim || isExpired || checkingClock;
+        content.hidden = showResult || showWaiting || isExpired || checkingClock;
+        submitDock.hidden = content.hidden;
+        nameInput.readOnly = Boolean(editingClaim && lockedClaimName);
+        const text = messages[language];
+        document.getElementById('page-title').textContent = editingClaim ? text.editTitle : text.title;
+        document.getElementById('revision-waiting-title').textContent = pendingClaim?.revision ? text.waitingTitle : text.initialWaitingTitle;
+        document.getElementById('revision-waiting-description').textContent = text.waitingDescription;
+        document.getElementById('revision-edit-hint').textContent = text.editHint;
+        document.getElementById('edit-claim-again').textContent = text.editAgain;
+        document.getElementById('cancel-claim-edit').textContent = pendingClaim ? text.cancelWaiting : text.cancelEdit;
+        document.getElementById('claim-storage-warning').textContent = text.storageWarning;
+        if (!submitting) submitButton.textContent = editingClaim ? text.resubmit : text.submit;
+      }
+
       function updateExpiryUI() {
-        if (!linkMetadata) return true;
+        if (!linkMetadata) { updateClaimView(); return true; }
         const text = messages[language];
         activityTitle.textContent = text.activity(linkMetadata.title);
         activityTitle.hidden = false;
@@ -546,6 +638,7 @@
           expiredPanel.hidden = true;
           content.hidden = true;
           submitDock.hidden = true;
+          updateClaimView();
           return true;
         }
         const remaining = linkMetadata.expiresAt - getEffectiveNow();
@@ -565,6 +658,8 @@
             window.clearInterval(sessionPollTimer);
             sessionPollTimer = null;
           }
+          updateClaimView();
+          sendResultContext();
           return false;
         }
         isExpired = false;
@@ -572,6 +667,7 @@
         expiredPanel.hidden = true;
         content.hidden = false;
         submitDock.hidden = false;
+        updateClaimView();
         return true;
       }
 
@@ -608,6 +704,7 @@
         renderItems();
         updatePreview();
         updateExpiryUI();
+        sendResultContext();
       }
 
       function renderItems() {
@@ -696,9 +793,93 @@
         });
       }
 
+      function sendResultContext() {
+        if (!resultFrame?.contentWindow) return;
+        const sessionId = new URLSearchParams(location.search).get('session');
+        resultFrame.contentWindow.postMessage({ type: 'bill-claim-result-context', sessionId,
+          canEdit: Boolean(relayRoom && !isExpired && serverTimeAnchorMs !== null), language,
+          person: submittedClaim?.name || '', cleared: submittedClaim?.clear === true
+        }, location.origin);
+      }
+
+      function startSessionPolling() {
+        if (sessionPollTimer === null && !isExpired) sessionPollTimer = window.setInterval(checkSharedSession, 6000);
+        checkSharedSession();
+      }
+
+      function showSharedResult(session, refresh = false) {
+        showingSharedResult = true;
+        if (refresh && resultFrame) { resultFrame.remove(); resultFrame = null; }
+        if (!resultFrame) {
+          const sessionId = new URLSearchParams(location.search).get('session');
+          resultFrame = document.createElement('iframe');
+          resultFrame.className = 'same-link-result';
+          resultFrame.title = language === 'en' ? 'Final bill result' : '最終分帳結果';
+          const resultUrl = new URL('./detailed-view.html', location.href);
+          resultUrl.searchParams.set('v', 'v103-edit-friend-claims');
+          resultUrl.searchParams.set('share', sessionId);
+          if (session.expiresAt) resultUrl.searchParams.set('e', String(Math.floor(Date.parse(session.expiresAt) / 1000)));
+          resultFrame.src = resultUrl.href;
+          resultFrame.addEventListener('load', sendResultContext);
+          document.body.append(resultFrame);
+        }
+        updateClaimView();
+        sendResultContext();
+        window.clearInterval(sessionPollTimer);
+        sessionPollTimer = null;
+      }
+
+      function beginClaimEdit(requestedName) {
+        if (!updateExpiryUI() || serverTimeAnchorMs === null || !relayRoom || (!latestSession?.data && !submittedClaim)) return;
+        // Retain the previously submitted name so a revision replaces one reply
+        // rather than being added as a second person.
+        const name = submittedClaim?.name || String(requestedName || '').trim();
+        if (!name || (name !== submittedClaim?.name && !latestSession.data.participants?.some(person => person.name === name))) return;
+        if (!submittedClaim) {
+          const previous = window.ClaimRevisions.resultClaims(latestSession.data, name);
+          const byId = new Map(previous.map(claim => [claim.id, claim]));
+          nameInput.value = name;
+          itemList.querySelectorAll('.item-card').forEach((card, index) => {
+            const claim = byId.get(items[index].id);
+            card.querySelector('.qty-input').value = claim ? String(claim.qty) : '';
+            const select = card.querySelector('.unit-select');
+            const definition = unitDefinition(claim?.unit);
+            select.value = claim?.unit ? (definition?.id || 'receipt') : '';
+            select.classList.toggle('has-unit', Boolean(select.value));
+          });
+          const previousReply = getReply();
+          submittedClaim = { v: 1, name, claims: previousReply.claims || [], ...(previous.length ? {} : { clear: true }) };
+          lastSubmittedSignature = JSON.stringify({ person: name, claims: submittedClaim.claims });
+        }
+        nameInput.value = name;
+        lockedClaimName = name;
+        editingClaim = true;
+        showingSharedResult = false;
+        clearSubmitStatus();
+        updatePreview();
+        updateClaimView();
+        saveFriendState();
+        startSessionPolling();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+
+      window.addEventListener('message', event => {
+        const sessionId = new URLSearchParams(location.search).get('session');
+        if (event.origin !== location.origin || event.source !== resultFrame?.contentWindow || event.data?.sessionId !== sessionId) return;
+        if (event.data.type === 'bill-claim-result-ready') sendResultContext();
+        if (event.data.type === 'bill-claim-edit') beginClaimEdit(event.data.name);
+      });
+      document.getElementById('edit-claim-again').addEventListener('click', () => beginClaimEdit(pendingClaim?.payload.name));
+      document.getElementById('cancel-claim-edit').addEventListener('click', () => {
+        editingClaim = false;
+        saveFriendState();
+        if (!pendingClaim && latestSession?.status === 'ready') showSharedResult(latestSession);
+        else updateClaimView();
+      });
+
       async function checkSharedSession() {
         const sessionId = new URLSearchParams(window.location.search).get('session');
-        if (!sessionId || !/^[A-Za-z0-9_-]{22}$/.test(sessionId) || sessionPollBusy || showingSharedResult || isExpired) return;
+        if (!sessionId || !/^[A-Za-z0-9_-]{22}$/.test(sessionId) || sessionPollBusy || isExpired) return;
         if (!window.BillShareApi?.getSession) return;
         sessionPollBusy = true;
         try {
@@ -714,25 +895,19 @@
             updateExpiryUI();
           }
           if (isExpired) return;
+          latestSession = session;
           if (session.status !== 'ready') return;
-          showingSharedResult = true;
-          window.clearInterval(sessionPollTimer);
-          sessionPollTimer = null;
-          expiryCountdown.hidden = true;
-          activityTitle.hidden = true;
-          document.title = language === 'en' ? 'Bill result | Bill Splitter AI' : '分帳結果｜分帳管家 AI';
-          const frame = document.createElement('iframe');
-          frame.className = 'same-link-result';
-          frame.title = language === 'en' ? 'Final bill result' : '最終分帳結果';
-          const resultUrl = new URL('./detailed-view.html', window.location.href);
-          resultUrl.searchParams.set('v', 'v102-friend-only-navigation');
-          resultUrl.searchParams.set('share', sessionId);
-          if (session.expiresAt) resultUrl.searchParams.set('e', String(Math.floor(new Date(session.expiresAt).getTime() / 1000)));
-          frame.src = resultUrl.href;
-          document.body.append(frame);
-          document.querySelector('.hero').hidden = true;
-          document.querySelector('main').hidden = true;
-          submitDock.hidden = true;
+          let acceptedRevision = false;
+          if (pendingClaim) {
+            if (!window.ClaimRevisions.matchesResult(pendingClaim.payload, session.data)) { updateClaimView(); return; }
+            pendingClaim = null;
+            acceptedRevision = true;
+            saveFriendState();
+          }
+          // Never take the person away from an unsent edit, even when another
+          // participant's result was updated in the meantime.
+          if (editingClaim) return;
+          showSharedResult(session, acceptedRevision);
         } catch (_) {
           sessionNote.textContent = language === 'en'
             ? 'Could not verify the link expiry or final result. Check your connection and retry; the form stays closed until the expiry is verified.'
@@ -742,7 +917,7 @@
 
       function getReply() {
         const text = messages[language];
-        const person = nameInput.value.trim().replace(/[\r\n]+/g, ' ');
+        const person = (editingClaim && lockedClaimName ? lockedClaimName : nameInput.value.trim()).replace(/[\r\n]+/g, ' ');
         if (!person) return { text: '', error: text.needName, complete: false };
         if (/[:：=＝]/.test(person)) return { text: '', error: text.badName, complete: false };
         const lines = language === 'en'
@@ -806,11 +981,12 @@
           });
           claims++;
         }
-        if (!claims) return { text: '', error: text.needClaim, complete: false };
+        if (!claims && !submittedClaim) return { text: '', error: text.needClaim, complete: false };
+        if (!claims) lines.push(text.clearClaim);
         lines.push('', language === 'en'
           ? 'Complete. Send this to the organizer.'
           : '已填妥，請傳給發起人。');
-        return { text: lines.join('\n'), error: '', complete: true, person, claims: structured };
+        return { text: lines.join('\n'), error: '', complete: true, person, claims: structured, clear: !claims };
       }
 
       function replySignature(result) {
@@ -850,9 +1026,9 @@
       }
 
       const clearSubmitStatus = () => { submitStatus.textContent = ''; submitStatus.classList.remove('error'); };
-      nameInput.addEventListener('input', () => { clearSubmitStatus(); updatePreview(); });
-      itemList.addEventListener('input', event => { if (event.target.matches('.qty-input, .unit-select')) clearSubmitStatus(); updatePreview(); });
-      itemList.addEventListener('change', () => { clearSubmitStatus(); updatePreview(); });
+      nameInput.addEventListener('input', () => { clearSubmitStatus(); updatePreview(); saveFriendState(); });
+      itemList.addEventListener('input', event => { if (event.target.matches('.qty-input, .unit-select')) clearSubmitStatus(); updatePreview(); saveFriendState(); });
+      itemList.addEventListener('change', () => { clearSubmitStatus(); updatePreview(); saveFriendState(); });
       const closeQuantityPickers = () => {
         itemList.querySelectorAll('.qty-picker-trigger').forEach(trigger => trigger.setAttribute('aria-expanded', 'false'));
         itemList.querySelectorAll('.qty-picker').forEach(picker => { picker.hidden = true; });
@@ -946,11 +1122,22 @@
         submitButton.textContent = text.submitting;
         submitStatus.textContent = '';
         try {
-          await window.ClaimRelay.publishClaim(relayRoom, { v: 1, name: result.person, claims: result.claims });
+          const payload = { v: 1, name: result.person, claims: result.claims, ...(result.clear ? { clear: true } : {}) };
+          const isRevision = editingClaim || Boolean(submittedClaim);
+          await window.ClaimRelay.publishClaim(relayRoom, payload);
+          submittedClaim = payload;
+          const sessionId = new URLSearchParams(location.search).get('session');
+          pendingClaim = /^[A-Za-z0-9_-]{22}$/.test(sessionId || '') ? { payload, revision: isRevision } : null;
+          lockedClaimName = result.person;
+          editingClaim = false;
+          showingSharedResult = false;
           lastSubmittedSignature = replySignature(result);
           submitStatus.classList.remove('error');
           submitStatus.textContent = text.submitted;
           showToast(text.submittedToast);
+          saveFriendState();
+          updateClaimView();
+          startSessionPolling();
         } catch (error) {
           const code = error && error.code;
           submitStatus.textContent = code === 'too-large' ? text.tooLarge : code === 'rate-limit' ? text.rateLimit : text.submitFail;
@@ -962,6 +1149,7 @@
           submitButton.dataset.busy = '';
           submitButton.textContent = text.submit;
           updatePreview();
+          updateClaimView();
         }
       });
 
@@ -973,6 +1161,8 @@
         if (sessionId && /^[A-Za-z0-9_-]{22}$/.test(sessionId)) sessionNote.hidden = false;
         relayRoom = window.ClaimRelay ? window.ClaimRelay.readRoomFromHash(window.location.hash) : null;
         renderItems();
+        friendStorageKey = window.ClaimRevisions.storageKey(sessionId, relayRoom?.topic);
+        restoreFriendState();
         if (linkMetadata) {
           if (updateExpiryUI()) expiryTimer = window.setInterval(updateExpiryUI, 1000);
         } else {
@@ -980,8 +1170,7 @@
           submitDock.hidden = false;
         }
         if (sessionId && /^[A-Za-z0-9_-]{22}$/.test(sessionId)) {
-          checkSharedSession();
-          sessionPollTimer = window.setInterval(checkSharedSession, 6000);
+          startSessionPolling();
         }
         if (!isExpired && !relayRoom) {
           fallbackPanel.open = true;
@@ -989,12 +1178,22 @@
           submitStatus.classList.add('error');
         }
         updatePreview();
+        updateClaimView();
       } catch (_) {
         loadError.hidden = false;
       }
       window.addEventListener('pagehide', () => {
+        saveFriendState();
         window.clearInterval(expiryTimer);
         window.clearInterval(sessionPollTimer);
+        expiryTimer = null;
+        sessionPollTimer = null;
+      });
+      window.addEventListener('pageshow', () => {
+        if (!linkMetadata || isExpired) return;
+        if (expiryTimer !== null) window.clearInterval(expiryTimer);
+        expiryTimer = window.setInterval(updateExpiryUI, 1000);
+        if (!showingSharedResult || editingClaim || pendingClaim) startSessionPolling();
       });
     })();
   </script>
