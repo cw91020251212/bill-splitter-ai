@@ -180,6 +180,28 @@ async function hostFixture() {
   await price.click(); await price.fill('100'); await item.click(); await item.fill('QA茶');
   await until(async () => await price.inputValue() === '100' && await item.inputValue() === 'QA茶', 'manual fields settled');
   assert.equal(await host.getByTestId('claim-expiry-days').inputValue(), '14', 'new activities default claim links to 14 days');
+  await host.getByTestId('claim-activity-name').fill('QA識別碼驗收');
+  const confirmSettings = host.getByTestId('confirm-activity-settings');
+  assert.equal(await confirmSettings.innerText(), '確定', 'activity settings have a clear confirmation action');
+  await host.evaluate(() => {
+    const nativeScrollIntoView = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = function(options) {
+      if (this.dataset.testid === 'open-claim-share-button') window.__claimShareScrollBehavior = options?.behavior;
+      return nativeScrollIntoView.call(this, options);
+    };
+  });
+  await confirmSettings.scrollIntoViewIfNeeded();
+  const beforeConfirmScroll = await host.evaluate(() => window.scrollY);
+  await confirmSettings.click();
+  assert.equal(await host.evaluate(() => window.__claimShareScrollBehavior), 'smooth', 'confirm scrolls smoothly toward sharing');
+  await host.waitForFunction(() => {
+    const target = document.querySelector('[data-testid="open-claim-share-button"]');
+    if (!target) return false;
+    const rect = target.getBoundingClientRect();
+    return rect.top >= 0 && rect.bottom <= innerHeight;
+  }, null, { timeout: 6000 });
+  assert((await host.evaluate(() => window.scrollY)) > beforeConfirmScroll, 'confirm moves down to the claim-link sharing action');
+  assert.equal(await host.getByTestId('claim-activity-name').isDisabled(), false, 'activity name remains editable until a link is actually shared');
   await host.getByTestId('go-to-payer').click();
   await until(async () => await host.getByPlaceholder('輸入姓名', { exact: true }).isVisible(), 'can advance to payer before friends reply');
   assert.equal(await host.getByTestId('claim-inbox').isVisible(), true, 'friend inbox is available on step 3');
@@ -223,6 +245,14 @@ async function hostSettle(fixture, qty, initial = false, names = [A, B]) {
   const text = await host.getByTestId('claim-replies').inputValue(); assert.equal(text.split(`姓名：${A}`).length - 1, 1); secretFree(text);
   await until(async () => await host.getByTestId('calculate-split').isEnabled(), 'friend replies enable report generation');
   assert.match(await host.getByTestId('calculate-split-hint').innerText(), /朋友可在原本連結查看結果/, 'shared-link CTA explains friends can view the result at their original link');
+  const ctaStyles = await host.getByTestId('calculate-split').evaluate(button => {
+    const hint = button.querySelector('[data-testid="calculate-split-hint"]');
+    return { color: getComputedStyle(button).color, textShadow: getComputedStyle(button).textShadow, hintTextShadow: getComputedStyle(hint).textShadow, hintFilter: getComputedStyle(hint).filter };
+  });
+  assert.equal(ctaStyles.color, 'rgb(0, 0, 0)', 'active primary button uses black text');
+  assert.equal(ctaStyles.textShadow, 'none', 'black button text has no text shadow');
+  assert.equal(ctaStyles.hintTextShadow, 'none', 'CTA hint text has no text shadow');
+  assert.equal(ctaStyles.hintFilter, 'none', 'CTA hint text has no drop shadow');
   const payer = host.getByPlaceholder('輸入姓名', { exact: true }); if (await payer.inputValue() !== A) await payer.fill(A);
   const before = harness.requests.length;
   await host.getByTestId('calculate-split').click();

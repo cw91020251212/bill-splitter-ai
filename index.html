@@ -79,9 +79,9 @@
   </style>
   <link rel="stylesheet" href="./theme.css?v=v86-free-models-only">
   <link rel="stylesheet" href="./tutorial.css?v=v86-free-models-only">
-  <!-- R112: make the shared web result the primary option and collapse text backups. -->
-  <meta name="bill-app-release" content="v112-web-result-first">
-  <script defer src="./pwa.js?v=v112-web-result-first"></script>
+  <!-- R113: confirm activity settings and scroll to claim-link sharing. -->
+  <meta name="bill-app-release" content="v113-activity-confirm-scroll">
+  <script defer src="./pwa.js?v=v113-activity-confirm-scroll"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
@@ -3151,7 +3151,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
         const metadata = getClaimLinkMetadata();
         const link = new URL('./claim.html', window.location.href);
         link.searchParams.set('lang', lang === 'en' ? 'en' : 'zh-HK');
-        link.searchParams.set('v', 'v112-web-result-first');
+        link.searchParams.set('v', 'v113-activity-confirm-scroll');
         link.searchParams.set('session', session.id);
         link.hash = window.ClaimRelay
           ? window.ClaimRelay.buildHash(encodeClaimLinkPayload(payload), room, metadata)
@@ -3783,7 +3783,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
               <div className="flex items-center gap-2 sm:gap-3 shrink-0">
                 <img src="./icons/icon.svg" alt="" width="48" height="48" className="app-brand-icon shrink-0" />
                 <div>
-                  <h1 className="text-xl font-extrabold text-slate-800 tracking-tight"><span className="app-brand-name block sm:inline whitespace-nowrap">{tr("分帳管家")}</span><span className="inline-flex items-baseline gap-1 sm:ml-1 whitespace-nowrap"><span data-testid="app-pro-label" className="text-brand-600 font-black">Pro</span><span data-testid="app-version-label" className="text-[10px] leading-3 font-semibold tracking-normal text-brand-700">V1.0.1 · R112</span></span></h1>
+                  <h1 className="text-xl font-extrabold text-slate-800 tracking-tight"><span className="app-brand-name block sm:inline whitespace-nowrap">{tr("分帳管家")}</span><span className="inline-flex items-baseline gap-1 sm:ml-1 whitespace-nowrap"><span data-testid="app-pro-label" className="text-brand-600 font-black">Pro</span><span data-testid="app-version-label" className="text-[10px] leading-3 font-semibold tracking-normal text-brand-700">V1.0.1 · R113</span></span></h1>
                 </div>
               </div>
               <div className="header-actions relative flex items-center gap-1.5 sm:gap-2">
@@ -4113,6 +4113,14 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                     <p className="text-xs text-slate-600 mt-1">{bi('按伺服器時間倒數，到期後停用。', 'Countdown uses server time; the link closes at expiry.')}</p>
                   </div>
                   {claimSession?.link && <p className="text-xs font-semibold text-emerald-800">{bi('連結已建立，名稱及期限已固定。', 'Link created; its name and expiry are fixed.')}</p>}
+                  {items.length > 0 && <div className="flex justify-end pt-1">
+                    <Button data-testid="confirm-activity-settings" variant="primary" className="!w-auto min-w-24 text-sm" onClick={() => {
+                      const target = document.querySelector('[data-testid="open-claim-share-button"]');
+                      if (!target) return;
+                      const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+                      target.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'center' });
+                    }}>{bi('確定', 'Confirm')}</Button>
+                  </div>}
                 </Card>
 
                 {claimSecurityManagementCard}
@@ -4226,7 +4234,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                       <Button variant="secondary" onClick={generateFriendClaimLink} className="!w-full text-sm bg-white hover:bg-slate-50 border-slate-500">
                         <Icon path={icons.copy} size={18} className="text-slate-600"/>{tr(" 複製認帳連結")}</Button>
                       <ChoiceDivider />
-                        <Button data-tutorial-target="open-claim-share" variant="primary" onClick={openClaimShareDialog} className="!w-full text-sm">
+                        <Button data-testid="open-claim-share-button" data-tutorial-target="open-claim-share" variant="primary" onClick={openClaimShareDialog} className="!w-full text-sm">
                         <Icon path={icons.share} size={18}/>{tr(" 分享認帳連結及附件")}</Button>
                     </div>
                     {showClaimShareDialog && (
@@ -4448,7 +4456,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                   <Button variant="secondary" className="w-1/3 !px-2 border-slate-500" onClick={() => setStep(2)}>{tr("上一步")}</Button>
                   <Button data-testid="calculate-split" variant="primary" className="w-2/3 flex-col gap-1 text-center leading-tight" disabled={!friendsReplies.trim() || !claimInfo?.people?.length} onClick={() => { const calculated = calculateSplit(); if (tutorialDemo) onTutorialAction?.(calculated ? 'calculated' : 'calculation-error', !payer.trim() ? 'payer' : 'replies'); }}>
                     <span className="inline-flex items-center justify-center gap-2">{tr("產生分帳報告 ")}<Icon path={icons.check} size={18}/></span>
-                    <span data-testid="calculate-split-hint" className="w-full text-[11px] font-medium leading-snug text-white/95 drop-shadow-[0_1px_1px_rgba(0,0,0,0.7)]">{claimSession?.link ? bi('按下後會計算，朋友可在原本連結查看結果。', 'Calculate; friends can view the result on their original link.') : bi('按下後會計算並產生分帳報告。', 'Calculate and create the bill-splitting report.')}</span>
+                    <span data-testid="calculate-split-hint" className="w-full text-[11px] font-medium leading-snug text-white/95" style={{ textShadow: 'none', filter: 'none' }}>{claimSession?.link ? bi('按下後會計算，朋友可在原本連結查看結果。', 'Calculate; friends can view the result on their original link.') : bi('按下後會計算並產生分帳報告。', 'Calculate and create the bill-splitting report.')}</span>
                   </Button>
                 </div>
               </div>

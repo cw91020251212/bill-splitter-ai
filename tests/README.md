@@ -18,6 +18,8 @@ R111 的 `friend-recognition.cjs` 另檢查第三步 DOM 順序：墊支人、�
 
 R112 的 `friend-recognition.cjs` 驗證計算按鈕有中英動作提示、網頁分享卡先於後備文字版、超長朋友網址僅縮短顯示且 href 保持完整、簡單／詳細版預設收起並可展開。`cross-currency-ui.cjs` 會先展開後備區再測試文字版操作。
 
+R113 的 `friend-recognition.cjs` 驗證活動名稱「確定」按鈕使用 smooth scroll 前往分享按鈕、活動名稱未建立連結前仍可修改，以及結算 CTA 主文字與提示文字均無 text-shadow/drop-shadow。
+
 R104 下述八字强制密碼介面測試是歷史規格；R105 新介面以 `friend-recognition.cjs` 為準。姓名未設定碼時只能按姓名識別，不是强身份保護；保留舊密碼驗證、期限、主辦人權限及精確認帳比對測試。
 
 ## R104 姓名＋密碼
