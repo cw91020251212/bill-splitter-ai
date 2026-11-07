@@ -521,7 +521,7 @@ async function legacyUI(created) {
   assert(html.includes('id="claim-auth-panel"') && html.includes('id="claim-password-repeat"') && api.includes('submitSecureClaim') && api.includes('approveClaimPassword'), 'Application password contracts are not ready; rerun once implementation jobs finish');
   workerOrigin = new URL(config.match(/apiBaseUrl:\s*['"]([^'"]+)/)?.[1] || 'https://bill-splitter-share.cw9102025.workers.dev').origin;
   const { createPasswordTestServer } = await import(pathToFileURL(path.join(__dirname, 'password-test-server.mjs')).href);
-  harness = await createPasswordTestServer({ origin: base.origin }); secrets.add(harness.env.CLAIM_PASSWORD_PEPPER);
+  harness = await createPasswordTestServer({ origin: base.origin, publicStaticQA }); secrets.add(harness.env.CLAIM_PASSWORD_PEPPER);
   try {
     const hostOnly = HOST_ONLY;
     const legacyOnly = process.argv.includes('--legacy-only');

@@ -9,7 +9,7 @@ const project = new URL('../', import.meta.url);
 const clone = value => value === undefined ? undefined : structuredClone(value);
 const isLoopback = host => ['127.0.0.1', 'localhost', '[::1]'].includes(host);
 
-export async function createPasswordTestServer({ origin = 'http://127.0.0.1:4192', port = 0 } = {}) {
+export async function createPasswordTestServer({ origin = 'http://127.0.0.1:4192', port = 0, publicStaticQA = false } = {}) {
   if (!globalThis.crypto) globalThis.crypto = webcrypto;
   const [{ handleRequest }, { ClaimAuth }, wrangler] = await Promise.all([
     import(new URL('worker/src/worker-core.mjs', project).href),
@@ -21,8 +21,9 @@ export async function createPasswordTestServer({ origin = 'http://127.0.0.1:4192
   }
   const configuredOrigins = wrangler.match(/^ALLOWED_ORIGINS\s*=\s*"([^"]+)"/m)?.[1] || 'https://cw91020251212.github.io';
   const localOrigin = new URL(origin);
-  if (!isLoopback(localOrigin.hostname) || !['http:', 'https:'].includes(localOrigin.protocol)) {
-    throw new Error('The test server accepts only a loopback static-site origin.');
+  const allowedPublicOrigin = publicStaticQA && localOrigin.origin === 'https://cw91020251212.github.io';
+  if ((!isLoopback(localOrigin.hostname) && !allowedPublicOrigin) || !['http:', 'https:'].includes(localOrigin.protocol)) {
+    throw new Error('The test server accepts loopback origins or explicit project public-static QA only.');
   }
   const values = new Map();
   const objects = new Map();
