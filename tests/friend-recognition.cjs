@@ -120,8 +120,9 @@ async function compactInitial(page) {
   const code = await firstCode(page), name = page.locator('#person-name');
   const n = await name.boundingBox(), c = await code.boundingBox(); assert(n && c);
   metrics.initial = { name: n, code: c };
-  assert(Math.abs(n.y - c.y) <= 8 && n.x + n.width <= c.x + 8, '390px: optional code must sit alongside name, not below');
-  assert(c.width <= 160 && c.height <= 56, 'code field remains compact');
+  assert(Math.abs(n.y + n.height / 2 - c.y - c.height / 2) <= 3 && n.x + n.width <= c.x + 8, '390px: small optional code is centered alongside name');
+  assert(c.width <= 88 && c.height <= 36 && c.width < n.width / 2 && c.height < n.height, 'R106 code field is noticeably smaller than name');
+  assert(/選填|optional/i.test(await page.locator('#first-password-label').innerText()), 'optional is explicit beside the code label');
   assert.equal(await code.getAttribute('required'), null, 'recognition code is optional');
   assert.equal(await page.locator('#claim-password-repeat:visible').count(), 0, 'no repeated password field');
   assert(!/至少\s*8|at least\s*8|再輸入一次密碼|Enter the password again/i.test(await page.locator('#claim-content').innerText()), 'no visible mandatory-eight/password-repeat copy');
