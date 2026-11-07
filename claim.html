@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#67c99a">
+  <meta name="theme-color" content="#78aee8">
   <meta name="description" content="在手機上填寫賬單項目認帳，按一下就交返發起人。">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
@@ -18,9 +18,9 @@
   <style>
     :root {
       color-scheme: light;
-      --green: #67c99a;
-      --green-dark: #29835f;
-      --green-soft: #e8f5ef;
+      --green: #78aee8;
+      --green-dark: #326fae;
+      --green-soft: #eaf3fc;
       --ink: #17231f;
       --muted: #61716b;
       --line: #d5e0da;
@@ -128,14 +128,14 @@
 
     /* Mobile-first, high-contrast neutral surfaces with the brand green retained. */
     :root {
-      --green: #67c99a;
-      --green-dark: #29835f;
-      --green-soft: #e4ece7;
+      --green: #78aee8;
+      --green-dark: #326fae;
+      --green-soft: #eaf3fc;
       --ink: #1f2e26;
       --muted: #4d5a53;
-      --line: #5a9271;
+      --line: #91afd0;
       --paper: #fff;
-      --page: #c8ced6;
+      --page: #d0dbe8;
     }
     html, body { background: var(--page); }
     body { color: var(--ink); }
@@ -152,7 +152,7 @@
     .panel {
       margin-bottom: 16px; padding: 19px; border: 1px solid var(--line);
       border-radius: 17px; background: var(--paper);
-      box-shadow: 0 3px 0 rgba(47, 109, 73, .07), 0 8px 20px rgba(47, 109, 73, .04);
+      box-shadow: 0 3px 0 rgba(50, 111, 174, .07), 0 8px 20px rgba(50, 111, 174, .04);
     }
     .notice {
       color: #254b3a; background: #e7eee9; border-color: #5a9271;
@@ -161,21 +161,21 @@
     .field-label, legend { color: var(--ink); font-size: 15px; font-weight: 750; }
     .hint { color: var(--muted); font-size: 13px; }
     .name-input, .qty-input, .preview {
-      border: 1px solid #4b8f68; border-radius: 11px;
+      border: 1px solid #6f94bf; border-radius: 11px;
       background: #fff; color: var(--ink);
     }
     .name-input, .qty-input { min-height: 52px; padding: 13px 14px; font-size: 16px; }
     .name-input::placeholder, .qty-input::placeholder { color: #58645d; opacity: 1; }
     .name-input:focus, .qty-input:focus, .preview:focus {
-      border-color: var(--green); box-shadow: 0 0 0 3px rgba(8,127,91,.2);
+      border-color: var(--green); box-shadow: 0 0 0 3px rgba(50,111,174,.2);
     }
     .items-heading { margin-top: 25px; margin-bottom: 12px; }
     .items-heading h2, .preview-title { color: var(--ink); font-size: 18px; font-weight: 800; }
     .count { color: var(--green-dark); background: #dce8e0; font-size: 13px; }
     .item-list { gap: 13px; }
     .item-card {
-      padding: 16px; border: 1px solid #5a9271; border-radius: 14px;
-      background: #fff; box-shadow: 0 2px 0 rgba(47, 109, 73, .06);
+      padding: 16px; border: 1px solid #91afd0; border-radius: 14px;
+      background: #fff; box-shadow: 0 2px 0 rgba(50, 111, 174, .06);
     }
     .item-heading { gap: 12px; }
     .item-id {
@@ -199,7 +199,7 @@
     }
     .button.primary { border-color: var(--green); color: #fff; background: var(--green); }
     .button:focus-visible, .language-toggle:focus-visible {
-      outline: 3px solid rgba(8,127,91,.35); outline-offset: 2px;
+      outline: 3px solid rgba(50,111,174,.35); outline-offset: 2px;
     }
     .share-help { color: var(--muted); font-size: 13px; }
     .load-error { border-color: #8b5a53; background: #f3e9e7; }
@@ -210,15 +210,15 @@
       .actions { grid-template-columns: 1fr; }
       .item-original, .item-meta { margin-left: 0; }
     }
-    /* Only the main action and brand use a directional green gradient. */
+    /* Shared-link pages use blue as their primary accent, distinct from the green main app. */
     .button.primary:not(:disabled), .brand-mark {
-      background-image: linear-gradient(to top right, #49b88b 0%, #80d9aa 55%, #b5f2cf 100%);
-      background-color: #80d9aa;
-      border-color: #60b68d;
+      background-image: linear-gradient(to top right, #5793d1 0%, #83b7ec 55%, #b8d8fa 100%);
+      background-color: #83b7ec;
+      border-color: #729fd3;
     }
     @supports ((-webkit-background-clip: text) or (background-clip: text)) {
       #brand-name {
-        background-image: linear-gradient(to top right, #29835f 0%, #2a845f 55%, #2b8560 100%);
+        background-image: linear-gradient(to top right, #326fae 0%, #3676b6 55%, #3d82c1 100%);
         -webkit-background-clip: text;
         background-clip: text;
         color: transparent;
@@ -227,15 +227,15 @@
     }
     .unit-select {
       width: 100%; min-width: 0; max-width: none; min-height: 52px;
-      padding: 12px 23px 12px 10px; border: 1px solid #4b8f68; border-radius: 11px;
-      background-color: #edf4ee; color: var(--green-dark); font-size: 16px; font-weight: 650;
+      padding: 12px 23px 12px 10px; border: 1px solid #6f94bf; border-radius: 11px;
+      background-color: #edf4fc; color: var(--green-dark); font-size: 16px; font-weight: 650;
       appearance: none; -webkit-appearance: none;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='m3 4.5 3 3 3-3' fill='none' stroke='%2329835f' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='m3 4.5 3 3 3-3' fill='none' stroke='%23326fae' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
       background-repeat: no-repeat; background-position: right 10px center; cursor: pointer;
     }
     .unit-select:not(.has-unit) { color: transparent; }
     .unit-select.has-unit { width: 100%; min-width: 0; }
-    .unit-select:focus-visible { outline: 3px solid rgba(8,127,91,.2); outline-offset: 1px; }
+    .unit-select:focus-visible { outline: 3px solid rgba(50,111,174,.2); outline-offset: 1px; }
     .unit-select option { color: var(--ink); background: #fff; }
     .unit-select option:disabled { color: #6f7f73; }
     .notice:not(.error) { color: #294f73; background: #edf5fc; border-color: #a9c7e2; }
@@ -255,7 +255,7 @@
     #copy-button:not(:disabled):hover { background: #e5eef8; }
     .reply-choice-divider { display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 13px; font-weight: 600; line-height: 1.5; }
     /* Lighter green fills need dark labels for readable contrast. */
-    .button.primary, .brand-mark { color: #123d2c; }
+    .button.primary, .brand-mark { color: #173c63; }
     .submit-dock {
       position: sticky; bottom: 0; z-index: 8;
       margin: 18px -16px 0; padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
@@ -1015,7 +1015,7 @@
           resultFrame.className = 'same-link-result';
           resultFrame.title = language === 'en' ? 'Final bill result' : '最終分帳結果';
           const resultUrl = new URL('./detailed-view.html', location.href);
-          resultUrl.searchParams.set('v', 'v107-code-focus-visible');
+          resultUrl.searchParams.set('v', 'v109-blue-friend-link-flow');
           resultUrl.searchParams.set('share', sessionId);
           if (session.expiresAt) resultUrl.searchParams.set('e', String(Math.floor(Date.parse(session.expiresAt) / 1000)));
           resultFrame.src = resultUrl.href;

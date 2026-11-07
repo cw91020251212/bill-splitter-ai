@@ -10,6 +10,8 @@ R107 另驗證四位碼在輸入到最後一位時沒有水平捲動、首位仍
 
 R108 在 `node tests/settings-free-models.cjs` 驗證 390px 及 320px 視窗下首頁選單維持 160px 寬、6 個項目高度至少 44px、字體至少 16px、項目相隔至少 8px，並且沒有橫向溢出。設定 `MENU_SCREENSHOT_PATH=/absolute/path.png` 可擷取手機畫面。
 
+R109 的 `friend-recognition.cjs` 驗證新認帳連結預設 14 日，以及沒有朋友回覆時仍可前進填墊支人再返回。`friend-navigation.cjs` 驗證分享認帳／結果頁使用藍色 accent，而主辦人本機預覽仍保留綠色；其 API 全被 mock，不讀寫正式帳單。
+
 R104 下述八字强制密碼介面測試是歷史規格；R105 新介面以 `friend-recognition.cjs` 為準。姓名未設定碼時只能按姓名識別，不是强身份保護；保留舊密碼驗證、期限、主辦人權限及精確認帳比對測試。
 
 ## R104 姓名＋密碼

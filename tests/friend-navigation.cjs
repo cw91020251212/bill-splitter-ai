@@ -24,7 +24,7 @@ const sample = {
 };
 const detailUrl = share => {
   const url = new URL('detailed-view.html', base);
-  url.searchParams.set('v', 'v107-code-focus-visible');
+  url.searchParams.set('v', 'v109-blue-friend-link-flow');
   if (share !== undefined) url.searchParams.set('share', share);
   return url.href;
 };
@@ -74,6 +74,9 @@ async function assertFriendOnly(page) {
     mode = 'ready'; releaseResponse();
     await page.locator('#preview-content').waitFor({ state: 'visible' });
     await assertFriendOnly(page);
+    assert.equal(await page.locator('body').evaluate(node => node.classList.contains('shared-link-view')), true, 'shared result link receives its distinct theme');
+    const sharedSummaryColor = await page.locator('#friend-amount-summary').evaluate(node => getComputedStyle(node).backgroundImage);
+    assert(sharedSummaryColor.includes('rgb(75, 136, 196)'), `shared result uses a medium blue accent: ${sharedSummaryColor}`);
     if (screenshots) await page.screenshot({ path: path.join(screenshots, 'friend-result-no-main-button.png'), fullPage: true });
     const address = page.url();
     await page.locator('#friend-page-heading').click();
@@ -103,15 +106,16 @@ async function assertFriendOnly(page) {
     const claim = new URL('claim.html', base);
     claim.searchParams.set('session', id);
     claim.searchParams.set('lang', 'zh-HK');
-    claim.searchParams.set('v', 'v107-code-focus-visible');
+    claim.searchParams.set('v', 'v109-blue-friend-link-flow');
     claim.hash = relay.buildHash(Buffer.from(JSON.stringify([{ id: '01', name: '茶', totalQty: null, unit: '' }])).toString('base64url'), relay.createRoom(), { title: '聚餐', createdAt: now, expiresAt: Date.parse(expiry) });
     await page.goto(claim.href, { waitUntil: 'domcontentloaded' });
     await page.locator('iframe.same-link-result').waitFor({ state: 'visible' });
+    assert.equal(await page.locator('body').evaluate(node => getComputedStyle(document.documentElement).getPropertyValue('--green-dark').trim()), '#326fae', 'claim link uses blue accents');
     const element = await page.locator('iframe.same-link-result').elementHandle();
     const frame = await element.contentFrame();
     await frame.locator('#preview-content').waitFor({ state: 'visible' });
     await assertFriendOnly(frame);
-    assert.equal(new URL(frame.url()).searchParams.get('v'), 'v107-code-focus-visible');
+    assert.equal(new URL(frame.url()).searchParams.get('v'), 'v109-blue-friend-link-flow');
     await frame.locator('#friend-page-heading').click();
     await frame.locator('#member-select').selectOption({ label: '測試朋友' });
     assert.match(await frame.locator('#grand-total').innerText(), /20/);
@@ -121,6 +125,9 @@ async function assertFriendOnly(page) {
 
     await page.goto(detailUrl(undefined), { waitUntil: 'domcontentloaded' });
     await page.locator('#preview-content').waitFor({ state: 'visible' });
+    assert.equal(await page.locator('body').evaluate(node => node.classList.contains('shared-link-view')), false, 'organizer local preview keeps the main-app theme');
+    const localSummaryColor = await page.locator('#friend-amount-summary').evaluate(node => getComputedStyle(node).backgroundImage);
+    assert(localSummaryColor.includes('rgb(23, 106, 67)'), `local preview remains green: ${localSummaryColor}`);
     assert.equal(await page.locator('#local-back').isVisible(), true);
     assert.equal(new URL(await page.locator('#local-back').getAttribute('href'), page.url()).pathname, new URL('index.html', base).pathname);
     assert.equal(await page.locator('#friend-page-heading').isVisible(), false);

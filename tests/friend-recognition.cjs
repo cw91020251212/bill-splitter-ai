@@ -179,6 +179,11 @@ async function hostFixture() {
   const price = host.locator('[data-tutorial-target="item-fields"] input[type="number"]').first(), item = host.getByPlaceholder('輸入項目名稱...');
   await price.click(); await price.fill('100'); await item.click(); await item.fill('QA茶');
   await until(async () => await price.inputValue() === '100' && await item.inputValue() === 'QA茶', 'manual fields settled');
+  assert.equal(await host.getByTestId('claim-expiry-days').inputValue(), '14', 'new activities default claim links to 14 days');
+  await host.getByTestId('go-to-payer').click();
+  await until(async () => await host.getByPlaceholder('輸入姓名', { exact: true }).isVisible(), 'can advance to payer before friends reply');
+  await host.locator('.step-nav').getByRole('button', { name: '各自認帳' }).click();
+  await until(async () => await host.getByTestId('claim-expiry-days').isVisible(), 'can return to replies after advancing');
   await host.getByTestId('claim-activity-name').fill('QA識別碼驗收'); await host.getByTestId('claim-expiry-days').selectOption('1'); const before = harness.requests.length;
   await host.getByTestId('claim-link-actions').getByRole('button', { name: '複製認帳連結', exact: true }).click(); await host.waitForFunction(() => Boolean(document.querySelector('[data-testid="claim-link-actions"]')?.dataset.claimLink));
   const link = await host.getByTestId('claim-link-actions').evaluate(n => n.dataset.claimLink), c = remember(harness.requests.slice(before).find(r => r.path === '/api/shares/sessions' && r.status === 201)?.output);

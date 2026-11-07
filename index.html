@@ -79,9 +79,9 @@
   </style>
   <link rel="stylesheet" href="./theme.css?v=v86-free-models-only">
   <link rel="stylesheet" href="./tutorial.css?v=v86-free-models-only">
-  <!-- R108: make header menu touch targets taller and easier to select. -->
-  <meta name="bill-app-release" content="v108-menu-touch-targets">
-  <script defer src="./pwa.js?v=v108-menu-touch-targets"></script>
+  <!-- R109: 14-day claim links, optional reply step and a distinct blue friend-link theme. -->
+  <meta name="bill-app-release" content="v109-blue-friend-link-flow">
+  <script defer src="./pwa.js?v=v109-blue-friend-link-flow"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
@@ -1132,7 +1132,7 @@
       const [claimInfo, setClaimInfo] = useState(null);
       const [claimRoom, setClaimRoom] = useState(null);
       const [claimActivityName, setClaimActivityName] = useState('');
-      const [claimExpiryDays, setClaimExpiryDays] = useState('7');
+      const [claimExpiryDays, setClaimExpiryDays] = useState('14');
       const [claimLinkMeta, setClaimLinkMeta] = useState(null);
       const [claimSession, setClaimSession] = useState(null);
       const [claimInboxSeen, setClaimInboxSeen] = useState([]);
@@ -1300,7 +1300,7 @@
             setClaimRoom(restoredRoom);
             const restoredActivityName = typeof data.claimActivityName === 'string' ? data.claimActivityName.slice(0, 80) : '';
             setClaimActivityName(restoredActivityName);
-            const restoredExpiryDays = ['1', '3', '7', '14'].includes(String(data.claimExpiryDays)) ? String(data.claimExpiryDays) : '7';
+            const restoredExpiryDays = ['1', '3', '7', '14'].includes(String(data.claimExpiryDays)) ? String(data.claimExpiryDays) : '14';
             setClaimExpiryDays(restoredExpiryDays);
             const restoredMetaValue = data.claimLinkMeta && window.ClaimRelay?.sanitizeLinkMetadata(data.claimLinkMeta);
             const restoredMeta = restoredMetaValue ? {
@@ -2366,7 +2366,7 @@
         claimApprovalRequestRef.current = null; pullLockRef.current = false;
         setClaimSecureCursor(0); setClaimSecureMembers([]); setClaimSecurePhase('idle'); setClaimSecureError('');
         setClaimApprovalName(''); setClaimApprovalCode(null); setClaimApprovalPhase('idle'); setClaimApprovalError('');
-        setClaimActivityName(''); setClaimExpiryDays('7'); setClaimLinkMeta(null);
+        setClaimActivityName(''); setClaimExpiryDays('14'); setClaimLinkMeta(null);
         setClaimSession(null);
         setClaimRoom(null); setClaimInboxSeen([]); setInboxPhase('idle'); setInboxNote('');
         [fileInputRef, cameraInputRef, claimAttachmentInputRef].forEach(ref => { if (ref.current) ref.current.value = ''; });
@@ -2391,7 +2391,6 @@
         for (let i = 0; i < items.length; i++) {
             if (!items[i].name.trim()) { setStepError(`⚠️ 項目 ${items[i].id} 未填寫名稱！`); focusField(`item-name-${i}`); return false; }
         }
-        if (!friendsReplies.trim()) { setStepError("⚠️ 尚未貼上朋友的認帳回覆！"); focusField('replies'); return false; }
         setStep(3);
         return true;
       };
@@ -2430,7 +2429,6 @@
           for (let i = 0; i < items.length; i++) {
               if (!String(items[i].name || '').trim()) { setStepError(`⚠️ 項目 ${items[i].id} 未填寫名稱！`); focusField(`item-name-${i}`); return; }
           }
-          if (!friendsReplies.trim()) { setStepError('⚠️ 尚未貼上朋友的回覆！'); focusField('replies'); return; }
         }
         if (target === 4 && !results) { setStepError('⚠️ 請先完成運算。'); return; }
         setStep(target);
@@ -3058,7 +3056,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
 
       const getClaimLinkMetadata = () => {
         const customName = String(claimActivityName || '').replace(/[\r\n=＝]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80);
-        const expiryDays = ['1', '3', '7', '14'].includes(String(claimExpiryDays)) ? String(claimExpiryDays) : '7';
+        const expiryDays = ['1', '3', '7', '14'].includes(String(claimExpiryDays)) ? String(claimExpiryDays) : '14';
         const previous = claimLinkMetaRef.current;
         if (previous && previous.customName === customName && previous.expiryDays === expiryDays
           && window.ClaimRelay?.sanitizeLinkMetadata(previous)) return previous;
@@ -3148,6 +3146,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
         const metadata = getClaimLinkMetadata();
         const link = new URL('./claim.html', window.location.href);
         link.searchParams.set('lang', lang === 'en' ? 'en' : 'zh-HK');
+        link.searchParams.set('v', 'v109-blue-friend-link-flow');
         link.searchParams.set('session', session.id);
         link.hash = window.ClaimRelay
           ? window.ClaimRelay.buildHash(encodeClaimLinkPayload(payload), room, metadata)
@@ -3594,7 +3593,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
             if (emptyNameIdx !== -1) push(2, 'S2', `項目 ${items[emptyNameIdx].id} 未填寫名稱`, '請填寫名稱以便認帳', { label: '填寫', run: () => focusField(`item-name-${emptyNameIdx}`) });
         }
         if (step >= 2 && items.length === 0) push(2, 'S3', '請至少新增一個項目', '', { label: '新增', run: () => { setStep(2); addItemAndFocus(); } });
-        if (step === 2 && !friendsReplies.trim() && items.length > 0) push(2, 'S4', '尚未收到朋友的認帳', '等朋友按「交返發起人」，或貼上 WhatsApp 後備', { label: '前往認帳', run: () => focusField('replies') });
+        if (step === 2 && !friendsReplies.trim() && items.length > 0) push(2, 'S4', bi('尚未收到朋友的認帳', 'No friend replies yet'), bi('可以先填墊支人和貨幣，之後再貼回覆', 'Fill in the payer and currency first; replies can be added later.'), { label: bi('下一步', 'Next'), run: goToPayerStep });
 
         if (step === 2 && claimInfo && claimInfo.issues.length > 0) {
             const firstIssue = claimInfo.issues[0];
@@ -3619,7 +3618,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
 
         if (isAnalyzing) push(4, 'A1', progressText || '已送到免費模型，等候回覆。', '', null);
         else if (step === 2 && items.length > 0 && friendsReplies.trim() && (!claimInfo || claimInfo.issues.length === 0)) {
-            push(5, 'G2', '認帳資料準備就緒', '下一步先填墊支人，再計算', { label: '下一步', run: goToPayerStep });
+            push(5, 'G2', bi('認帳資料準備就緒', 'Claims are ready'), bi('下一步先填墊支人，再計算', 'Next, fill in the payer before calculating.'), { label: bi('下一步', 'Next'), run: goToPayerStep });
         }
 
         if (step === 1 && !isAnalyzing && !showSettings && !showTutorial && !showHistory && list.length === 0) {
@@ -3775,7 +3774,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
               <div className="flex items-center gap-2 sm:gap-3 shrink-0">
                 <img src="./icons/icon.svg" alt="" width="48" height="48" className="app-brand-icon shrink-0" />
                 <div>
-                  <h1 className="text-xl font-extrabold text-slate-800 tracking-tight"><span className="app-brand-name block sm:inline whitespace-nowrap">{tr("分帳管家")}</span><span className="inline-flex items-baseline gap-1 sm:ml-1 whitespace-nowrap"><span data-testid="app-pro-label" className="text-brand-600 font-black">Pro</span><span data-testid="app-version-label" className="text-[10px] leading-3 font-semibold tracking-normal text-brand-700">V1.0.1 · R108</span></span></h1>
+                  <h1 className="text-xl font-extrabold text-slate-800 tracking-tight"><span className="app-brand-name block sm:inline whitespace-nowrap">{tr("分帳管家")}</span><span className="inline-flex items-baseline gap-1 sm:ml-1 whitespace-nowrap"><span data-testid="app-pro-label" className="text-brand-600 font-black">Pro</span><span data-testid="app-version-label" className="text-[10px] leading-3 font-semibold tracking-normal text-brand-700">V1.0.1 · R109</span></span></h1>
                 </div>
               </div>
               <div className="header-actions relative flex items-center gap-1.5 sm:gap-2">
@@ -4293,8 +4292,9 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                       {inboxNote && claimSession && <p className="mt-2 text-base font-semibold text-brand-800">{bi(`最新交到：${inboxNote}`, `Latest: ${inboxNote}`)}</p>}
                       <Button data-testid="claim-inbox-refresh" variant="outline" className="!w-full mt-3" disabled={!claimSession || inboxPhase === 'receiving' || claimSecurePhase === 'setting-up'} onClick={() => pullClaimsRef.current(true)}>{bi('重新接收', 'Check again')}</Button>
                     </Card>
-                    <Label required={friendsReplies.length === 0} className="flex items-center justify-between mb-3">
+                    <Label className="flex items-center justify-between mb-3">
                       <span>{tr("2. 朋友交返的認帳")}</span>
+                      <span className="text-sm font-normal text-slate-600">{bi('可稍後填', 'Optional')}</span>
                     </Label>
                     <textarea
                       data-testid="claim-replies"
@@ -4302,11 +4302,11 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                       placeholder={bi('朋友回覆會顯示於此；亦可貼上 WhatsApp 後備。', 'Friend replies appear here. You can also paste a WhatsApp backup.')}
                       className="w-full h-48 bg-white border border-slate-500 rounded-xl p-4 text-base font-mono text-slate-700 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none resize-y shadow-inner leading-relaxed">
                     </textarea>
+                  </div>
                     <div className="flex gap-3 pt-2">
                       <Button variant="secondary" className="w-1/3 !px-2 border-slate-500" onClick={() => { setStepError(''); setStep(1); }}>{tr("上一步")}</Button>
-                      <Button data-testid="go-to-payer" variant="primary" className="w-2/3" onClick={goToPayerStep}>{tr("確認無誤，下一步")}<Icon path={icons.arrowRight} size={18}/></Button>
+                      <Button data-testid="go-to-payer" variant="primary" className="w-2/3" onClick={goToPayerStep}>{bi('下一步', 'Next')}<Icon path={icons.arrowRight} size={18}/></Button>
                     </div>
-                  </div>
                 </div>
                 </React.Fragment>}
               </div>

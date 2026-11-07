@@ -40,7 +40,7 @@
     window.navigator.standalone === true;
 
   /* ---------------------------------------------------------- service worker */
-  var RELEASE_VERSION = 'v108-menu-touch-targets';
+  var RELEASE_VERSION = 'v109-blue-friend-link-flow';
   var waitingWorker = null;
   var registrationPromise = null;
   var reloadRequested = false;
@@ -136,7 +136,7 @@
   }
 
   // The app can save its active draft before invoking this explicit navigation.
-  window.BillAppUpdate = { version: 'R107', reloadLatest: reloadLatest };
+  window.BillAppUpdate = { version: 'R109', reloadLatest: reloadLatest };
 
   if ('serviceWorker' in navigator && SECURE) {
     afterLoad(function () { registerWorker(); });
