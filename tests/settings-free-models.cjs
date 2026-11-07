@@ -32,7 +32,42 @@ const testApiKey = 'test-openrouter-key-preserve-on-migration';
         localStorage.setItem('billSplitterHistory', '[]');
       }, { kind: storageKind, key: savedKey });
       await page.goto(base.toString(), { waitUntil: 'networkidle' });
-      await page.getByTestId('start-tutorial').waitFor();
+      const menuTrigger = page.getByTestId('header-action-menu-toggle');
+      await menuTrigger.waitFor({ state: 'visible' });
+      assert.equal((await page.getByTestId('app-version-label').innerText()).trim(), 'V1.0.1 · R108');
+      await menuTrigger.click();
+      const menu = page.locator('#header-action-menu');
+      await menu.waitFor({ state: 'visible' });
+      const menuMetrics = await menu.evaluate(node => ({
+        width: node.getBoundingClientRect().width,
+        gap: parseFloat(getComputedStyle(node).rowGap),
+        items: Array.from(node.querySelectorAll(':scope > button')).map(button => ({
+          height: button.getBoundingClientRect().height,
+          fontSize: parseFloat(getComputedStyle(button).fontSize)
+        })),
+        documentWidth: document.documentElement.scrollWidth,
+        viewportWidth: innerWidth
+      }));
+      assert.equal(menuMetrics.width, 160, 'R108 retains the original 160px menu width');
+      assert.equal(menuMetrics.items.length, 6, 'all existing menu options remain');
+      assert(menuMetrics.items.every(item => item.height >= 44), `all menu items are at least 44px tall: ${JSON.stringify(menuMetrics.items)}`);
+      assert(menuMetrics.items.every(item => item.fontSize >= 16), 'menu text is at least 16px');
+      assert(menuMetrics.gap >= 8, 'menu items have at least 8px vertical separation');
+      assert(menuMetrics.documentWidth <= menuMetrics.viewportWidth, 'menu does not create horizontal overflow');
+      await page.setViewportSize({ width: 320, height: 844 });
+      const narrowMenuMetrics = await menu.evaluate(node => ({
+        width: node.getBoundingClientRect().width,
+        items: Array.from(node.querySelectorAll(':scope > button')).map(button => button.getBoundingClientRect().height),
+        documentWidth: document.documentElement.scrollWidth,
+        viewportWidth: innerWidth
+      }));
+      assert.equal(narrowMenuMetrics.width, 160, '320px viewport retains the original menu width');
+      assert(narrowMenuMetrics.items.every(height => height >= 44), '320px viewport preserves touch target heights');
+      assert(narrowMenuMetrics.documentWidth <= narrowMenuMetrics.viewportWidth, '320px viewport has no horizontal menu overflow');
+      await page.setViewportSize({ width: 390, height: 844 });
+      if (process.env.MENU_SCREENSHOT_PATH && storageKind === 'localStorage') {
+        await page.screenshot({ path: process.env.MENU_SCREENSHOT_PATH });
+      }
       await page.locator('.header-settings-button').click();
       const select = page.getByTestId('model-select');
       await select.waitFor({ state: 'visible' });

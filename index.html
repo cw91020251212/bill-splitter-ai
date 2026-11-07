@@ -79,9 +79,9 @@
   </style>
   <link rel="stylesheet" href="./theme.css?v=v86-free-models-only">
   <link rel="stylesheet" href="./tutorial.css?v=v86-free-models-only">
-  <!-- R107: keep all four optional code digits visible while focused. -->
-  <meta name="bill-app-release" content="v107-code-focus-visible">
-  <script defer src="./pwa.js?v=v107-code-focus-visible"></script>
+  <!-- R108: make header menu touch targets taller and easier to select. -->
+  <meta name="bill-app-release" content="v108-menu-touch-targets">
+  <script defer src="./pwa.js?v=v108-menu-touch-targets"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
@@ -3775,7 +3775,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
               <div className="flex items-center gap-2 sm:gap-3 shrink-0">
                 <img src="./icons/icon.svg" alt="" width="48" height="48" className="app-brand-icon shrink-0" />
                 <div>
-                  <h1 className="text-xl font-extrabold text-slate-800 tracking-tight"><span className="app-brand-name block sm:inline whitespace-nowrap">{tr("分帳管家")}</span><span className="inline-flex items-baseline gap-1 sm:ml-1 whitespace-nowrap"><span data-testid="app-pro-label" className="text-brand-600 font-black">Pro</span><span data-testid="app-version-label" className="text-[10px] leading-3 font-semibold tracking-normal text-brand-700">V1.0.1 · R103</span></span></h1>
+                  <h1 className="text-xl font-extrabold text-slate-800 tracking-tight"><span className="app-brand-name block sm:inline whitespace-nowrap">{tr("分帳管家")}</span><span className="inline-flex items-baseline gap-1 sm:ml-1 whitespace-nowrap"><span data-testid="app-pro-label" className="text-brand-600 font-black">Pro</span><span data-testid="app-version-label" className="text-[10px] leading-3 font-semibold tracking-normal text-brand-700">V1.0.1 · R108</span></span></h1>
                 </div>
               </div>
               <div className="header-actions relative flex items-center gap-1.5 sm:gap-2">
@@ -3794,9 +3794,9 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                     <button type="button" id="header-action-menu-toggle" data-testid="header-action-menu-toggle" ref={headerActionMenuTriggerRef} aria-controls="header-action-menu" aria-expanded={showHeaderMenu} aria-label={bi('開啟功能選單', 'Open actions menu')} onClick={() => setShowHeaderMenu(open => !open)} className="header-action-menu-trigger green-action green-action-dark flex min-h-[38px] items-center justify-center rounded-lg border border-emerald-900 bg-brand-600 px-2.5 py-1.5 text-sm font-semibold text-white transition-all active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-emerald-900">
                       {tr("選單")}
                     </button>
-                    <div ref={headerActionPanelRef} id="header-action-menu" role="group" aria-label={bi('首頁操作', 'Home actions')} hidden={!showHeaderMenu} className={`${showHeaderMenu ? 'absolute' : 'hidden'} right-0 top-full z-[70] mt-1 flex w-40 max-w-[calc(100vw-1rem)] flex-col gap-[2px] rounded-xl border border-slate-400 bg-white p-[3px] shadow-lg`}>
-                      <button type="button" data-testid="header-update-app" onClick={() => { if (tutorialDemo || !ensureDraftSavedForSharing()) return; window.BillAppUpdate?.reloadLatest(); }} className="header-action-menu-item min-h-[32px] w-full rounded-lg border border-slate-500 bg-slate-100 px-2 py-1 text-left text-sm font-semibold text-slate-800">{bi('更新程式（保留帳單）', 'Update app (keep bill)')}</button>
-                      <button type="button" data-testid="header-language-toggle" data-ui-language={uiLang === 'en' ? 'zh-HK' : 'en'} onClick={() => changeUiLanguage(uiLang === 'en' ? 'zh-HK' : 'en')} aria-label={uiLang === 'en' ? 'Switch to Traditional Chinese' : '切換至 English'} className="header-action-menu-item header-action-menu-item-language min-h-[32px] w-full rounded-lg border border-slate-500 bg-slate-100 px-2 py-1 text-left text-sm font-semibold text-slate-800 transition-all hover:bg-brand-50 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500">
+                    <div ref={headerActionPanelRef} id="header-action-menu" role="group" aria-label={bi('首頁操作', 'Home actions')} hidden={!showHeaderMenu} className={`${showHeaderMenu ? 'absolute' : 'hidden'} right-0 top-full z-[70] mt-1 flex w-40 max-w-[calc(100vw-1rem)] flex-col gap-2 rounded-xl border border-slate-400 bg-white p-[3px] shadow-lg`}>
+                      <button type="button" data-testid="header-update-app" onClick={() => { if (tutorialDemo || !ensureDraftSavedForSharing()) return; window.BillAppUpdate?.reloadLatest(); }} className="header-action-menu-item min-h-[44px] w-full rounded-lg border border-slate-500 bg-slate-100 px-2 py-1 text-left text-base font-semibold text-slate-800">{bi('更新程式（保留帳單）', 'Update app (keep bill)')}</button>
+                      <button type="button" data-testid="header-language-toggle" data-ui-language={uiLang === 'en' ? 'zh-HK' : 'en'} onClick={() => changeUiLanguage(uiLang === 'en' ? 'zh-HK' : 'en')} aria-label={uiLang === 'en' ? 'Switch to Traditional Chinese' : '切換至 English'} className="header-action-menu-item header-action-menu-item-language min-h-[44px] w-full rounded-lg border border-slate-500 bg-slate-100 px-2 py-1 text-left text-base font-semibold text-slate-800 transition-all hover:bg-brand-50 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500">
                         {uiLang === 'en' ? '繁體中文' : '切換至 English'}
                       </button>
                       <button type="button" data-testid="start-tutorial" disabled={!draftReady || isAnalyzing || isSavingRecord} onClick={() => {
@@ -3805,16 +3805,16 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                         setShowHeaderMenu(false);
                         setShowTutorial(true);
                         requestAnimationFrame(() => window.scrollTo({ left: 0, top: 0, behavior: 'smooth' }));
-                      }} title={bi('教學方式選擇', 'Choose a tutorial')} className="header-action-menu-item header-action-menu-item-guide min-h-[32px] w-full rounded-lg border border-slate-500 bg-slate-100 px-2 py-1 text-left text-sm font-semibold text-slate-800 transition-all hover:bg-brand-50 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500">
+                      }} title={bi('教學方式選擇', 'Choose a tutorial')} className="header-action-menu-item header-action-menu-item-guide min-h-[44px] w-full rounded-lg border border-slate-500 bg-slate-100 px-2 py-1 text-left text-base font-semibold text-slate-800 transition-all hover:bg-brand-50 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500">
                         {tr("教學")}
                       </button>
-                      <button type="button" data-testid="header-settings-button" onClick={() => { setShowHeaderMenu(false); setShowSettings(true); }} title={tr("設定")} className="header-action-menu-item header-action-menu-item-settings header-settings-button min-h-[32px] w-full rounded-lg border border-slate-500 bg-slate-100 px-2 py-1 text-left text-sm font-semibold text-slate-800 transition-all hover:bg-brand-50 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500">
+                      <button type="button" data-testid="header-settings-button" onClick={() => { setShowHeaderMenu(false); setShowSettings(true); }} title={tr("設定")} className="header-action-menu-item header-action-menu-item-settings header-settings-button min-h-[44px] w-full rounded-lg border border-slate-500 bg-slate-100 px-2 py-1 text-left text-base font-semibold text-slate-800 transition-all hover:bg-brand-50 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500">
                         {tr("設定")}
                       </button>
-                      <button type="button" data-testid="header-history-button" onClick={() => { setShowHeaderMenu(false); setShowHistory(true); }} title={tr("紀錄")} className="header-action-menu-item header-action-menu-item-history header-history-button min-h-[32px] w-full rounded-lg border border-slate-500 bg-slate-100 px-2 py-1 text-left text-sm font-semibold text-slate-800 transition-all hover:bg-brand-50 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500">
+                      <button type="button" data-testid="header-history-button" onClick={() => { setShowHeaderMenu(false); setShowHistory(true); }} title={tr("紀錄")} className="header-action-menu-item header-action-menu-item-history header-history-button min-h-[44px] w-full rounded-lg border border-slate-500 bg-slate-100 px-2 py-1 text-left text-base font-semibold text-slate-800 transition-all hover:bg-brand-50 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500">
                         {tr("紀錄")}
                       </button>
-                      <button type="button" data-testid="header-clear-current" disabled={!draftReady} onClick={() => { setShowHeaderMenu(false); handleGoToStep1(); }} aria-label={bi('清空目前賬單', 'Clear current bill')} aria-describedby="header-clear-current-help" className="header-action-menu-item header-action-menu-item-danger header-clear-button min-h-[32px] w-full rounded-lg border border-red-400 bg-red-50 px-2 py-1 text-left text-sm font-semibold text-red-800 transition-all hover:bg-red-100 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500">
+                      <button type="button" data-testid="header-clear-current" disabled={!draftReady} onClick={() => { setShowHeaderMenu(false); handleGoToStep1(); }} aria-label={bi('清空目前賬單', 'Clear current bill')} aria-describedby="header-clear-current-help" className="header-action-menu-item header-action-menu-item-danger header-clear-button min-h-[44px] w-full rounded-lg border border-red-400 bg-red-50 px-2 py-1 text-left text-base font-semibold text-red-800 transition-all hover:bg-red-100 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500">
                         <span className="block">{bi('清空本單', 'Clear bill')}</span>
                         <span id="header-clear-current-help" className="block text-xs font-normal text-slate-600">{bi('保留歷史及收據', 'History & receipts stay')}</span>
                       </button>

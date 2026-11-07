@@ -40,7 +40,7 @@
     window.navigator.standalone === true;
 
   /* ---------------------------------------------------------- service worker */
-  var RELEASE_VERSION = 'v107-code-focus-visible';
+  var RELEASE_VERSION = 'v108-menu-touch-targets';
   var waitingWorker = null;
   var registrationPromise = null;
   var reloadRequested = false;
