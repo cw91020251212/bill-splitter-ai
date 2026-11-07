@@ -36,10 +36,25 @@ function passwordInput(password) {
   if (typeof password !== 'string' || [...password].length < 8 || [...password].length > 128) fail(400, 'invalid_password');
   return password; // Deliberately do not normalize passwords; Unicode is supported verbatim.
 }
-async function passwordHash(pepper, password, salt) {
-  const prehash = await hmac(pepper, passwordInput(password));
+function recognitionInput(code, allowBlank = true) {
+  if (typeof code !== 'string' || !(allowBlank && code === '') && !/^\d{4}$/.test(code)) fail(400, 'invalid_recognition_code');
+  return code; // Preserve leading zeroes; never coerce to a number or normalize.
+}
+async function credentialHash(pepper, credential, salt) {
+  const prehash = await hmac(pepper, credential);
   const key = await crypto.subtle.importKey('raw', prehash, 'PBKDF2', false, ['deriveBits']);
   return hex(await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt: unhex(salt), iterations: ITERATIONS }, key, 256));
+}
+function credentialKind(member) {
+  if (!member) return 'new';
+  if (member.password) return 'password'; // R104 records have no credentialKind field.
+  if (member.recognitionCode) return 'pin';
+  if (member.credentialKind === 'none' || member.registered === true || member.updatedRevision > 0) return 'none';
+  return 'reserved';
+}
+function credentialSummary(member) {
+  const kind = credentialKind(member);
+  return { credentialKind: kind, registered: ['none', 'pin', 'password'].includes(kind), requiresApproval: false };
 }
 export function normalizeClaimName(value) {
   if (typeof value !== 'string' || CONTROL.test(value)) fail(400, 'invalid_name');
@@ -66,7 +81,7 @@ function payload(input) {
   return { v: 1, name, claims, ...(input.clear === true ? { clear: true } : {}) };
 }
 function memberSummary(member) {
-  return { name: member.payload.name, registered: Boolean(member.password), requiresApproval: !member.password };
+  return { name: member.payload.name, ...credentialSummary(member) };
 }
 function itemId(item) {
   const id = String(item?.id || '');
@@ -163,28 +178,69 @@ export class ClaimAuth {
     await this.checkRate(keys, now); // The fifth failure blocks immediately; correct credentials cannot bypass a block.
     fail(code === 'approval_required' ? 409 : 403, code);
   }
-  async authorize(member, input, keys, now) {
+  async ownTicket(member, token, now) {
+    if (typeof token !== 'string' || token.length !== 43) return false;
+    const hash = await digest(token);
+    return (member.tickets || []).some(ticket => ticket.expiresAt > now && ticket.generation === member.generation && equal(ticket.hash, hash));
+  }
+  async setCredential(member, input, allowBlank = true) {
+    let kind, credential;
+    if (input.recognitionCode !== undefined) {
+      credential = recognitionInput(input.recognitionCode, allowBlank);
+      kind = credential === '' ? 'none' : 'pin';
+    } else {
+      if (input.password === undefined) recognitionInput(undefined);
+      credential = passwordInput(input.password); // Preserve the R104 request path.
+      kind = 'password';
+    }
+    if (kind !== 'none') {
+      const salt = hex(crypto.getRandomValues(new Uint8Array(16)));
+      const stored = { salt, hash: await credentialHash(this.env.CLAIM_PASSWORD_PEPPER, credential, salt) };
+      if (kind === 'password') member.password = stored;
+      else member.recognitionCode = stored;
+    }
+    // This helper is only called for initial binding, an own-ticket PIN change,
+    // or explicit owner-code redemption. Ordinary blank edits never downgrade.
+    if (kind !== 'password') delete member.password;
+    if (kind !== 'pin') delete member.recognitionCode;
+    member.credentialKind = kind;
+    member.generation = (member.generation || 0) + 1;
+    member.tickets = [];
+  }
+  async authorize(member, input, keys, now, op) {
     await this.checkRate(keys, now);
-    // A code is a reset authority even for a registered member. Issuing it never changes the old password.
-    if (input.setupCode !== undefined || !member?.password) {
-      if (!input.setupCode) fail(409, 'approval_required');
+    // Only a valid one-use owner code may replace an existing legacy password.
+    // Issuing a code never changes any credential; redemption cannot bind blank.
+    if (input.setupCode !== undefined) {
       if (typeof input.setupCode !== 'string' || input.setupCode.length > 128 || !member?.code || member.code.expiresAt <= now ||
           !equal(member.code.hash, await digest(input.setupCode))) return this.wrong(keys, now, 'approval_required');
-      const password = passwordInput(input.password);
-      const salt = hex(crypto.getRandomValues(new Uint8Array(16)));
-      member.password = { salt, hash: await passwordHash(this.env.CLAIM_PASSWORD_PEPPER, password, salt) };
-      member.generation = (member.generation || 0) + 1;
-      member.tickets = [];
+      await this.setCredential(member, input, false);
       delete member.code;
-      return;
+      return { reset: true, ticket: false };
     }
-    if (typeof input.editToken === 'string' && input.editToken.length === 43) {
-      const hash = await digest(input.editToken);
-      if ((member.tickets || []).some(ticket => ticket.expiresAt > now && ticket.generation === member.generation && equal(ticket.hash, hash))) return;
+    if (await this.ownTicket(member, input.editToken, now)) {
+      if (input.recognitionCode !== undefined) recognitionInput(input.recognitionCode);
+      return { ticket: true };
     }
-    if (typeof input.password !== 'string' || [...input.password].length < 8 || [...input.password].length > 128) return this.wrong(keys, now, 'wrong_password');
-    const hash = await passwordHash(this.env.CLAIM_PASSWORD_PEPPER, input.password, member.password.salt);
-    if (!equal(member.password.hash, hash)) return this.wrong(keys, now, 'wrong_password');
+    const kind = credentialKind(member);
+    if (kind === 'password') {
+      if (typeof input.password !== 'string' || [...input.password].length < 8 || [...input.password].length > 128) return this.wrong(keys, now, 'wrong_password');
+      if (input.recognitionCode !== undefined) recognitionInput(input.recognitionCode);
+      const hash = await credentialHash(this.env.CLAIM_PASSWORD_PEPPER, input.password, member.password.salt);
+      if (!equal(member.password.hash, hash)) return this.wrong(keys, now, 'wrong_password');
+    } else if (kind === 'pin') {
+      if (typeof input.recognitionCode !== 'string' || !/^\d{4}$/.test(input.recognitionCode)) return this.wrong(keys, now, 'wrong_recognition_code');
+      const hash = await credentialHash(this.env.CLAIM_PASSWORD_PEPPER, input.recognitionCode, member.recognitionCode.salt);
+      if (!equal(member.recognitionCode.hash, hash)) return this.wrong(keys, now, 'wrong_recognition_code');
+    } else if (kind === 'reserved' && op === 'submit') {
+      await this.setCredential(member, input);
+    } else {
+      recognitionInput(input.recognitionCode);
+      // A submitted no-code identity is deliberately name-only for ordinary edits,
+      // but adding a PIN requires its own name-issued edit ticket first.
+      if (input.recognitionCode !== '' || input.password !== undefined) return this.wrong(keys, now, 'recognition_change_requires_ticket');
+    }
+    return { ticket: false };
   }
   async dispatch(e) {
     const storage = this.ctx.storage;
@@ -217,7 +273,7 @@ export class ClaimAuth {
       if (known.size > 500) fail(400, 'too_many_members');
       for (const entry of seeds) {
         const key = await this.memberKey(entry.name);
-        if (!await storage.get(key)) await storage.put(key, { payload: entry, updatedRevision: 0, generation: 0, tickets: [] });
+        if (!await storage.get(key)) await storage.put(key, { payload: entry, credentialKind: 'reserved', updatedRevision: 0, generation: 0, tickets: [] });
       }
       meta.enabled = true;
       await storage.put('meta', meta);
@@ -257,34 +313,38 @@ export class ClaimAuth {
     const name = normalizeClaimName(e.input?.name);
     const key = await this.memberKey(name);
     let member = await storage.get(key);
-    if (e.op === 'status') return { enabled: meta.enabled, registered: Boolean(member?.password), requiresApproval: !member?.password && (!meta.autoEnroll || Boolean(member)), claimSecurity: 'password', ...timing };
+    if (e.op === 'status') return { enabled: meta.enabled, ...credentialSummary(member), claimSecurity: 'password', ...timing };
     if (!meta.enabled) fail(409, 'protection_required');
     if (e.op === 'approve') {
       if (!member) {
         if ((await this.members()).length >= 500) fail(400, 'too_many_members');
-        member = { payload: { v: 1, name, claims: [], clear: true }, updatedRevision: 0, generation: 0, tickets: [] };
+        member = { payload: { v: 1, name, claims: [], clear: true }, credentialKind: 'reserved', updatedRevision: 0, generation: 0, tickets: [] };
       }
       const setupCode = random(18);
       const expiresAt = Math.min(e.now + CODE_MS, meta.expiresAt);
       member.code = { hash: await digest(setupCode), expiresAt };
       await storage.put(key, member);
-      return { name, setupCode, registered: Boolean(member.password), expiresAt: new Date(expiresAt).toISOString(), serverNow: timing.serverNow };
+      return { name, setupCode, ...credentialSummary(member), expiresAt: new Date(expiresAt).toISOString(), serverNow: timing.serverNow };
     }
     if (!['submit', 'unlock'].includes(e.op)) fail(404, 'not_found');
     const clean = e.op === 'submit' ? payload({ ...e.input, name }) : null;
     const keys = await this.rateKeys(name, e.ip);
     await this.checkRate(keys, e.now);
     if (!member) {
-      if (!meta.autoEnroll) fail(409, 'approval_required');
       if (e.op === 'unlock') fail(409, 'not_registered', { instruction: 'initial_submit' });
       if (e.input.setupCode !== undefined) return this.wrong(keys, e.now, 'approval_required');
-      passwordInput(e.input.password);
       if ((await this.members()).length >= 500) fail(400, 'too_many_members');
-      const salt = hex(crypto.getRandomValues(new Uint8Array(16)));
-      member = { payload: clean, updatedRevision: 0, generation: 1, tickets: [], password: { salt, hash: await passwordHash(this.env.CLAIM_PASSWORD_PEPPER, e.input.password, salt) } };
+      member = { payload: clean, updatedRevision: 0, generation: 0, tickets: [] };
+      await this.setCredential(member, e.input);
     } else {
-      // Unlock never accepts an editToken: retrieval always proves the password or a one-use owner code.
-      await this.authorize(member, { ...e.input, ...(e.op === 'unlock' ? { editToken: undefined } : {}) }, keys, e.now);
+      const auth = await this.authorize(member, e.input, keys, e.now, e.op);
+      if (e.op === 'submit' && auth.ticket && e.input.recognitionCode) {
+        // Preserve R104 passwords unless an explicit owner reset is redeemed.
+        if (member.password) fail(409, 'credential_change_requires_reset');
+        const unchanged = member.recognitionCode && equal(member.recognitionCode.hash,
+          await credentialHash(this.env.CLAIM_PASSWORD_PEPPER, e.input.recognitionCode, member.recognitionCode.salt));
+        if (!unchanged) await this.setCredential(member, e.input);
+      }
     }
     if (e.op === 'unlock') {
       const editToken = random();
@@ -295,6 +355,8 @@ export class ClaimAuth {
       return { editToken, tokenExpiresAt: new Date(tokenExpiresAt).toISOString(), payload: member.payload, ...timing };
     }
     member.payload = clean;
+    member.registered = true;
+    if (credentialKind(member) === 'none') member.credentialKind = 'none';
     member.updatedRevision = ++meta.cursor;
     // A multi-key storage put commits the member and global cursor together.
     await storage.put({ [key]: member, meta });

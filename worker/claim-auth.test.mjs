@@ -92,7 +92,7 @@ async function legacy(env = environment(), data = shareData()) {
 }
 function assertNoSecrets(body, secrets = []) {
   const text = JSON.stringify(body);
-  assert.doesNotMatch(text, /"(?:password|pepper|hash|salt|tickets|generation|writeKeyHash)"\s*:/);
+  assert.doesNotMatch(text, /"(?:password|recognitionCode|pepper|hash|salt|tickets|generation|writeKeyHash)"\s*:/);
   for (const secret of secrets) assert.ok(!text.includes(secret));
 }
 
@@ -100,7 +100,8 @@ test('new sessions auto-enroll, unlock returns only own verified data, inbox is 
   const { env, id, writeToken, expiresAt } = await session();
   assert.equal(JSON.parse(env.values.get(`share:${id}`).value).claimSecurity, 'password');
   const unknown = await status(env, id, 'Alice');
-  assert.deepEqual(Object.keys(unknown.body).sort(), ['claimSecurity', 'enabled', 'expiresAt', 'registered', 'requiresApproval', 'serverNow'].sort());
+  assert.deepEqual(Object.keys(unknown.body).sort(), ['claimSecurity', 'credentialKind', 'enabled', 'expiresAt', 'registered', 'requiresApproval', 'serverNow'].sort());
+  assert.equal(unknown.body.credentialKind, 'new');
   assert.equal(unknown.body.enabled, true);
   assert.equal(unknown.body.requiresApproval, false);
   const missing = await post(env, id, 'unlock', { name: 'Alice', password: PASSWORD });
@@ -145,14 +146,15 @@ test('wrong passwords reveal no payload and never mutate the claimed data or cre
   assert.deepEqual(members(env, id), before);
 });
 
-test('edit tickets cannot rename, cross names, or unlock private data without password', async () => {
+test('edit tickets cannot rename or cross names; valid own tickets can unlock', async () => {
   const { env, id } = await session();
   await post(env, id, 'submit', input('Alice', 1, { password: PASSWORD }));
   await post(env, id, 'submit', input('Bob', 2, { password: OTHER_PASSWORD }));
   const token = (await post(env, id, 'unlock', { name: 'Alice', password: PASSWORD })).body.editToken;
   assert.equal((await post(env, id, 'submit', input('Bob', 99, { editToken: token }))).status, 403);
   assert.equal((await post(env, id, 'submit', input('Mallory', 99, { editToken: token }))).status, 400);
-  assert.equal((await post(env, id, 'unlock', { name: 'Alice', editToken: token })).status, 403);
+  assert.equal((await post(env, id, 'unlock', { name: 'Bob', editToken: token })).status, 403);
+  assert.equal((await post(env, id, 'unlock', { name: 'Alice', editToken: token })).status, 200);
   assert.equal((await status(env, id, 'Mallory')).body.registered, false);
   assert.equal(members(env, id).find(member => member.payload.name === 'Bob').payload.claims[0].qty, 2);
 });
@@ -201,26 +203,29 @@ test('five failures persist across browsers and block both name+IP and overall s
   assert.equal((await post(env, id, 'unlock', { name: 'Alice', password: PASSWORD }, { now: env.now + 900001 })).status, 200);
 });
 
-test('legacy unknown and reserved names cannot self-enroll before OR after owner setup', async () => {
+test('enabled legacy unknown and reserved names enroll without per-name owner approval', async () => {
   const { env, id, writeToken } = await legacy();
   assert.equal((await post(env, id, 'submit', input('Alice', 99, { password: PASSWORD }))).body.code, 'protection_required');
   assert.equal((await post(env, id, 'submit', input('Unknown', 99, { password: PASSWORD }))).body.code, 'protection_required');
-  assert.equal((await status(env, id, 'Unknown')).body.requiresApproval, true);
+  assert.equal((await status(env, id, 'Unknown')).body.requiresApproval, false);
   const setup = await post(env, id, 'setup', { members: [seed('Alice', 99), seed('Bob', 2)] }, { owner: writeToken });
   assert.equal(setup.status, 200);
   assert.equal(setup.body.cursor, 0);
-  assert.equal(setup.body.members.find(member => member.name === 'Alice').requiresApproval, true);
+  assert.equal(setup.body.members.find(member => member.name === 'Alice').requiresApproval, false);
+  assert.equal(setup.body.members.find(member => member.name === 'Alice').credentialKind, 'reserved');
   assert.equal(members(env, id).find(member => member.payload.name === 'Alice').payload.claims[0].qty, 1);
   assert.deepEqual((await inbox(env, id, writeToken)).body.updates, []);
-  assert.equal((await post(env, id, 'submit', input('Unknown', 99, { password: PASSWORD }))).body.code, 'approval_required');
-  assert.equal((await post(env, id, 'unlock', { name: 'Alice', password: PASSWORD })).body.code, 'approval_required');
-  const approved = await post(env, id, 'approve', { name: 'Unknown' }, { owner: writeToken });
-  assert.match(approved.body.setupCode, /^[A-Za-z0-9_-]{24}$/);
-  assert.equal(approved.body.registered, false);
-  const bound = await post(env, id, 'unlock', { name: 'Unknown', password: PASSWORD, setupCode: approved.body.setupCode });
+  const unknown = await post(env, id, 'unlock', { name: 'Unknown', recognitionCode: '' });
+  assert.equal(unknown.body.code, 'not_registered');
+  assert.equal(members(env, id).length, 2);
+  assert.equal((await post(env, id, 'submit', input('Unknown', 99, { recognitionCode: '' }))).status, 200);
+  const bound = await post(env, id, 'unlock', { name: 'Alice', recognitionCode: '' });
   assert.equal(bound.status, 200);
-  assert.deepEqual(bound.body.payload, { v: 1, name: 'Unknown', claims: [], clear: true });
-  assert.equal((await post(env, id, 'submit', input('Unknown', 3, { editToken: bound.body.editToken }))).status, 200);
+  assert.equal(bound.body.payload.claims[0].qty, 1);
+  assert.equal((await status(env, id, 'Alice')).body.registered, false);
+  assert.equal((await post(env, id, 'submit', input('Alice', 3, { recognitionCode: '' }))).status, 200);
+  assert.equal((await status(env, id, 'Alice')).body.credentialKind, 'none');
+  assert.equal((await status(env, id, 'Alice')).body.registered, true);
   assert.equal((await api(env, id)).body.claimSecurity, 'password');
 });
 
@@ -462,4 +467,216 @@ test('a false portion cannot be republished as actual units even when item and s
   const denied = await api(env, id, '', { method: 'PUT', body: data, owner: writeToken, now: env.now + 2000 });
   assert.equal(denied.status, 409);
   assert.equal(denied.body.code, 'claims_outdated');
+});
+
+// R105 lightweight recognition: these tests only use the in-memory environment above.
+test('blank initial submit registers none; name-only unlock and revisions deliberately remain low assurance', async () => {
+  const { env, id, writeToken } = await session();
+  const initial = await post(env, id, 'submit', input('Alice', 1.125, { recognitionCode: '' }));
+  assert.equal(initial.status, 200);
+  assert.equal(initial.body.revision, 1);
+  const summary = (await status(env, id, 'Alice')).body;
+  assert.equal(summary.credentialKind, 'none');
+  assert.equal(summary.registered, true);
+  assert.equal(summary.requiresApproval, false);
+  assert.equal(summary.claimSecurity, 'password');
+  const stored = members(env, id)[0];
+  assert.equal(stored.credentialKind, 'none');
+  assert.equal(stored.password, undefined);
+  assert.equal(stored.recognitionCode, undefined);
+  const unlocked = await post(env, id, 'unlock', { name: 'Alice', recognitionCode: '' }, { ip: '203.0.113.22' });
+  assert.equal(unlocked.status, 200);
+  assert.equal(unlocked.body.payload.claims[0].qty, 1.125);
+  const revised = await post(env, id, 'submit', input('Alice', 2.875, { recognitionCode: '' }));
+  assert.equal(revised.status, 200);
+  assert.equal(revised.body.revision, 2);
+  assert.equal((await post(env, id, 'submit', input('Alice', 3.25, { recognitionCode: '', editToken: unlocked.body.editToken }))).status, 200);
+  const ownerInbox = await inbox(env, id, writeToken);
+  assert.equal(ownerInbox.body.updates[0].revision, 3);
+  assert.equal(ownerInbox.body.updates[0].claims[0].qty, 3.25);
+  assert.deepEqual(ownerInbox.body.members, [{ name: 'Alice', credentialKind: 'none', registered: true, requiresApproval: false }]);
+  assertNoSecrets(summary);
+  assertNoSecrets(ownerInbox.body);
+  assertNoSecrets(unlocked.body);
+});
+
+test('optional four-digit PIN preserves leading zeroes, registers, and authorizes only correct code or own ticket', async () => {
+  const { env, id } = await session();
+  const code = '0042';
+  assert.equal((await post(env, id, 'submit', input('Alice', 2, { recognitionCode: code }))).status, 200);
+  assert.equal((await status(env, id, 'Alice')).body.credentialKind, 'pin');
+  assert.equal((await status(env, id, 'Alice')).body.registered, true);
+  const protectedMember = structuredClone(members(env, id)[0]);
+  for (const body of [{ name: 'Alice', recognitionCode: '' }, { name: 'Alice' }, { name: 'Alice', recognitionCode: '0043' }, { name: 'Alice', password: PASSWORD }]) {
+    const denied = await post(env, id, 'unlock', body);
+    assert.equal(denied.status, 403);
+    assert.equal(denied.body.code, 'wrong_recognition_code');
+    assert.equal(denied.body.payload, undefined);
+    assert.equal(denied.body.editToken, undefined);
+    assertNoSecrets(denied.body);
+  }
+  assert.deepEqual(members(env, id)[0], protectedMember);
+  const unlocked = await post(env, id, 'unlock', { name: 'Alice', recognitionCode: code });
+  assert.equal(unlocked.status, 200);
+  const revised = await post(env, id, 'submit', input('Alice', 3, { recognitionCode: '', editToken: unlocked.body.editToken }));
+  assert.equal(revised.status, 200);
+  assert.deepEqual(members(env, id)[0].recognitionCode, protectedMember.recognitionCode);
+  assert.equal((await status(env, id, 'Alice')).body.credentialKind, 'pin');
+  assert.equal((await post(env, id, 'unlock', { name: 'Alice', recognitionCode: '', editToken: unlocked.body.editToken })).status, 200);
+  const denied = await post(env, id, 'submit', input('Alice', 99, { recognitionCode: '' }), { ip: '203.0.113.42' });
+  assert.equal(denied.status, 403);
+  assert.equal(members(env, id)[0].payload.claims[0].qty, 3);
+  assertNoSecrets(unlocked.body, [protectedMember.recognitionCode.hash, protectedMember.recognitionCode.salt]);
+});
+
+test('initial recognition input is strictly empty string or four ASCII digits and invalid attempts reserve no names', async () => {
+  const { env, id } = await session();
+  for (const recognitionCode of [null, 1234, false, [], {}, '123', '12345', ' 1234', '1234 ', '１２３４', '12a4', '12\n4']) {
+    const denied = await post(env, id, 'submit', input('Alice', 1, { recognitionCode }));
+    assert.equal(denied.status, 400, JSON.stringify(recognitionCode));
+    assert.equal(denied.body.code, 'invalid_recognition_code');
+  }
+  assert.equal(members(env, id).length, 0);
+  for (const recognitionCode of ['', '0042']) {
+    const missing = await post(env, id, 'unlock', { name: 'Unknown', recognitionCode });
+    assert.equal(missing.status, 409);
+    assert.equal(missing.body.code, 'not_registered');
+  }
+  assert.equal(members(env, id).length, 0);
+  assert.equal((await post(env, id, 'submit', input('Alice', 1, { recognitionCode: '0000' }))).status, 200);
+  assert.equal((await post(env, id, 'unlock', { name: 'Alice', recognitionCode: '0000' })).status, 200);
+});
+
+test('submitted none name cannot be seized by adding PIN; own name-issued ticket may set and later change PIN', async () => {
+  const { env, id } = await session();
+  await post(env, id, 'submit', input('Alice', 1, { recognitionCode: '' }));
+  await post(env, id, 'submit', input('Bob', 2, { recognitionCode: '' }));
+  const before = structuredClone(members(env, id));
+  const bobTicket = (await post(env, id, 'unlock', { name: 'Bob', recognitionCode: '' })).body.editToken;
+  for (const extra of [{ recognitionCode: '0042' }, { recognitionCode: '0042', editToken: bobTicket }, { recognitionCode: '', password: PASSWORD }]) {
+    const denied = await post(env, id, 'submit', input('Alice', 99, extra));
+    assert.equal(denied.status, 403);
+    assert.equal(denied.body.code, 'recognition_change_requires_ticket');
+  }
+  assert.deepEqual(members(env, id).find(member => member.payload.name === 'Alice'), before.find(member => member.payload.name === 'Alice'));
+  const aliceTicket = (await post(env, id, 'unlock', { name: 'Alice', recognitionCode: '' })).body.editToken;
+  const added = await post(env, id, 'submit', input('Alice', 3, { recognitionCode: '0042', editToken: aliceTicket }));
+  assert.equal(added.status, 200);
+  assert.equal((await status(env, id, 'Alice')).body.credentialKind, 'pin');
+  assert.equal((await post(env, id, 'submit', input('Alice', 99, { recognitionCode: '', editToken: aliceTicket }), { ip: '203.0.113.43' })).status, 403);
+  const pinTicket = (await post(env, id, 'unlock', { name: 'Alice', recognitionCode: '0042' })).body.editToken;
+  const beforeSamePin = structuredClone(members(env, id).find(member => member.payload.name === 'Alice'));
+  assert.equal((await post(env, id, 'submit', input('Alice', 3.5, { recognitionCode: '0042', editToken: pinTicket }))).status, 200);
+  const afterSamePin = members(env, id).find(member => member.payload.name === 'Alice');
+  assert.deepEqual(afterSamePin.recognitionCode, beforeSamePin.recognitionCode);
+  assert.equal(afterSamePin.generation, beforeSamePin.generation);
+  assert.equal((await post(env, id, 'submit', input('Alice', 4, { recognitionCode: '0099', editToken: pinTicket }))).status, 200);
+  assert.equal((await post(env, id, 'unlock', { name: 'Alice', recognitionCode: '0042' }, { ip: '203.0.113.43' })).status, 403);
+  assert.equal((await post(env, id, 'unlock', { name: 'Alice', recognitionCode: '0099' })).status, 200);
+  assert.equal(members(env, id).find(member => member.payload.name === 'Alice').payload.claims[0].qty, 4);
+});
+
+test('R104 stored password without kind field still works, cannot be blank-bypassed or silently changed by optional code', async () => {
+  const { env, id } = await session();
+  await post(env, id, 'submit', input('Alice', 1, { password: PASSWORD }));
+  const { ctx } = env.objects.get(id);
+  const [key, member] = [...ctx.data].find(([key]) => key.startsWith('member:'));
+  delete member.credentialKind;
+  delete member.registered;
+  await ctx.storage.put(key, member); // An R104 persisted record, not a newly declared R105 kind.
+  assert.equal((await status(env, id, 'Alice')).body.credentialKind, 'password');
+  assert.equal((await post(env, id, 'unlock', { name: 'Alice', recognitionCode: '' })).status, 403);
+  assert.equal((await post(env, id, 'submit', input('Alice', 99, { recognitionCode: '0042' }))).status, 403);
+  const unlocked = await post(env, id, 'unlock', { name: 'Alice', password: PASSWORD, recognitionCode: '' });
+  assert.equal(unlocked.status, 200);
+  assert.equal((await post(env, id, 'submit', input('Alice', 2, { recognitionCode: '', editToken: unlocked.body.editToken }))).status, 200);
+  assert.deepEqual(members(env, id)[0].password, member.password);
+  const changed = await post(env, id, 'submit', input('Alice', 99, { recognitionCode: '0042', editToken: unlocked.body.editToken }));
+  assert.equal(changed.status, 409);
+  assert.equal(changed.body.code, 'credential_change_requires_reset');
+  assert.deepEqual(members(env, id)[0].password, member.password);
+  assert.equal(members(env, id)[0].payload.claims[0].qty, 2);
+  assert.equal((await post(env, id, 'unlock', { name: 'Alice', password: PASSWORD })).status, 200);
+});
+
+test('owner reset to PIN requires owner approval and nonblank four digits; preserves old auth until atomic redemption', async () => {
+  const { env, id, writeToken } = await session();
+  await post(env, id, 'submit', input('Alice', 1, { password: PASSWORD }));
+  const oldTicket = (await post(env, id, 'unlock', { name: 'Alice', password: PASSWORD })).body.editToken;
+  const before = structuredClone(members(env, id)[0]);
+  assert.equal((await post(env, id, 'approve', { name: 'Alice', recognitionCode: '0042' })).status, 403);
+  const approval = await post(env, id, 'approve', { name: 'Alice' }, { owner: writeToken });
+  assert.equal(approval.status, 200);
+  assert.deepEqual(members(env, id)[0].password, before.password);
+  for (const recognitionCode of ['', '123', 1234]) {
+    const denied = await post(env, id, 'unlock', { name: 'Alice', recognitionCode, setupCode: approval.body.setupCode });
+    assert.equal(denied.status, 400);
+    assert.equal(denied.body.code, 'invalid_recognition_code');
+    assert.deepEqual(members(env, id)[0].password, before.password);
+  }
+  assert.equal((await post(env, id, 'unlock', { name: 'Alice', recognitionCode: '0042', setupCode: 'forged' })).status, 409);
+  assert.equal((await post(env, id, 'unlock', { name: 'Alice', password: PASSWORD })).status, 200);
+  const reset = await post(env, id, 'unlock', { name: 'Alice', recognitionCode: '0042', setupCode: approval.body.setupCode });
+  assert.equal(reset.status, 200);
+  assert.equal(reset.body.payload.claims[0].qty, 1);
+  assert.equal((await status(env, id, 'Alice')).body.credentialKind, 'pin');
+  assert.equal((await post(env, id, 'unlock', { name: 'Alice', password: PASSWORD })).status, 403);
+  assert.equal((await post(env, id, 'submit', input('Alice', 99, { recognitionCode: '', editToken: oldTicket }))).status, 403);
+  assert.equal((await post(env, id, 'unlock', { name: 'Alice', recognitionCode: '0042', setupCode: approval.body.setupCode })).status, 409);
+  assert.equal((await post(env, id, 'submit', input('Alice', 2, { recognitionCode: '', editToken: reset.body.editToken }))).status, 200);
+  assert.equal((await post(env, id, 'unlock', { name: 'Alice', recognitionCode: '0042' })).status, 200);
+});
+
+test('missing and malformed PIN failures share persistent quota; a ticket or correct PIN cannot bypass a block', async () => {
+  const { env, id } = await session();
+  await post(env, id, 'submit', input('Alice', 1, { recognitionCode: '0042' }));
+  const ticket = (await post(env, id, 'unlock', { name: 'Alice', recognitionCode: '0042' })).body.editToken;
+  for (let i = 0; i < 5; i++) {
+    const denied = await post(env, id, 'unlock', { name: 'Alice', ...(i % 2 ? { recognitionCode: 42 } : {}) });
+    assert.equal(denied.status, i === 4 ? 429 : 403);
+  }
+  assert.equal((await post(env, id, 'unlock', { name: 'Alice', recognitionCode: '0042' })).status, 429);
+  assert.equal((await post(env, id, 'submit', input('Alice', 2, { editToken: ticket, recognitionCode: '' }))).status, 429);
+  assert.equal((await post(env, id, 'unlock', { name: 'Alice', recognitionCode: '0042' }, { ip: '203.0.113.44' })).status, 200);
+  assert.equal((await post(env, id, 'unlock', { name: 'Alice', recognitionCode: '0042' }, { now: env.now + 900001 })).status, 200);
+});
+
+test('PIN salts and pepper-PBKDF2 match independent derivation; public results, flags and inbox never expose recognition secrets', async () => {
+  const { env, id, writeToken } = await session();
+  await post(env, id, 'submit', input('Alice', 1, { recognitionCode: '0042' }));
+  await post(env, id, 'submit', input('Bob', 1, { recognitionCode: '0042' }));
+  const [alice, bob] = members(env, id);
+  assert.equal(alice.recognitionCode.salt.length, 32);
+  assert.notEqual(alice.recognitionCode.salt, bob.recognitionCode.salt);
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey('raw', encoder.encode(env.CLAIM_PASSWORD_PEPPER), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const prehash = await crypto.subtle.sign('HMAC', key, encoder.encode('0042'));
+  const base = await crypto.subtle.importKey('raw', prehash, 'PBKDF2', false, ['deriveBits']);
+  const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt: Buffer.from(alice.recognitionCode.salt, 'hex'), iterations: 100000 }, base, 256);
+  assert.equal(Buffer.from(bits).toString('hex'), alice.recognitionCode.hash);
+  const unlocked = await post(env, id, 'unlock', { name: 'Alice', recognitionCode: '0042' });
+  const publish = await api(env, id, '', { method: 'PUT', body: shareData([seed('Alice'), seed('Bob')]), owner: writeToken, now: env.now + 2000 });
+  assert.equal(publish.status, 200);
+  for (const result of [await api(env, id), await status(env, id, 'Alice'), await inbox(env, id, writeToken), unlocked]) {
+    assertNoSecrets(result.body, ['0042', alice.recognitionCode.hash, alice.recognitionCode.salt, env.CLAIM_PASSWORD_PEPPER]);
+  }
+  const stored = JSON.stringify([...env.objects.get(id).ctx.data]);
+  assert.ok(!stored.includes('0042'));
+  assert.ok(!stored.includes(unlocked.body.editToken));
+});
+
+test('reserved optional PIN enrollment and simultaneous none-name seizure obey atomic identity ownership', async () => {
+  const { env, id, writeToken } = await session();
+  await post(env, id, 'setup', { members: [seed('Reserved', 1)] }, { owner: writeToken });
+  const submitted = await post(env, id, 'submit', input('Reserved', 2, { recognitionCode: '0042' }));
+  assert.equal(submitted.status, 200);
+  assert.equal((await status(env, id, 'Reserved')).body.credentialKind, 'pin');
+  const attempts = await Promise.all([
+    post(env, id, 'submit', input('  Jose\u0301   Chan ', 1, { recognitionCode: '' })),
+    post(env, id, 'submit', input('José Chan', 99, { recognitionCode: '0042' }))
+  ]);
+  assert.deepEqual(attempts.map(result => result.status), [200, 403]);
+  const member = members(env, id).find(member => member.payload.name === 'José Chan');
+  assert.equal(member.credentialKind, 'none');
+  assert.equal(member.payload.claims[0].qty, 1);
 });

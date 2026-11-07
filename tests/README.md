@@ -2,6 +2,12 @@
 
 程式仍然是純靜態 GitHub Pages App，無需 build。Playwright 只用於開發驗收，不會載入到公開頁面；測試只可對本機執行。
 
+## R105 四位選填認證碼
+
+`node tests/friend-recognition.cjs` 使用本機記憶體 Worker／DO 驗證空白碼可認帳、姓名找回、四位碼及前導零、錯碼拒絕、小型修改入口、同一連結重算及舊密碼相容。認證碼不能出現在 URL、草稿或公開結果。`PUBLIC_STATIC_QA=1 BASE_URL=https://cw91020251212.github.io/bill-splitter-ai/` 只讀正式靜態頁面，所有認帳／结果 API 仍攔截到本機，不能讀寫真實帳單。後端仍用 `node --test worker/claim-auth.test.mjs worker/worker-core.test.mjs`。
+
+R104 下述八字强制密碼介面測試是歷史規格；R105 新介面以 `friend-recognition.cjs` 為準。姓名未設定碼時只能按姓名識別，不是强身份保護；保留舊密碼驗證、期限、主辦人權限及精確認帳比對測試。
+
 ## R104 姓名＋密碼
 
 `node --test worker/claim-auth.test.mjs worker/worker-core.test.mjs` 使用本機假的 DO／KV 執行實際驗證程式，覆蓋姓名密碼、跨姓名 token、同名並行、舊認帳搶綁、主辦人單次確認碼、重設、限流及到期。`BASE_URL=http://127.0.0.1:4192/ node tests/friend-password.cjs` 使用實際 Worker／DO 邏輯的記憶體服務，並在手機瀏覽器驗證首次設定、密碼閘、保存及同一連結重新結算；不呼叫正式 Cloudflare 或 ntfy，不讀寫真實帳單。

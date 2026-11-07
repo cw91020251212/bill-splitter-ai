@@ -71,11 +71,28 @@
     .revision-actions { margin-bottom: 14px; }
     .revision-actions .button { width: 100%; }
     .name-input[readonly] { background: #eef3ef; color: #365044; }
-    .password-fields { margin-top: 16px; }
-    .password-fields .field-label { margin-top: 12px; }
-    .auth-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+    .identity-row { display: grid; grid-template-columns: minmax(0, 1fr) 140px; gap: 12px; align-items: end; }
+    .identity-row.editing { grid-template-columns: minmax(0, 1fr); }
+    .identity-row > div { min-width: 0; }
+    .identity-row .field-label { min-height: 22px; margin-bottom: 6px; font-size: 14px; }
+    .code-label-row { display: flex; align-items: center; justify-content: space-between; gap: 4px; }
+    .code-label-row .field-label { margin-bottom: 6px; }
+    .text-action { border: 0; padding: 3px 0; background: transparent; color: #294e7a; font-size: 12px; line-height: 1.5; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+    .text-action:focus-visible { outline: 3px solid rgba(41,78,122,.3); outline-offset: 2px; border-radius: 3px; }
+    .code-label-row .text-action { margin-bottom: 6px; text-decoration: none; }
+    .identity-row .pin-input { padding: 13px 0 13px calc(17.25px - .3em); font: 20px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: calc(34.5px - .6em); font-variant-numeric: tabular-nums; background-image: repeating-linear-gradient(90deg, #f6faf7 0, #f6faf7 calc(25% - 1px), #b9c9c0 calc(25% - 1px), #b9c9c0 25%); }
+    .identity-row .legacy-password { padding: 13px 10px; font-size: 16px; letter-spacing: normal; }
+    .identity-tools, .recovery-tools { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 5px; }
+    .identity-hint { margin-top: 7px; font-size: 12px; }
+    .identity-feedback { margin: 7px 0 0; color: var(--danger); font-size: 13px; line-height: 1.5; }
+    .identity-feedback:empty { display: none; }
+    .recovery-tools { padding-top: 5px; }
+    .recovery-details { margin-top: 10px; font-size: 12px; color: var(--muted); }
+    .recovery-details summary { cursor: pointer; }
+    .recovery-details .field-label { margin-top: 10px; font-size: 13px; }
+    .auth-actions { display: flex; gap: 10px; margin-top: 12px; }
     .auth-actions .button { flex: 1; }
-    .auth-status { color: #b42318; font-size: 14px; line-height: 1.5; }
+    .auth-status { color: #b42318; font-size: 13px; line-height: 1.5; }
     .item-list { display: grid; gap: 11px; }
     .item-card { padding: 15px; border: 1px solid var(--line); border-radius: 15px; background: white; }
     .item-heading { display: flex; align-items: flex-start; gap: 11px; }
@@ -312,23 +329,42 @@
       </section>
 
       <section id="claim-auth-panel" class="panel" hidden aria-labelledby="claim-auth-title">
-        <h2 id="claim-auth-title" class="preview-title">核對認帳密碼</h2>
-        <p id="claim-auth-description" class="hint">揀返自己個名，再輸入認帳密碼，先可以修改。</p>
-        <label id="auth-name-label" class="field-label" for="auth-name">你的姓名</label>
-        <input id="auth-name" class="name-input" type="text" readonly autocomplete="off">
-        <label id="auth-password-label" class="field-label password-fields" for="auth-password">認帳密碼</label>
-        <input id="auth-password" class="name-input" type="password" minlength="8" maxlength="128" autocomplete="current-password">
-        <div id="auth-code-row" class="password-fields" hidden>
+        <h2 id="claim-auth-title" class="preview-title">修改認帳</h2>
+        <div class="identity-row">
+          <div>
+            <label id="auth-name-label" class="field-label" for="auth-name">你的姓名</label>
+            <input id="auth-name" class="name-input" type="text" maxlength="60" readonly autocomplete="off">
+          </div>
+          <div>
+            <div class="code-label-row">
+              <label id="auth-password-label" class="field-label" for="auth-password">認證碼</label>
+              <button id="auth-random-code" class="text-action" type="button" hidden>隨機</button>
+            </div>
+            <input id="auth-password" class="name-input pin-input" type="text" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" autocomplete="off" aria-describedby="claim-auth-description" spellcheck="false">
+          </div>
+        </div>
+        <p id="claim-auth-description" class="hint identity-hint">選填；下次用姓名＋認證碼搵返資料。</p>
+        <div class="identity-tools">
+          <button id="auth-legacy-mode" class="text-action" type="button">使用舊密碼</button>
+          <button id="auth-reset" class="text-action" type="button" aria-expanded="false" aria-controls="auth-recovery">忘記認證碼？</button>
+        </div>
+        <div id="auth-recovery" hidden>
+          <div class="recovery-tools">
+            <button id="auth-retry" class="text-action" type="button">再試一次</button>
+            <button id="auth-new-name" class="text-action" type="button">重新填寫（另一暱稱）</button>
+          </div>
+          <details id="auth-code-row" class="recovery-details">
+            <summary id="auth-owner-reset-label">已有發起人確認碼？</summary>
           <label id="auth-code-label" class="field-label" for="auth-setup-code">發起人確認碼</label>
           <input id="auth-setup-code" class="name-input" type="text" maxlength="128" autocomplete="off" autocapitalize="none" spellcheck="false">
-          <p id="auth-code-hint" class="hint">舊認帳首次設定或忘記密碼，先請發起人核對你本人，再索取確認碼。</p>
+            <p id="auth-code-hint" class="hint">填確認碼，再喺上面揀新認證碼。</p>
+          </details>
         </div>
         <p id="claim-auth-status" class="auth-status" role="status" aria-live="polite"></p>
         <div class="auth-actions">
-          <button id="auth-confirm" class="button primary" type="button">核對密碼</button>
+          <button id="auth-confirm" class="button primary" type="button">開啟認帳</button>
           <button id="auth-cancel" class="button" type="button">返回結果</button>
         </div>
-        <button id="auth-reset" class="button password-fields" type="button">忘記密碼／設定密碼</button>
       </section>
       <section id="revision-waiting" class="revision-panel" role="status" hidden>
         <h2 id="revision-waiting-title">認帳已修改，等候重新結算</h2>
@@ -343,20 +379,38 @@
       <div id="claim-content" hidden>
         <form id="claim-form" novalidate>
           <section class="panel">
-            <label id="person-label" class="field-label" for="person-name">你的姓名</label>
-            <input id="person-name" class="name-input" type="text" maxlength="60" autocomplete="name" placeholder="例如：阿明" required>
-            <p id="person-hint" class="hint">填發起人認得的名字。</p>
-            <div id="first-password-fields" class="password-fields">
-              <label id="first-password-label" class="field-label" for="claim-password">設定認帳密碼（至少 8 個字）</label>
-              <input id="claim-password" class="name-input" type="password" minlength="8" maxlength="128" autocomplete="new-password">
-              <label id="first-password-repeat-label" class="field-label" for="claim-password-repeat">再輸入一次密碼</label>
-              <input id="claim-password-repeat" class="name-input" type="password" minlength="8" maxlength="128" autocomplete="new-password">
-              <p id="first-password-hint" class="hint">請記住密碼；之後修改要用同一姓名及密碼。密碼不會跟連結分享。</p>
-              <div id="first-code-row" class="password-fields" hidden>
+            <div class="identity-row">
+              <div>
+                <label id="person-label" class="field-label" for="person-name">你的姓名</label>
+                <input id="person-name" class="name-input" type="text" maxlength="60" autocomplete="name" placeholder="例如：阿明" required>
+              </div>
+              <div id="first-password-fields">
+                <div class="code-label-row">
+                  <label id="first-password-label" class="field-label" for="claim-password">認證碼</label>
+                  <button id="random-code" class="text-action" type="button">隨機</button>
+                </div>
+                <input id="claim-password" class="name-input pin-input" type="text" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" autocomplete="off" aria-describedby="first-password-hint" spellcheck="false">
+              </div>
+            </div>
+            <p id="first-password-hint" class="hint identity-hint">選填；下次用姓名＋認證碼搵返資料。</p>
+            <p id="person-hint" class="hint" hidden>填發起人認得的名字。</p>
+            <div id="first-identity-tools" class="identity-tools">
+              <button id="first-legacy-mode" class="text-action" type="button">使用舊密碼</button>
+              <button id="first-forgot-code" class="text-action" type="button" aria-expanded="false" aria-controls="first-recovery">忘記認證碼？</button>
+              <button id="first-retrieve" class="text-action" type="button" hidden>搵返認帳</button>
+            </div>
+            <p id="first-identity-status" class="identity-feedback" role="status" aria-live="polite"></p>
+            <div id="first-recovery" hidden>
+              <div class="recovery-tools">
+                <button id="first-retry" class="text-action" type="button">再試一次</button>
+                <button id="first-new-name" class="text-action" type="button">重新填寫（另一暱稱）</button>
+              </div>
+              <details id="first-code-row" class="recovery-details" hidden>
+                <summary id="first-owner-reset-label">已有發起人確認碼？</summary>
                 <label id="first-code-label" class="field-label" for="first-setup-code">發起人確認碼</label>
                 <input id="first-setup-code" class="name-input" type="text" maxlength="128" autocomplete="off" autocapitalize="none" spellcheck="false">
-                <p id="first-code-hint" class="hint">舊連結要先由發起人確認，唔可以替另一個朋友設定密碼。</p>
-              </div>
+                <p id="first-code-hint" class="hint">填確認碼，再喺上面揀新認證碼。</p>
+              </details>
             </div>
           </section>
 
@@ -392,9 +446,9 @@
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
   <script src="./share-config.js"></script>
-  <script src="./bill-share-api.js?v=v104-claim-password"></script>
-  <script src="./claim-relay.js?v=v104-claim-password"></script>
-  <script src="./claim-revisions.js?v=v104-claim-password"></script>
+  <script src="./bill-share-api.js?v=v105-optional-code"></script>
+  <script src="./claim-relay.js?v=v105-optional-code"></script>
+  <script src="./claim-revisions.js?v=v105-optional-code"></script>
   <script>
     (() => {
       const loadError = document.getElementById('load-error');
@@ -442,6 +496,12 @@
       let authGeneration = 0;
       let authStatus = null;
       let authResetMode = false;
+      let authLegacyMode = false;
+      let firstStatus = null;
+      let firstLegacyMode = false;
+      let firstStatusGeneration = 0;
+      let fillingAnotherName = false;
+      let otherPendingClaims = [];
       let editToken = '';
       let editTokenExpiresAt = 0;
       let authorizedName = '';
@@ -452,8 +512,10 @@
       const authCode = document.getElementById('auth-setup-code');
       const authFeedback = document.getElementById('claim-auth-status');
       const firstPassword = document.getElementById('claim-password');
-      const firstPasswordRepeat = document.getElementById('claim-password-repeat');
       const firstCode = document.getElementById('first-setup-code');
+      const firstFeedback = document.getElementById('first-identity-status');
+      const normalizeName = value => String(value || '').normalize('NFC').replace(/\s+/g, ' ').trim();
+      const validRecognitionCode = value => value === '' || /^[0-9]{4}$/.test(value);
       const quantityPickerValues = ['0.5', ...Array.from({ length: 50 }, (_, index) => String(index + 1))];
       const unitOptions = [
         { id: 'portion', zh: '份', en: 'portions', aliases: ['份', 'portion', 'portions', 'share', 'shares', 'serving', 'servings', 'serving(s)'] },
@@ -492,9 +554,9 @@
           editTitle: '修改你的認帳', resubmit: '重新提交', cancelEdit: '返回結果', cancelWaiting: '返回等候頁', editAgain: '再次修改認帳',
           waitingTitle: '認帳已修改，等候重新結算', initialWaitingTitle: '認帳已提交，等候結算', waitingDescription: '發起人收到新認帳後會重新計算。結果更新後，仍會顯示喺同一條連結。',
           editHint: '保留同一姓名；重新提交會取代之前嘅認帳。', storageWarning: '此瀏覽器未能保存填寫資料；重新開啟後可能需要再填。', clearClaim: '取消之前所有認帳',
-          authTitle: '核對認帳密碼', authDescription: '揀返自己個名，再輸入認帳密碼，先可以修改。', password: '認帳密碼', newPassword: '設定認帳密碼（至少 8 個字）', repeatPassword: '再輸入一次密碼', passwordHint: '請記住密碼；之後修改要用同一姓名及密碼。密碼不會跟連結分享。',
-          confirmPassword: '核對密碼', setPassword: '設定密碼並開始修改', checkingPassword: '正在核對…', resetPassword: '忘記密碼／設定密碼', codeLabel: '發起人確認碼', codeHint: '舊認帳首次設定或忘記密碼，先請發起人核對你本人，再索取確認碼。', initialCodeHint: '舊連結要先由發起人確認，唔可以替另一個朋友設定密碼。',
-          passwordShort: '密碼至少要 8 個字。', passwordMismatch: '兩次密碼唔相同，請再檢查。', passwordWrong: '姓名或密碼不正確，未有開放修改。', approvalNeeded: '請先向發起人索取本人確認碼，再設定認帳密碼；唔可以替另一個朋友搶先設定。', protectionNeeded: '請發起人更新主程式並啟用認帳密碼保護，然後再試。', authNetwork: '暫時未能核對密碼，請檢查網絡後重試；認帳表仍然鎖定。', authExpired: '修改驗證已過期，請再輸入認帳密碼。', noProtectedSession: '呢條舊連結未有伺服器密碼保護，請向發起人索取新版認帳連結。', tooManyPasswords: seconds => `密碼嘗試太多，請 ${Math.ceil(seconds / 60)} 分鐘後再試。`,
+          authTitle: '修改認帳', authDescription: '選填；下次用姓名＋認證碼搵返資料。', password: '舊密碼', recognitionCode: '認證碼', newCode: '新認證碼', passwordHint: '選填；下次用姓名＋認證碼搵返資料。', legacyHint: '用返之前設定嘅密碼。', noCodeHint: '之前冇設認證碼，留空就可以開啟。', pinHint: '填返你之前設定嘅四位認證碼。',
+          confirmPassword: '開啟認帳', setPassword: '重設並開啟', checkingPassword: '正在核對…', resetPassword: '忘記認證碼？', codeLabel: '發起人確認碼', codeHint: '填確認碼，再喺上面揀新認證碼。', initialCodeHint: '填確認碼，再喺上面揀新認證碼。', ownerReset: '已有發起人確認碼？', randomCode: '隨機', useLegacy: '使用舊密碼', useCode: '使用認證碼', retryCode: '再試一次', anotherName: '重新填寫（另一暱稱）', retrieve: '搵返認帳', knownName: '呢個名已有認帳；用返認證碼，或者搵返再修改。', anotherNameHint: '請用另一個暱稱；原本嘅認帳唔會改。',
+          pinInvalid: '填四位數字，或者留空。', pinRequired: '請填返四位認證碼。', passwordShort: '舊密碼至少 8 個字。', passwordWrong: '姓名或認證碼唔啱，再試一次。', legacyWrong: '舊密碼唔啱，再試一次。', approvalNeeded: '要重設嘅話，先向發起人拎確認碼。', protectionNeeded: '服務未準備好，請發起人更新連結。', authNetwork: '暫時連唔到，請再試。', authExpired: '修改時限已過，請再開啟認帳。', noProtectedSession: '呢條舊連結唔支援修改，請向發起人拎新連結。', tooManyPasswords: seconds => `試得太多，${Math.ceil(seconds / 60)} 分鐘後再試。`,
           submitFail: '暫時未能提交，請重試或用 WhatsApp 後備。',
           rateLimit: '提交人數太多，請稍後重試。',
           tooLarge: '回覆太長，請用 WhatsApp 後備。',
@@ -533,9 +595,9 @@
           editTitle: 'Edit your items', resubmit: 'Resubmit', cancelEdit: 'Back to result', cancelWaiting: 'Back to waiting page', editAgain: 'Edit items again',
           waitingTitle: 'Items updated; waiting for recalculation', initialWaitingTitle: 'Items submitted; waiting for calculation', waitingDescription: 'The organizer will calculate your updated items. The result will appear on this same link.',
           editHint: 'Keep the same name. Resubmitting replaces your previous reply.', storageWarning: 'This browser cannot save your entries. You may need to enter them again after reopening.', clearClaim: 'Cancel all previous item claims',
-          authTitle: 'Verify your claim password', authDescription: 'Choose your own name and enter your claim password before editing.', password: 'Claim password', newPassword: 'Set a claim password (at least 8 characters)', repeatPassword: 'Enter the password again', passwordHint: 'Remember this password. Editing requires the same name and password. It is never shared in the link.',
-          confirmPassword: 'Verify password', setPassword: 'Set password and edit', checkingPassword: 'Verifying…', resetPassword: 'Forgot / set password', codeLabel: 'Organizer confirmation code', codeHint: 'For old claims or a forgotten password, ask the organizer to verify your identity and issue a confirmation code.', initialCodeHint: 'Old links require organizer confirmation. You cannot set another friend’s password.',
-          passwordShort: 'Use at least 8 characters.', passwordMismatch: 'The two passwords do not match.', passwordWrong: 'Incorrect name or password. Editing remains locked.', approvalNeeded: 'Ask the organizer for your confirmation code before setting a password. You cannot claim another person’s name.', protectionNeeded: 'Ask the organizer to update the main app and enable claim password protection, then retry.', authNetwork: 'Could not verify the password. Check your connection and retry. Editing remains locked.', authExpired: 'Editing authorization expired. Enter your password again.', noProtectedSession: 'This old link has no server-side password protection. Ask the organizer for a protected claim link.', tooManyPasswords: seconds => `Too many attempts. Try again in ${Math.ceil(seconds / 60)} minutes.`,
+          authTitle: 'Edit items', authDescription: 'Optional; use your name + code to find your items next time.', password: 'Old password', recognitionCode: 'Code', newCode: 'New code', passwordHint: 'Optional; use your name + code to find your items next time.', legacyHint: 'Use the password you set before.', noCodeHint: 'You did not set a code; leave it blank to open.', pinHint: 'Enter the four-digit code you set before.',
+          confirmPassword: 'Open items', setPassword: 'Reset and open', checkingPassword: 'Checking…', resetPassword: 'Forgot code?', codeLabel: 'Organizer confirmation code', codeHint: 'Enter the confirmation code and choose a new code above.', initialCodeHint: 'Enter the confirmation code and choose a new code above.', ownerReset: 'Have an organizer code?', randomCode: 'Random', useLegacy: 'Use old password', useCode: 'Use code', retryCode: 'Try again', anotherName: 'Start again (another name)', retrieve: 'Find my items', knownName: 'This name has items already. Use your code or find them to edit.', anotherNameHint: 'Use another nickname. Your original items will not change.',
+          pinInvalid: 'Enter four digits or leave blank.', pinRequired: 'Enter your four-digit code.', passwordShort: 'Old passwords have at least 8 characters.', passwordWrong: 'Name or code does not match. Try again.', legacyWrong: 'Old password does not match. Try again.', approvalNeeded: 'To reset, ask the organizer for a confirmation code.', protectionNeeded: 'Service not ready. Ask the organizer to update the link.', authNetwork: 'Could not connect. Please retry.', authExpired: 'Editing access expired. Open your items again.', noProtectedSession: 'This old link cannot edit items. Ask for a new link.', tooManyPasswords: seconds => `Too many attempts. Try again in ${Math.ceil(seconds / 60)} minutes.`,
           submitFail: 'Could not submit. Try again or use the WhatsApp fallback.',
           rateLimit: 'Too many replies. Try again later.',
           tooLarge: 'Reply too long. Use the WhatsApp fallback.',
@@ -628,7 +690,8 @@
           unit: card.querySelector('.unit-select').value
         })) };
         try {
-          localStorage.setItem(friendStorageKey, JSON.stringify({ schema: 1, fields, submitted: submittedClaim, pending: pendingClaim, editing: editingClaim || authOpen, lockedName: lockedClaimName }));
+          // Only item payloads/drafts are persisted, never codes, passwords or edit tokens.
+          localStorage.setItem(friendStorageKey, JSON.stringify({ schema: 1, fields, submitted: submittedClaim, pending: pendingClaim, otherPending: otherPendingClaims, fillingAnotherName, editing: editingClaim || authOpen, lockedName: lockedClaimName }));
           document.getElementById('claim-storage-warning').hidden = true;
         } catch (_) { document.getElementById('claim-storage-warning').hidden = false; }
       }
@@ -641,6 +704,11 @@
           submittedClaim = window.ClaimRelay?.sanitizePayload(saved.submitted) || null;
           const pendingPayload = window.ClaimRelay?.sanitizePayload(saved.pending?.payload);
           pendingClaim = pendingPayload ? { payload: pendingPayload, revision: saved.pending.revision === true } : null;
+          otherPendingClaims = (Array.isArray(saved.otherPending) ? saved.otherPending : []).flatMap(entry => {
+            const payload = window.ClaimRelay?.sanitizePayload(entry?.payload);
+            return payload ? [{ payload, revision: entry.revision === true }] : [];
+          });
+          fillingAnotherName = saved.fillingAnotherName === true;
           restoredEditIntent = saved.editing === true;
           editingClaim = false;
           authOpen = restoredEditIntent;
@@ -661,14 +729,54 @@
         } catch (_) { /* A corrupt/missing optional draft cannot invalidate the link. */ }
       }
 
+      function configureIdentityInput(input, legacy) {
+        const nextType = legacy ? 'password' : 'text';
+        if (input.type !== nextType) input.value = '';
+        input.type = nextType;
+        input.maxLength = legacy ? 128 : 4;
+        input.inputMode = legacy ? 'text' : 'numeric';
+        input.autocomplete = legacy ? 'current-password' : 'off';
+        input.classList.toggle('pin-input', !legacy);
+        input.classList.toggle('legacy-password', legacy);
+        if (legacy) { input.minLength = 8; input.removeAttribute('pattern'); }
+        else { input.removeAttribute('minlength'); input.setAttribute('pattern', '[0-9]{4}'); }
+      }
+
+      function updateFirstIdentity() {
+        const text = messages[language];
+        const reset = document.getElementById('first-code-row').open;
+        configureIdentityInput(firstPassword, firstLegacyMode && !reset);
+        nameInput.closest('.identity-row').classList.toggle('editing', editingClaim);
+        document.getElementById('first-password-fields').hidden = editingClaim;
+        document.getElementById('first-identity-tools').hidden = editingClaim;
+        document.getElementById('first-password-label').textContent = reset ? text.newCode : firstLegacyMode ? text.password : text.recognitionCode;
+        document.getElementById('first-password-hint').textContent = firstLegacyMode && !reset ? text.legacyHint : text.passwordHint;
+        document.getElementById('first-password-hint').hidden = editingClaim;
+        document.getElementById('random-code').textContent = text.randomCode;
+        document.getElementById('random-code').hidden = firstLegacyMode && !reset;
+        document.getElementById('first-legacy-mode').textContent = firstLegacyMode ? text.useCode : text.useLegacy;
+        document.getElementById('first-legacy-mode').hidden = reset || !(firstLegacyMode || firstStatus?.credentialKind === 'password');
+        document.getElementById('first-forgot-code').textContent = text.resetPassword;
+        document.getElementById('first-retrieve').textContent = text.retrieve;
+        document.getElementById('first-retrieve').hidden = !(firstStatus?.registered || firstStatus?.credentialKind === 'reserved');
+        document.getElementById('first-retry').textContent = text.retryCode;
+        document.getElementById('first-new-name').textContent = text.anotherName;
+        document.getElementById('first-owner-reset-label').textContent = text.ownerReset;
+        document.getElementById('first-code-label').textContent = text.codeLabel;
+        document.getElementById('first-code-hint').textContent = text.initialCodeHint;
+        document.getElementById('first-code-row').hidden = !(firstStatus?.registered || firstStatus?.credentialKind === 'reserved');
+        firstFeedback.hidden = editingClaim;
+        document.getElementById('first-recovery').hidden = editingClaim || document.getElementById('first-forgot-code').getAttribute('aria-expanded') !== 'true';
+      }
+
       function updateClaimView() {
         const sessionId = new URLSearchParams(location.search).get('session');
         const checkingClock = /^[A-Za-z0-9_-]{22}$/.test(sessionId || '') && serverTimeAnchorMs === null;
-        const showResult = showingSharedResult && !editingClaim && !pendingClaim && !authOpen && !isExpired && !checkingClock;
+        const showResult = showingSharedResult && !editingClaim && !pendingClaim && !authOpen && !fillingAnotherName && !isExpired && !checkingClock;
         document.querySelector('.hero').hidden = showResult;
         document.querySelector('main').hidden = showResult;
         if (resultFrame) resultFrame.hidden = !showResult;
-        const showWaiting = Boolean(pendingClaim) && !editingClaim && !authOpen && !isExpired && !checkingClock;
+        const showWaiting = Boolean(pendingClaim) && !editingClaim && !authOpen && !fillingAnotherName && !isExpired && !checkingClock;
         document.getElementById('revision-waiting').hidden = !showWaiting;
         document.getElementById('revision-actions').hidden = !editingClaim || isExpired || checkingClock;
         authPanel.hidden = !authOpen || isExpired || checkingClock;
@@ -683,24 +791,26 @@
         document.getElementById('edit-claim-again').textContent = text.editAgain;
         document.getElementById('cancel-claim-edit').textContent = pendingClaim ? text.cancelWaiting : text.cancelEdit;
         document.getElementById('claim-storage-warning').textContent = text.storageWarning;
-        document.getElementById('first-password-fields').hidden = editingClaim;
-        document.getElementById('first-password-label').textContent = text.newPassword;
-        document.getElementById('first-password-repeat-label').textContent = text.repeatPassword;
-        document.getElementById('first-password-hint').textContent = text.passwordHint;
-        document.getElementById('first-code-label').textContent = text.codeLabel;
-        document.getElementById('first-code-hint').textContent = text.initialCodeHint;
+        updateFirstIdentity();
         document.getElementById('claim-auth-title').textContent = text.authTitle;
-        document.getElementById('claim-auth-description').textContent = text.authDescription;
+        document.getElementById('claim-auth-description').textContent = authResetMode ? text.codeHint : authLegacyMode ? text.legacyHint : authStatus?.credentialKind === 'none' ? text.noCodeHint : authStatus?.credentialKind === 'pin' ? text.pinHint : text.authDescription;
         document.getElementById('auth-name-label').textContent = text.personLabel;
-        document.getElementById('auth-password-label').textContent = authResetMode || authStatus?.requiresApproval ? text.newPassword : text.password;
+        document.getElementById('auth-password-label').textContent = authResetMode ? text.newCode : authLegacyMode ? text.password : text.recognitionCode;
         document.getElementById('auth-code-label').textContent = text.codeLabel;
         document.getElementById('auth-code-hint').textContent = text.codeHint;
-        document.getElementById('auth-code-row').hidden = !(authResetMode || authStatus?.requiresApproval);
-        document.getElementById('auth-confirm').textContent = authBusy ? text.checkingPassword : authResetMode || authStatus?.requiresApproval ? text.setPassword : text.confirmPassword;
-        document.getElementById('auth-confirm').disabled = authBusy || authStatus?.enabled === false;
+        document.getElementById('auth-owner-reset-label').textContent = text.ownerReset;
+        document.getElementById('auth-code-row').hidden = !authStatus?.registered && authStatus?.credentialKind !== 'reserved';
+        document.getElementById('auth-confirm').textContent = authBusy ? text.checkingPassword : authResetMode ? text.setPassword : text.confirmPassword;
+        document.getElementById('auth-confirm').disabled = authBusy || !authStatus || authStatus.enabled === false;
         document.getElementById('auth-cancel').textContent = pendingClaim ? text.cancelWaiting : text.cancelEdit;
         document.getElementById('auth-reset').textContent = text.resetPassword;
-        authPassword.autocomplete = authResetMode || authStatus?.requiresApproval ? 'new-password' : 'current-password';
+        document.getElementById('auth-retry').textContent = text.retryCode;
+        document.getElementById('auth-new-name').textContent = text.anotherName;
+        document.getElementById('auth-legacy-mode').textContent = authLegacyMode ? text.useCode : text.useLegacy;
+        document.getElementById('auth-legacy-mode').hidden = authResetMode || !(authLegacyMode || authStatus?.credentialKind === 'password');
+        document.getElementById('auth-random-code').textContent = text.randomCode;
+        document.getElementById('auth-random-code').hidden = !authResetMode;
+        configureIdentityInput(authPassword, authLegacyMode && !authResetMode);
         fallbackPanel.hidden = true;
         if (!submitting) submitButton.textContent = editingClaim ? text.resubmit : text.submit;
       }
@@ -898,7 +1008,7 @@
           resultFrame.className = 'same-link-result';
           resultFrame.title = language === 'en' ? 'Final bill result' : '最終分帳結果';
           const resultUrl = new URL('./detailed-view.html', location.href);
-          resultUrl.searchParams.set('v', 'v104-claim-password');
+          resultUrl.searchParams.set('v', 'v105-optional-code');
           resultUrl.searchParams.set('share', sessionId);
           if (session.expiresAt) resultUrl.searchParams.set('e', String(Math.floor(Date.parse(session.expiresAt) / 1000)));
           resultFrame.src = resultUrl.href;
@@ -917,9 +1027,13 @@
         if (!name || name.length > 60 || /[:：=＝\r\n]/.test(name)) return;
         authGeneration += 1;
         editToken = ''; authorizedName = ''; editTokenExpiresAt = 0;
-        authOpen = true; authBusy = false; authStatus = null; authResetMode = false;
+        const hasUnsentValues = Array.from(itemList.querySelectorAll('.qty-input, .unit-select')).some(input => input.value.trim() !== '');
+        restoredEditIntent = normalizeName(nameInput.value) === name && (editingClaim || restoredEditIntent || ((!content.hidden || fillingAnotherName) && hasUnsentValues));
+        authOpen = true; authBusy = false; authStatus = null; authResetMode = false; authLegacyMode = false;
         authName.value = name; authPassword.value = ''; authCode.value = ''; authFeedback.textContent = '';
-        restoredEditIntent = editingClaim && nameInput.value === name;
+        document.getElementById('auth-recovery').hidden = true;
+        document.getElementById('auth-reset').setAttribute('aria-expanded', 'false');
+        document.getElementById('auth-code-row').open = false;
         editingClaim = false;
         showingSharedResult = false;
         clearSubmitStatus();
@@ -931,12 +1045,13 @@
 
       function passwordError(error) {
         const text = messages[language];
-        if (error?.code === 'wrong_password' || error?.status === 403) return text.passwordWrong;
         if (error?.code === 'approval_required' || error?.code === 'invalid_code') return text.approvalNeeded;
+        if (error?.code === 'invalid_recognition_code' || error?.code === 'invalid_pin') return text.pinInvalid;
         if (error?.code === 'protection_required') return text.protectionNeeded;
         if (error?.code === 'expired' || error?.code === 'token_expired' || error?.code === 'invalid_token') return text.authExpired;
         if (error?.status === 429 || error?.code === 'rate_limit') return text.tooManyPasswords(error.retryAfter || 900);
-        return error?.message || text.authNetwork;
+        if (error?.code === 'wrong_password' || error?.code === 'wrong_code' || error?.status === 403) return (authOpen ? authLegacyMode : firstLegacyMode) ? text.legacyWrong : text.passwordWrong;
+        return text.authNetwork;
       }
 
       async function loadAuthStatus(name) {
@@ -945,8 +1060,8 @@
           const status = await window.BillShareApi.getClaimStatus(new URLSearchParams(location.search).get('session'), name);
           if (!authOpen || generation !== authGeneration || authName.value !== name) return;
           authStatus = status;
+          authLegacyMode = status.credentialKind === 'password' || (!status.credentialKind && status.registered === true);
           if (!status.enabled) authFeedback.textContent = messages[language].protectionNeeded;
-          else if (status.requiresApproval) authFeedback.textContent = messages[language].approvalNeeded;
           updateClaimView();
           authPassword.focus({ preventScroll: true });
         } catch (error) {
@@ -959,24 +1074,62 @@
       function closeClaimEditor() {
         authGeneration += 1; authOpen = false; authBusy = false; editingClaim = false;
         editToken = ''; editTokenExpiresAt = 0; authorizedName = '';
-        authPassword.value = ''; authCode.value = ''; restoredEditIntent = false;
+        authPassword.value = ''; authCode.value = ''; firstPassword.value = ''; firstCode.value = ''; restoredEditIntent = false;
+        fillingAnotherName = false;
         saveFriendState();
         if (!pendingClaim && latestSession?.status === 'ready') showSharedResult(latestSession);
         else updateClaimView();
       }
 
+      function returnToInitialForm(name, clearItems = false) {
+        authGeneration += 1; firstStatusGeneration += 1;
+        authOpen = false; authBusy = false; editingClaim = false; showingSharedResult = false;
+        editToken = ''; editTokenExpiresAt = 0; authorizedName = ''; restoredEditIntent = false;
+        authPassword.value = ''; authCode.value = ''; firstPassword.value = ''; firstCode.value = '';
+        firstStatus = null; firstLegacyMode = false; authResetMode = false; fillingAnotherName = true;
+        nameInput.value = name;
+        firstFeedback.textContent = clearItems ? messages[language].anotherNameHint : '';
+        document.getElementById('first-code-row').open = false;
+        document.getElementById('first-forgot-code').setAttribute('aria-expanded', 'false');
+        if (clearItems) itemList.querySelectorAll('.qty-input, .unit-select').forEach(input => { input.value = ''; input.classList.remove('has-unit'); });
+        // A fresh nickname never deletes or edits the existing submitted/pending payload.
+        clearSubmitStatus(); updateClaimView(); updatePreview(); saveFriendState();
+        nameInput.focus({ preventScroll: true }); window.scrollTo({ top: 0, behavior: 'smooth' });
+        startSessionPolling();
+      }
+
       document.getElementById('auth-cancel').addEventListener('click', closeClaimEditor);
-      document.getElementById('auth-reset').addEventListener('click', () => { authResetMode = true; authPassword.value = ''; authFeedback.textContent = messages[language].approvalNeeded; updateClaimView(); });
+      document.getElementById('auth-reset').addEventListener('click', () => {
+        const open = document.getElementById('auth-recovery').hidden;
+        document.getElementById('auth-recovery').hidden = !open;
+        document.getElementById('auth-reset').setAttribute('aria-expanded', String(open));
+        if (!open) { document.getElementById('auth-code-row').open = false; authResetMode = false; authCode.value = ''; }
+        updateClaimView();
+      });
+      document.getElementById('auth-retry').addEventListener('click', () => {
+        authPassword.value = ''; authCode.value = ''; authFeedback.textContent = ''; authResetMode = false;
+        document.getElementById('auth-code-row').open = false; updateClaimView(); authPassword.focus();
+      });
+      document.getElementById('auth-new-name').addEventListener('click', () => returnToInitialForm('', true));
+      document.getElementById('auth-code-row').addEventListener('toggle', () => {
+        authResetMode = document.getElementById('auth-code-row').open;
+        authPassword.value = ''; authCode.value = ''; updateClaimView();
+      });
+      document.getElementById('auth-legacy-mode').addEventListener('click', () => { authLegacyMode = !authLegacyMode; authPassword.value = ''; authFeedback.textContent = ''; updateClaimView(); authPassword.focus(); });
       document.getElementById('auth-confirm').addEventListener('click', async () => {
         if (authBusy || !authOpen || !updateExpiryUI()) return;
         if (!authStatus) { await loadAuthStatus(authName.value); return; }
         if (!authStatus.enabled) return;
         const text = messages[language];
-        if (Array.from(authPassword.value).length < 8) { authFeedback.textContent = text.passwordShort; return; }
+        const legacy = authLegacyMode && !authResetMode;
+        if (legacy && Array.from(authPassword.value).length < 8) { authFeedback.textContent = text.passwordShort; return; }
+        if (!legacy && !validRecognitionCode(authPassword.value)) { authFeedback.textContent = text.pinInvalid; return; }
+        if (!legacy && (authResetMode || authStatus.credentialKind === 'pin') && !authPassword.value) { authFeedback.textContent = text.pinRequired; return; }
+        if (authResetMode && !authCode.value.trim()) { authFeedback.textContent = text.approvalNeeded; return; }
         const generation = authGeneration;
         authBusy = true; authFeedback.textContent = ''; updateClaimView();
         try {
-          const input = { name: authName.value, password: authPassword.value, ...(authCode.value.trim() ? { setupCode: authCode.value.trim() } : {}) };
+          const input = { name: authName.value, ...(legacy ? { password: authPassword.value } : { recognitionCode: authPassword.value }), ...(authResetMode ? { setupCode: authCode.value.trim() } : {}) };
           const unlocked = await window.BillShareApi.unlockClaim(new URLSearchParams(location.search).get('session'), input);
           if (generation !== authGeneration || !authOpen || !updateExpiryUI()) return;
           const payload = window.ClaimRelay.sanitizePayload(unlocked.payload);
@@ -994,16 +1147,16 @@
               select.classList.toggle('has-unit', Boolean(select.value));
             });
           }
-          if (pendingClaim?.payload.name !== payload.name) pendingClaim = null;
           submittedClaim = payload; lockedClaimName = payload.name; authorizedName = payload.name;
           nameInput.value = payload.name; editToken = unlocked.editToken; editTokenExpiresAt = Date.parse(unlocked.tokenExpiresAt);
           lastSubmittedSignature = JSON.stringify({ person: payload.name, claims: payload.claims });
           authPassword.value = ''; authCode.value = ''; authOpen = false; editingClaim = true;
+          fillingAnotherName = false;
           restoredEditIntent = false; clearSubmitStatus(); updatePreview(); updateClaimView(); saveFriendState();
         } catch (error) {
           if (generation !== authGeneration) return;
+          if (error?.code === 'not_registered') { returnToInitialForm(authName.value); return; }
           authPassword.value = ''; authFeedback.textContent = passwordError(error);
-          if (error?.code === 'approval_required' || error?.code === 'invalid_code') authResetMode = true;
         } finally { if (generation === authGeneration) { authBusy = false; updateClaimView(); } }
       });
 
@@ -1040,6 +1193,9 @@
             updateClaimView(); return;
           }
           if (session.status !== 'ready') return;
+          const previousOtherPendingCount = otherPendingClaims.length;
+          otherPendingClaims = otherPendingClaims.filter(entry => !window.ClaimRevisions.matchesResult(entry.payload, session.data));
+          if (otherPendingClaims.length !== previousOtherPendingCount) saveFriendState();
           let acceptedRevision = false;
           if (pendingClaim) {
             if (!window.ClaimRevisions.matchesResult(pendingClaim.payload, session.data)) { updateClaimView(); return; }
@@ -1049,7 +1205,7 @@
           }
           // Never take the person away from an unsent edit, even when another
           // participant's result was updated in the meantime.
-          if (editingClaim) return;
+          if (editingClaim || fillingAnotherName) return;
           showSharedResult(session, acceptedRevision);
         } catch (_) {
           sessionNote.textContent = language === 'en'
@@ -1124,7 +1280,7 @@
           });
           claims++;
         }
-        if (!claims && !submittedClaim) return { text: '', error: text.needClaim, complete: false };
+        if (!claims && submittedClaim?.name !== person) return { text: '', error: text.needClaim, complete: false };
         if (!claims) lines.push(text.clearClaim);
         lines.push('', language === 'en'
           ? 'Complete. Send this to the organizer.'
@@ -1140,8 +1296,9 @@
       function updatePreview() {
         const result = getReply();
         preview.value = result.text;
-        const passwordReady = editingClaim ? Boolean(editToken && authorizedName === result.person) : Array.from(firstPassword.value).length >= 8 && firstPassword.value === firstPasswordRepeat.value;
-        const passwordIssue = editingClaim ? '' : Array.from(firstPassword.value).length < 8 ? messages[language].passwordShort : firstPassword.value !== firstPasswordRepeat.value ? messages[language].passwordMismatch : '';
+        const legacy = firstLegacyMode && !document.getElementById('first-code-row').open;
+        const passwordReady = editingClaim ? Boolean(editToken && authorizedName === result.person) : legacy ? Array.from(firstPassword.value).length >= 8 : validRecognitionCode(firstPassword.value);
+        const passwordIssue = editingClaim || passwordReady ? '' : legacy ? messages[language].passwordShort : messages[language].pinInvalid;
         feedback.textContent = result.error || (result.complete ? passwordIssue : '');
         shareButton.disabled = !result.complete;
         copyButton.disabled = !result.complete;
@@ -1172,18 +1329,56 @@
       }
 
       const clearSubmitStatus = () => { submitStatus.textContent = ''; submitStatus.classList.remove('error'); };
-      nameInput.addEventListener('input', () => { clearSubmitStatus(); updatePreview(); saveFriendState(); });
-      [firstPassword, firstPasswordRepeat, firstCode].forEach(input => input.addEventListener('input', () => { clearSubmitStatus(); updatePreview(); }));
-      nameInput.addEventListener('blur', async () => {
-        if (editingClaim || !nameInput.value.trim() || !/^[A-Za-z0-9_-]{22}$/.test(new URLSearchParams(location.search).get('session') || '')) return;
-        const name = nameInput.value.trim();
+      async function loadFirstIdentityStatus() {
+        if (editingClaim || !normalizeName(nameInput.value) || !/^[A-Za-z0-9_-]{22}$/.test(new URLSearchParams(location.search).get('session') || '')) return;
+        const name = normalizeName(nameInput.value);
+        const generation = ++firstStatusGeneration;
         try {
           const status = await window.BillShareApi.getClaimStatus(new URLSearchParams(location.search).get('session'), name);
-          if (nameInput.value.trim() !== name || editingClaim) return;
-          document.getElementById('first-code-row').hidden = !status.requiresApproval;
-          if (!status.enabled) { submitStatus.textContent = messages[language].protectionNeeded; submitStatus.classList.add('error'); }
+          if (normalizeName(nameInput.value) !== name || editingClaim || generation !== firstStatusGeneration) return;
+          firstStatus = status;
+          firstLegacyMode = status.credentialKind === 'password' || (!status.credentialKind && status.registered === true);
+          firstFeedback.textContent = !status.enabled ? messages[language].protectionNeeded : status.registered ? messages[language].knownName : '';
+          updateFirstIdentity(); updatePreview();
         } catch (_) { /* Submission still verifies on the server; no insecure fallback. */ }
+      }
+      nameInput.addEventListener('input', () => {
+        firstStatusGeneration += 1; firstStatus = null; firstFeedback.textContent = ''; firstLegacyMode = false;
+        firstPassword.value = ''; firstCode.value = ''; document.getElementById('first-code-row').open = false;
+        clearSubmitStatus(); updateFirstIdentity(); updatePreview(); saveFriendState();
       });
+      nameInput.addEventListener('blur', loadFirstIdentityStatus);
+      [firstPassword, authPassword].forEach(input => input.addEventListener('input', () => {
+        if (input.type === 'text') input.value = input.value.replace(/[^0-9]/g, '').slice(0, 4);
+        if (input === firstPassword) { clearSubmitStatus(); updatePreview(); }
+        else authFeedback.textContent = '';
+      }));
+      firstCode.addEventListener('input', () => { clearSubmitStatus(); updatePreview(); });
+      function generateRecognitionCode(input) {
+        if (!window.crypto?.getRandomValues) { showToast(messages[language].noCrypto); return; }
+        const bytes = new Uint16Array(1);
+        // Rejection sampling keeps all 10,000 choices equally likely.
+        do { window.crypto.getRandomValues(bytes); } while (bytes[0] >= 60000);
+        input.value = String(bytes[0] % 10000).padStart(4, '0');
+        input.dispatchEvent(new Event('input', { bubbles: true })); input.focus({ preventScroll: true });
+      }
+      document.getElementById('random-code').addEventListener('click', () => generateRecognitionCode(firstPassword));
+      document.getElementById('auth-random-code').addEventListener('click', () => generateRecognitionCode(authPassword));
+      document.getElementById('first-legacy-mode').addEventListener('click', () => { firstLegacyMode = !firstLegacyMode; firstPassword.value = ''; clearSubmitStatus(); updateFirstIdentity(); updatePreview(); firstPassword.focus(); });
+      document.getElementById('first-forgot-code').addEventListener('click', () => {
+        const open = document.getElementById('first-recovery').hidden;
+        document.getElementById('first-forgot-code').setAttribute('aria-expanded', String(open));
+        if (!open) { document.getElementById('first-code-row').open = false; firstCode.value = ''; }
+        updateFirstIdentity();
+      });
+      document.getElementById('first-retry').addEventListener('click', () => {
+        firstPassword.value = ''; firstCode.value = ''; firstFeedback.textContent = ''; document.getElementById('first-code-row').open = false;
+        clearSubmitStatus(); updateFirstIdentity(); updatePreview(); firstPassword.focus();
+      });
+      document.getElementById('first-new-name').addEventListener('click', () => returnToInitialForm('', true));
+      document.getElementById('first-retrieve').addEventListener('click', () => beginClaimEdit(normalizeName(nameInput.value)));
+      document.getElementById('first-code-row').addEventListener('toggle', () => { firstPassword.value = ''; firstCode.value = ''; updateFirstIdentity(); updatePreview(); });
+      authPassword.addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); document.getElementById('auth-confirm').click(); } });
       itemList.addEventListener('input', event => { if (event.target.matches('.qty-input, .unit-select')) clearSubmitStatus(); updatePreview(); saveFriendState(); });
       itemList.addEventListener('change', () => { clearSubmitStatus(); updatePreview(); saveFriendState(); });
       const closeQuantityPickers = () => {
@@ -1270,7 +1465,12 @@
         if (editingClaim && (!editToken || authorizedName !== result.person || getEffectiveNow() >= editTokenExpiresAt)) {
           beginClaimEdit(result.person); authFeedback.textContent = text.authExpired; return;
         }
-        if (!editingClaim && (Array.from(firstPassword.value).length < 8 || firstPassword.value !== firstPasswordRepeat.value)) { updatePreview(); return; }
+        const reset = document.getElementById('first-code-row').open;
+        const legacy = firstLegacyMode && !reset;
+        if (!editingClaim && (legacy ? Array.from(firstPassword.value).length < 8 : !validRecognitionCode(firstPassword.value))) { updatePreview(); return; }
+        if (!editingClaim && reset && (!/^[0-9]{4}$/.test(firstPassword.value) || !firstCode.value.trim())) {
+          firstFeedback.textContent = firstCode.value.trim() ? text.pinRequired : text.approvalNeeded; return;
+        }
         submitting = true;
         submitButton.dataset.busy = '1';
         submitButton.disabled = true;
@@ -1278,22 +1478,25 @@
         submitStatus.textContent = '';
         try {
           const payload = { v: 1, name: result.person, claims: result.claims, ...(result.clear ? { clear: true } : {}) };
-          const isRevision = editingClaim || Boolean(submittedClaim);
-          const credentials = editingClaim ? { editToken } : { password: firstPassword.value, ...(firstCode.value.trim() ? { setupCode: firstCode.value.trim() } : {}) };
+          const isRevision = editingClaim || submittedClaim?.name === result.person;
+          const credentials = editingClaim ? { editToken } : { ...(legacy ? { password: firstPassword.value } : { recognitionCode: firstPassword.value }), ...(reset ? { setupCode: firstCode.value.trim() } : {}) };
           const accepted = await window.BillShareApi.submitSecureClaim(sessionId, { ...payload, ...credentials });
           const cleanPayload = window.ClaimRelay.sanitizePayload(accepted.payload);
           if (!cleanPayload || cleanPayload.name !== result.person) throw new Error(text.authNetwork);
+          if (pendingClaim && pendingClaim.payload.name !== cleanPayload.name) {
+            otherPendingClaims = [...otherPendingClaims.filter(entry => entry.payload.name !== pendingClaim.payload.name), pendingClaim];
+          }
           submittedClaim = cleanPayload;
           nameInput.value = cleanPayload.name;
           pendingClaim = { payload: cleanPayload, revision: isRevision };
           lockedClaimName = cleanPayload.name;
-          firstPassword.value = ''; firstPasswordRepeat.value = ''; firstCode.value = '';
+          firstPassword.value = ''; firstCode.value = '';
           editToken = ''; editTokenExpiresAt = 0; authorizedName = '';
-          editingClaim = false;
+          editingClaim = false; fillingAnotherName = false;
           showingSharedResult = false;
-        lastSubmittedSignature = replySignature(result);
+          lastSubmittedSignature = replySignature(result);
           submitStatus.classList.remove('error');
-          submitStatus.textContent = language === 'en' ? 'Submitted securely. The organizer will receive your verified items.' : '已安全提交；發起人會收到已驗證嘅認帳。';
+          submitStatus.textContent = language === 'en' ? 'Submitted. Waiting for the organizer.' : '已交返，等發起人結算。';
           showToast(text.submittedToast);
           saveFriendState();
           updateClaimView();
@@ -1302,7 +1505,12 @@
           const code = error && error.code;
           submitStatus.textContent = passwordError(error);
           submitStatus.classList.add('error');
-          if (code === 'approval_required' || code === 'invalid_code') document.getElementById('first-code-row').hidden = false;
+          if (!editingClaim && (code === 'wrong_password' || code === 'wrong_code' || code === 'approval_required' || error?.status === 403)) {
+            firstFeedback.textContent = passwordError(error);
+            if (!firstStatus) firstStatus = { registered: true, enabled: true, credentialKind: legacy ? 'password' : 'pin' };
+            updateFirstIdentity();
+            loadFirstIdentityStatus();
+          }
           if (editingClaim && (code === 'token_expired' || code === 'invalid_token' || error?.status === 403)) { beginClaimEdit(result.person); authFeedback.textContent = passwordError(error); }
           showToast(submitStatus.textContent);
         } finally {
@@ -1346,7 +1554,7 @@
         saveFriendState();
         if (editingClaim) { restoredEditIntent = true; authOpen = true; authName.value = lockedClaimName; editingClaim = false; authStatus = null; }
         editToken = ''; editTokenExpiresAt = 0; authorizedName = '';
-        firstPassword.value = ''; firstPasswordRepeat.value = ''; firstCode.value = ''; authPassword.value = ''; authCode.value = '';
+        firstPassword.value = ''; firstCode.value = ''; authPassword.value = ''; authCode.value = '';
         window.clearInterval(expiryTimer);
         window.clearInterval(sessionPollTimer);
         expiryTimer = null;

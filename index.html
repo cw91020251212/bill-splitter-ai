@@ -79,19 +79,19 @@
   </style>
   <link rel="stylesheet" href="./theme.css?v=v86-free-models-only">
   <link rel="stylesheet" href="./tutorial.css?v=v86-free-models-only">
-  <!-- R104: password-bound claims; organizer receives verified owner inbox only. -->
-  <meta name="bill-app-release" content="v104-claim-password">
-  <script defer src="./pwa.js?v=v104-claim-password"></script>
+  <!-- R105: optional four-digit recognition codes; same-link claims and results. -->
+  <meta name="bill-app-release" content="v105-optional-code">
+  <script defer src="./pwa.js?v=v105-optional-code"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
 
   <script src="./i18n.js"></script>
-  <script src="./claim-relay.js?v=v104-claim-password"></script>
+  <script src="./claim-relay.js?v=v105-optional-code"></script>
   <script src="./ocr-cascade.js"></script>
   <script src="./receipt-adjustments.js"></script>
   <script src="./share-config.js"></script>
-  <script src="./bill-share-api.js?v=v104-claim-password"></script>
+  <script src="./bill-share-api.js?v=v105-optional-code"></script>
   <script src="./card-redaction.js?v=v97-card-number-redaction"></script>
   <script src="./card-share-review.js?v=v97-card-number-redaction"></script>
   <script src="./exchange-rates.js?v=v90-cross-currency-settlement"></script>
@@ -1380,12 +1380,12 @@
       }, [draftReady]);
 
       const describeSecureClaimFailure = error => {
-        if (error?.code === 'pending' || error?.code === 'protection_pending' || error?.status === 202) return bi('密碼保護仍在準備；暫停自動接收，請稍後重試。', 'Password protection is still being prepared. Automatic receiving is paused; retry shortly.');
+        if (error?.code === 'pending' || error?.code === 'protection_pending' || error?.status === 202) return bi('認帳接收準備中，請稍後再試。', 'Claim receiving is being prepared; try again shortly.');
         if (error?.status === 401 || error?.status === 403 || error?.code === 'invalid_owner_token') return bi('管理憑證未能驗證。請用建立此連結的原裝置；未驗證的回覆不會接收。', 'The organizer credential could not be verified. Use the device that created this link; unverified replies will not be received.');
         if (error?.status === 410 || error?.code === 'expired') return bi('此認帳連結已到期，請建立新的受保護連結。', 'This claim link has expired. Create a new protected link.');
         if (error?.status === 429 || error?.code === 'rate_limited') return bi(`要求太頻密，請${error.retryAfter ? `於 ${error.retryAfter} 秒後` : '稍後'}重試；暫停接收。`, `Too many requests. Retry ${error.retryAfter ? `in ${error.retryAfter} seconds` : 'shortly'}; receiving is paused.`);
-        if (error?.code === 'offline' || !navigator.onLine) return bi('未能連接密碼保護服務；暫停自動接收，連線後重試。不會改用未驗證的回覆。', 'Cannot connect to the password protection service. Receiving is paused; retry when online. Unverified replies will not be used.');
-        return bi('密碼保護服務未能完成要求；暫停自動接收，請重試。不會改用舊公開接收方式。', 'The password protection service could not complete the request. Receiving is paused; retry. The old public relay will not be used.');
+        if (error?.code === 'offline' || !navigator.onLine) return bi('未能連接認帳服務，連線後再試。', 'Cannot connect to the claim service; retry when online.');
+        return bi('認帳服務暫時未能完成，請再試一次。', 'The claim service could not finish; try again.');
       };
 
       const seedProtectedClaimMembers = () => {
@@ -2242,7 +2242,7 @@
           if (!sameLink || !session) throw new Error('未能準備原認帳連結，請返回第二步重新產生。');
           await ensureSecureClaimSetup(session);
           const protectedMembers = await window.BillShareApi.setupClaimProtection(session.id, session.writeToken, seedProtectedClaimMembers());
-          if (protectedMembers.enabled !== true || protectedMembers.claimSecurity !== 'password') throw new Error(bi('密碼保護未完成，暫不發布結果。', 'Password protection is not ready; the result was not published.'));
+          if (protectedMembers.enabled !== true || protectedMembers.claimSecurity !== 'password') throw new Error(bi('認帳資料未準備好，暫不發布結果。', 'Claim data is not ready; the result was not published.'));
           setClaimSecureMembers(protectedMembers.members || []);
           await window.BillShareApi.publishSession(session.id, session.writeToken, shareData);
           setFriendShareInfo({ shortUrl: sameLink, expiresAt: new Date(session.expiresAt).toISOString(), signature: currentFriendShareSignature });
@@ -3726,16 +3726,16 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
       }, [tutorialDemo, tutorialStage]);
 
       const claimSecurityManagementCard = !tutorialDemo && claimSession?.link ? (
-        <Card data-testid="claim-password-management" className="!p-4 space-y-3 border-brand-600">
-          <h3 className="flex items-center gap-2 text-lg font-extrabold text-slate-800"><Icon path={icons.lock} size={20}/>{bi('認帳密碼管理', 'Claim password management')}</h3>
-          <p className="text-sm leading-relaxed text-slate-700">{bi('沿用同一條認帳及結果連結，毋須開新帳戶。朋友首次設定至少 8 字元的個人密碼，之後只可用自己的密碼修改自己的認帳。主辦人不會收到或儲存朋友的密碼。', 'Keep the same claim and result link; no new account is needed. Friends set a personal password of at least 8 characters, then use it to edit only their own claims. The organizer does not receive or store their passwords.')}</p>
-          <p className="rounded-lg border border-amber-500 bg-amber-50 p-3 text-sm font-semibold leading-relaxed text-amber-950">{bi('舊連結首次設定、已有姓名或忘記密碼：請先親自核實朋友身份，再按下方按鈕產生確認碼並私下交給本人。已有姓名不可由第一個填寫的人冒認；升級及發碼不會清除原認帳、密碼或結果。未曾登記的舊連結姓名，也必須先經你確認。', 'For initial setup on an old link, an existing name, or a forgotten password: personally verify the friend before generating a code below and giving it privately to them. Existing names cannot be taken by the first person to enter them. Upgrading and issuing a code do not erase previous claims, passwords or results. Even unknown names on legacy links need your approval first.')}</p>
+        <details data-testid="claim-password-management" className="rounded-xl border border-slate-300 bg-white p-4 space-y-3">
+          <summary className="cursor-pointer text-sm font-bold text-slate-700">{bi('認證碼重設（有需要先開）', 'Reset recognition code (if needed)')}</summary>
+          <p className="text-sm leading-relaxed text-slate-700">{bi('朋友填姓名就可以認帳；四位認證碼可以唔填。忘記已設嘅碼或舊密碼，可以由你提供一次性確認碼重設，原認帳會保留。', 'Friends can claim with a name; the four-digit code is optional. If they forget a saved code or old password, provide a one-time reset code here; existing claims are kept.')}</p>
+          <p className="text-xs leading-relaxed text-slate-600">{bi('請把確認碼私下交畀本人；唔使每個朋友都設定。', 'Give the reset code privately to the person; not everyone needs to set a code.')}</p>
           <p data-testid="claim-protection-status" role="status" aria-live="polite" className={`text-sm font-semibold leading-relaxed ${claimSecureError ? 'text-red-800' : 'text-emerald-900'}`}>
             {claimSecureError || (claimSecurePhase === 'setting-up'
-              ? bi('正在確認密碼保護；確認前不會接收認帳。', 'Confirming password protection; no claims are received before confirmation.')
+              ? bi('正在準備認帳接收…', 'Preparing claim receiving…')
               : inboxPhase === 'live'
-                ? bi('密碼保護已啟用；只接收伺服器驗證的最新認帳。', 'Password protection is enabled; only the latest server-verified claims are received.')
-                : bi('正在連接受保護認帳服務；不會使用舊公開接收方式。', 'Connecting to the protected claim service; the old public relay will not be used.'))}
+                ? bi('已連接；最新認帳會自動交回。', 'Connected; latest claims return automatically.')
+                : bi('正在連接認帳服務…', 'Connecting to the claim service…'))}
           </p>
           {claimSecureError && <Button data-testid="claim-protection-retry" variant="outline" className="!w-full" onClick={() => pullClaimsRef.current(true)}>{bi('重試受保護接收', 'Retry protected receiving')}</Button>}
           <div>
@@ -3758,7 +3758,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
             <p className="text-xs leading-relaxed text-slate-700">{bi('確認碼最多有效 10 分鐘，只可用一次。請私下交給本人，不要放進群組或連結。朋友兌換後才會設定／重設密碼，並保留原認帳；舊編輯權限會失效。此碼不會儲存到草稿或分享資料。', 'Valid for up to 10 minutes and one use only. Give it privately, not in a group or link. The password changes only when the friend redeems it; previous claims are kept and old edit access is revoked. This code is not saved in drafts or shared data.')}</p>
             <Button data-testid="claim-copy-approval-code" variant="secondary" className="!w-full" onClick={() => { if (claimApprovalCode.expiresMs <= Date.now()) { setClaimApprovalCode(null); setClaimApprovalPhase('expired'); return; } copyToClipboard(claimApprovalCode.setupCode, bi('確認碼', 'Confirmation code')); }}><Icon path={icons.copy} size={18}/>{bi('複製確認碼', 'Copy confirmation code')}</Button>
           </div>}
-        </Card>
+        </details>
       ) : !tutorialDemo && claimRoom && !claimSession ? (
         <Card data-testid="claim-legacy-unprotected" className="!p-4 space-y-3 border-amber-500 bg-amber-50">
           <h3 className="text-lg font-extrabold text-amber-950">{bi('舊連結未受密碼保護', 'This old link is not password-protected')}</h3>
@@ -4212,7 +4212,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                 <div className="border-t border-slate-400 my-6 pt-6 space-y-6">
                   <div data-testid="claim-share-block" className="claim-share-block">
                     <Label className="flex items-center justify-between mb-3"><span>{tr("1. 分享認帳連結")}</span></Label>
-                    <p className="text-base text-slate-700 mb-3 leading-relaxed">{claimRoom && !claimSession && !tutorialDemo ? bi('請建立新的受保護連結；舊連結只可手動交回及核對。', 'Create a protected link; the old link supports manual replies and checking only.') : bi('朋友設定密碼並填妥後，已驗證認帳會自動交回。', 'After friends set passwords and complete their claims, verified replies return automatically.')}</p>
+                    <p className="text-base text-slate-700 mb-3 leading-relaxed">{claimRoom && !claimSession && !tutorialDemo ? bi('請建立新的受保護連結；舊連結只可手動交回及核對。', 'Create a protected link; the old link supports manual replies and checking only.') : bi('朋友填姓名及項目就可以交回，四位認證碼可選填。', 'Friends enter a name and items to submit; the four-digit recognition code is optional.')}</p>
                     <p className="text-sm text-emerald-800 mb-3 leading-relaxed">{bi('只需發一次連結：朋友先填認帳，你計完帳後，結果會自動更新到原連結。', 'Share one link: friends enter their items, and your calculated result updates the same link automatically.')}</p>
                     <div data-testid="claim-link-actions" className="flex flex-col gap-3">
                       <Button variant="secondary" onClick={generateFriendClaimLink} className="!w-full text-sm bg-white hover:bg-slate-50 border-slate-500">
@@ -4281,14 +4281,14 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                           : !tutorialDemo && claimSecureError
                             ? claimSecureError
                             : !tutorialDemo && claimSecurePhase === 'setting-up'
-                              ? bi('正在確認密碼保護，暫未接收…', 'Confirming password protection; receiving is paused…')
+                              ? bi('正在準備認帳接收…', 'Preparing claim receiving…')
                               : claimSession && inboxPhase === 'receiving'
-                                ? bi('正在接收已驗證認帳…', 'Receiving verified claims…')
+                                ? bi('正在接收認帳…', 'Receiving claims…')
                                 : claimFollowupOpen && inboxPeople.length >= 1
                                   ? bi(`現有認帳 ${inboxPeople.length} 位：${inboxPeople.join('、')}`, `Current claims ${inboxPeople.length}: ${inboxPeople.join(', ')}`)
                                   : tutorialDemo
                                     ? bi('先複製或分享上面的連結。', 'Copy or share the link above first.')
-                                    : bi('等候朋友設定密碼並交返認帳。', 'Waiting for friends to set passwords and send their claims.')}
+                                    : bi('等候朋友交返認帳。', 'Waiting for friends to send their claims.')}
                       </p>
                       {inboxNote && claimSession && <p className="mt-2 text-base font-semibold text-brand-800">{bi(`最新交到：${inboxNote}`, `Latest: ${inboxNote}`)}</p>}
                       <Button data-testid="claim-inbox-refresh" variant="outline" className="!w-full mt-3" disabled={!claimSession || inboxPhase === 'receiving' || claimSecurePhase === 'setting-up'} onClick={() => pullClaimsRef.current(true)}>{bi('重新接收', 'Check again')}</Button>
