@@ -12,6 +12,8 @@ R108 在 `node tests/settings-free-models.cjs` 驗證 390px 及 320px 視窗下�
 
 R109 的 `friend-recognition.cjs` 驗證新認帳連結預設 14 日，以及沒有朋友回覆時仍可前進填墊支人再返回。`friend-navigation.cjs` 驗證分享認帳／結果頁使用藍色 accent，而主辦人本機預覽仍保留綠色；其 API 全被 mock，不讀寫正式帳單。
 
+R110 的 `friend-recognition.cjs` 驗證認帳收件箱和回覆欄只在第三步顯示、無回覆時報告按鈕停用且仍可填墊支人／貨幣、有效回覆到達後按鈕啟用並在同頁結算。教學 UI／安全測試的 replies 階段步驟映射亦已改為第三步。
+
 R104 下述八字强制密碼介面測試是歷史規格；R105 新介面以 `friend-recognition.cjs` 為準。姓名未設定碼時只能按姓名識別，不是强身份保護；保留舊密碼驗證、期限、主辦人權限及精確認帳比對測試。
 
 ## R104 姓名＋密碼

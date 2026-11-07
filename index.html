@@ -79,9 +79,9 @@
   </style>
   <link rel="stylesheet" href="./theme.css?v=v86-free-models-only">
   <link rel="stylesheet" href="./tutorial.css?v=v86-free-models-only">
-  <!-- R109: 14-day claim links, optional reply step and a distinct blue friend-link theme. -->
-  <meta name="bill-app-release" content="v109-blue-friend-link-flow">
-  <script defer src="./pwa.js?v=v109-blue-friend-link-flow"></script>
+  <!-- R110: friend replies move to step 3; report generation waits for a reply. -->
+  <meta name="bill-app-release" content="v110-step3-friend-replies">
+  <script defer src="./pwa.js?v=v110-step3-friend-replies"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
@@ -3146,7 +3146,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
         const metadata = getClaimLinkMetadata();
         const link = new URL('./claim.html', window.location.href);
         link.searchParams.set('lang', lang === 'en' ? 'en' : 'zh-HK');
-        link.searchParams.set('v', 'v109-blue-friend-link-flow');
+        link.searchParams.set('v', 'v110-step3-friend-replies');
         link.searchParams.set('session', session.id);
         link.hash = window.ClaimRelay
           ? window.ClaimRelay.buildHash(encodeClaimLinkPayload(payload), room, metadata)
@@ -3595,17 +3595,17 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
         if (step >= 2 && items.length === 0) push(2, 'S3', '請至少新增一個項目', '', { label: '新增', run: () => { setStep(2); addItemAndFocus(); } });
         if (step === 2 && !friendsReplies.trim() && items.length > 0) push(2, 'S4', bi('尚未收到朋友的認帳', 'No friend replies yet'), bi('可以先填墊支人和貨幣，之後再貼回覆', 'Fill in the payer and currency first; replies can be added later.'), { label: bi('下一步', 'Next'), run: goToPayerStep });
 
-        if (step === 2 && claimInfo && claimInfo.issues.length > 0) {
+        if (step === 3 && claimInfo && claimInfo.issues.length > 0) {
             const firstIssue = claimInfo.issues[0];
-            let msg = ''; let subMsg = `在第 ${firstIssue.line} 行`;
-            if (firstIssue.type === 'unknown_id') msg = `有人填了項目「${firstIssue.id}」，單上冇此編號`;
-            else if (firstIssue.type === 'qty_negative') msg = `數量不可為負數`;
-            else if (firstIssue.type === 'no_person') msg = `有數量但未指定姓名`;
-            else msg = `回覆內容存在格式疑問`;
-            push(3, 'C1', msg, subMsg, { label: '查看', run: () => focusReplyLine(firstIssue.line) });
+            let msg = ''; const subMsg = bi(`在第 ${firstIssue.line} 行`, `At line ${firstIssue.line}`);
+            if (firstIssue.type === 'unknown_id') msg = bi(`有人填了項目「${firstIssue.id}」，單上冇此編號`, `Someone claimed item “${firstIssue.id}”, which is not on the bill.`);
+            else if (firstIssue.type === 'qty_negative') msg = bi('數量不可為負數', 'Quantity cannot be negative.');
+            else if (firstIssue.type === 'no_person') msg = bi('有數量但未指定姓名', 'A quantity has no name.');
+            else msg = bi('回覆內容存在格式疑問', 'There is a formatting issue in the reply.');
+            push(3, 'C1', msg, subMsg, { label: bi('查看', 'View'), run: () => focusReplyLine(firstIssue.line) });
         }
 
-        if (step === 2 && claimInfo && items.length > 0) {
+        if (step === 3 && claimInfo && items.length > 0) {
             let unclaimedCount = 0; let unclaimedCost = 0;
             const itemClaimTotals = {};
             items.forEach(item => {
@@ -3613,7 +3613,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                 if(claimInfo.claims) Object.keys(claimInfo.claims).forEach(person => { itemClaimTotals[item.id] += (claimInfo.claims[person][item.id] || 0); });
             });
             items.forEach(item => { if (itemClaimTotals[item.id] <= 0) { unclaimedCount++; unclaimedCost += toNum(item.total); } });
-            if (unclaimedCount > 0) push(3, 'C2', `${unclaimedCount} 項冇人認帳（${formatMoney(unclaimedCost, currency)} 未分攤）`, '請補回認帳，或刪走冇人食嘅項目', { label: '前往', run: () => jumpToStep(2) });
+            if (unclaimedCount > 0) push(3, 'C2', bi(`${unclaimedCount} 項冇人認帳（${formatMoney(unclaimedCost, currency)} 未分攤）`, `${unclaimedCount} items have no claims (${formatMoney(unclaimedCost, currency)} unallocated).`), bi('請補回認帳，或刪走冇人食嘅項目', 'Add claims or remove items nobody had.'), { label: bi('查看認帳', 'View replies'), run: () => focusField('replies') });
         }
 
         if (isAnalyzing) push(4, 'A1', progressText || '已送到免費模型，等候回覆。', '', null);
@@ -3624,11 +3624,15 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
         if (step === 1 && !isAnalyzing && !showSettings && !showTutorial && !showHistory && list.length === 0) {
             push(5, 'G1', '請上傳單據照片，讓 AI 幫你讀取', '或手動建立項目', { label: '手動輸入', run: () => { setShowSettings(false); startManualEntry(); } });
         }
-        if (step === 3 && payer.trim() && items.length > 0) {
+        if (step === 3 && items.length > 0 && (!friendsReplies.trim() || !claimInfo?.people?.length)) {
+            push(2, 'S4', bi('尚未收到可計算的朋友認帳', 'Waiting for a usable friend reply'), bi('可先填墊支人和貨幣；收到並解析至少一份認帳後，才可產生報告。', 'You can fill in the payer and currency first. A parsed reply is required before generating the report.'), { label: bi('查看認帳', 'View replies'), run: () => document.querySelector('[data-testid="claim-followup"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' }) });
+        }
+
+        if (step === 3 && payer.trim() && items.length > 0 && friendsReplies.trim() && claimInfo?.people?.length) {
             const issues = reconciliation?.issues || [];
             if (issues.some(issue => issue.difference < 0)) push(2, 'C3', '認帳數量超過單據總量', '返回修改後再計算', { label: '上一步', run: () => setStep(2) });
             else if (issues.length && !reconciliation.policy) push(3, 'C3', '實際數量未完全核對', '先揀邊個承擔剩餘數量', null);
-            else push(5, 'G3', '可以產生分帳報告', '確認墊支人同收款方式', { label: '產生報告', run: calculateSplit });
+            else push(5, 'G3', bi('可以產生分帳報告', 'Ready to generate the report'), bi('確認墊支人同收款方式', 'Confirm the payer and payment method.'), { label: bi('產生分帳報告', 'Generate report'), run: calculateSplit });
         }
         if (step === 4) push(5, 'G4', '報告已準備好', '可以分享或儲存', { label: '查看', run: () => document.getElementById('report-share-step')?.scrollIntoView({ behavior: 'smooth', block: 'center' }) });
 
@@ -3720,7 +3724,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
         if (['report', 'report-share', 'detail'].includes(tutorialStage)) {
           if (!calculateSplit()) onTutorialAction?.('calculation-error', !payer.trim() ? 'payer' : 'replies');
         } else if (['upload', 'manual'].includes(tutorialStage)) setStep(1);
-        else if (['payer', 'currency', 'payment', 'tax-method', 'calculate'].includes(tutorialStage)) setStep(3);
+        else if (['replies', 'payer', 'currency', 'payment', 'tax-method', 'calculate'].includes(tutorialStage)) setStep(3);
         else setStep(2);
       }, [tutorialDemo, tutorialStage]);
 
@@ -3774,7 +3778,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
               <div className="flex items-center gap-2 sm:gap-3 shrink-0">
                 <img src="./icons/icon.svg" alt="" width="48" height="48" className="app-brand-icon shrink-0" />
                 <div>
-                  <h1 className="text-xl font-extrabold text-slate-800 tracking-tight"><span className="app-brand-name block sm:inline whitespace-nowrap">{tr("分帳管家")}</span><span className="inline-flex items-baseline gap-1 sm:ml-1 whitespace-nowrap"><span data-testid="app-pro-label" className="text-brand-600 font-black">Pro</span><span data-testid="app-version-label" className="text-[10px] leading-3 font-semibold tracking-normal text-brand-700">V1.0.1 · R109</span></span></h1>
+                  <h1 className="text-xl font-extrabold text-slate-800 tracking-tight"><span className="app-brand-name block sm:inline whitespace-nowrap">{tr("分帳管家")}</span><span className="inline-flex items-baseline gap-1 sm:ml-1 whitespace-nowrap"><span data-testid="app-pro-label" className="text-brand-600 font-black">Pro</span><span data-testid="app-version-label" className="text-[10px] leading-3 font-semibold tracking-normal text-brand-700">V1.0.1 · R110</span></span></h1>
                 </div>
               </div>
               <div className="header-actions relative flex items-center gap-1.5 sm:gap-2">
@@ -4262,47 +4266,6 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                     </dialog>
                     )}
                   </div>
-
-                  <div
-                    ref={claimFollowupRef}
-                    data-testid="claim-followup"
-                    data-claim-shared={claimLinkShared ? 'true' : 'false'}
-                    data-claim-returned={claimFollowupOpen ? 'true' : 'false'}
-                    className={claimFollowupOpen ? 'space-y-6' : 'claim-await-share space-y-6'}
-                    aria-disabled={claimFollowupOpen ? undefined : true}
-                    {...(claimFollowupOpen ? {} : { inert: '' })}
-                  >
-                    <Card data-testid="claim-inbox" className="!p-4 mb-4 border-brand-600">
-                      <h3 className="text-lg font-extrabold text-slate-800">{bi('認帳回覆', 'Share replies')}</h3>
-                      <p data-testid="claim-inbox-status" className="mt-3 text-base font-bold leading-relaxed text-slate-800" role="status">
-                        {!tutorialDemo && claimRoom && !claimSession
-                          ? bi('舊公開自動接收已停用。請建立新的受保護連結，或手動貼回覆。', 'Old public receiving is disabled. Create a protected link, or paste replies manually.')
-                          : !tutorialDemo && claimSecureError
-                            ? claimSecureError
-                            : !tutorialDemo && claimSecurePhase === 'setting-up'
-                              ? bi('正在準備認帳接收…', 'Preparing claim receiving…')
-                              : claimSession && inboxPhase === 'receiving'
-                                ? bi('正在接收認帳…', 'Receiving claims…')
-                                : claimFollowupOpen && inboxPeople.length >= 1
-                                  ? bi(`現有認帳 ${inboxPeople.length} 位：${inboxPeople.join('、')}`, `Current claims ${inboxPeople.length}: ${inboxPeople.join(', ')}`)
-                                  : tutorialDemo
-                                    ? bi('先複製或分享上面的連結。', 'Copy or share the link above first.')
-                                    : bi('等候朋友交返認帳。', 'Waiting for friends to send their claims.')}
-                      </p>
-                      {inboxNote && claimSession && <p className="mt-2 text-base font-semibold text-brand-800">{bi(`最新交到：${inboxNote}`, `Latest: ${inboxNote}`)}</p>}
-                      <Button data-testid="claim-inbox-refresh" variant="outline" className="!w-full mt-3" disabled={!claimSession || inboxPhase === 'receiving' || claimSecurePhase === 'setting-up'} onClick={() => pullClaimsRef.current(true)}>{bi('重新接收', 'Check again')}</Button>
-                    </Card>
-                    <Label className="flex items-center justify-between mb-3">
-                      <span>{tr("2. 朋友交返的認帳")}</span>
-                      <span className="text-sm font-normal text-slate-600">{bi('可稍後填', 'Optional')}</span>
-                    </Label>
-                    <textarea
-                      data-testid="claim-replies"
-                      ref={el => fieldRefs.current.replies = el} value={friendsReplies} onChange={(e) => {setFriendsReplies(e.target.value); setReconciliation(null); setStepError('');}} onPaste={handlePasteReplies} onFocus={onFocusReplies} onBlur={onBlurReplies}
-                      placeholder={bi('朋友回覆會顯示於此；亦可貼上 WhatsApp 後備。', 'Friend replies appear here. You can also paste a WhatsApp backup.')}
-                      className="w-full h-48 bg-white border border-slate-500 rounded-xl p-4 text-base font-mono text-slate-700 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none resize-y shadow-inner leading-relaxed">
-                    </textarea>
-                  </div>
                     <div className="flex gap-3 pt-2">
                       <Button variant="secondary" className="w-1/3 !px-2 border-slate-500" onClick={() => { setStepError(''); setStep(1); }}>{tr("上一步")}</Button>
                       <Button data-testid="go-to-payer" variant="primary" className="w-2/3" onClick={goToPayerStep}>{bi('下一步', 'Next')}<Icon path={icons.arrowRight} size={18}/></Button>
@@ -4318,6 +4281,47 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                 <div className="page-section-heading flex items-center gap-2 mb-2">
                   <span className="w-8 h-8 rounded-full bg-brand-100 border border-brand-500 text-brand-700 flex items-center justify-center font-bold">3</span>
                   <h2 className="text-2xl font-bold text-slate-800 tracking-tight">{tr("結算細節設定")}</h2>
+                </div>
+
+                <div
+                  ref={claimFollowupRef}
+                  data-testid="claim-followup"
+                  data-claim-shared={claimLinkShared ? 'true' : 'false'}
+                  data-claim-returned={claimFollowupOpen ? 'true' : 'false'}
+                  className={claimFollowupOpen ? 'space-y-6' : 'claim-await-share space-y-6'}
+                  aria-disabled={claimFollowupOpen ? undefined : true}
+                  {...(claimFollowupOpen ? {} : { inert: '' })}
+                >
+                  <Card data-testid="claim-inbox" className="!p-4 mb-4 border-brand-600">
+                    <h3 className="text-lg font-extrabold text-slate-800">{bi('認帳回覆', 'Share replies')}</h3>
+                    <p data-testid="claim-inbox-status" className="mt-3 text-base font-bold leading-relaxed text-slate-800" role="status">
+                      {!tutorialDemo && claimRoom && !claimSession
+                        ? bi('舊公開自動接收已停用。請建立新的受保護連結，或手動貼回覆。', 'Old public receiving is disabled. Create a protected link, or paste replies manually.')
+                        : !tutorialDemo && claimSecureError
+                          ? claimSecureError
+                          : !tutorialDemo && claimSecurePhase === 'setting-up'
+                            ? bi('正在準備認帳接收…', 'Preparing claim receiving…')
+                            : claimSession && inboxPhase === 'receiving'
+                              ? bi('正在接收認帳…', 'Receiving claims…')
+                              : claimFollowupOpen && inboxPeople.length >= 1
+                                ? bi(`現有認帳 ${inboxPeople.length} 位：${inboxPeople.join('、')}`, `Current claims ${inboxPeople.length}: ${inboxPeople.join(', ')}`)
+                                : tutorialDemo
+                                  ? bi('先複製或分享上面的連結。', 'Copy or share the link above first.')
+                                  : bi('等候朋友交返認帳。', 'Waiting for friends to send their claims.')}
+                    </p>
+                    {inboxNote && claimSession && <p className="mt-2 text-base font-semibold text-brand-800">{bi(`最新交到：${inboxNote}`, `Latest: ${inboxNote}`)}</p>}
+                    <Button data-testid="claim-inbox-refresh" variant="outline" className="!w-full mt-3" disabled={!claimSession || inboxPhase === 'receiving' || claimSecurePhase === 'setting-up'} onClick={() => pullClaimsRef.current(true)}>{bi('重新接收', 'Check again')}</Button>
+                  </Card>
+                  <Label className="flex items-center justify-between mb-3">
+                    <span>{bi('朋友交返的認帳', 'Friends’ claims')}</span>
+                    <span className="text-sm font-normal text-slate-600">{bi('可稍後填', 'Optional')}</span>
+                  </Label>
+                  <textarea
+                    data-testid="claim-replies"
+                    ref={el => fieldRefs.current.replies = el} value={friendsReplies} onChange={(e) => {setFriendsReplies(e.target.value); setReconciliation(null); setStepError('');}} onPaste={handlePasteReplies} onFocus={onFocusReplies} onBlur={onBlurReplies}
+                    placeholder={bi('朋友回覆會顯示於此；亦可貼上 WhatsApp 後備。', 'Friend replies appear here. You can also paste a WhatsApp backup.')}
+                    className="w-full h-48 bg-white border border-slate-500 rounded-xl p-4 text-base font-mono text-slate-700 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none resize-y shadow-inner leading-relaxed">
+                  </textarea>
                 </div>
 
                 {stepError && <div role="alert" data-testid="step-error" className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm font-semibold text-amber-900">{stepError}</div>}
@@ -4337,7 +4341,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                       ))}
                     </div>
                     {reconciliation.issues.some(issue => issue.difference < 0) ? (
-                      <Button variant="secondary" className="w-full border-red-500 text-red-700" onClick={() => { setReconciliation(null); setStep(2); }}>{tr("返回修改認帳數量")}</Button>
+                      <Button variant="secondary" className="w-full border-red-500 text-red-700" onClick={() => { setReconciliation(null); focusField('replies'); }}>{bi('修改認帳數量', 'Edit claimed quantities')}</Button>
                     ) : (
                       <div>
                         <Label required={!reconciliation.policy} className="text-base">{tr("剩餘數量由誰承擔？")} <span className="text-xs font-normal">{bi('（擇一）', '(choose one)')}</span></Label>
@@ -4349,7 +4353,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                             </label>
                           ))}
                         </div>
-                        <p className="text-xs text-amber-800 mt-2">{tr("你亦可以按「上一步」返回認帳表，補返未認帳數量。")}</p>
+                        <p className="text-xs text-amber-800 mt-2">{bi('可直接在上方朋友認帳欄補回未認帳數量。', 'Add the missing claims in the friend replies field above.')}</p>
                       </div>
                     )}
                   </Card>
@@ -4437,7 +4441,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
 
                 <div className="flex gap-3 pt-2">
                   <Button variant="secondary" className="w-1/3 !px-2 border-slate-500" onClick={() => setStep(2)}>{tr("上一步")}</Button>
-                  <Button data-testid="calculate-split" variant="primary" className="w-2/3" onClick={() => { const calculated = calculateSplit(); if (tutorialDemo) onTutorialAction?.(calculated ? 'calculated' : 'calculation-error', !payer.trim() ? 'payer' : 'replies'); }}>{tr("產生分帳報告 ")}<Icon path={icons.check} size={18}/></Button>
+                  <Button data-testid="calculate-split" variant="primary" className="w-2/3" disabled={!friendsReplies.trim() || !claimInfo?.people?.length} onClick={() => { const calculated = calculateSplit(); if (tutorialDemo) onTutorialAction?.(calculated ? 'calculated' : 'calculation-error', !payer.trim() ? 'payer' : 'replies'); }}>{tr("產生分帳報告 ")}<Icon path={icons.check} size={18}/></Button>
                 </div>
               </div>
             )}

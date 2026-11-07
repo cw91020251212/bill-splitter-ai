@@ -182,8 +182,15 @@ async function hostFixture() {
   assert.equal(await host.getByTestId('claim-expiry-days').inputValue(), '14', 'new activities default claim links to 14 days');
   await host.getByTestId('go-to-payer').click();
   await until(async () => await host.getByPlaceholder('輸入姓名', { exact: true }).isVisible(), 'can advance to payer before friends reply');
+  assert.equal(await host.getByTestId('claim-inbox').isVisible(), true, 'friend inbox is available on step 3');
+  assert.equal(await host.getByTestId('claim-replies').isVisible(), true, 'reply text area is available on step 3');
+  assert.equal(await host.getByTestId('calculate-split').isDisabled(), true, 'report remains disabled before any friend reply');
+  await host.getByPlaceholder('輸入姓名', { exact: true }).fill('QA墊支人');
+  assert.equal(await host.getByTestId('receipt-currency-control').isVisible(), true, 'organizer can fill currency before replies');
   await host.locator('.step-nav').getByRole('button', { name: '各自認帳' }).click();
   await until(async () => await host.getByTestId('claim-expiry-days').isVisible(), 'can return to replies after advancing');
+  assert.equal(await host.getByTestId('claim-inbox').count(), 0, 'inbox is no longer duplicated on step 2');
+  assert.equal(await host.getByTestId('claim-replies').count(), 0, 'reply text area is no longer duplicated on step 2');
   await host.getByTestId('claim-activity-name').fill('QA識別碼驗收'); await host.getByTestId('claim-expiry-days').selectOption('1'); const before = harness.requests.length;
   await host.getByTestId('claim-link-actions').getByRole('button', { name: '複製認帳連結', exact: true }).click(); await host.waitForFunction(() => Boolean(document.querySelector('[data-testid="claim-link-actions"]')?.dataset.claimLink));
   const link = await host.getByTestId('claim-link-actions').evaluate(n => n.dataset.claimLink), c = remember(harness.requests.slice(before).find(r => r.path === '/api/shares/sessions' && r.status === 201)?.output);
@@ -193,11 +200,12 @@ async function hostSettle(fixture, qty, initial = false, names = [A, B]) {
   const { host, c } = fixture;
   if (!host) return publish(c, [payload(A, qty), payload(B)]);
   await host.bringToFront(); await host.evaluate(() => window.dispatchEvent(new Event('focus')));
-  const nav = host.locator('.step-nav').getByRole('button', { name: '各自認帳' });
+  const nav = host.locator('.step-nav').getByRole('button', { name: '分帳運算' });
   await until(async () => { const refresh = host.getByTestId('claim-inbox-refresh'); if (!await refresh.count()) { if (await nav.count()) await nav.click(); return false; } if (!await refresh.isEnabled()) return false; await refresh.click(); return true; }, 'owner refresh current inbox');
   await until(async () => { const replies = host.getByTestId('claim-replies'); if (!await replies.count()) { if (await nav.count()) await nav.click(); return false; } const text = await replies.inputValue(); return names.every(name => text.includes(`姓名：${name}`)) && Number(text.split(`姓名：${A}`)[1]?.match(/認帳份數\s*=\s*([\d.]+)/)?.[1]) === qty; }, 'host sees one exact current revision');
   const text = await host.getByTestId('claim-replies').inputValue(); assert.equal(text.split(`姓名：${A}`).length - 1, 1); secretFree(text);
-  await host.getByTestId('go-to-payer').click(); const payer = host.getByPlaceholder('輸入姓名', { exact: true }); if (await payer.inputValue() !== A) await payer.fill(A);
+  await until(async () => await host.getByTestId('calculate-split').isEnabled(), 'friend replies enable report generation');
+  const payer = host.getByPlaceholder('輸入姓名', { exact: true }); if (await payer.inputValue() !== A) await payer.fill(A);
   const before = harness.requests.length;
   await host.getByTestId('calculate-split').click();
   // The organizer explicitly recalculates; the application then publishes the

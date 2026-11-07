@@ -304,8 +304,8 @@ async function hostCreate() {
   return { host, link, created };
 }
 async function hostPull(host, names) {
-  // The same Step 2 button can be temporarily unmounted after invalidation.
-  const nav = host.locator('.step-nav').getByRole('button', { name: '各自認帳' });
+  // The Step 3 inbox can be temporarily unmounted while the app invalidates a result.
+  const nav = host.locator('.step-nav').getByRole('button', { name: '分帳運算' });
   await host.bringToFront();
   await host.evaluate(() => window.dispatchEvent(new Event('focus')));
   await until(async () => {
@@ -326,7 +326,8 @@ async function hostPull(host, names) {
   return text;
 }
 async function hostCalculate(host, created, expectedQty) {
-  await host.getByTestId('go-to-payer').click();
+  const calcNav = host.locator('.step-nav').getByRole('button', { name: '分帳運算' });
+  if (await calcNav.count()) await calcNav.click();
   const payer = host.getByPlaceholder('輸入姓名', { exact: true });
   if (await payer.inputValue() !== NAME_A) await payer.fill(NAME_A);
   const before = harness.requests.length;
