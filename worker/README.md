@@ -1,8 +1,18 @@
 # Temporary bill-share Worker
 
-This Worker is deployed at `https://bill-splitter-share.cw9102025.workers.dev` and stores only normalized bill fields and up to five receipt images in the dedicated private Cloudflare Workers KV namespace. Ordinary result shares retain the seven-day default TTL. Claim sessions accept the app's 1, 3, 7, or 14 day choices and use the same KV record from the initial pending state through the final result. API responses are `no-store`, the share routes are marked `noindex`, and there is no list endpoint or public object bucket. A friend URL is a bearer link: anyone who receives it can submit a claim or view the shared result until it expires.
+This Worker is deployed at `https://bill-splitter-share.cw9102025.workers.dev`. Normalized results and up to five receipt images remain in the original private Workers KV namespace. Ordinary result shares retain the seven-day default TTL. Claim sessions accept 1, 3, 7, or 14 days and use the same result key from pending through ready. Anyone with the friend link can read the result, but R104 requires each person's name and password before changing their claims. API responses are `no-store`, share routes `noindex`, and there is no public bucket or unauthenticated private-claim list endpoint.
 
 The production configuration in `wrangler.toml` binds `BILL_SHARES` to the namespace and limits CORS to `https://cw91020251212.github.io`. The front-end API origin is set in the repository-root `share-config.js`.
+
+## R104 authentication deployment
+
+Deploy all three modules in `src/`, retain the existing KV and variables, add the `CLAIM_AUTH` binding to the exported `ClaimAuth` SQLite Durable Object, and apply migration `v1-claim-auth`. `CLAIM_PASSWORD_PEPPER` is a private Worker secret generated at deployment, not a value committed to this repository. Do not rotate it without a password migration; existing password hashes depend on it. The original account/URLs and billing plan are unchanged. SQLite Durable Objects support Workers Free within its quotas.
+
+Each activity stores serialized name registration and latest verified claims privately in one Durable Object. Passwords are pepper-prehashed with HMAC-SHA256 and salted PBKDF2-SHA256 (100,000 Workers-supported iterations). Edit tickets last at most 15 minutes; organizer confirmation codes at most 10 minutes and one use. Hashes only are stored. Wrong password/code attempts are rate-limited. Expiry is enforced server-side and an alarm deletes authentication data. Public result routes never return passwords, hashes, salts, tickets or confirmation codes.
+
+`/api/shares/{id}/claims/{status,unlock,submit}` provides public status and verified own-name operations. `setup`, `inbox` and `approve` require the existing organizer bearer token. Legacy activities require organizer setup; all unregistered legacy names require a private organizer confirmation code. Existing claims stay intact. The updated main app receives only verified private inbox updates, not ntfy. Protected result PUTs reject stale or unverified claim quantities. The old result-only API remains compatible.
+
+Run `node --test worker/claim-auth.test.mjs worker/worker-core.test.mjs` from the repository root. Local Wrangler also needs a local-only pepper in a private `worker/.dev.vars` file; never copy the production pepper into browser code or source control.
 
 ## Local development
 

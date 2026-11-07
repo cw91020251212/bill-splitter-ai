@@ -79,18 +79,19 @@
   </style>
   <link rel="stylesheet" href="./theme.css?v=v86-free-models-only">
   <link rel="stylesheet" href="./tutorial.css?v=v86-free-models-only">
-  <meta name="bill-app-release" content="v103-edit-friend-claims">
-  <script defer src="./pwa.js?v=v103-edit-friend-claims"></script>
+  <!-- R104: password-bound claims; organizer receives verified owner inbox only. -->
+  <meta name="bill-app-release" content="v104-claim-password">
+  <script defer src="./pwa.js?v=v104-claim-password"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
 
   <script src="./i18n.js"></script>
-  <script src="./claim-relay.js?v=v103-edit-friend-claims"></script>
+  <script src="./claim-relay.js?v=v104-claim-password"></script>
   <script src="./ocr-cascade.js"></script>
   <script src="./receipt-adjustments.js"></script>
   <script src="./share-config.js"></script>
-  <script src="./bill-share-api.js?v=v101-visible-single-link"></script>
+  <script src="./bill-share-api.js?v=v104-claim-password"></script>
   <script src="./card-redaction.js?v=v97-card-number-redaction"></script>
   <script src="./card-share-review.js?v=v97-card-number-redaction"></script>
   <script src="./exchange-rates.js?v=v90-cross-currency-settlement"></script>
@@ -594,6 +595,7 @@
 
       lines.forEach((line, index) => {
         const lineNo = index + 1;
+        const exactName = String(line).trim().match(/(?:👤(?:\s*Name)?|姓名|Name)\s*[:：=＝]\s*(.*)$/i)?.[1];
         let cleanLine = line.replace(/\u3000/g, ' ').replace(/[\u200B-\u200D\uFEFF]/g, '').trim();
         cleanLine = cleanLine.replace(/[\uff01-\uff5e]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xfee0));
 
@@ -602,7 +604,7 @@
         if (cleanLine.includes('👤') || cleanLine.includes('姓名') || /^Name\s*[:=]/i.test(cleanLine)) {
           const nameMatch = cleanLine.split(/[:=]/);
           if (nameMatch.length > 1) {
-            currentPerson = nameMatch[1].trim();
+            currentPerson = String(exactName ?? nameMatch[1]).normalize('NFC').replace(/\s+/g, ' ').trim();
             lastSeenId = null;
             if (currentPerson) {
               if (people.includes(currentPerson)) {
@@ -978,6 +980,8 @@
       const [taxNote, setTaxNote] = useState('');
       const [receiptAdjustmentDetails, setReceiptAdjustmentDetails] = useState(null);
       const [friendsReplies, setFriendsReplies] = useState(tutorialDemo ? TUTORIAL_REPLIES : '');
+      const friendsRepliesRef = useRef(friendsReplies);
+      friendsRepliesRef.current = friendsReplies;
 
       const [isAnalyzing, setIsAnalyzing] = useState(false);
       const [progress, setProgress] = useState(0);
@@ -1132,6 +1136,17 @@
       const [claimLinkMeta, setClaimLinkMeta] = useState(null);
       const [claimSession, setClaimSession] = useState(null);
       const [claimInboxSeen, setClaimInboxSeen] = useState([]);
+      const [claimSecureCursor, setClaimSecureCursor] = useState(0);
+      const claimSecureCursorRef = useRef(0);
+      const claimSecureSetupRef = useRef(null);
+      const [claimSecureMembers, setClaimSecureMembers] = useState([]);
+      const [claimSecurePhase, setClaimSecurePhase] = useState('idle');
+      const [claimSecureError, setClaimSecureError] = useState('');
+      const [claimApprovalName, setClaimApprovalName] = useState('');
+      const [claimApprovalPhase, setClaimApprovalPhase] = useState('idle');
+      const [claimApprovalError, setClaimApprovalError] = useState('');
+      const [claimApprovalCode, setClaimApprovalCode] = useState(null);
+      const claimApprovalRequestRef = useRef(null);
       const [inboxPhase, setInboxPhase] = useState('idle');
       const [inboxNote, setInboxNote] = useState('');
       const claimRoomRef = useRef(null);
@@ -1209,7 +1224,7 @@
         assetRevision: draftAssets.revision, hasAssets: hasDraftAssets || draftAssets.unavailable,
         data: { step, items, taxAmount, discountAmount, taxNote, receiptAdjustmentDetails, friendsReplies, payer, detectedCurrency, currency,
           taxSplitMethod, paymentMethods, results, reconciliation, isSaved,
-          claimRoom, claimActivityName, claimExpiryDays, claimLinkMeta, claimSession, claimInboxSeen, readReceipt, lastRecognitionModel, claimLinkShared: claimLinkSharedRef.current }
+          claimRoom, claimActivityName, claimExpiryDays, claimLinkMeta, claimSession, claimInboxSeen, claimSecureCursor, readReceipt, lastRecognitionModel, claimLinkShared: claimLinkSharedRef.current }
       };
       const persistActiveDraft = () => {
         if (tutorialDemo) return true;
@@ -1298,10 +1313,14 @@
             const restoredSession = data.claimSession && /^[A-Za-z0-9_-]{22}$/.test(data.claimSession.id || '')
               && /^[A-Za-z0-9_-]{43}$/.test(data.claimSession.writeToken || '')
               && Number(data.claimSession.expiresAt) > Date.now()
-              ? { id: data.claimSession.id, writeToken: data.claimSession.writeToken, expiresAt: Number(data.claimSession.expiresAt), ttlDays: ['1', '3', '7', '14'].includes(String(data.claimSession.ttlDays)) ? String(data.claimSession.ttlDays) : restoredExpiryDays, link: typeof data.claimSession.link === 'string' ? data.claimSession.link : '' }
+              ? { id: data.claimSession.id, writeToken: data.claimSession.writeToken, expiresAt: Number(data.claimSession.expiresAt), ttlDays: ['1', '3', '7', '14'].includes(String(data.claimSession.ttlDays)) ? String(data.claimSession.ttlDays) : restoredExpiryDays, link: typeof data.claimSession.link === 'string' ? data.claimSession.link : '', ...(data.claimSession.claimSecurity === 'password' ? { claimSecurity: 'password' } : {}) }
               : null;
             claimSessionRef.current = restoredSession;
             setClaimSession(restoredSession);
+            const restoredCursor = restoredSession && Number.isSafeInteger(data.claimSecureCursor) && data.claimSecureCursor >= 0 ? data.claimSecureCursor : 0;
+            claimSecureCursorRef.current = restoredCursor;
+            setClaimSecureCursor(restoredCursor);
+            claimSecureSetupRef.current = null;
             const restoredShared = data.claimLinkShared === true
               || (typeof data.claimLinkShared !== 'boolean' && (Boolean(restoredRoom) || String(data.friendsReplies || '').trim().length > 0));
             claimLinkSharedRef.current = restoredShared;
@@ -1344,7 +1363,7 @@
         if (tutorialDemo || !draftReady) return;
         persistActiveDraft();
       }, [draftReady, step, items, readReceipt, taxAmount, discountAmount, taxNote, receiptAdjustmentDetails, friendsReplies, payer, detectedCurrency, currency,
-        taxSplitMethod, paymentMethods, results, reconciliation, isSaved, draftAssets, claimRoom, claimActivityName, claimExpiryDays, claimLinkMeta, claimSession, claimInboxSeen, claimLinkShared, lastRecognitionModel]);
+        taxSplitMethod, paymentMethods, results, reconciliation, isSaved, draftAssets, claimRoom, claimActivityName, claimExpiryDays, claimLinkMeta, claimSession, claimInboxSeen, claimSecureCursor, claimLinkShared, lastRecognitionModel]);
 
       useEffect(() => {
         if (tutorialDemo || !draftReady) return;
@@ -1360,32 +1379,123 @@
         };
       }, [draftReady]);
 
+      const describeSecureClaimFailure = error => {
+        if (error?.code === 'pending' || error?.code === 'protection_pending' || error?.status === 202) return bi('密碼保護仍在準備；暫停自動接收，請稍後重試。', 'Password protection is still being prepared. Automatic receiving is paused; retry shortly.');
+        if (error?.status === 401 || error?.status === 403 || error?.code === 'invalid_owner_token') return bi('管理憑證未能驗證。請用建立此連結的原裝置；未驗證的回覆不會接收。', 'The organizer credential could not be verified. Use the device that created this link; unverified replies will not be received.');
+        if (error?.status === 410 || error?.code === 'expired') return bi('此認帳連結已到期，請建立新的受保護連結。', 'This claim link has expired. Create a new protected link.');
+        if (error?.status === 429 || error?.code === 'rate_limited') return bi(`要求太頻密，請${error.retryAfter ? `於 ${error.retryAfter} 秒後` : '稍後'}重試；暫停接收。`, `Too many requests. Retry ${error.retryAfter ? `in ${error.retryAfter} seconds` : 'shortly'}; receiving is paused.`);
+        if (error?.code === 'offline' || !navigator.onLine) return bi('未能連接密碼保護服務；暫停自動接收，連線後重試。不會改用未驗證的回覆。', 'Cannot connect to the password protection service. Receiving is paused; retry when online. Unverified replies will not be used.');
+        return bi('密碼保護服務未能完成要求；暫停自動接收，請重試。不會改用舊公開接收方式。', 'The password protection service could not complete the request. Receiving is paused; retry. The old public relay will not be used.');
+      };
+
+      const seedProtectedClaimMembers = () => {
+        const data = draftSnapshotRef.current?.data;
+        const seedItems = itemsRef.current.length ? itemsRef.current : (data?.items || []);
+        const seedReplies = friendsRepliesRef.current || data?.friendsReplies || '';
+        const parsed = parseClaims(seedReplies, seedItems);
+        const byId = new Map(seedItems.map(item => [String(item.id), item]));
+        const cleanUnit = value => String(value || '').replace(/[\r\n=＝]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 30);
+        return parsed.people.map(name => {
+          const claims = Object.entries(parsed.claims[name] || {}).filter(([id, qty]) => /^\d{2}$/.test(id) && byId.has(id) && Number.isFinite(qty) && qty > 0 && qty <= 1000000)
+            .map(([id, qty]) => {
+              // Actual quantities retain unit; share weights retain displayUnit only.
+              const unit = cleanUnit(parsed.claimUnits[name]?.[id]);
+              return { id, qty, unit, displayUnit: unit ? '' : cleanUnit(byId.get(id)?.unit) };
+            });
+          return window.ClaimRelay.sanitizePayload({ v: 1, name, claims, ...(claims.length ? {} : { clear: true }) });
+        }).filter(Boolean);
+      };
+
+      const ensureSecureClaimSetup = async (session = claimSessionRef.current) => {
+        if (!session || !window.BillShareApi?.setupClaimProtection || !window.BillShareApi?.getClaimInbox || !window.ClaimRelay?.sanitizePayload || !window.ClaimRelay?.applyClaimUpdates) {
+          throw Object.assign(new Error('secure-claims-unavailable'), { code: 'protection_pending' });
+        }
+        const generation = inboxGenerationRef.current;
+        const isCurrent = () => generation === inboxGenerationRef.current && claimSessionRef.current?.id === session.id && claimSessionRef.current?.writeToken === session.writeToken;
+        if (!isCurrent()) throw Object.assign(new Error('Aborted'), { name: 'AbortError' });
+        let entry = claimSecureSetupRef.current;
+        if (!entry || entry.id !== session.id || entry.writeToken !== session.writeToken || entry.generation !== generation) {
+          entry = { id: session.id, writeToken: session.writeToken, generation, ready: false, promise: null };
+          claimSecureSetupRef.current = entry;
+        }
+        if (entry.ready) return;
+        if (entry.promise) return entry.promise;
+        setClaimSecurePhase('setting-up');
+        setClaimSecureError('');
+        entry.promise = (async () => {
+          try {
+            const result = await window.BillShareApi.setupClaimProtection(session.id, session.writeToken, seedProtectedClaimMembers());
+            if (!isCurrent() || claimSecureSetupRef.current !== entry) throw Object.assign(new Error('Aborted'), { name: 'AbortError' });
+            if (result.enabled !== true || result.claimSecurity !== 'password' || !Array.isArray(result.members)) {
+              throw Object.assign(new Error('protection-not-ready'), { code: 'protection_pending' });
+            }
+            entry.ready = true;
+            setClaimSecureMembers(result.members);
+            setClaimSecurePhase('ready');
+            setClaimSecureError('');
+            const protectedSession = { ...claimSessionRef.current, claimSecurity: 'password' };
+            claimSessionRef.current = protectedSession;
+            setClaimSession(protectedSession);
+            if (draftSnapshotRef.current?.data) draftSnapshotRef.current.data = { ...draftSnapshotRef.current.data, claimSession: protectedSession };
+            persistActiveDraft();
+            // Never adopt setup.cursor: verified changes since the saved cursor
+            // must still be read, including changes made while this tab was closed.
+          } catch (error) {
+            if (isCurrent() && claimSecureSetupRef.current === entry && error?.name !== 'AbortError') {
+              setClaimSecurePhase('error');
+              setClaimSecureError(describeSecureClaimFailure(error));
+            }
+            throw error;
+          } finally { entry.promise = null; }
+        })();
+        return entry.promise;
+      };
+
       useEffect(() => {
-        if (tutorialDemo || tutorialSuspended || !draftReady || !claimRoom || !window.ClaimRelay?.isRoom(claimRoom)) return undefined;
+        if (tutorialDemo || tutorialSuspended || !draftReady) return undefined;
+        if (!claimSession) {
+          pullClaimsRef.current = async () => {};
+          if (claimRoom) {
+            setInboxPhase('unprotected');
+            setClaimSecurePhase('unprotected');
+          }
+          return undefined;
+        }
+        const session = claimSession;
+        const generation = inboxGenerationRef.current;
         let stopped = false;
         let timer = 0;
+        const isCurrent = () => !stopped && generation === inboxGenerationRef.current && claimSessionRef.current?.id === session.id && claimSessionRef.current?.writeToken === session.writeToken;
         const pull = async (manual) => {
-          const room = claimRoomRef.current;
-          if (stopped || !room || !window.ClaimRelay?.isRoom(room)) return;
-          if (pullLockRef.current) return;
-          if (!navigator.onLine) { setInboxPhase('offline'); return; }
-          pullLockRef.current = true;
-          const generation = inboxGenerationRef.current;
+          if (!isCurrent() || pullLockRef.current) return;
+          if (!navigator.onLine) { setInboxPhase('offline'); setClaimSecureError(describeSecureClaimFailure({ code: 'offline' })); return; }
+          const lock = { id: session.id, generation };
+          pullLockRef.current = lock;
           if (manual) setInboxPhase('receiving');
           try {
-            const messages = await window.ClaimRelay.pullMessages(room.topic);
-            if (stopped || generation !== inboxGenerationRef.current) return;
-            const previousSeen = claimInboxSeenRef.current;
-            const result = await window.ClaimRelay.claimsFromMessages(messages, room, previousSeen);
-            if (stopped || generation !== inboxGenerationRef.current) return;
-            const seenChanged = result.seenIds.length !== previousSeen.length || result.seenIds.some((id, index) => id !== previousSeen[index]);
-            claimInboxSeenRef.current = result.seenIds;
-            if (seenChanged) setClaimInboxSeen(result.seenIds);
-            if (result.updates.length) {
-              setFriendsReplies(current => window.ClaimRelay.applyClaimUpdates(current, result.updates, itemsRef.current));
+            await ensureSecureClaimSetup(session);
+            if (!isCurrent()) return;
+            const previousCursor = claimSecureCursorRef.current;
+            const result = await window.BillShareApi.getClaimInbox(session.id, session.writeToken, previousCursor);
+            if (!isCurrent()) return;
+            if (result.enabled !== true || !Array.isArray(result.updates) || !Array.isArray(result.members) || !Number.isSafeInteger(result.cursor) || result.cursor < previousCursor) {
+              throw Object.assign(new Error('invalid-secure-inbox'), { code: 'protection_pending' });
+            }
+            const updates = result.updates.map(update => {
+              const clean = window.ClaimRelay.sanitizePayload(update);
+              if (!clean || !Number.isSafeInteger(update.revision) || update.revision <= previousCursor || update.revision > result.cursor) throw new Error('invalid-secure-update');
+              return { ...clean, revision: update.revision };
+            });
+            let nextReplies = friendsRepliesRef.current;
+            const invalidateResults = updates.length > 0 && Boolean(draftSnapshotRef.current?.data?.results);
+            if (updates.length) {
+              // ClaimRelay is used for formatting/merge only, never for transport.
+              nextReplies = window.ClaimRelay.applyClaimUpdates(nextReplies, updates, itemsRef.current);
+              friendsRepliesRef.current = nextReplies;
+              setFriendsReplies(nextReplies);
               setReconciliation(null);
               setStepError('');
-              if (draftSnapshotRef.current?.data?.results) {
+              if (invalidateResults) {
                 setResults(null);
                 setIsSaved(false);
                 setFriendShareInfo(null);
@@ -1394,16 +1504,29 @@
                 setStep(3);
                 setStepError(bi('認帳已更新，請重新產生分帳報告；朋友正在等候新結果。', 'Items were updated. Please recalculate; friends are waiting for the new result.'));
               }
-              const names = result.updates.map(update => update.name).filter((name, index, all) => all.indexOf(name) === index);
+              const names = updates.map(update => update.name).filter((name, index, all) => all.indexOf(name) === index);
               setInboxNote(names.join('、'));
               toast(bi(`${names.join('、')} 已交返認帳`, `${names.join(', ')} sent their share`));
             }
+            claimSecureCursorRef.current = result.cursor;
+            setClaimSecureCursor(result.cursor);
+            setClaimSecureMembers(result.members);
+            // Persist the merged reply AND its cursor atomically before pagehide.
+            if (draftSnapshotRef.current?.data) draftSnapshotRef.current.data = { ...draftSnapshotRef.current.data,
+              friendsReplies: nextReplies, claimSecureCursor: result.cursor,
+              ...(updates.length ? { reconciliation: null } : {}),
+              ...(invalidateResults ? { results: null, isSaved: false, step: 3 } : {}) };
+            persistActiveDraft();
+            setClaimSecurePhase('ready');
+            setClaimSecureError('');
             setInboxPhase('live');
-          } catch (_) {
-            if (!stopped && generation === inboxGenerationRef.current) setInboxPhase(navigator.onLine ? 'error' : 'offline');
-          } finally {
-            pullLockRef.current = false;
-          }
+          } catch (error) {
+            if (isCurrent() && error?.name !== 'AbortError') {
+              setInboxPhase(navigator.onLine ? 'error' : 'offline');
+              setClaimSecurePhase('error');
+              setClaimSecureError(describeSecureClaimFailure(error));
+            }
+          } finally { if (pullLockRef.current === lock) pullLockRef.current = false; }
         };
         pullClaimsRef.current = pull;
         const loop = async () => {
@@ -1423,7 +1546,7 @@
           window.removeEventListener('focus', onVisible);
           if (pullClaimsRef.current === pull) pullClaimsRef.current = async () => {};
         };
-      }, [draftReady, claimRoom, tutorialSuspended]);
+      }, [draftReady, claimSession?.id, claimSession?.writeToken, claimRoom, tutorialSuspended]);
 
       useEffect(() => {
         if (tutorialDemo || !draftReady) return;
@@ -1452,6 +1575,55 @@
         return true;
       };
 
+      const issueClaimPasswordCode = async () => {
+        if (tutorialDemo || claimApprovalRequestRef.current) return;
+        const session = claimSessionRef.current;
+        const name = String(claimApprovalName || '').normalize('NFC').replace(/\s+/g, ' ').trim();
+        setClaimApprovalError('');
+        setClaimApprovalCode(null);
+        if (!session?.link || !name || name.length > 60 || /[\r\n:：=＝]/.test(name)) {
+          setClaimApprovalPhase('error');
+          setClaimApprovalError(bi('請輸入朋友在原連結使用的完整姓名（最多 60 字，不可有換行、冒號或等號）。', 'Enter the exact name your friend uses on the existing link (up to 60 characters; no line breaks, colons or equals signs).'));
+          return;
+        }
+        if (!window.confirm(bi(`你已親自核實「${name}」的身份嗎？只把確認碼私下交給本人；其他人可用此碼設定／重設這個姓名的密碼。`, `Have you personally verified ${name}'s identity? Give the code privately to that person only; anyone holding it can set/reset this name's password.`))) return;
+        const generation = inboxGenerationRef.current;
+        const request = { id: session.id, generation };
+        claimApprovalRequestRef.current = request;
+        const isCurrent = () => claimApprovalRequestRef.current === request && generation === inboxGenerationRef.current && claimSessionRef.current?.id === session.id && claimSessionRef.current?.writeToken === session.writeToken;
+        setClaimApprovalPhase('pending');
+        try {
+          await ensureSecureClaimSetup(session);
+          if (!isCurrent()) return;
+          if (!window.BillShareApi?.approveClaimPassword) throw Object.assign(new Error('approve-unavailable'), { code: 'protection_pending' });
+          const result = await window.BillShareApi.approveClaimPassword(session.id, session.writeToken, name);
+          if (!isCurrent()) return;
+          const expiresMs = new Date(result.expiresAt).getTime();
+          if (result.name !== name || typeof result.setupCode !== 'string' || !result.setupCode || result.setupCode.length > 100 || !Number.isFinite(expiresMs)) throw new Error('invalid-approval');
+          // Confirmation codes remain in this organizer DOM only. No draft,
+          // shared URL, receipt payload, automatic approval or password storage.
+          setClaimApprovalName(result.name);
+          setClaimApprovalCode({ name: result.name, setupCode: result.setupCode, expiresAt: result.expiresAt, expiresMs });
+          setClaimApprovalPhase('ready');
+        } catch (error) {
+          if (isCurrent() && error?.name !== 'AbortError') {
+            setClaimApprovalPhase('error');
+            setClaimApprovalError(describeSecureClaimFailure(error));
+          }
+        } finally {
+          if (claimApprovalRequestRef.current === request) claimApprovalRequestRef.current = null;
+        }
+      };
+
+      useEffect(() => {
+        if (!claimApprovalCode) return undefined;
+        const timer = window.setTimeout(() => {
+          setClaimApprovalCode(null);
+          setClaimApprovalPhase('expired');
+        }, Math.max(0, claimApprovalCode.expiresMs - Date.now()));
+        return () => window.clearTimeout(timer);
+      }, [claimApprovalCode]);
+
       const stickyHeaderBottom = () => Math.max(0, document.querySelector('header')?.getBoundingClientRect().bottom || 0);
       const visibleScrollBottom = () => {
         const statusEl = document.querySelector('div.fixed.bottom-0[role="status"]');
@@ -1475,7 +1647,7 @@
       }, [friendsReplies]);
       const hasInboundClaim = inboxPeople.length >= 1;
       // In the demo, keep the guided share step; normally allow a pasted WhatsApp reply after link copy.
-      const claimFollowupOpen = tutorialDemo ? claimLinkShared : (claimLinkShared || hasInboundClaim);
+      const claimFollowupOpen = tutorialDemo ? claimLinkShared : (claimLinkShared || hasInboundClaim || Boolean(claimRoom && !claimSession));
 
       useEffect(() => {
         const node = claimFollowupRef.current;
@@ -2068,6 +2240,10 @@
           const sameLink = await prepareFriendClaimLink();
           const session = claimSessionRef.current;
           if (!sameLink || !session) throw new Error('未能準備原認帳連結，請返回第二步重新產生。');
+          await ensureSecureClaimSetup(session);
+          const protectedMembers = await window.BillShareApi.setupClaimProtection(session.id, session.writeToken, seedProtectedClaimMembers());
+          if (protectedMembers.enabled !== true || protectedMembers.claimSecurity !== 'password') throw new Error(bi('密碼保護未完成，暫不發布結果。', 'Password protection is not ready; the result was not published.'));
+          setClaimSecureMembers(protectedMembers.members || []);
           await window.BillShareApi.publishSession(session.id, session.writeToken, shareData);
           setFriendShareInfo({ shortUrl: sameLink, expiresAt: new Date(session.expiresAt).toISOString(), signature: currentFriendShareSignature });
           setFriendShareStatus('ready');
@@ -2076,7 +2252,7 @@
         } catch (error) {
           setFriendShareWhatsAppStatus('idle');
           setFriendShareStatus('error');
-          setFriendShareError(error?.message || '未能更新同一條認帳連結，請稍後再試。');
+          setFriendShareError(error?.code === 'claims_outdated' ? bi('認帳已更新或未完成驗證，請重新接收並計算；已保護姓名請由本人用密碼修改。', 'Claims changed or are not verified. Receive them again and recalculate; protected claims must be edited by their owner using a password.') : error?.message || '未能更新同一條認帳連結，請稍後再試。');
         } finally {
           friendShareRequestRef.current = false;
         }
@@ -2186,6 +2362,10 @@
         claimRoomRef.current = null; claimInboxSeenRef.current = [];
         claimLinkMetaRef.current = null;
         claimSessionRef.current = null;
+        claimSecureSetupRef.current = null; claimSecureCursorRef.current = 0;
+        claimApprovalRequestRef.current = null; pullLockRef.current = false;
+        setClaimSecureCursor(0); setClaimSecureMembers([]); setClaimSecurePhase('idle'); setClaimSecureError('');
+        setClaimApprovalName(''); setClaimApprovalCode(null); setClaimApprovalPhase('idle'); setClaimApprovalError('');
         setClaimActivityName(''); setClaimExpiryDays('7'); setClaimLinkMeta(null);
         setClaimSession(null);
         setClaimRoom(null); setClaimInboxSeen([]); setInboxPhase('idle'); setInboxNote('');
@@ -2904,23 +3084,46 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
         const previous = claimSessionRef.current;
         if (previous && previous.expiresAt > Date.now() && String(previous.ttlDays) === String(metadata.expiryDays)) return previous;
         if (!window.BillShareApi?.createSession) throw new Error('共用認帳服務尚未載入；請重新整理頁面後再試。');
+        const billGeneration = billGenerationRef.current;
+        const requestGeneration = inboxGenerationRef.current;
         claimSessionRequestRef.current = (async () => {
           try {
             const created = await window.BillShareApi.createSession(metadata.expiryDays);
-            const session = { id: created.id, writeToken: created.writeToken, expiresAt: new Date(created.expiresAt).getTime(), ttlDays: String(metadata.expiryDays), link: '' };
+            if (billGeneration !== billGenerationRef.current || requestGeneration !== inboxGenerationRef.current) throw Object.assign(new Error('Aborted'), { name: 'AbortError' });
+            const session = { id: created.id, writeToken: created.writeToken, expiresAt: new Date(created.expiresAt).getTime(), ttlDays: String(metadata.expiryDays), link: '', ...(created.claimSecurity === 'password' ? { claimSecurity: 'password' } : {}) };
+            inboxGenerationRef.current += 1;
+            claimSecureSetupRef.current = null; claimSecureCursorRef.current = 0; pullLockRef.current = false;
+            claimApprovalRequestRef.current = null;
+            setClaimSecureCursor(0); setClaimSecureMembers([]); setClaimSecurePhase('idle'); setClaimSecureError('');
+            setClaimApprovalName(''); setClaimApprovalCode(null); setClaimApprovalPhase('idle'); setClaimApprovalError('');
             claimSessionRef.current = session;
             setClaimSession(session);
             const updatedMetadata = { ...metadata, createdAt: new Date(created.createdAt).getTime(), expiresAt: session.expiresAt };
             claimLinkMetaRef.current = updatedMetadata;
             setClaimLinkMeta(updatedMetadata);
             if (draftSnapshotRef.current?.data) {
-              draftSnapshotRef.current.data = { ...draftSnapshotRef.current.data, claimSession: session, claimLinkMeta: updatedMetadata };
+              draftSnapshotRef.current.data = { ...draftSnapshotRef.current.data, claimSession: session, claimLinkMeta: updatedMetadata, claimSecureCursor: 0 };
             }
             persistActiveDraft();
             return session;
           } finally { claimSessionRequestRef.current = null; }
         })();
         return claimSessionRequestRef.current;
+      };
+
+      const changeUnsharedClaimExpiry = value => {
+        if (tutorialDemo || claimSessionRef.current?.link) return;
+        setClaimExpiryDays(value);
+        claimLinkMetaRef.current = null; claimSessionRef.current = null;
+        inboxGenerationRef.current += 1;
+        claimSecureSetupRef.current = null; claimSecureCursorRef.current = 0;
+        claimApprovalRequestRef.current = null; pullLockRef.current = false;
+        setClaimSecureCursor(0); setClaimSecureMembers([]); setClaimSecurePhase('idle'); setClaimSecureError('');
+        setClaimApprovalName(''); setClaimApprovalCode(null); setClaimApprovalPhase('idle'); setClaimApprovalError('');
+        setClaimLinkMeta(null); setClaimSession(null); setInboxPhase('idle'); setInboxNote('');
+        if (draftSnapshotRef.current?.data) draftSnapshotRef.current.data = { ...draftSnapshotRef.current.data,
+          claimExpiryDays: value, claimLinkMeta: null, claimSession: null, claimSecureCursor: 0 };
+        persistActiveDraft();
       };
 
       const buildFriendClaimLink = (session, lang = uiLang) => {
@@ -2971,10 +3174,14 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
         if (invalidIndex !== -1) { setStepError(`⚠️ 項目 ${items[invalidIndex].id} 未填寫名稱，請先補上。`); focusField(`item-name-${invalidIndex}`); return null; }
         const metadata = getClaimLinkMetadata();
         const session = await ensureClaimSession(metadata);
+        // Never distribute a link as protected until owner setup is confirmed.
+        // Idempotent setup keeps legacy claims, registered values and the same URL.
+        await ensureSecureClaimSetup(session);
+        if (claimSessionRef.current?.id !== session.id) throw Object.assign(new Error('Aborted'), { name: 'AbortError' });
         if (session.link) return session.link;
         const link = buildFriendClaimLink(session);
         if (link) {
-          const linkedSession = { ...session, link };
+          const linkedSession = { ...claimSessionRef.current, link };
           claimSessionRef.current = linkedSession;
           setClaimSession(linkedSession);
           if (draftSnapshotRef.current?.data) draftSnapshotRef.current.data = { ...draftSnapshotRef.current.data, claimSession: linkedSession };
@@ -2990,7 +3197,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
           if (!link) return;
           copyToClipboard(link, tr('認帳連結'));
           markClaimLinkShared();
-        } catch (error) { setStepError(`⚠️ ${error?.message || '未能建立共用認帳連結。'}`); }
+        } catch (error) { if (error?.name !== 'AbortError') setStepError(`⚠️ ${error?.message || '未能建立共用認帳連結。'}`); }
       };
 
       const handleClaimAttachmentSelection = (event) => {
@@ -3015,7 +3222,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
           if (!await prepareFriendClaimLink()) return;
           markClaimLinkShared();
           setShowClaimShareDialog(true);
-        } catch (error) { setStepError(`⚠️ ${error?.message || '未能建立共用認帳連結。'}`); }
+        } catch (error) { if (error?.name !== 'AbortError') setStepError(`⚠️ ${error?.message || '未能建立共用認帳連結。'}`); }
       };
 
       const shareFriendClaimLink = async () => {
@@ -3028,7 +3235,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
             ? `Open this link to enter your shares. After the organizer calculates, reopen this same link to view the result:\n${link}`
             : `請打開呢條連結填認帳；主辦人計算後，再開返同一條連結睇結果：\n${link}`;
           shareTextWithFiles(message, [], tr('認帳連結'));
-        } catch (error) { setStepError(`⚠️ ${error?.message || '未能建立共用認帳連結。'}`); }
+        } catch (error) { if (error?.name !== 'AbortError') setStepError(`⚠️ ${error?.message || '未能建立共用認帳連結。'}`); }
       };
 
       const shareClaimAttachments = () => {
@@ -3518,6 +3725,48 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
         else setStep(2);
       }, [tutorialDemo, tutorialStage]);
 
+      const claimSecurityManagementCard = !tutorialDemo && claimSession?.link ? (
+        <Card data-testid="claim-password-management" className="!p-4 space-y-3 border-brand-600">
+          <h3 className="flex items-center gap-2 text-lg font-extrabold text-slate-800"><Icon path={icons.lock} size={20}/>{bi('認帳密碼管理', 'Claim password management')}</h3>
+          <p className="text-sm leading-relaxed text-slate-700">{bi('沿用同一條認帳及結果連結，毋須開新帳戶。朋友首次設定至少 8 字元的個人密碼，之後只可用自己的密碼修改自己的認帳。主辦人不會收到或儲存朋友的密碼。', 'Keep the same claim and result link; no new account is needed. Friends set a personal password of at least 8 characters, then use it to edit only their own claims. The organizer does not receive or store their passwords.')}</p>
+          <p className="rounded-lg border border-amber-500 bg-amber-50 p-3 text-sm font-semibold leading-relaxed text-amber-950">{bi('舊連結首次設定、已有姓名或忘記密碼：請先親自核實朋友身份，再按下方按鈕產生確認碼並私下交給本人。已有姓名不可由第一個填寫的人冒認；升級及發碼不會清除原認帳、密碼或結果。未曾登記的舊連結姓名，也必須先經你確認。', 'For initial setup on an old link, an existing name, or a forgotten password: personally verify the friend before generating a code below and giving it privately to them. Existing names cannot be taken by the first person to enter them. Upgrading and issuing a code do not erase previous claims, passwords or results. Even unknown names on legacy links need your approval first.')}</p>
+          <p data-testid="claim-protection-status" role="status" aria-live="polite" className={`text-sm font-semibold leading-relaxed ${claimSecureError ? 'text-red-800' : 'text-emerald-900'}`}>
+            {claimSecureError || (claimSecurePhase === 'setting-up'
+              ? bi('正在確認密碼保護；確認前不會接收認帳。', 'Confirming password protection; no claims are received before confirmation.')
+              : inboxPhase === 'live'
+                ? bi('密碼保護已啟用；只接收伺服器驗證的最新認帳。', 'Password protection is enabled; only the latest server-verified claims are received.')
+                : bi('正在連接受保護認帳服務；不會使用舊公開接收方式。', 'Connecting to the protected claim service; the old public relay will not be used.'))}
+          </p>
+          {claimSecureError && <Button data-testid="claim-protection-retry" variant="outline" className="!w-full" onClick={() => pullClaimsRef.current(true)}>{bi('重試受保護接收', 'Retry protected receiving')}</Button>}
+          <div>
+            <label htmlFor="claim-approval-name" className="block text-base font-bold text-slate-800 mb-1.5">{bi('朋友姓名（與原連結相同）', 'Friend’s name (exactly as on the link)')}</label>
+            <input id="claim-approval-name" data-testid="claim-approval-name" type="text" autoComplete="off" list="claim-known-members" maxLength={60} value={claimApprovalName}
+              disabled={claimApprovalPhase === 'pending'} onChange={event => { setClaimApprovalName(event.target.value); setClaimApprovalCode(null); setClaimApprovalPhase('idle'); setClaimApprovalError(''); }}
+              placeholder={bi('選擇或輸入姓名', 'Choose or enter a name')} className="field-round w-full text-base font-semibold text-slate-800 outline-none" />
+            <datalist id="claim-known-members">{Array.from(new Set([...claimSecureMembers.map(member => member?.name), ...inboxPeople].filter(name => typeof name === 'string' && name))).map(name => <option key={name} value={name}/>)}</datalist>
+            <p className="mt-1 text-xs leading-relaxed text-slate-600">{bi('亦可輸入尚未出現在名單內的舊連結姓名；只有你核實後，才應發出確認碼。', 'You may enter a legacy-link name not listed yet. Issue a code only after verifying the person.')}</p>
+          </div>
+          <Button data-testid="claim-approve-password" variant="primary" className="!w-full" disabled={claimApprovalPhase === 'pending' || !claimApprovalName.trim()} onClick={issueClaimPasswordCode}>
+            {claimApprovalPhase === 'pending' ? bi('正在核實及產生確認碼…', 'Confirming protection and generating code…') : bi('產生設定／重設確認碼', 'Generate setup / reset confirmation code')}
+          </Button>
+          {claimApprovalError && <p data-testid="claim-approval-error" role="alert" className="rounded-lg border border-red-400 bg-red-50 p-3 text-sm font-semibold text-red-800">{claimApprovalError}{bi(' 未發出確認碼，請重試；不會自動批准。', ' No code was issued. Retry; approval is never automatic.')}</p>}
+          {claimApprovalPhase === 'expired' && <p role="status" className="text-sm font-semibold text-amber-900">{bi('確認碼已到期；如仍需要，重新核實身份後再產生。', 'The code expired. Verify the identity again before generating another if needed.')}</p>}
+          {claimApprovalCode && <div data-testid="claim-approval-code-panel" className="rounded-xl border border-brand-500 bg-brand-50 p-3 space-y-2" role="status">
+            <p className="text-sm font-bold text-slate-800">{bi(`只供「${claimApprovalCode.name}」本人使用：`, `For ${claimApprovalCode.name} only:`)}</p>
+            <p data-testid="claim-approval-code" className="break-all font-mono text-xl font-bold tracking-wider text-brand-900">{claimApprovalCode.setupCode}</p>
+            <p data-testid="claim-approval-expiry" className="text-xs leading-relaxed text-slate-700">{bi('到期時間：', 'Expires: ')}{new Intl.DateTimeFormat(uiLang === 'en' ? 'en-HK' : 'zh-HK', { timeZone: 'Asia/Hong_Kong', dateStyle: 'medium', timeStyle: 'short' }).format(new Date(claimApprovalCode.expiresAt))}{bi('（香港時間）', ' (Hong Kong time)')}</p>
+            <p className="text-xs leading-relaxed text-slate-700">{bi('確認碼最多有效 10 分鐘，只可用一次。請私下交給本人，不要放進群組或連結。朋友兌換後才會設定／重設密碼，並保留原認帳；舊編輯權限會失效。此碼不會儲存到草稿或分享資料。', 'Valid for up to 10 minutes and one use only. Give it privately, not in a group or link. The password changes only when the friend redeems it; previous claims are kept and old edit access is revoked. This code is not saved in drafts or shared data.')}</p>
+            <Button data-testid="claim-copy-approval-code" variant="secondary" className="!w-full" onClick={() => { if (claimApprovalCode.expiresMs <= Date.now()) { setClaimApprovalCode(null); setClaimApprovalPhase('expired'); return; } copyToClipboard(claimApprovalCode.setupCode, bi('確認碼', 'Confirmation code')); }}><Icon path={icons.copy} size={18}/>{bi('複製確認碼', 'Copy confirmation code')}</Button>
+          </div>}
+        </Card>
+      ) : !tutorialDemo && claimRoom && !claimSession ? (
+        <Card data-testid="claim-legacy-unprotected" className="!p-4 space-y-3 border-amber-500 bg-amber-50">
+          <h3 className="text-lg font-extrabold text-amber-950">{bi('舊連結未受密碼保護', 'This old link is not password-protected')}</h3>
+          <p role="status" className="text-sm font-semibold leading-relaxed text-amber-950">{bi('此連結只有舊接收房間，無法安全加入密碼。已停用公開自動接收，不會接納未驗證的認帳。請建立並分享新的受保護連結；原認帳及結果仍保留，亦可手動貼上 WhatsApp 回覆核對及計算。', 'This link has only an old relay room, so password protection cannot safely be added. Public automatic receiving is disabled and unverified claims will not be accepted. Create and share a new protected link. Existing claims and results are kept; you can still manually paste WhatsApp replies, check them and calculate.')}</p>
+          <Button data-testid="claim-new-protected-link" variant="primary" className="!w-full" onClick={generateFriendClaimLink}>{bi('建立新的受保護連結', 'Create a new protected link')}</Button>
+        </Card>
+      ) : null;
+
       return (
         <React.Fragment>
           {/* Header */}
@@ -3611,6 +3860,9 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                 ) : <p>{hasDraftAssets && draftAssetStatus === 'saving' ? tr("正在儲存本機圖片／附件，完成後才可分享…") : bi('草稿已儲存在這部機。', 'Draft saved on this device.')}</p>}
               </div>
             )}
+
+            {step !== 2 && !showHistory && !showSettings && !showTutorial && claimSecurityManagementCard && <div className="mb-6">{claimSecurityManagementCard}</div>}
+            {!tutorialDemo && claimSession && !claimSession.link && claimSecureError && <p data-testid="claim-protection-setup-error" role="alert" className="mb-4 rounded-xl border border-red-400 bg-red-50 p-3 text-sm font-semibold text-red-800">{claimSecureError}</p>}
 
             {shareReviewRequest && <window.CardShareReview key={shareReviewRequest.id} files={shareReviewRequest.files} onCancel={() => setShareReviewRequest(null)} onShare={files => shareTextWithFiles('', files, '')} />}
 
@@ -3843,7 +4095,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                     <label htmlFor="claim-expiry-days" className="block text-base font-bold text-slate-800 mb-1.5">{bi('連結有效期', 'Link validity')}</label>
                     <select id="claim-expiry-days" data-testid="claim-expiry-days" value={claimExpiryDays}
                       disabled={tutorialDemo || Boolean(claimSession?.link)}
-                      onChange={(e) => { setClaimExpiryDays(e.target.value); claimLinkMetaRef.current = null; claimSessionRef.current = null; setClaimLinkMeta(null); setClaimSession(null); }}
+                      onChange={(e) => changeUnsharedClaimExpiry(e.target.value)}
                       className="field-round w-full text-base font-semibold text-slate-800 outline-none">
                       <option value="1">{bi('1 日', '1 day')}</option>
                       <option value="3">{bi('3 日', '3 days')}</option>
@@ -3854,6 +4106,8 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                   </div>
                   {claimSession?.link && <p className="text-xs font-semibold text-emerald-800">{bi('連結已建立，名稱及期限已固定。', 'Link created; its name and expiry are fixed.')}</p>}
                 </Card>
+
+                {claimSecurityManagementCard}
 
                 <div className="space-y-4">
                   {!receiptWasRead && (
@@ -3958,7 +4212,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                 <div className="border-t border-slate-400 my-6 pt-6 space-y-6">
                   <div data-testid="claim-share-block" className="claim-share-block">
                     <Label className="flex items-center justify-between mb-3"><span>{tr("1. 分享認帳連結")}</span></Label>
-                    <p className="text-base text-slate-700 mb-3 leading-relaxed">{bi('朋友填妥後會自動交回。', 'Friends’ completed replies return automatically.')}</p>
+                    <p className="text-base text-slate-700 mb-3 leading-relaxed">{claimRoom && !claimSession && !tutorialDemo ? bi('請建立新的受保護連結；舊連結只可手動交回及核對。', 'Create a protected link; the old link supports manual replies and checking only.') : bi('朋友設定密碼並填妥後，已驗證認帳會自動交回。', 'After friends set passwords and complete their claims, verified replies return automatically.')}</p>
                     <p className="text-sm text-emerald-800 mb-3 leading-relaxed">{bi('只需發一次連結：朋友先填認帳，你計完帳後，結果會自動更新到原連結。', 'Share one link: friends enter their items, and your calculated result updates the same link automatically.')}</p>
                     <div data-testid="claim-link-actions" className="flex flex-col gap-3">
                       <Button variant="secondary" onClick={generateFriendClaimLink} className="!w-full text-sm bg-white hover:bg-slate-50 border-slate-500">
@@ -4022,20 +4276,22 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                     <Card data-testid="claim-inbox" className="!p-4 mb-4 border-brand-600">
                       <h3 className="text-lg font-extrabold text-slate-800">{bi('認帳回覆', 'Share replies')}</h3>
                       <p data-testid="claim-inbox-status" className="mt-3 text-base font-bold leading-relaxed text-slate-800" role="status">
-                        {claimFollowupOpen && inboxPeople.length >= 1
-                          ? bi(`已收到 ${inboxPeople.length} 位：${inboxPeople.join('、')}`, `Received ${inboxPeople.length}: ${inboxPeople.join(', ')}`)
-                          : tutorialDemo
-                            ? bi('先複製或分享上面的連結。', 'Copy or share the link above first.')
-                            : claimRoom && inboxPhase === 'receiving'
-                              ? bi('正在接收…', 'Receiving…')
-                              : claimRoom && inboxPhase === 'error'
-                                ? bi('暫時收唔到，稍後再試。', 'Could not receive just now. This page will try again shortly.')
-                                : claimRoom && inboxPhase === 'offline'
-                                  ? bi('而家離線，連線後會再試。', 'You are offline. This page will try again once you are online.')
-                                  : bi('等候朋友交返。', 'Waiting for a friend to send their share.')}
+                        {!tutorialDemo && claimRoom && !claimSession
+                          ? bi('舊公開自動接收已停用。請建立新的受保護連結，或手動貼回覆。', 'Old public receiving is disabled. Create a protected link, or paste replies manually.')
+                          : !tutorialDemo && claimSecureError
+                            ? claimSecureError
+                            : !tutorialDemo && claimSecurePhase === 'setting-up'
+                              ? bi('正在確認密碼保護，暫未接收…', 'Confirming password protection; receiving is paused…')
+                              : claimSession && inboxPhase === 'receiving'
+                                ? bi('正在接收已驗證認帳…', 'Receiving verified claims…')
+                                : claimFollowupOpen && inboxPeople.length >= 1
+                                  ? bi(`現有認帳 ${inboxPeople.length} 位：${inboxPeople.join('、')}`, `Current claims ${inboxPeople.length}: ${inboxPeople.join(', ')}`)
+                                  : tutorialDemo
+                                    ? bi('先複製或分享上面的連結。', 'Copy or share the link above first.')
+                                    : bi('等候朋友設定密碼並交返認帳。', 'Waiting for friends to set passwords and send their claims.')}
                       </p>
-                      {inboxNote && claimRoom && <p className="mt-2 text-base font-semibold text-brand-800">{bi(`最新交到：${inboxNote}`, `Latest: ${inboxNote}`)}</p>}
-                      <Button data-testid="claim-inbox-refresh" variant="outline" className="!w-full mt-3" disabled={!claimRoom || inboxPhase === 'receiving'} onClick={() => pullClaimsRef.current(true)}>{bi('重新接收', 'Check again')}</Button>
+                      {inboxNote && claimSession && <p className="mt-2 text-base font-semibold text-brand-800">{bi(`最新交到：${inboxNote}`, `Latest: ${inboxNote}`)}</p>}
+                      <Button data-testid="claim-inbox-refresh" variant="outline" className="!w-full mt-3" disabled={!claimSession || inboxPhase === 'receiving' || claimSecurePhase === 'setting-up'} onClick={() => pullClaimsRef.current(true)}>{bi('重新接收', 'Check again')}</Button>
                     </Card>
                     <Label required={friendsReplies.length === 0} className="flex items-center justify-between mb-3">
                       <span>{tr("2. 朋友交返的認帳")}</span>

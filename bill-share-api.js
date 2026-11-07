@@ -16,6 +16,98 @@
     ? `${Math.max(1, Math.round(bytes / 1024))} KiB`
     : `${(bytes / (1024 * 1024)).toFixed(1)} MiB`;
   const jsonBytes = value => new TextEncoder().encode(JSON.stringify(value)).byteLength;
+  const SHARE_ID_PATTERN = /^[A-Za-z0-9_-]{22}$/;
+  const OWNER_TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/;
+
+  function responseError(response, result, fallback) {
+    const error = new Error(typeof result.error === 'string' ? result.error : fallback);
+    error.status = response.status;
+    if (typeof result.code === 'string') error.code = result.code;
+    const rawRetryAfter = result.retryAfter ?? response.headers?.get('Retry-After');
+    if (rawRetryAfter !== null && rawRetryAfter !== undefined && rawRetryAfter !== '') {
+      const seconds = Number(rawRetryAfter);
+      const dateMs = Date.parse(String(rawRetryAfter));
+      if (Number.isFinite(seconds) && seconds >= 0) error.retryAfter = seconds;
+      else if (Number.isFinite(dateMs)) error.retryAfter = Math.max(0, Math.ceil((dateMs - Date.now()) / 1000));
+    }
+    return error;
+  }
+
+  // Passwords/edit tokens are request-local only: never log or persist them.
+  async function requestJson(path, options = {}, explicitApiBase) {
+    const apiBase = getApiBase(explicitApiBase);
+    const headers = { Accept: 'application/json', 'Content-Type': 'application/json' };
+    if (options.writeToken !== undefined) {
+      if (typeof options.writeToken !== 'string' || options.writeToken.length !== 43 || !OWNER_TOKEN_PATTERN.test(options.writeToken)) {
+        throw Object.assign(new Error('認帳活動管理憑證不完整，請使用建立連結的原裝置。'), { code: 'invalid_owner_token' });
+      }
+      headers.Authorization = `Bearer ${options.writeToken}`;
+    }
+    let response;
+    try {
+      response = await fetch(`${apiBase}${path}`, {
+        method: options.method || 'GET', mode: 'cors', credentials: 'omit', cache: 'no-store', headers,
+        ...(options.input !== undefined ? { body: JSON.stringify(options.input) } : {})
+      });
+    } catch (_) {
+      throw Object.assign(new Error('暫時連不到分享服務；請檢查網絡後再試。'), { code: 'offline' });
+    }
+    let result;
+    try { result = await response.json(); }
+    catch (_) { throw responseError(response, {}, '分享服務回覆格式不正確。'); }
+    if (!result || typeof result !== 'object' || Array.isArray(result)) {
+      throw responseError(response, {}, '分享服務回覆格式不正確。');
+    }
+    if (!response.ok && !options.allowStatus?.includes(response.status)) {
+      throw responseError(response, result, '認帳服務暫時無法完成要求，請稍後再試。');
+    }
+    return { result, status: response.status, response };
+  }
+
+  function sharePath(id, suffix = '') {
+    if (typeof id !== 'string' || id.length !== 22 || !SHARE_ID_PATTERN.test(id)) {
+      throw Object.assign(new Error('認帳活動連結格式不正確。'), { code: 'invalid_share_id' });
+    }
+    return `/api/shares/${encodeURIComponent(id)}${suffix}`;
+  }
+
+  async function claimRequest(id, suffix, options, explicitApiBase) {
+    return (await requestJson(sharePath(id, `/claims${suffix}`), options, explicitApiBase)).result;
+  }
+
+  function ownerOptions(writeToken, method = 'GET', input) {
+    if (typeof writeToken !== 'string' || writeToken.length !== 43 || !OWNER_TOKEN_PATTERN.test(writeToken)) {
+      throw Object.assign(new Error('認帳活動管理憑證不完整，請使用建立連結的原裝置。'), { code: 'invalid_owner_token' });
+    }
+    return { writeToken, method, ...(input !== undefined ? { input } : {}) };
+  }
+
+  async function getClaimStatus(id, name, explicitApiBase) {
+    return claimRequest(id, `/status?name=${encodeURIComponent(String(name || ''))}`, {}, explicitApiBase);
+  }
+
+  async function unlockClaim(id, input, explicitApiBase) {
+    return claimRequest(id, '/unlock', { method: 'POST', input }, explicitApiBase);
+  }
+
+  async function submitSecureClaim(id, input, explicitApiBase) {
+    return claimRequest(id, '/submit', { method: 'POST', input }, explicitApiBase);
+  }
+
+  async function setupClaimProtection(id, writeToken, members, explicitApiBase) {
+    return claimRequest(id, '/setup', ownerOptions(writeToken, 'POST', { members }), explicitApiBase);
+  }
+
+  async function getClaimInbox(id, writeToken, cursor = 0, explicitApiBase) {
+    if (!Number.isSafeInteger(cursor) || cursor < 0) {
+      throw Object.assign(new Error('認帳同步位置無效。'), { code: 'invalid_cursor' });
+    }
+    return claimRequest(id, `/inbox?after=${cursor}`, ownerOptions(writeToken), explicitApiBase);
+  }
+
+  async function approveClaimPassword(id, writeToken, name, explicitApiBase) {
+    return claimRequest(id, '/approve', ownerOptions(writeToken, 'POST', { name }), explicitApiBase);
+  }
 
   function getApiBase(explicit) {
     const configured = explicit || root.BillShareConfig?.apiBaseUrl || '';
@@ -97,106 +189,55 @@
   }
 
   async function createShortLink(data, explicitApiBase) {
-    const apiBase = getApiBase(explicitApiBase);
     const prepared = await prepareShareData(data);
-    const body = JSON.stringify(prepared);
-    if (new TextEncoder().encode(body).byteLength > MAX_BODY_BYTES) throw new Error('分享資料超過 8 MiB 限制。');
-    let response;
-    try {
-      response = await fetch(`${apiBase}/api/shares`, {
-        method: 'POST',
-        mode: 'cors',
-        credentials: 'omit',
-        cache: 'no-store',
-        headers: { 'Content-Type': 'application/json' },
-        body
-      });
-    } catch (_) { throw new Error('暫時連不到短連結服務；請檢查網絡後再試。'); }
-    let result;
-    try { result = await response.json(); }
-    catch (_) { throw new Error('短連結服務回覆格式不正確。'); }
-    if (!response.ok) throw new Error(result.error || '未能建立朋友短連結。');
+    if (jsonBytes(prepared) > MAX_BODY_BYTES) throw new Error('分享資料超過 8 MiB 限制。');
+    const { result } = await requestJson('/api/shares', { method: 'POST', input: prepared }, explicitApiBase);
     if (!result.shortUrl || !result.expiresAt) throw new Error('短連結服務回覆欠缺連結或到期時間。');
     return result;
   }
 
   async function getShare(shareId, expectedExpiresAt, explicitApiBase) {
-    if (!/^[A-Za-z0-9_-]{22}$/.test(String(shareId || ''))) throw new Error('分享連結格式不正確。');
-    const apiBase = getApiBase(explicitApiBase);
+    const path = sharePath(shareId);
     const expiryMs = Number(expectedExpiresAt) > 0 ? Number(expectedExpiresAt) * 1000 : 0;
     const retryDelays = [750, 1500, 3000, 6000, 12000, 18000];
     for (let attempt = 0; ; attempt += 1) {
-      let response;
-      try {
-        response = await fetch(`${apiBase}/api/shares/${encodeURIComponent(shareId)}`, {
-          method: 'GET',
-          mode: 'cors',
-          credentials: 'omit',
-          cache: 'no-store'
-        });
-      } catch (_) { throw new Error('暫時連不到分享服務；請檢查網絡後再試。'); }
-      let result = {};
-      try { result = await response.json(); } catch (_) {}
+      const { response, result } = await requestJson(path, { allowStatus: [404, 410] }, explicitApiBase);
       if (response.ok) return result;
-      if (response.status === 410 || result.code === 'expired') throw new Error('這條朋友分享連結已到期；請向建立者索取新連結。');
+      if (response.status === 410 || result.code === 'expired') throw responseError(response, { ...result, error: '這條朋友分享連結已到期；請向建立者索取新連結。' }, '');
       const canRetry = response.status === 404 && expiryMs > Date.now() && attempt < retryDelays.length;
       if (canRetry) {
         await sleep(retryDelays[attempt]);
         continue;
       }
-      if (response.status === 404 && expiryMs && expiryMs <= Date.now()) throw new Error('這條朋友分享連結已到期；請向建立者索取新連結。');
-      throw new Error(result.error || '這條朋友分享連結已到期或不存在。');
+      if (response.status === 404 && expiryMs && expiryMs <= Date.now()) throw responseError(response, { ...result, error: '這條朋友分享連結已到期；請向建立者索取新連結。' }, '');
+      throw responseError(response, result, '這條朋友分享連結已到期或不存在。');
     }
   }
 
   async function createSession(ttlDays, explicitApiBase) {
-    const apiBase = getApiBase(explicitApiBase);
-    const response = await fetch(`${apiBase}/api/shares/sessions`, {
-      method: 'POST', mode: 'cors', credentials: 'omit', cache: 'no-store',
-      headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ttlDays: Number(ttlDays) })
-    }).catch(() => { throw new Error('暫時連不到分享服務；請檢查網絡後再試。'); });
-    let result = {};
-    try { result = await response.json(); } catch (_) {}
-    if (!response.ok || !result.id || !result.writeToken || !result.expiresAt) {
+    const { result } = await requestJson('/api/shares/sessions', {
+      method: 'POST', input: { ttlDays: Number(ttlDays) }
+    }, explicitApiBase);
+    if (typeof result.id !== 'string' || result.id.length !== 22 || !SHARE_ID_PATTERN.test(result.id) || typeof result.writeToken !== 'string' || result.writeToken.length !== 43 || !OWNER_TOKEN_PATTERN.test(result.writeToken) || !result.expiresAt) {
       throw new Error(result.error || '未能建立共用認帳連結，請稍後再試。');
     }
     return result;
   }
 
   async function publishSession(shareId, writeToken, data, explicitApiBase) {
-    if (!/^[A-Za-z0-9_-]{22}$/.test(String(shareId || '')) || !/^[A-Za-z0-9_-]{43}$/.test(String(writeToken || ''))) {
-      throw new Error('認帳活動資料不完整，請返回產生新的認帳連結。');
-    }
-    const apiBase = getApiBase(explicitApiBase);
+    const path = sharePath(shareId);
+    const options = ownerOptions(writeToken, 'PUT');
     const prepared = await prepareShareData(data);
-    const body = JSON.stringify(prepared);
-    if (new TextEncoder().encode(body).byteLength > MAX_BODY_BYTES) throw new Error('分享資料超過 8 MiB 限制。');
-    const response = await fetch(`${apiBase}/api/shares/${encodeURIComponent(shareId)}`, {
-      method: 'PUT', mode: 'cors', credentials: 'omit', cache: 'no-store',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${writeToken}` }, body
-    }).catch(() => { throw new Error('暫時連不到分享服務；請檢查網絡後再試。'); });
-    let result = {};
-    try { result = await response.json(); } catch (_) {}
-    if (!response.ok) throw new Error(result.error || '未能更新同一條連結的結算結果。');
-    return result;
+    if (jsonBytes(prepared) > MAX_BODY_BYTES) throw new Error('分享資料超過 8 MiB 限制。');
+    return (await requestJson(path, { ...options, input: prepared }, explicitApiBase)).result;
   }
 
   async function getSession(shareId, explicitApiBase) {
-    if (!/^[A-Za-z0-9_-]{22}$/.test(String(shareId || ''))) throw new Error('認帳活動連結格式不正確。');
-    const apiBase = getApiBase(explicitApiBase);
-    let response;
-    try {
-      response = await fetch(`${apiBase}/api/shares/${encodeURIComponent(shareId)}`, {
-        method: 'GET', mode: 'cors', credentials: 'omit', cache: 'no-store'
-      });
-    } catch (_) { throw new Error('暫時連不到分享服務；請檢查網絡後再試。'); }
-    let result = {};
-    try { result = await response.json(); } catch (_) {}
-    if (response.status === 202 || result.status === 'pending') return { status: 'pending', expiresAt: result.expiresAt || '', serverNow: result.serverNow || '' };
-    if (response.status === 404 || response.status === 410) {
-      return { status: response.status === 410 || result.code === 'expired' ? 'expired' : 'unknown', expiresAt: result.expiresAt || '', serverNow: result.serverNow || '' };
+    const { result, status } = await requestJson(sharePath(shareId), { allowStatus: [404, 410] }, explicitApiBase);
+    if (status === 202 || result.status === 'pending') return { ...result, status: 'pending', expiresAt: result.expiresAt || '', serverNow: result.serverNow || '' };
+    if (status === 404 || status === 410) {
+      return { ...result, status: status === 410 || result.code === 'expired' ? 'expired' : 'unknown', expiresAt: result.expiresAt || '', serverNow: result.serverNow || '' };
     }
-    if (!response.ok) throw new Error(result.error || '這條認帳活動連結已到期或不存在。');
     return { ...result, status: result.status || 'ready' };
   }
 
@@ -208,6 +249,12 @@
     createSession,
     publishSession,
     getSession,
+    getClaimStatus,
+    unlockClaim,
+    submitSecureClaim,
+    setupClaimProtection,
+    getClaimInbox,
+    approveClaimPassword,
     formatBytes
   });
 })(window);

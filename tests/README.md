@@ -2,6 +2,12 @@
 
 程式仍然是純靜態 GitHub Pages App，無需 build。Playwright 只用於開發驗收，不會載入到公開頁面；測試只可對本機執行。
 
+## R104 姓名＋密碼
+
+`node --test worker/claim-auth.test.mjs worker/worker-core.test.mjs` 使用本機假的 DO／KV 執行實際驗證程式，覆蓋姓名密碼、跨姓名 token、同名並行、舊認帳搶綁、主辦人單次確認碼、重設、限流及到期。`BASE_URL=http://127.0.0.1:4192/ node tests/friend-password.cjs` 使用實際 Worker／DO 邏輯的記憶體服務，並在手機瀏覽器驗證首次設定、密碼閘、保存及同一連結重新結算；不呼叫正式 Cloudflare 或 ntfy，不讀寫真實帳單。
+
+R103 免密碼的 `friend-revisions.cjs` 及舊 relay 收帳 mock 不代表 R104 驗收，修改流程以 `friend-password.cjs` 為準。純數量比對仍可用 `node --test claim-revisions.test.cjs`。`friend-navigation.cjs` 保留朋友頁無主程式入口的檢查。
+
 ## 執行
 
 先準備 Node.js、Playwright 及 Chromium。在專案根目錄啟動靜態伺服器：

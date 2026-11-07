@@ -9,7 +9,7 @@
   function canonicalClaims(claims) {
     return (Array.isArray(claims) ? claims : [])
       .filter(claim => claim && /^\d{2}$/.test(String(claim.id || '')) && Number.isFinite(Number(claim.qty)) && Number(claim.qty) > 0)
-      .map(claim => ({ id: String(claim.id), qty: Math.round(Number(claim.qty) * 1000) / 1000, unit: String(claim.unit || '').trim() }))
+      .map(claim => ({ id: String(claim.id), qty: Number(claim.qty), unit: String(claim.unit || '').trim() }))
       .sort((left, right) => left.id.localeCompare(right.id));
   }
   function resultClaims(data, name) {

@@ -1,3 +1,5 @@
+import { forwardClaimAuth } from './claim-auth.mjs';
+
 export const DEFAULT_TTL_SECONDS = 7 * 24 * 60 * 60;
 export const MAX_SHARE_BYTES = 8 * 1024 * 1024;
 const MAX_IMAGES = 5;
@@ -191,6 +193,36 @@ function apiBaseHeaders(origin) {
   };
 }
 
+async function isOrganizer(request, record) {
+  const bearer = (request.headers.get('Authorization') || '').match(/^Bearer ([A-Za-z0-9_-]{43})$/);
+  return Boolean(bearer && typeof record.writeKeyHash === 'string' && safeHashEqual(record.writeKeyHash, await hashWriteToken(bearer[1])));
+}
+
+async function claimOperation(env, record, id, now, op, options = {}) {
+  try {
+    return await forwardClaimAuth(env, {
+      sessionId: id, expiresAt: record.expiresAt, now, op,
+      enabled: record.claimSecurity === 'password', legacy: record.claimSecurity !== 'password', ...options
+    });
+  } catch (_) {
+    return jsonResponse({ error: '認帳保護服務暫時不可用。', code: 'claim_auth_unavailable' }, 503);
+  }
+}
+
+async function claimResponse(response, origin) {
+  const extra = response.headers.has('Retry-After') ? { 'Retry-After': response.headers.get('Retry-After') } : {};
+  return jsonResponse(await response.json(), response.status, origin, extra);
+}
+
+async function readJsonBody(request, limit = MAX_SHARE_BYTES) {
+  if (Number(request.headers.get('Content-Length') || 0) > limit) throw Object.assign(new Error('資料超出上限。'), { status: 413 });
+  const text = await request.text();
+  if (new TextEncoder().encode(text).byteLength > limit) throw Object.assign(new Error('資料超出上限。'), { status: 413 });
+  const input = JSON.parse(text);
+  if (!input || typeof input !== 'object' || Array.isArray(input)) throw new TypeError('資料格式不正確。');
+  return input;
+}
+
 export async function handleRequest(request, env, now = Date.now()) {
   const url = new URL(request.url);
   const method = request.method.toUpperCase();
@@ -203,6 +235,7 @@ export async function handleRequest(request, env, now = Date.now()) {
 
     if (url.pathname === '/api/shares/sessions' && method === 'POST') {
       if (!env.BILL_SHARES) return jsonResponse({ error: '分享暫存服務尚未設定。' }, 503, origin);
+      if (!env.CLAIM_AUTH || !env.CLAIM_PASSWORD_PEPPER) return jsonResponse({ error: '認帳保護服務尚未設定。', code: 'claim_auth_unavailable' }, 503, origin);
       let input;
       try { input = await request.json(); }
       catch (_) { return jsonResponse({ error: 'Session 設定不是有效的 JSON。' }, 400, origin); }
@@ -211,13 +244,15 @@ export async function handleRequest(request, env, now = Date.now()) {
       const id = makeId();
       const writeToken = makeWriteToken();
       const expiresAt = now + ttlSeconds * 1000;
-      const record = { version: 1, kind: 'claim-session', status: 'pending', createdAt: now, expiresAt, writeKeyHash: await hashWriteToken(writeToken) };
+      const record = { version: 1, kind: 'claim-session', claimSecurity: 'password', status: 'pending', createdAt: now, expiresAt, writeKeyHash: await hashWriteToken(writeToken) };
+      const initialized = await claimOperation(env, record, id, now, 'initialize', { owner: true });
+      if (!initialized.ok) return claimResponse(initialized, origin);
       try {
         await env.BILL_SHARES.put(`share:${id}`, JSON.stringify(record), { expirationTtl: ttlSeconds });
       } catch (_) {
         return jsonResponse({ error: '暫時無法建立認帳連結，請稍後再試。' }, 503, origin);
       }
-      return jsonResponse({ id, writeToken, status: 'pending', createdAt: new Date(now).toISOString(), expiresAt: new Date(expiresAt).toISOString(), ttlSeconds }, 201, origin);
+      return jsonResponse({ id, writeToken, status: 'pending', claimSecurity: 'password', createdAt: new Date(now).toISOString(), expiresAt: new Date(expiresAt).toISOString(), ttlSeconds }, 201, origin);
     }
 
     if (url.pathname === '/api/shares' && method === 'POST') {
@@ -250,6 +285,37 @@ export async function handleRequest(request, env, now = Date.now()) {
       return jsonResponse({ id, shortUrl: shortUrl.href, expiresAt: new Date(expiresAt).toISOString(), ttlSeconds }, 201, origin);
     }
 
+    const claimMatch = url.pathname.match(/^\/api\/shares\/([A-Za-z0-9_-]{22})\/claims\/(status|unlock|submit|setup|inbox|approve)$/);
+    if (claimMatch) {
+      const [, id, op] = claimMatch;
+      const expectedMethod = ['status', 'inbox'].includes(op) ? 'GET' : 'POST';
+      if (method !== expectedMethod) return jsonResponse({ error: 'method_not_allowed', code: 'method_not_allowed' }, 405, origin);
+      if (!env.BILL_SHARES) return jsonResponse({ error: '分享暫存服務尚未設定。' }, 503, origin);
+      let record;
+      try { record = await readRecord(env.BILL_SHARES, id); }
+      catch (_) { return jsonResponse({ error: '無法讀取分享資料。' }, 503, origin); }
+      if (!record) return jsonResponse({ error: '連結已到期或不存在。', code: 'not_found', serverNow: new Date(now).toISOString() }, 404, origin);
+      if (!Number.isFinite(record.expiresAt) || record.expiresAt <= now) {
+        if (Number.isFinite(record.expiresAt) && record.kind === 'claim-session') await claimOperation(env, record, id, now, 'metadata');
+        try { await env.BILL_SHARES.delete(`share:${id}`); } catch (_) {}
+        return jsonResponse({ error: '這條分享連結已到期。', code: 'expired', serverNow: new Date(now).toISOString() }, 410, origin);
+      }
+      if (record.kind !== 'claim-session') return jsonResponse({ error: '不是認帳活動。', code: 'not_claim_session' }, 409, origin);
+      const owner = ['setup', 'inbox', 'approve'].includes(op);
+      if (owner && !await isOrganizer(request, record)) return jsonResponse({ error: '沒有此活動的主辦人權限。', code: 'forbidden' }, 403, origin);
+      let input;
+      try {
+        input = op === 'status' ? { name: url.searchParams.get('name') }
+          : op === 'inbox' ? { after: url.searchParams.get('after') ?? '0' }
+          : await readJsonBody(request, op === 'setup' ? MAX_SHARE_BYTES : 64 * 1024);
+      } catch (error) { return jsonResponse({ error: '認帳資料格式不正確。', code: 'invalid_input' }, error.status || 400, origin); }
+      const result = await claimOperation(env, record, id, now, op, {
+        owner, input, ip: request.headers.get('CF-Connecting-IP') || 'unknown',
+        baseline: op === 'setup' ? record.data || null : null
+      });
+      return claimResponse(result, origin);
+    }
+
     const match = url.pathname.match(/^\/api\/shares\/([A-Za-z0-9_-]{22})$/);
     if (match && method === 'GET') {
       if (!env.BILL_SHARES) return jsonResponse({ error: '分享暫存服務尚未設定。' }, 503, origin);
@@ -261,13 +327,19 @@ export async function handleRequest(request, env, now = Date.now()) {
       }
       if (!record) return jsonResponse({ error: '連結已到期或不存在。', code: 'not_found', serverNow: new Date(now).toISOString() }, 404, origin);
       if (!Number.isFinite(record.expiresAt) || record.expiresAt <= now) {
+        if (Number.isFinite(record.expiresAt) && record.kind === 'claim-session') await claimOperation(env, record, match[1], now, 'metadata');
         try { await env.BILL_SHARES.delete(`share:${match[1]}`); } catch (_) {}
         return jsonResponse({ error: '這條分享連結已到期。', code: 'expired', status: 'expired', serverNow: new Date(now).toISOString(), expiresAt: new Date(record.expiresAt).toISOString() }, 410, origin);
       }
-      if (record.kind === 'claim-session' && record.status === 'pending') {
-        return jsonResponse({ status: 'pending', serverNow: new Date(now).toISOString(), expiresAt: new Date(record.expiresAt).toISOString() }, 202, origin);
+      let claimSecurity = record.claimSecurity;
+      if (record.kind === 'claim-session' && !claimSecurity && env.CLAIM_AUTH && env.CLAIM_PASSWORD_PEPPER) {
+        const metadata = await claimOperation(env, record, match[1], now, 'metadata');
+        if (metadata.ok && (await metadata.json()).enabled) claimSecurity = 'password';
       }
-      return jsonResponse({ status: 'ready', data: record.data, serverNow: new Date(now).toISOString(), expiresAt: new Date(record.expiresAt).toISOString() }, 200, origin);
+      if (record.kind === 'claim-session' && record.status === 'pending') {
+        return jsonResponse({ status: 'pending', claimSecurity, serverNow: new Date(now).toISOString(), expiresAt: new Date(record.expiresAt).toISOString() }, 202, origin);
+      }
+      return jsonResponse({ status: 'ready', data: record.data, claimSecurity, serverNow: new Date(now).toISOString(), expiresAt: new Date(record.expiresAt).toISOString() }, 200, origin);
     }
 
     if (match && method === 'PUT') {
@@ -277,14 +349,14 @@ export async function handleRequest(request, env, now = Date.now()) {
       catch (_) { return jsonResponse({ error: '無法讀取分享資料。' }, 503, origin); }
       if (!record) return jsonResponse({ error: '連結已到期或不存在。', code: 'not_found' }, 404, origin);
       if (!Number.isFinite(record.expiresAt) || record.expiresAt <= now) {
+        if (Number.isFinite(record.expiresAt) && record.kind === 'claim-session') await claimOperation(env, record, match[1], now, 'metadata');
         try { await env.BILL_SHARES.delete(`share:${match[1]}`); } catch (_) {}
         return jsonResponse({ error: '這條分享連結已到期。', code: 'expired' }, 410, origin);
       }
       if (record.kind !== 'claim-session' || typeof record.writeKeyHash !== 'string') {
         return jsonResponse({ error: '這條連結不是可更新的認帳活動。' }, 409, origin);
       }
-      const bearer = (request.headers.get('Authorization') || '').match(/^Bearer ([A-Za-z0-9_-]{43})$/);
-      if (!bearer || !safeHashEqual(record.writeKeyHash, await hashWriteToken(bearer[1]))) {
+      if (!await isOrganizer(request, record)) {
         return jsonResponse({ error: '沒有更新此活動結果的權限。' }, 403, origin);
       }
       const declaredLength = Number(request.headers.get('Content-Length') || 0);
@@ -306,6 +378,10 @@ export async function handleRequest(request, env, now = Date.now()) {
       const updatedAt = Math.max(now + waitMs, Date.now());
       const remainingTtl = Math.floor((record.expiresAt - updatedAt) / 1000);
       if (remainingTtl < 60) return jsonResponse({ error: '這條分享連結已到期。', code: 'expired' }, 410, origin);
+      // Always consult the DO, including legacy sessions: an old client cannot bypass
+      // protection by publishing ntfy-derived allocations with a valid organizer token.
+      const validation = await claimOperation(env, record, match[1], updatedAt, 'validateResult', { owner: true, input: { data } });
+      if (!validation.ok) return claimResponse(validation, origin);
       const updatedRecord = { ...record, status: 'ready', updatedAt, data };
       try {
         await env.BILL_SHARES.put(`share:${match[1]}`, JSON.stringify(updatedRecord), { expirationTtl: remainingTtl });

@@ -104,8 +104,16 @@
   function formatQty(qty) {
     const n = Number(qty);
     if (!Number.isFinite(n)) return '';
-    const rounded = Math.round(n * 1000) / 1000;
-    return String(rounded);
+    const text = String(n);
+    if (!/[eE]/.test(text)) return text;
+    const [coefficient, exponent] = text.toLowerCase().split('e');
+    const sign = coefficient.startsWith('-') ? '-' : '';
+    const [whole, fraction = ''] = coefficient.replace(/^-/, '').split('.');
+    const digits = whole + fraction;
+    const position = whole.length + Number(exponent);
+    if (position <= 0) return sign + '0.' + '0'.repeat(-position) + digits;
+    if (position >= digits.length) return sign + digits + '0'.repeat(position - digits.length);
+    return sign + digits.slice(0, position) + '.' + digits.slice(position);
   }
 
   function sanitizePayload(obj) {

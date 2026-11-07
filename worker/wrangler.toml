@@ -12,3 +12,11 @@ id = "0c06593c40b946a1bc0f549b5f39be64"
 SITE_BASE_URL = "https://cw91020251212.github.io/bill-splitter-ai/"
 ALLOWED_ORIGINS = "https://cw91020251212.github.io"
 SHARE_TTL_SECONDS = "604800"
+
+[[durable_objects.bindings]]
+name = "CLAIM_AUTH"
+class_name = "ClaimAuth"
+
+[[migrations]]
+tag = "v1-claim-auth"
+new_sqlite_classes = ["ClaimAuth"]

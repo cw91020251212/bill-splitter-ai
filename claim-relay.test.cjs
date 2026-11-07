@@ -9,6 +9,16 @@ function sampleItems() {
   ];
 }
 
+test('precise secure quantities remain exact decimal text', () => {
+  for (const qty of [1.2345, 1.2344, 1e-7, 1e-21, 0.6666666666666666]) {
+    const reply = relay.formatClaimReply({ v: 1, name: 'Ａlex Chan', claims: [{ id: '01', qty, unit: '' }] }, sampleItems());
+    const number = reply.match(/認帳份數 = ([\d.]+)/)?.[1];
+    assert.equal(Number(number), qty);
+    assert.doesNotMatch(number, /e/i);
+    assert.match(reply, /姓名：Ａlex Chan/);
+  }
+});
+
 test('room round-trips through the claim hash and encrypts the payload', async () => {
   const room = relay.createRoom();
   assert.equal(relay.isRoom(room), true);

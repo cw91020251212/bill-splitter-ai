@@ -20,10 +20,10 @@ function payload() {
   return { v: 1, name: '阿明', claims: [{ id: '01', qty: 1, unit: '杯' }, { id: '02', qty: 2 / 3, unit: '', displayUnit: '件' }] };
 }
 
-test('canonical quantities are numeric, rounded to three decimals, ordered, and non-mutating', () => {
+test('canonical quantities preserve numeric precision, ordering, and original input', () => {
   const input = [{ id: '02', qty: '0.666666666', unit: ' ' }, { id: '01', qty: '1', unit: ' 杯 ' }];
   const before = JSON.stringify(input);
-  assert.deepEqual(revisions.canonicalClaims(input), [{ id: '01', qty: 1, unit: '杯' }, { id: '02', qty: 0.667, unit: '' }]);
+  assert.deepEqual(revisions.canonicalClaims(input), [{ id: '01', qty: 1, unit: '杯' }, { id: '02', qty: 0.666666666, unit: '' }]);
   assert.equal(JSON.stringify(input), before);
   assert.deepEqual(revisions.canonicalClaims([null, { id: '1', qty: 1 }, { id: '03', qty: 0 }, { id: '04', qty: -1 }, { id: '05', qty: Infinity }, { id: '06', qty: 'no' }]), []);
   assert.deepEqual(revisions.canonicalClaims(undefined), []);
@@ -67,6 +67,16 @@ test('real unit semantics must agree exactly', () => {
   const sharePayload = payload();
   sharePayload.claims[0].unit = '';
   assert.equal(revisions.matchesResult(sharePayload, noActualUnit), true, 'a decorative receipt unit is not an actual unit');
+});
+
+test('small precise revisions cannot match a rounded old result', () => {
+  const data = result();
+  data.items[1].shares[0].quantity = 1.234;
+  const changed = payload();
+  changed.claims[0].qty = 1.2344;
+  assert.equal(revisions.matchesResult(changed, data), false);
+  data.items[1].shares[0].quantity = 1.2344;
+  assert.equal(revisions.matchesResult(changed, data), true);
 });
 
 test('all-zero clear waits until no positive person allocations remain, even when the person disappears', () => {
