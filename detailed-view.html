@@ -122,7 +122,8 @@
 </head>
 <body>
   <header class="topbar">
-    <a class="back" href="./index.html">← 返回分帳報告</a>
+    <span id="friend-page-heading" class="back">分帳結果</span>
+    <a id="local-back" class="back" hidden>← 返回分帳報告</a>
     <span id="local-tag" class="local-tag" hidden>本機預覽・不會公開</span>
   </header>
   <main>
@@ -237,7 +238,14 @@
       const shareParams = new URLSearchParams(window.location.search);
       const shareId = shareParams.get('share') || '';
       const expectedExpiry = Number(shareParams.get('e') || 0);
-      const isSharedLink = Boolean(shareId);
+      // A shared URL never exposes the organizer's local-preview navigation,
+      // even during loading, on errors, or when the share id is empty.
+      const isSharedLink = shareParams.has('share');
+      if (!isSharedLink) {
+        $('#friend-page-heading').hidden = true;
+        $('#local-back').href = './index.html';
+        $('#local-back').hidden = false;
+      }
       let data = null;
       let shareExpiresAt = '';
       if (isSharedLink) {

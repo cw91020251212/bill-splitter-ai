@@ -725,6 +725,7 @@
           frame.className = 'same-link-result';
           frame.title = language === 'en' ? 'Final bill result' : '最終分帳結果';
           const resultUrl = new URL('./detailed-view.html', window.location.href);
+          resultUrl.searchParams.set('v', 'v102-friend-only-navigation');
           resultUrl.searchParams.set('share', sessionId);
           if (session.expiresAt) resultUrl.searchParams.set('e', String(Math.floor(new Date(session.expiresAt).getTime() / 1000)));
           frame.src = resultUrl.href;
