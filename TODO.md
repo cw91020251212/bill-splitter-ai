@@ -73,7 +73,7 @@
 - [x] 第 4 步以網頁版同一連結為首選；簡單版／詳細版只作後備，先展開後備方案才展示文字報告操作；繁體中文與英文文案一致。
 - [x] 依使用者最新指示，第一條 OpenRouter API Key 影片保持原片；第二條分帳操作影片還原為修改前原始版本，逐位元與 R114 前資產相同。移除新增 OCR 片頭及其字幕 sidecar，不再剪輯或改動影片內容。
 - [x] 主程式左上角版本文字只顯示 R114，移除 V1.0.1。
-- [x] 免費 OCR cascade 按最新使用者回饋以 Dots3-Note 為預設；對已同意的遮蓋收據加強商品行邊界、數量核對與內含稅提示後，Dots 的最後一輪輸出符合該單的商品行數／件數／稅額／總額基準，但翻譯仍有個別偏差。Nemotron 3 Nano Omni 在同一樣本把結算列當商品並漏掉商品價格，已從首屏選單和自動後備移除；Gemma 4 31B／26B 按使用者反覆實測失敗移除；Nemotron 3.5 VL 按使用者要求留在最後後備。v3 偏好遷移會把已保存的 Nano 設定改回 Dots。隨機 `openrouter/free` 不納入固定 cascade，以免落到已失敗模型。
+- [x] 免費 OCR cascade 依使用者偏好保留 Dots3-Note 為預設；同一遮蓋樣本六候選盤點修正了先前的列數基準：Dots 符合商品列數及應付總額，但件數／商品小計／taxTotal 和部分翻譯仍錯，不能稱為完全準確。Nano Omni 同樣漏項／錯置結算欄，已移除；Gemma 4 31B／26B 本輪免費 provider 均回覆 429，且使用者已回報失敗，不放回；Nemotron 3.5 VL 留在最後但非可靠替代。Crouton Alpha 不列入真實收據流程：Stealth EULA/AUP 禁止提交財務資訊。`openrouter/free` 是隨機路由，不納入固定 cascade。六模型彙總和隱私限制記錄在本地基準報告。
 - [ ] OpenRouter 標示 Dots3-Note 免費版本將於 2026-12-31 下架；該日期前重新確認替代免費視覺模型及遷移。
 - [x] 第 1 步收據畫面可直接選擇模型，與設定頁同步並保存；Playwright 驗證舊預設遷移、新選擇持久化及 cascade 次序。
 - [x] 成功重做 OCR／翻譯後，以最新項目名稱重建認帳 URL hash；保留現有 session、加密回覆 room、活動名稱及期限，並將最新結果發布至同一 session。`friend-whatsapp-details.cjs` 驗證舊、新項目名稱及 session/room/metadata。
