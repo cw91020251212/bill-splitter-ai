@@ -1,31 +1,41 @@
 1
-00:00:00,500 --> 00:00:10,600
+00:00:00,400 --> 00:00:10,500
+上載示例單據；OCR 文字識別讀出項目和價錢，再翻譯成你選擇的語言。
+Upload a sample receipt; OCR reads items and prices, then translates them into your chosen language.
+
+2
+00:00:10,500 --> 00:00:14,100
+原文留低俾你核對，方便分帳。
+Keep the original for review before splitting the bill.
+
+3
+00:00:14,636 --> 00:00:24,736
 先核對單據項目和金額；有錯先按「改」。
 服務費填實際金額。
 Check items and amounts; edit only mistakes.
 Enter the actual service-fee amount.
 
-2
-00:00:10,600 --> 00:00:20,900
+4
+00:00:24,736 --> 00:00:35,036
 設定活動名稱和期限後按「確定」，畫面會移到分享區。
 分享認帳連結後，即使未有回覆也可去第三步。
 Set the activity name and expiry, then Confirm to open sharing.
 Share the claim link; continue to Step 3 before replies arrive.
 
-3
-00:00:20,900 --> 00:00:31,000
+5
+00:00:35,036 --> 00:00:45,136
 第三步設定墊支人、結算貨幣、付款方式和服務費分法。
 Step 3 sets payer, currency, payment methods, and fee splitting.
 
-4
-00:00:31,000 --> 00:00:41,000
+6
+00:00:45,136 --> 00:00:55,136
 認帳回覆在設定下面。未收到回覆仍可完成前面設定。
 沒有有效認帳時，「產生分帳報告」會停用。
 Replies appear below settings. Finish settings first.
 Generate Report stays disabled without a valid claim.
 
-5
-00:00:41,000 --> 00:00:53,900
+7
+00:00:55,136 --> 00:01:08,036
 核對有效回覆後按「產生分帳報告」。網頁版同一條連結為首選。
 簡單版和詳細版是後備方案，需要時才展開。
 After checking replies, generate the report. The original link is preferred.

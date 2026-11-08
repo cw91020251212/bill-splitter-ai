@@ -20,7 +20,7 @@ R112 的 `friend-recognition.cjs` 驗證計算按鈕有中英動作提示、網�
 
 R113 的 `friend-recognition.cjs` 驗證活動名稱「確定」按鈕使用 smooth scroll 前往分享按鈕、活動名稱未建立連結前仍可修改，以及結算 CTA 主文字與提示文字均無 text-shadow/drop-shadow。
 
-R114 的 `tutorial-ui.cjs` 驗證雙語 18 階段教學、第二步分享與第三步先設定後回覆、第四步 Web-first 及預設收合後備、示例試算、退出還原及 Step 1–4 重啟；`tutorial-safety.cjs` 驗證不觸發真實分享、剪貼簿、相機或 API。`settings-free-models.cjs` 驗證左上角只顯示 `R114`，OpenRouter 影片說明及 URL 指向包含示例單據辨識／翻譯片頭的新資產。
+R114 的 `tutorial-ui.cjs` 驗證雙語 18 階段教學、第二步分享與第三步先設定後回覆、第四步 Web-first 及預設收合後備、示例試算、退出還原及 Step 1–4 重啟；`tutorial-safety.cjs` 驗證不觸發真實分享、剪貼簿、相機或 API。`settings-free-models.cjs` 驗證左上角只顯示 `R114` 及 OpenRouter 金鑰申請片仍使用原始來源；教學 Hub smoke test 驗證第二段分帳操作片說明及雙語字幕明確涵蓋示例單據 OCR 文字識別與翻譯。
 
 R104 下述八字强制密碼介面測試是歷史規格；R105 新介面以 `friend-recognition.cjs` 為準。姓名未設定碼時只能按姓名識別，不是强身份保護；保留舊密碼驗證、期限、主辦人權限及精確認帳比對測試。
 

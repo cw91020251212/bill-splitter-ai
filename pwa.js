@@ -40,7 +40,7 @@
     window.navigator.standalone === true;
 
   /* ---------------------------------------------------------- service worker */
-  var RELEASE_VERSION = 'v114-tutorial-web-first-cantonese-receipt-ocr';
+  var RELEASE_VERSION = 'v114-tutorial-web-first-cantonese-operation-ocr';
   var waitingWorker = null;
   var registrationPromise = null;
   var reloadRequested = false;
