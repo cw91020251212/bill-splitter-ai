@@ -3,6 +3,7 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const zlib = require('node:zlib');
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const base = process.env.BASE_URL || 'http://127.0.0.1:4178/';
 if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?\//.test(base)) throw new Error('This state-writing test is local-only.');
@@ -21,6 +22,10 @@ const selectors = [
 ];
 const results = [];
 const PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a2ioAAAAASUVORK5CYII=';
+const tailwindPlayCdn = zlib.gunzipSync(fs.readFileSync(path.join(__dirname, 'fixtures', 'tailwind-playcdn-3.4.17.js.gz'))).toString('utf8');
+async function stubTailwind(page) {
+  await page.route(/^https:\/\/cdn\.tailwindcss\.com(?:\/.*)?$/, route => route.fulfill({ status: 200, contentType: 'application/javascript', body: tailwindPlayCdn }));
+}
 function draft(step) {
   const item = { id: '01', name: '原有帳單項目', original: 'Original item', price: '99', total: 99, totalQty: null, unit: '' };
   return { schema: 1, assetRevision: 'test-assets-preserved', hasAssets: true, data: {
@@ -32,6 +37,7 @@ function draft(step) {
   }};
 }
 async function seed(page, step, language) {
+  await stubTailwind(page);
   await page.goto(base + 'tests/README.md', { waitUntil: 'networkidle' });
   await page.evaluate(async ({ record, language, png }) => {
     localStorage.setItem('billSplitterActiveDraftV1', JSON.stringify(record));
@@ -272,6 +278,7 @@ async function runPayerRecovery(page, before, label) {
 async function runTutorialHubSmoke(browser) {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' });
   const page = await context.newPage(); const errors = [];
+  await stubTailwind(page);
   page.on('pageerror', error => errors.push(error.message));
   await page.goto(base, { waitUntil: 'networkidle' });
   await page.getByTestId('tutorial-hub').waitFor({ state: 'visible' });
@@ -314,6 +321,7 @@ async function runKeyStatusHintSmoke(browser) {
   for (const [label, key] of [['missing', ''], ['saved', 'test-api-key-only']]) {
     const context = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' });
     const page = await context.newPage();
+    await stubTailwind(page);
     await page.goto(base + 'tests/README.md', { waitUntil: 'networkidle' });
     await page.evaluate(key => {
       localStorage.setItem('billSplitterApiConfig', JSON.stringify({ engine: 'openrouter', ocrEngine: 'openrouter', keys: { openrouter: key }, model: 'nvidia/nemotron-3.5-super-vl:free', allowPaidModels: false }));

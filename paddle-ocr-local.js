@@ -66,9 +66,18 @@
         if (!sdk || typeof sdk.PaddleOCR !== 'function') throw new Error('PaddleOCR.js SDK export was not found.');
         if (typeof onProgress === 'function') onProgress('loading-model');
         return sdk.PaddleOCR.create({
-          lang: 'ch',
-          ocrVersion: 'PP-OCRv5',
-          ortOptions: { backend: 'wasm' }
+          textDetectionModelName: 'PP-OCRv5_mobile_det',
+          textDetectionModelAsset: {
+            url: new URL('./models/paddle/PP-OCRv5_mobile_det_onnx_infer.tar', root.location.href).toString()
+          },
+          textRecognitionModelName: 'PP-OCRv5_mobile_rec',
+          textRecognitionModelAsset: {
+            url: new URL('./models/paddle/PP-OCRv5_mobile_rec_onnx_infer.tar', root.location.href).toString()
+          },
+          ortOptions: {
+            backend: 'wasm',
+            wasmPaths: 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.26.0/dist/'
+          }
         });
       }).catch(function (error) {
         enginePromise = null;

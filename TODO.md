@@ -84,8 +84,9 @@
 
 ## R114 OCR supplement follow-up (2026-11-08)
 
-- [x] 首屏預設選擇 PaddleOCR.js PP-OCRv5 WASM 本機辨識＋Dots3-Note；新訪問者及 v3 以前設定一次性遷移至此組合（舊 OpenRouter 路徑可能只是舊預設），偏好版本 4 起用家明確選擇的 OpenRouter 路徑會保留。收據圖像留在瀏覽器，只把辨識文字交給免費模型翻譯及整理，必要時再走 Nemotron 後備；首屏說明會按本機、Dots、Nemotron、隨機路由選項切換，並支援繁中／英文。
+- [x] 首頁預設選擇 PaddleOCR.js PP-OCRv5 WASM 本機辨識＋Dots3-Note；新訪問者及 v4 以前設定（包括目前已保存的 OpenRouter 路徑）一次性遷移至此組合，偏好版本 5 起用家明確選擇的 OpenRouter 路徑會保留。首頁與設定頁的模型選項、選中值及逐路由說明同步，繁中／英文內容一致。
 - [x] 首頁新增外部 AI 讀圖提示詞複製按鈕及貼上／上載文字入口；正確格式 JSON 免鎖匙本機匯入，一般文字交給所選免費模型，互動教學第 1 階段已同步說明。
+- [x] 外部 AI 回覆只含文字／JSON時，可在第 2 步或結果頁另選原收據圖片；沿用本機遮蓋介面並把遮蓋後照片連回當前帳單，不會重新 OCR 或傳送給 AI，可用既有本機草稿、歷史和圖片分享功能。合成照片 E2E 驗證附加後重載仍保存。
 - [x] 同一張遮蓋收據已完成 Tesseract.js、PaddleOCR CPU、PaddleOCR.js、OCR.space Engine 2/3 的零費用可執行測試；PDF 中 17 個候選均已逐項調查，不把需註冊、帳單或未明確免費的試用額度當成 $0 實測。
 - [x] `friend-revisions.cjs` mock 已同步現行 `/claims/status`、`/claims/unlock`、`/claims/submit` API；8/8 回歸通過。
 - [x] R114 現行範圍回歸完成，本機 OCR 補充功能已發布至 GitHub Pages；測試範圍、commit 及舊版 R104 測試說明見下方。
@@ -96,3 +97,12 @@
 - GitHub Pages workflow `42490619449` completed successfully for commit `4b9038bc214807bd9b3def05baed26e79edd89a8`; the live index and `paddle-ocr-local.js` were fetched successfully, and the visible app version remains R114.
 - Current-scope regression passed: 35 Worker tests, 19 bilingual tutorial browser cases, 2 tutorial-safety cases, 11 current friend-recognition cases, 8 friend-revisions cases, Paddle local data-flow/settings, OCR retry/sharing, and same-link hash/session/room checks.
 - The legacy `friend-password.cjs` R104 harness still asserts a removed repeat-password field and mandatory owner approval, which conflict with the later R105 optional-PIN/no-mandatory-confirmation requirements. Legacy-password compatibility is covered by current `friend-recognition.cjs` and Worker authorization tests.
+
+
+## R114 same-origin Paddle models and test reliability (2026-11-09)
+
+- [x] PaddleOCR.js now fetches both official PP-OCRv5 Mobile model tar archives from this site's origin, only when the first local scan runs; the service worker caches these same-origin assets at runtime. The archives total 21,544,960 bytes (about 21.5 MB) and include the upstream Apache 2.0 license.
+- [x] The shared home/settings model description tells Traditional Chinese and English users about the approximate first-scan download size; visible app release remains R114 while PWA cache and loader URLs receive the new build token.
+- [x] Real Chromium inference loaded both model tar files from the app origin (HTTP 200), made no request to Paddle's archive host, and sent text only to the mocked Dots3-Note endpoint. On the redacted sample, 4 of 5 tracked numeric values were recognized; the cash amount `3000` was missed, so the existing human-review step remains important.
+- [x] Tutorial E2E uses the actual compressed Tailwind Play CDN v3.4.17 script under its MIT license, preserving real CSS/layout assertions. The tutorial remains 18 stages with both original video files unchanged.
+- [x] Regression passed: v4-to-v5 settings migration and selector sync; text/JSON import with attachment and persistence; 19 tutorial browser cases; 2 tutorial-safety cases; Paddle mock and real inference; OCR retry; card redaction; same-link hash/session/room; 6 OCR cascade unit tests.

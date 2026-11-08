@@ -10,7 +10,7 @@ const randomModel = 'openrouter/free';
 
 test('free defaults stay free, random is selectable, and paid stays opt-in', () => {
   assert.equal(ocr.DEFAULT_FREE_MODEL, dotsModel);
-  assert.equal(ocr.MODEL_PREFERENCE_VERSION, 4);
+  assert.equal(ocr.MODEL_PREFERENCE_VERSION, 5);
   assert.deepEqual(ocr.FREE_MODEL_IDS, [dotsModel, lastFallbackModel, randomModel]);
   assert.deepEqual(ocr.CASCADE_MODEL_IDS, [dotsModel, lastFallbackModel]);
   assert.equal(ocr.FREE_MODEL_IDS.includes('thinkingmachines/inkling-small:free'), false);

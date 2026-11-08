@@ -103,7 +103,7 @@ const success = payload => ({
         keys: { openrouter: 'local-test-key' },
         model: 'dots-studio/dots-3-note-preview:free',
         allowPaidModels: false,
-        ocrModelPreferenceVersion: 4
+        ocrModelPreferenceVersion: 5
       }));
     });
     await page.goto(base, { waitUntil: 'domcontentloaded' });
@@ -112,7 +112,7 @@ const success = payload => ({
     await page.getByTestId('receipt-image-action-menu').waitFor({ state: 'visible' });
     assert.equal(await page.getByTestId('reuse-last-receipt-photos').isDisabled(), true, 'reuse is unavailable before there is a stored image batch');
     await page.getByTestId('add-new-receipt-photos').click();
-    await page.locator('input[type="file"]').first().setInputFiles({
+    await page.getByTestId('receipt-ocr-file-input').setInputFiles({
       name: 'first-receipt.png',
       mimeType: 'image/png',
       buffer: Buffer.from(PNG, 'base64')
@@ -130,7 +130,7 @@ const success = payload => ({
     assert.equal(await reuseFirstBatch.isDisabled(), false, 'the first successful photo batch can be reused');
     assert.match(await reuseFirstBatch.innerText(), /重用整批 1 張相片/);
     await page.getByTestId('add-new-receipt-photos').click();
-    await page.locator('input[type="file"]').first().setInputFiles([
+    await page.getByTestId('receipt-ocr-file-input').setInputFiles([
       { name: 'new-receipt-1.png', mimeType: 'image/png', buffer: Buffer.from(PNG, 'base64') },
       { name: 'new-receipt-2.png', mimeType: 'image/png', buffer: Buffer.from(PNG, 'base64') }
     ]);

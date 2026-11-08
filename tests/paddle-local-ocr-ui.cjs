@@ -31,6 +31,7 @@ const payload = {
     const context = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' });
     const page = await context.newPage();
     page.on('pageerror', error => failures.push(error.message));
+    await page.route(/^https:\/\/cdn\.tailwindcss\.com(?:\/.*)?$/, route => route.fulfill({ status: 200, contentType: 'application/javascript', body: 'window.tailwind = window.tailwind || {};' }));
     await page.addInitScript(() => {
       window.Tesseract = {
         createWorker: async () => ({
@@ -69,7 +70,7 @@ const payload = {
       localStorage.setItem('billSplitterApiConfig', JSON.stringify({
         engine: 'openrouter', ocrEngine: 'openrouter',
         keys: { openrouter: 'local-test-key' }, model: 'dots-studio/dots-3-note-preview:free',
-        allowPaidModels: false, ocrModelPreferenceVersion: 4
+        allowPaidModels: false, ocrModelPreferenceVersion: 5
       }));
     });
     await page.goto(base.toString(), { waitUntil: 'domcontentloaded' });
@@ -82,7 +83,7 @@ const payload = {
     await page.getByTestId('receipt-upload').click();
     await page.getByTestId('receipt-image-action-menu').waitFor({ state: 'visible' });
     await page.getByTestId('add-new-receipt-photos').click();
-    await page.locator('input[type="file"]').first().setInputFiles({
+    await page.getByTestId('receipt-ocr-file-input').setInputFiles({
       name: 'synthetic-receipt.png', mimeType: 'image/png', buffer: PNG
     });
     await page.getByTestId('redaction-next-or-finish').waitFor({ state: 'visible' });

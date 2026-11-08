@@ -80,8 +80,8 @@
   <link rel="stylesheet" href="./theme.css?v=v86-free-models-only">
   <link rel="stylesheet" href="./tutorial.css?v=v86-free-models-only">
   <!-- R114: current interactive guide; original video lessons retained. -->
-  <meta name="bill-app-release" content="v114-paddle-default-v4-20261109">
-  <script defer src="./pwa.js?v=v114-paddle-default-v4-20261109"></script>
+  <meta name="bill-app-release" content="v114-paddle-default-v5-local-models-20261109">
+  <script defer src="./pwa.js?v=v114-paddle-default-v5-local-models-20261109"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
@@ -89,7 +89,7 @@
   <script src="./i18n.js"></script>
   <script src="./claim-relay.js?v=v107-code-focus-visible"></script>
   <script src="./ocr-cascade.js"></script>
-  <script src="./paddle-ocr-local.js?v=v114-paddle-default-v4-20261109"></script>
+  <script src="./paddle-ocr-local.js?v=v114-paddle-default-v5-local-models-20261109"></script>
   <script src="./receipt-adjustments.js"></script>
   <script src="./share-config.js"></script>
   <script src="./bill-share-api.js?v=v107-code-focus-visible"></script>
@@ -1023,6 +1023,7 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
       const [showImageActionMenu, setShowImageActionMenu] = useState(false);
       const [showReceiptTextImport, setShowReceiptTextImport] = useState(false);
       const [lastRecognitionModel, setLastRecognitionModel] = useState('');
+      const isTextImportResult = lastRecognitionModel === 'local-json-import' || String(lastRecognitionModel || '').startsWith('text-input|');
       const [showRedaction, setShowRedaction] = useState(false);
       const [pendingRedactionImages, setPendingRedactionImages] = useState([]);
       const [redactionMasks, setRedactionMasks] = useState([]);
@@ -1032,6 +1033,7 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
       const redactionDrawEnabledRef = useRef(false);
       const [redactionImageLoadedVersion, setRedactionImageLoadedVersion] = useState(0);
       const [isPreparingRedacted, setIsPreparingRedacted] = useState(false);
+      const [receiptAttachmentOnly, setReceiptAttachmentOnly] = useState(false);
       const redactionImageRef = useRef(null);
       const redactionCanvasRef = useRef(null);
       const redactionDragRef = useRef(null);
@@ -1085,6 +1087,7 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
       const fileInputRef = useRef(null);
       const cameraInputRef = useRef(null);
       const receiptTextFileInputRef = useRef(null);
+      const receiptAttachmentInputRef = useRef(null);
 
       const [savedHistory, setSavedHistory] = useState([]);
       const [showHistory, setShowHistory] = useState(false);
@@ -1814,8 +1817,8 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
             }
             const allowPaid = false;
             const preferenceIsCurrent = Number(cfg.ocrModelPreferenceVersion) >= Ocr.MODEL_PREFERENCE_VERSION;
-            // Before preference v4, OpenRouter may only be the previous default written by saveApiConfig.
-            // Treat those old configs as legacy and migrate them to the new local Paddle + Dots default.
+            // Before preference v5, a stored OpenRouter route may still be the old default written by saveApiConfig.
+            // Treat all older configs as legacy and migrate them to the requested local Paddle + Dots default.
             const savedOcrEngine = preferenceIsCurrent && cfg.ocrEngine === 'openrouter' ? 'openrouter' : 'paddlejs';
             const requestedModel = savedOcrEngine === 'openrouter' ? cfg.model : DEFAULT_FREE_MODEL;
             const resolvedModel = resolveBillModel(requestedModel, allowPaid);
@@ -2002,6 +2005,13 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
         } catch (e) {
           setKeyTestResult({ ok: false, msg: e.message });
         } finally { setKeyTesting(false); }
+      };
+
+      const selectedOcrModelDescription = () => {
+        if (ocrEngine === 'paddlejs') return bi('相片在本機讀字，不送去 OpenRouter；首次辨識下載約 21.5 MB。文字交畀 Dots3-Note，失敗再試 Nemotron。', 'Image stays on-device; first scan downloads ~21.5 MB. Text goes to Dots3-Note, then Nemotron if needed.');
+        if (apiModel === Ocr.RANDOM_ROUTER_MODEL_ID) return bi('OpenRouter 免費隨機路由；結果可能不同，不會自動改試固定模型。', 'OpenRouter’s free random router; results vary, with no fixed-model fallback.');
+        if (apiModel === Ocr.CASCADE_MODEL_IDS[1]) return bi('圖片送到 OpenRouter；Nemotron 3.5 優先，失敗再試 Dots。', 'Image goes to OpenRouter; Nemotron 3.5 first, Dots fallback.');
+        return bi('圖片送到 OpenRouter；Dots3-Note 優先，失敗再試 Nemotron。', 'Image goes to OpenRouter; Dots3-Note first, Nemotron fallback.');
       };
 
       const chooseOcrModel = (model) => {
@@ -2668,8 +2678,10 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
         setRedactionIndex(0);
         setRedactionDrag(null);
         redactionDragRef.current = null;
-        setLastImageData([]);
+        if (!receiptAttachmentOnly) setLastImageData([]);
+        setReceiptAttachmentOnly(false);
         if (fileInputRef.current) fileInputRef.current.value = '';
+        if (receiptAttachmentInputRef.current) receiptAttachmentInputRef.current.value = '';
       };
 
       const startOcrWithRedactedImages = async () => {
@@ -2687,9 +2699,35 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
             return output;
           };
           let redactedFiles = await makeBatch(0.92);
-          if (redactedFiles.reduce((sum, file) => sum + file.size, 0) > 12 * 1024 * 1024) redactedFiles = await makeBatch(0.82);
-          if (redactedFiles.reduce((sum, file) => sum + file.size, 0) > 12 * 1024 * 1024) throw new Error('遮蓋後圖片總容量仍超過 12 MB，請減少圖片數量或分批處理。');
+          const existingBytes = receiptAttachmentOnly
+            ? lastImageData.reduce((sum, image) => sum + Math.ceil(String(image?.data || '').length * 3 / 4), 0)
+            : 0;
+          const batchBytes = files => files.reduce((sum, file) => sum + file.size, 0);
+          if (existingBytes + batchBytes(redactedFiles) > 12 * 1024 * 1024) redactedFiles = await makeBatch(0.82);
+          if (existingBytes + batchBytes(redactedFiles) > 12 * 1024 * 1024) throw new Error('遮蓋後圖片總容量仍超過 12 MB，請減少圖片數量或分批處理。');
+          if (receiptAttachmentOnly && lastImageData.length + redactedFiles.length > 5) throw new Error('收據圖片最多 5 張，請先移除部分圖片再試。');
           if (generation !== billGenerationRef.current) return;
+          if (receiptAttachmentOnly) {
+            const appendedImages = await Promise.all(redactedFiles.map(file => new Promise((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = () => resolve({ mimeType: 'image/jpeg', data: String(reader.result || '').split(',')[1] || '' });
+              reader.onerror = () => reject(new Error(`未能讀取遮蓋後圖片：${file.name}`));
+              reader.readAsDataURL(file);
+            })));
+            if (generation !== billGenerationRef.current) return;
+            setLastImageData(current => [...current, ...appendedImages]);
+            setIsSaved(false);
+            setUploadError('');
+            setReceiptAttachmentOnly(false);
+            setPendingRedactionImages([]);
+            setRedactionMasks([]);
+            setRedactionIndex(0);
+            setShowRedaction(false);
+            setRedactionDrag(null);
+            redactionDragRef.current = null;
+            toast(bi('✅ 相片已附加（不做 OCR／AI）。', '✅ Photo attached (no OCR/AI).'));
+            return;
+          }
           setPendingRedactionImages([]);
           setRedactionMasks([]);
           setRedactionIndex(0);
@@ -2704,6 +2742,54 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
         }
       };
 
+      const handleReceiptImageAttachmentUpload = async event => {
+        if (tutorialDemo) return;
+        const input = event?.target;
+        const files = Array.from(input?.files || []);
+        if (!files.length) return;
+        const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+        if (files.length + lastImageData.length > 5) {
+          toast(bi('收據圖片最多 5 張，請減少選取張數。', 'Attach up to 5 receipt photos; select fewer images.'), 'error');
+          if (input) input.value = '';
+          return;
+        }
+        if (files.some(file => !allowedTypes.includes(file.type))) {
+          toast(bi('只支援 JPG、PNG 或 WebP 圖片格式。', 'Only JPG, PNG, or WebP images are supported.'), 'error');
+          if (input) input.value = '';
+          return;
+        }
+        const existingBytes = lastImageData.reduce((sum, image) => sum + Math.ceil(String(image?.data || '').length * 3 / 4), 0);
+        const selectedBytes = files.reduce((sum, file) => sum + file.size, 0);
+        if (existingBytes + selectedBytes > 12 * 1024 * 1024) {
+          toast(bi('收據圖片總容量不可超過 12 MB，請減少圖片或先壓縮。', 'Receipt photos must total 12 MB or less; select fewer or compress them first.'), 'error');
+          if (input) input.value = '';
+          return;
+        }
+        const generation = billGenerationRef.current;
+        try {
+          const originals = await Promise.all(files.map(file => new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve({ mimeType: file.type, data: String(reader.result || '').split(',')[1] || '' });
+            reader.onerror = () => reject(new Error(`未能讀取圖片：${file.name}`));
+            reader.readAsDataURL(file);
+          })));
+          if (generation !== billGenerationRef.current) return;
+          setUploadError('');
+          setReceiptAttachmentOnly(true);
+          setRedactionDrawingMode(false);
+          setPendingRedactionImages(originals);
+          setRedactionMasks(originals.map(() => []));
+          setRedactionIndex(0);
+          setRedactionDrag(null);
+          redactionDragRef.current = null;
+          setShowRedaction(true);
+        } catch (error) {
+          if (generation === billGenerationRef.current) toast(`⚠️ ${error?.message || bi('圖片讀取失敗。', 'Could not read the image.')}`, 'error');
+        } finally {
+          if (input) input.value = '';
+        }
+      };
+
       const handleFileUpload = async (event, alreadyRedacted = false, keepPreviousResultsOnFailure = false, receiptText = '') => {
         if (tutorialDemo) return;
         const generation = billGenerationRef.current;
@@ -2714,6 +2800,7 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
         const clearFileSelection = () => {
           if (fileInputRef.current) fileInputRef.current.value = '';
           if (receiptTextFileInputRef.current) receiptTextFileInputRef.current.value = '';
+          if (receiptAttachmentInputRef.current) receiptAttachmentInputRef.current.value = '';
           if (inputTarget) inputTarget.value = '';
         };
         if (files.length === 0 && !isTextInput) return;
@@ -2727,6 +2814,7 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
 
         if (!isTextInput && !alreadyRedacted) {
           setUploadError('');
+          setReceiptAttachmentOnly(false);
           setLastImageData([]);
           setIsSaved(false);
           try {
@@ -3433,7 +3521,20 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
       const copyReceiptJsonImportPrompt = () => copyToClipboard(
         uiLang === 'en' ? RECEIPT_JSON_IMPORT_PROMPT_EN : RECEIPT_JSON_IMPORT_PROMPT_ZH,
         bi('讀圖提示詞', 'image-reading prompt'),
-        bi('✅ 提示詞已複製。貼到另一個 AI，再附上收據相片。', '✅ Prompt copied. Paste it into another AI, then attach the receipt photo.')
+        bi('✅ 提示詞已複製。貼到其他 AI。', '✅ Prompt copied.')
+      );
+
+      const renderTextImportReceiptAttachmentCard = () => (
+        <Card data-testid="imported-receipt-attachment-card" className="border-slate-400 bg-white">
+          <div className="space-y-2">
+            <p className="font-bold text-slate-800">{bi('外部 AI 文字／JSON 不含原圖。', 'External AI text/JSON has no photo.')}</p>
+            <p className="text-sm leading-relaxed text-slate-600">{bi('可附原圖並遮蓋私隱；只附圖，不做 OCR／AI。', 'Attach a redacted photo only; no OCR or AI upload.')}</p>
+            <Button data-testid="attach-receipt-image" variant="secondary" className="!w-full" disabled={tutorialDemo || isAnalyzing || isPreparingRedacted} onClick={() => receiptAttachmentInputRef.current?.click()}>
+              <Icon path={icons.fileImage} size={18}/>{lastImageData.length ? bi(`再加相片（${lastImageData.length} 張）`, `Add photo (${lastImageData.length} attached)`) : bi('附加原圖', 'Attach photo')}
+            </Button>
+            <p data-testid="receipt-attachment-status" className="text-xs text-slate-600" role="status" aria-live="polite">{lastImageData.length ? bi(`目前已附加 ${lastImageData.length} 張收據相片。`, `${lastImageData.length} receipt photo${lastImageData.length === 1 ? '' : 's'} attached.`) : bi('尚未附加收據相片。', 'No receipt photo attached yet.')}</p>
+          </div>
+        </Card>
       );
 
       const calculateSplit = () => {
@@ -4056,6 +4157,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
             {!tutorialDemo && claimSession && !claimSession.link && claimSecureError && <p data-testid="claim-protection-setup-error" role="alert" className="mb-4 rounded-xl border border-red-400 bg-red-50 p-3 text-sm font-semibold text-red-800">{claimSecureError}</p>}
 
             {shareReviewRequest && <window.CardShareReview key={shareReviewRequest.id} files={shareReviewRequest.files} onCancel={() => setShareReviewRequest(null)} onShare={files => shareTextWithFiles('', files, '')} />}
+            <input ref={receiptAttachmentInputRef} data-testid="receipt-attachment-input" type="file" accept="image/jpeg,image/png,image/webp" multiple className="hidden" disabled={tutorialDemo || isAnalyzing || isPreparingRedacted} onChange={handleReceiptImageAttachmentUpload} />
 
             {showRedaction && pendingRedactionImages[redactionIndex] && (
               <div className="fixed inset-0 z-50 bg-slate-950/90 overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="receipt-redaction-title">
@@ -4064,13 +4166,14 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                     <div className="flex items-start justify-between gap-3 mb-3">
                       <div>
                         <p className="text-xs font-bold uppercase tracking-wider text-brand-700">{tr("隱私保護")}</p>
-                        <h2 id="receipt-redaction-title" className="text-xl font-bold text-slate-900 mt-1">{tr("先遮蓋敏感資料")}</h2>
+                        <h2 id="receipt-redaction-title" className="text-xl font-bold text-slate-900 mt-1">{receiptAttachmentOnly ? bi('遮蓋後附加收據相片', 'Redact and attach receipt photo') : tr("先遮蓋敏感資料")}</h2>
                       </div>
-                      <button type="button" onClick={cancelReceiptRedaction} disabled={isPreparingRedacted} aria-label={tr("取消此次掃描")} className="w-10 h-10 shrink-0 rounded-xl border border-slate-400 text-slate-600 hover:bg-slate-100 text-2xl leading-none">×</button>
+                      <button type="button" onClick={cancelReceiptRedaction} disabled={isPreparingRedacted} aria-label={receiptAttachmentOnly ? bi('取消附加', 'Cancel attachment') : tr("取消此次掃描")} className="w-10 h-10 shrink-0 rounded-xl border border-slate-400 text-slate-600 hover:bg-slate-100 text-2xl leading-none">×</button>
                     </div>
 
                     <div className="rounded-xl border border-amber-500 bg-amber-50 p-3 mb-4">
-                      <p className="text-sm font-semibold text-amber-900">{bi('開筆框住電話、卡號或會員號；保留菜名、價錢和日期。黑框會遮走。', 'Turn on the pen to cover phone, card or member numbers. Keep item names, prices and the date.')}</p>
+                      <p className="text-sm font-semibold text-amber-900">{bi('遮住電話、卡號、會員號；保留項目與金額。', 'Cover phone/card/member numbers; keep items and amounts.')}</p>
+                      {receiptAttachmentOnly && <p data-testid="receipt-attachment-only-hint" className="mt-2 text-sm font-semibold text-amber-900">{bi('只附遮蓋後相片，不做 OCR／AI。', 'Attach only; no OCR or AI upload.')}</p>}
                     </div>
 
                     <div className="flex items-start gap-3 mb-4">
@@ -4121,10 +4224,10 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                     </div>
 
                     <div className="flex flex-col gap-2">
-                      {redactionIndex < pendingRedactionImages.length - 1 && <button type="button" data-testid="redaction-recognize-now" onClick={startOcrWithRedactedImages} disabled={isPreparingRedacted} className="green-action px-3 py-3 rounded-xl bg-brand-600 hover:bg-brand-700 font-bold text-sm disabled:opacity-60">{isPreparingRedacted ? bi('正在準備圖片…', 'Preparing images…') : bi('直接識別', 'Recognize now')}</button>}
+                      {redactionIndex < pendingRedactionImages.length - 1 && <button type="button" data-testid="redaction-recognize-now" onClick={startOcrWithRedactedImages} disabled={isPreparingRedacted} className="green-action px-3 py-3 rounded-xl bg-brand-600 hover:bg-brand-700 font-bold text-sm disabled:opacity-60">{isPreparingRedacted ? bi('正在準備圖片…', 'Preparing images…') : receiptAttachmentOnly ? bi('遮蓋後附加', 'Redact and attach') : bi('直接識別', 'Recognize now')}</button>}
                       <div className="grid grid-cols-2 gap-2">
-                        <button type="button" onClick={cancelReceiptRedaction} disabled={isPreparingRedacted} className="px-3 py-3 rounded-xl border border-slate-400 bg-white text-slate-700 font-bold text-sm disabled:opacity-50">{tr("取消此次掃描")}</button>
-                        <button type="button" data-testid="redaction-next-or-finish" onClick={() => redactionIndex < pendingRedactionImages.length - 1 ? setRedactionIndex(index => index + 1) : startOcrWithRedactedImages()} disabled={isPreparingRedacted} className="px-3 py-3 rounded-xl border border-brand-600 bg-white text-brand-800 font-bold text-sm disabled:opacity-60">{isPreparingRedacted ? bi('正在準備圖片…', 'Preparing images…') : redactionIndex < pendingRedactionImages.length - 1 ? tr("下一張圖片") : tr("遮蓋完成，開始識別")}</button>
+                        <button type="button" onClick={cancelReceiptRedaction} disabled={isPreparingRedacted} className="px-3 py-3 rounded-xl border border-slate-400 bg-white text-slate-700 font-bold text-sm disabled:opacity-50">{receiptAttachmentOnly ? bi('取消附加', 'Cancel attachment') : tr("取消此次掃描")}</button>
+                        <button type="button" data-testid="redaction-next-or-finish" onClick={() => redactionIndex < pendingRedactionImages.length - 1 ? setRedactionIndex(index => index + 1) : startOcrWithRedactedImages()} disabled={isPreparingRedacted} className="px-3 py-3 rounded-xl border border-brand-600 bg-white text-brand-800 font-bold text-sm disabled:opacity-60">{isPreparingRedacted ? bi('正在準備圖片…', 'Preparing images…') : redactionIndex < pendingRedactionImages.length - 1 ? tr("下一張圖片") : receiptAttachmentOnly ? bi('遮蓋完成，附加圖片', 'Finish redaction and attach') : tr("遮蓋完成，開始識別")}</button>
                       </div>
                     </div>
                   </Card>
@@ -4192,21 +4295,13 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                       <option value={LOCAL_PADDLE_MODEL_ID}>{bi('PaddleOCR.js 本機＋Dots3-Note 整理', 'PaddleOCR.js local + Dots3-Note')}</option>
                     </optgroup>
                   </select>
-                  <p data-testid="scan-model-description" className="text-sm text-slate-700 mt-2 leading-relaxed">
-                    {ocrEngine === 'paddlejs'
-                      ? bi('相片先由 PaddleOCR.js 喺本機讀字，圖片唔會送去 OpenRouter；只將辨識文字交畀 Dots3-Note 翻譯及整理。若 Dots 請求失敗，先會改試 Nemotron 3.5；首次載入本機模型約需一分鐘。', 'PaddleOCR.js reads the receipt image locally; the image is not sent to OpenRouter. Only recognized text goes to Dots3-Note for translation and structuring. Nemotron 3.5 is tried only if the Dots request fails. The first local model load may take about a minute.')
-                      : apiModel === Ocr.RANDOM_ROUTER_MODEL_ID
-                        ? bi('收據圖片會交畀 OpenRouter 免費隨機路由；實際模型由 OpenRouter 選，速度和結果可能不同。此選項只會使用隨機路由，不會自動改試 Dots3-Note／Nemotron 3.5 固定模型。', 'The receipt image is sent to OpenRouter’s free random router; OpenRouter picks the actual model, so speed and results may vary. This choice uses the random route only; it does not automatically switch to the fixed Dots3-Note/Nemotron 3.5 models.')
-                        : apiModel === Ocr.CASCADE_MODEL_IDS[1]
-                          ? bi('收據圖片會交畀 OpenRouter，由 Nemotron 3.5 先處理；如請求失敗或限流，先改試 Dots3-Note。', 'The receipt image is sent to OpenRouter, with Nemotron 3.5 first; if the request fails or is rate-limited, Dots3-Note is tried next.')
-                          : bi('收據圖片會交畀 OpenRouter，由 Dots3-Note 優先辨識及整理；如請求失敗或限流，先改試 Nemotron 3.5。', 'The receipt image is sent to OpenRouter, with Dots3-Note first; if the request fails or is rate-limited, Nemotron 3.5 is tried next.')}
-                  </p>
+                  <p data-testid="scan-model-description" className="text-sm text-slate-700 mt-2 leading-relaxed">{selectedOcrModelDescription()}</p>
                 </Card>
 
                 {!isOnline && <p className="text-base text-amber-900 bg-amber-50 border border-amber-400 rounded-xl p-3">{bi('而家冇網絡：相片及一般文字要等連線；已整理成指定 JSON 的文字可離線匯入，亦可手動輸入。', 'No connection: photos and free-form text need a connection. Formatted JSON can still be imported offline, or enter items manually.')}</p>}
 
                 <div className={`upload-dropzone w-full rounded-2xl border border-dashed flex flex-col text-center transition-all ${isAnalyzing ? 'is-analyzing border-brand-500 bg-brand-50 shadow-inner' : 'p-10 items-center justify-center border-slate-500 bg-white hover:border-brand-500 hover:bg-slate-50 shadow-sm'}`}>
-                  <input type="file" accept="image/jpeg,image/png,image/webp" multiple className="hidden" ref={fileInputRef} onChange={handleFileUpload} />
+                  <input data-testid="receipt-ocr-file-input" type="file" accept="image/jpeg,image/png,image/webp" multiple className="hidden" ref={fileInputRef} onChange={handleFileUpload} />
                   <input type="file" accept="image/jpeg,image/png,image/webp" capture="environment" className="hidden" ref={cameraInputRef} onChange={handleFileUpload} />
 
                   {isAnalyzing ? (
@@ -4285,7 +4380,8 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                         <Button data-testid="choose-receipt-text-file" variant="secondary" disabled={tutorialDemo || isAnalyzing} onClick={() => receiptTextFileInputRef.current?.click()}><Icon path={icons.fileImage} size={18}/>{bi('上載文字檔（≤1 MB）', 'Upload text file (≤1 MB)')}</Button>
                         <Button data-testid="submit-receipt-text" variant="primary" disabled={tutorialDemo || isAnalyzing || !receiptTextDraft.trim()} onClick={submitReceiptTextImport}>{isAnalyzing ? bi('整理中…', 'Processing…') : bi('整理這段文字', 'Process this text')}</Button>
                       </div>
-                      <p className="text-sm leading-relaxed text-slate-600">{bi('流程：複製提示詞，在另一個 AI 對話貼上並附上收據相片；再把回覆 JSON 貼在上方或存成 .json 上載。JSON 會在本機匯入；一般文字則交畀上方選的免費模型整理。', 'Flow: copy the prompt, paste it into another AI chat and attach the receipt photo; then paste its JSON reply above or upload it as .json. JSON imports locally; free-form text is structured by the selected free model.')}</p>
+                      <p className="text-sm leading-relaxed text-slate-600">{bi('把提示詞和收據交給其他 AI；貼上或上載 JSON。JSON 本機匯入，純文字用所選模型整理。', 'Give another AI the prompt and receipt; paste or upload its JSON. JSON imports locally; text uses the selected model.')}</p>
+                      <p className="text-sm leading-relaxed text-slate-600">{bi('匯入後可在第 2 步附原圖。', 'Attach the original photo in Step 2.')}</p>
                       {uploadError && <p data-testid="receipt-text-import-error" role="alert" className="rounded-lg border border-amber-400 bg-amber-50 p-2 text-sm text-amber-900">{typeof uploadError === 'string' ? tr(uploadError) : tr(uploadError.sub || uploadError.main || '讀取失敗')}</p>}
                     </div>
                   )}
@@ -4325,6 +4421,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                   </div>
                 )}
                 {items.length === 0 && <p className="text-base text-slate-700 leading-relaxed">{bi('有項目之後，先會出現認帳連結。', 'The share link appears once there is an item.')}</p>}
+                {isTextImportResult && renderTextImportReceiptAttachmentCard()}
 
                 <Card data-testid="activity-settings" className="!p-4 space-y-3">
                   <div>
@@ -4715,6 +4812,8 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                   {friendShareStatus === 'error' && <button type="button" data-testid="retry-same-link-sync" onClick={createFriendShareLink} className="ml-2 underline">{bi('重試', 'Retry')}</button>}
                 </div>}
 
+                {isTextImportResult && renderTextImportReceiptAttachmentCard()}
+
                 {lastImageData.length > 0 && (
                   <Button data-testid="share-receipt-images" onClick={shareCurrentReceipts} variant="primary" className="!w-full green-action-dark !bg-emerald-700 hover:!bg-emerald-800 !border-emerald-900 !shadow-none focus:!ring-emerald-600" style={{ backgroundColor: '#047857', borderColor: '#065f46', boxShadow: 'none' }}>
                     <Icon path={icons.share} size={20} className="!filter-none"/>{bi(`分享單據圖片（${lastImageData.length} 張）`, `Share receipt images (${lastImageData.length})`)}
@@ -4943,28 +5042,29 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                       }} className="shrink-0 rounded-md border border-brand-600 px-2 py-1 text-xs font-semibold text-brand-700 hover:bg-brand-50">{bi('影片教學', 'Video guide')}</button>
                     </div>
                     <div className="mb-6 rounded-xl border border-brand-500 bg-brand-50 p-4">
-                      <div className="font-bold text-base text-brand-900">OpenRouter</div>
-                      <p className="text-base text-slate-700 font-medium mt-1 leading-relaxed">{bi('讀取外語單據。', 'Reads foreign receipts.')}</p>
+                      <div className="font-bold text-base text-brand-900">{ocrEngine === 'paddlejs' ? bi('本機 OCR＋OpenRouter 文字整理', 'Local OCR + OpenRouter text processing') : apiModel === Ocr.RANDOM_ROUTER_MODEL_ID ? bi('OpenRouter 免費隨機路由', 'OpenRouter free random route') : bi('OpenRouter 固定模型', 'OpenRouter fixed model')}</div>
+                      <p className="text-base text-slate-700 font-medium mt-1 leading-relaxed">{selectedOcrModelDescription()}</p>
                     </div>
 
                     <div className="border-t border-slate-400 pt-6 space-y-5">
                       <div>
-                          <Label className="text-base">{bi('辨識模型', 'Recognition model')}</Label>
+                        <Label className="text-base">{bi('今次辨識用邊個模型？', 'Choose a model for this scan')}</Label>
                         <select
                           data-testid="model-select"
-                          value={resolveBillModel(apiModel, allowPaidModels)}
+                          value={ocrEngine === 'paddlejs' ? LOCAL_PADDLE_MODEL_ID : resolveBillModel(apiModel, allowPaidModels)}
                           onChange={(event) => {
                             chooseOcrModel(event.target.value);
                           }}
                           className="w-full rounded-xl p-3.5 text-base font-semibold text-slate-800 bg-white"
                         >
-                          <optgroup label={bi('免費模型', 'Free models')}>
+                          <optgroup label={bi('OpenRouter 免費模型', 'OpenRouter free models')}>
                             {FREE_MODELS.map(([id, zh, en]) => <option key={id} value={id}>{bi(zh, en)}</option>)}
                           </optgroup>
+                          <optgroup label={bi('本機 OCR', 'On-device OCR')}>
+                            <option value={LOCAL_PADDLE_MODEL_ID}>{bi('PaddleOCR.js 本機＋Dots3-Note 整理', 'PaddleOCR.js local + Dots3-Note')}</option>
+                          </optgroup>
                         </select>
-                        <p className="text-base text-slate-700 mt-2 leading-relaxed">{ocrEngine === 'paddlejs'
-                          ? bi('首屏目前使用 PaddleOCR.js 本機讀字；此處選擇的免費模型負責把 OCR 文字翻譯及整理成項目，失敗時再按預設次序後備。', 'The first screen currently uses PaddleOCR.js locally; the selected free model translates and structures the recognized text, with the normal fallback order if needed.')
-                          : bi('固定模型失敗時會互相後備；隨機模型則由 OpenRouter 直接隨機選擇，可能較慢。', 'Fixed models fall back to each other; the random option uses OpenRouter’s random router directly and may take longer.')}</p>
+                        <p data-testid="settings-model-description" className="text-base text-slate-700 mt-2 leading-relaxed">{selectedOcrModelDescription()}</p>
                       </div>
 
                       <div>

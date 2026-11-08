@@ -4,10 +4,13 @@
 // PLAYWRIGHT_MODULE=/path/to/playwright CHROMIUM_EXECUTABLE=/usr/bin/chromium \
 // BASE_URL=http://127.0.0.1:4178/ node tests/text-import.cjs
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 const { URL } = require('node:url');
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const base = new URL(process.env.BASE_URL || 'http://127.0.0.1:4178/');
 if (!['127.0.0.1', 'localhost'].includes(base.hostname)) throw new Error('This test only runs against a local server.');
+const syntheticReceipt = fs.readFileSync(path.join(__dirname, 'fixtures', 'card-redaction-synthetic.png'));
 
 const DOTS = 'dots-studio/dots-3-note-preview:free';
 const jsonPastePayload = {
@@ -27,6 +30,7 @@ const textModelPayload = {
 };
 
 const initStorage = async (page, config) => {
+  await page.route(/^https:\/\/cdn\.tailwindcss\.com(?:\/.*)?$/, route => route.fulfill({ status: 200, contentType: 'application/javascript', body: 'window.tailwind = window.tailwind || {};' }));
   await page.goto(new URL('tests/README.md', base).toString(), { waitUntil: 'domcontentloaded' });
   await page.evaluate(value => {
     localStorage.clear();
@@ -101,6 +105,54 @@ const initStorage = async (page, config) => {
     assert.match(await noKeyPage.getByTestId('last-recognition-model').innerText(), /JSON.*本機|本機.*JSON/);
     assert.equal(noKeyRequests, 0, 'valid JSON is imported locally without an API key or network request');
 
+    await noKeyPage.getByTestId('attach-receipt-image').click();
+    await noKeyPage.getByTestId('receipt-attachment-input').setInputFiles({
+      name: 'synthetic-receipt.png', mimeType: 'image/png', buffer: syntheticReceipt
+    });
+    await noKeyPage.getByTestId('receipt-attachment-only-hint').waitFor({ state: 'visible' });
+    assert.match(await noKeyPage.getByTestId('receipt-attachment-only-hint').innerText(), /不做 OCR|no OCR or AI upload/);
+    await noKeyPage.getByTestId('redaction-next-or-finish').click();
+    await noKeyPage.waitForFunction(() => /已附加 1 張/.test(document.querySelector('[data-testid="receipt-attachment-status"]')?.textContent || ''), null, { timeout: 15000 });
+    assert.match(await noKeyPage.getByTestId('last-recognition-model').innerText(), /JSON.*本機|本機.*JSON/, 'attaching a photo does not replace the JSON-import source label');
+    assert.equal(noKeyRequests, 0, 'photo attachment does not send the image to OpenRouter');
+    await noKeyPage.waitForFunction(async () => {
+      const db = await new Promise((resolve, reject) => {
+        const request = indexedDB.open('billSplitterLocalData', 1);
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+      try {
+        const count = await new Promise((resolve, reject) => {
+          const request = db.transaction('receipts', 'readonly').objectStore('receipts').get('active-bill-draft-assets-v1');
+          request.onsuccess = () => resolve(request.result?.images?.length || 0);
+          request.onerror = () => reject(request.error);
+        });
+        return count === 1;
+      } finally { db.close(); }
+    }, null, { timeout: 15000 });
+    await noKeyPage.reload();
+    await noKeyPage.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '2', null, { timeout: 30000 });
+    assert.match(await noKeyPage.getByTestId('receipt-attachment-status').innerText(), /已附加 1 張/, 'the attached photo remains with the imported bill after reload');
+    assert.equal(noKeyRequests, 0, 'restoring the attached photo also makes no API request');
+
+    await noKeyPage.evaluate(() => localStorage.setItem('billSplitterLanguage', 'en'));
+    await noKeyPage.reload();
+    await noKeyPage.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '2', null, { timeout: 30000 });
+    assert.match(await noKeyPage.getByTestId('imported-receipt-attachment-card').innerText(), /External AI text\/JSON has no photo/);
+    assert.match(await noKeyPage.getByTestId('attach-receipt-image').innerText(), /Add photo/);
+    await noKeyPage.getByTestId('attach-receipt-image').click();
+    await noKeyPage.getByTestId('receipt-attachment-input').setInputFiles({
+      name: 'synthetic-receipt-second.png', mimeType: 'image/png', buffer: syntheticReceipt
+    });
+    await noKeyPage.getByTestId('receipt-attachment-only-hint').waitFor({ state: 'visible' });
+    assert.match(await noKeyPage.getByTestId('receipt-attachment-only-hint').innerText(), /no OCR or AI upload/);
+    await noKeyPage.getByTestId('redaction-next-or-finish').click();
+    await noKeyPage.waitForFunction(() => /2 receipt photos attached/.test(document.querySelector('[data-testid="receipt-attachment-status"]')?.textContent || ''), null, { timeout: 15000 });
+    assert.equal(noKeyRequests, 0, 'the English attachment-only flow also makes no API request');
+    await noKeyPage.evaluate(() => localStorage.setItem('billSplitterLanguage', 'zh-HK'));
+    await noKeyPage.reload();
+    await noKeyPage.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '2', null, { timeout: 30000 });
+
     await noKeyPage.locator('.step-nav button').first().click();
     await noKeyPage.getByTestId('toggle-receipt-text-import').click();
     const fencedJson = `\`\`\`json\n${JSON.stringify(filePayload)}\n\`\`\``;
@@ -142,7 +194,7 @@ const initStorage = async (page, config) => {
     await initStorage(modelPage, {
       engine: 'openrouter', ocrEngine: 'openrouter',
       keys: { openrouter: 'local-test-key' }, model: DOTS,
-      allowPaidModels: false, ocrModelPreferenceVersion: 4
+      allowPaidModels: false, ocrModelPreferenceVersion: 5
     });
     await modelPage.getByTestId('toggle-receipt-text-import').click();
     const pastedText = '芒果糯米飯 1 份 65 泰銖\n收據總額 65 泰銖';
@@ -158,7 +210,7 @@ const initStorage = async (page, config) => {
     assert.deepEqual(failures, [], failures.join('\n'));
     await modelContext.close();
 
-    console.log('PASS: copied photo-reading JSON prompt; pasted and .txt JSON imported locally without a key; free-form text used Dots as text-only; no image was sent.');
+    console.log('PASS: copied photo-reading JSON prompt; pasted and .txt JSON imported locally; attached a synthetic receipt after JSON import without OCR/API use; attachment survived reload; free-form text used Dots as text-only.');
   } finally {
     await browser.close();
   }

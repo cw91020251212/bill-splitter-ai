@@ -20,13 +20,15 @@ R112 的 `friend-recognition.cjs` 驗證計算按鈕有中英動作提示、網�
 
 R113 的 `friend-recognition.cjs` 驗證活動名稱「確定」按鈕使用 smooth scroll 前往分享按鈕、活動名稱未建立連結前仍可修改，以及結算 CTA 主文字與提示文字均無 text-shadow/drop-shadow。
 
-R114 的 `tutorial-ui.cjs` 驗證雙語 18 階段教學、第二步分享與第三步先設定後回覆、第四步 Web-first 及預設收合後備、示例試算、退出還原及 Step 1–4 重啟；`tutorial-safety.cjs` 驗證不觸發真實分享、剪貼簿、相機或 API。兩段示範影片均保持 R114 前原始資產。`settings-free-models.cjs` 驗證左上角只顯示 `R114`、舊 Nano 選擇遷移到 Dots3-Note、首屏與設定頁都能保存 Dots、Nemotron 及 `openrouter/free`，且不覆蓋 OpenRouter key。`recognition-retry-ui.cjs` 驗證 Dots3-Note 預設及兩個固定模型的 cascade；`ocr-cascade.test.cjs` 驗證隨機路由只在明確選取時執行，不會自動進入固定 cascade。`friend-whatsapp-details.cjs` 以不同新舊菜名重現 OCR 更新，驗證新 hash 帶入最新項目名稱，同時保留 session、加密回覆 room 和活動 metadata。
+R114 的 `tutorial-ui.cjs` 驗證雙語 18 階段教學、第二步分享與第三步先設定後回覆、第四步 Web-first 及預設收合後備、示例試算、退出還原及 Step 1–4 重啟；`tutorial-safety.cjs` 驗證不觸發真實分享、剪貼簿、相機或 API。兩段示範影片均保持 R114 前原始資產。`settings-free-models.cjs` 驗證左上角只顯示 `R114`、舊 OpenRouter 預設遷移到 PaddleOCR.js＋Dots3-Note、首頁與設定頁兩個模型選單的選項和值同步、切換方向互通、說明逐路由一致，且不覆蓋 OpenRouter key。`recognition-retry-ui.cjs` 驗證 Dots3-Note 與兩個固定模型的 cascade；`ocr-cascade.test.cjs` 驗證隨機路由只在明確選取時執行，不會自動進入固定 cascade。`friend-whatsapp-details.cjs` 以不同新舊菜名重現 OCR 更新，驗證新 hash 帶入最新項目名稱，同時保留 session、加密回覆 room 和活動 metadata。
 
-`settings-free-models.cjs` 另以舊版偏好 v3、已保存的 OpenRouter 設定驗證一次性遷移到 PaddleOCR.js＋Dots3-Note；遷移後 v4 新選擇的雲端模型則會保留。`paddle-local-ocr-real-ui.cjs` 從同一舊設定直接啟動，不手動選 Paddle，實際驗證遷移後收據確實走本機 Paddle 推理。
+`settings-free-models.cjs` 另以偏好 v4、已保存的 OpenRouter＋Dots 設定驗證一次性遷移到 PaddleOCR.js＋Dots3-Note；遷移後 v5 新選擇的雲端模型則會保留。`paddle-local-ocr-real-ui.cjs` 從同一 v4 設定直接啟動，不手動選 Paddle，實際驗證遷移後收據確實走本機 Paddle 推理；它亦斷言 detection／recognition 兩個模型 tar 均以 HTTP 200 從網站同源載入，且不連 Paddle 官方模型站。
 
-`settings-free-models.cjs` 另驗證首屏說明會隨 PaddleOCR.js 本機、Dots3-Note、Nemotron 3.5 或 OpenRouter 隨機路由選擇即時切換，並分別覆蓋繁體中文和英文；說明中的圖片傳送方式與實際後備順序須一致。
+`settings-free-models.cjs` 另驗證兩個選單的模型說明會隨 PaddleOCR.js 本機、Dots3-Note、Nemotron 3.5 或 OpenRouter 隨機路由選擇即時切換，並分別覆蓋繁體中文和英文；兩處文字完全一致，且符合實際圖片傳送方式、後備順序和本機首次下載約 21.5 MB 的提示。兩個選單位於互斥畫面，因此測試在切換前後比較當前值和文案；Playwright 官方說明 `waitForFunction` 會等 predicate 回傳 truthy 才完成（[API](https://playwright.dev/docs/api/class-page)），並建議優先使用自動重試的 locator assertion（[Assertions](https://playwright.dev/docs/test-assertions)）。
 
-`text-import.cjs` 驗證外部 AI 讀圖提示詞複製、JSON 貼上及文字檔匯入免鎖匙而且沒有網絡請求，並確認普通文字只以文字內容送到所選免費模型、不附帶圖片。
+`text-import.cjs` 驗證外部 AI 讀圖提示詞複製、JSON 貼上及文字檔匯入免鎖匙而且沒有網絡請求，並確認普通文字只以文字內容送到所選免費模型、不附帶圖片。JSON 匯入後以合成收據驗證可透過遮蓋畫面附回原圖；此路徑不重跑 OCR／不呼叫 AI，且圖片在重新載入後仍保存在本機草稿。`card-redaction-ui.cjs` 另覆蓋正常收據分享的遮蓋流程。
+
+`tutorial-ui.cjs` 使用授權附上的真實 Tailwind Play CDN v3.4.17 測試 fixture，而不是只有 JavaScript 全域的空 stub，因此中英多尺寸版面斷言仍會執行實際 CSS。產品頁仍使用其原本 CDN，測試 fixture 只供 E2E 使用。
 
 R104 下述八字强制密碼介面測試是歷史規格；R105 新介面以 `friend-recognition.cjs` 為準。姓名未設定碼時只能按姓名識別，不是强身份保護；保留舊密碼驗證、期限、主辦人權限及精確認帳比對測試。
 
