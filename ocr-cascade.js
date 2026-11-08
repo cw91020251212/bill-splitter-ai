@@ -1,8 +1,8 @@
 /*
  * Free receipt-scan cascade for 分帳管家 AI.
  * Checked against the live OpenRouter catalog and endpoints on 2026-11-08.
- * Keep only explicit :free image-input/text-output models with an endpoint.
- * Paid ids stay opt-in. openrouter/free is not used. Friends never call this.
+ * Fixed free models are used in the automatic cascade; openrouter/free is an
+ * explicit user choice only. Paid ids stay opt-in. Friends never call this.
  */
 (function (root, factory) {
   const api = factory();
@@ -11,20 +11,24 @@
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
   'use strict';
 
-  // Dots3-Note is the user's currently best-performing model. The masked-receipt
+  // Dots3-Note is the user's currently preferred model. The masked-receipt
   // benchmark found that Nano Omni mixed settlement rows into items and omitted
   // prices, so it is excluded. Nemotron 3.5 Super VL stays last per user feedback.
+  // The random router is explicit-only because its target and latency vary.
   // Gemma 4 31B/26B are excluded per repeated user failures. Inkling is retired.
   const FREE_MODELS = [
     ['dots-studio/dots-3-note-preview:free', 'Dots3-Note（預設）', 'Dots3-Note (default)'],
-    ['nvidia/nemotron-3.5-super-vl:free', 'Nemotron 3.5 VL（最後後備）', 'Nemotron 3.5 VL (last fallback)']
+    ['nvidia/nemotron-3.5-super-vl:free', 'Nemotron 3.5 VL（最後後備）', 'Nemotron 3.5 VL (last fallback)'],
+    ['openrouter/free', '免費隨機模型（較慢）', 'Free random model (slower)']
   ];
   const PAID_MODELS = [
     ['google/gemini-3.8-flash', 'Gemini 3.8 Flash（較快，可能收費）', 'Gemini 3.8 Flash (faster, may cost money)']
   ];
   const DEFAULT_FREE_MODEL = 'dots-studio/dots-3-note-preview:free';
+  const RANDOM_ROUTER_MODEL_ID = 'openrouter/free';
   const MODEL_PREFERENCE_VERSION = 3;
   const FREE_MODEL_IDS = FREE_MODELS.map(model => model[0]);
+  const CASCADE_MODEL_IDS = FREE_MODEL_IDS.filter(modelId => modelId !== RANDOM_ROUTER_MODEL_ID);
   const PAID_MODEL_IDS = PAID_MODELS.map(model => model[0]);
 
   // Reasoning left on eats the reply and the 50s budget. These vision models
@@ -49,6 +53,8 @@
     allMissing: '這幾個免費模型暫時都冇供應商，所以睇唔到單據。請稍後再試，或改用手動輸入。唔使充值。',
     allLimited: '免費額度暫時用緊（429）。已經自動改試其他免費模型，都未能讀完。請稍後再試，或改用手動輸入。唔使充值。',
     allFailed: '幾個免費模型都未能讀完這張單。可以再試，或改用手動輸入。唔使充值。',
+    randomFailed: '免費隨機模型未能讀完這張單。可以再試，或改選固定模型。唔使充值。',
+    randomTimeout: '免費隨機模型等候逾時。可以再試，或改選固定模型。唔使充值。',
     paidWaiting: '已送到所選進階模型，等候回覆。進階模型可能產生費用。'
   };
 
@@ -73,6 +79,7 @@
   }
 
   function waitingText(modelId) {
+    if (modelId === RANDOM_ROUTER_MODEL_ID) return '已送到 OpenRouter 免費隨機模型，可能較慢，等候回覆。';
     if (isFreeModel(modelId)) return `已送到免費 ${shortLabel(modelId)}，等候回覆。`;
     return MESSAGES.paidWaiting;
   }
@@ -108,7 +115,7 @@
   }
 
   // Same-model retry is only for a fast blip. A timeout, a missing provider,
-  // and a 429 move to the next free model instead of waiting out the same one.
+  // and a 429 move to the next fixed free model instead of retrying the same one.
   function isTransientOcrFailure(error) {
     if (!error || error.name === 'AbortError' || error.timedOut === true) return false;
     const status = Number(error.status) || 0;
@@ -126,8 +133,9 @@
   }
 
   function cascadeOrder(selectedId) {
-    const start = FREE_MODEL_IDS.includes(selectedId) ? selectedId : DEFAULT_FREE_MODEL;
-    return [start, ...FREE_MODEL_IDS.filter(modelId => modelId !== start)];
+    if (selectedId === RANDOM_ROUTER_MODEL_ID) return [RANDOM_ROUTER_MODEL_ID];
+    const start = CASCADE_MODEL_IDS.includes(selectedId) ? selectedId : DEFAULT_FREE_MODEL;
+    return [start, ...CASCADE_MODEL_IDS.filter(modelId => modelId !== start)];
   }
 
   function buildRequestBody(modelId, messages) {
@@ -175,6 +183,17 @@
 
   function exhaustedMessage(failures) {
     const blobs = (failures || []).map(failure => failureBlob(failure.error));
+    if (failures?.length === 1 && failures[0].modelId === RANDOM_ROUTER_MODEL_ID) {
+      const error = failures[0].error || {};
+      if (dataPolicyDetail(blobs[0])) return MESSAGES.dataPolicy;
+      if (Number(error.status) === 401) return MESSAGES.keyRejected;
+      if (Number(error.status) === 404 || providerMissingDetail(blobs[0])) return MESSAGES.providerMissing;
+      if (Number(error.status) === 402) return MESSAGES.paymentRequired;
+      if (Number(error.status) === 403) return MESSAGES.forbidden;
+      if (isRateLimited(error.status, blobs[0])) return MESSAGES.rateLimit;
+      if (error.timedOut) return MESSAGES.randomTimeout;
+      return MESSAGES.randomFailed;
+    }
     if (blobs.length && blobs.every(dataPolicyDetail)) return MESSAGES.dataPolicy;
     if (blobs.length && blobs.every(text => providerMissingDetail(text))) return MESSAGES.allMissing;
     if (blobs.length && blobs.every((text, index) => isRateLimited(failures[index]?.error?.status, text))) return MESSAGES.allLimited;
@@ -200,8 +219,10 @@
     FREE_MODELS,
     PAID_MODELS,
     DEFAULT_FREE_MODEL,
+    RANDOM_ROUTER_MODEL_ID,
     MODEL_PREFERENCE_VERSION,
     FREE_MODEL_IDS,
+    CASCADE_MODEL_IDS,
     PAID_MODEL_IDS,
     MESSAGES,
     OCR_ATTEMPT_MS,

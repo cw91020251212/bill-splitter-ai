@@ -80,8 +80,8 @@
   <link rel="stylesheet" href="./theme.css?v=v86-free-models-only">
   <link rel="stylesheet" href="./tutorial.css?v=v86-free-models-only">
   <!-- R114: current interactive guide; original video lessons retained. -->
-  <meta name="bill-app-release" content="v114-ocr-dots-benchmarked-prompt">
-  <script defer src="./pwa.js?v=v114-ocr-dots-benchmarked-prompt"></script>
+  <meta name="bill-app-release" content="v114-ocr-random-router-option">
+  <script defer src="./pwa.js?v=v114-ocr-random-router-option"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
@@ -3198,7 +3198,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
         const metadata = getClaimLinkMetadata();
         const link = new URL('./claim.html', window.location.href);
         link.searchParams.set('lang', lang === 'en' ? 'en' : 'zh-HK');
-        link.searchParams.set('v', 'v114-ocr-dots-benchmarked-prompt');
+        link.searchParams.set('v', 'v114-ocr-random-router-option');
         link.searchParams.set('session', session.id);
         link.hash = window.ClaimRelay
           ? window.ClaimRelay.buildHash(encodeClaimLinkPayload(payload), room, metadata)
@@ -4057,7 +4057,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                   >
                     {FREE_MODELS.map(([id, zh, en]) => <option key={id} value={id}>{bi(zh, en)}</option>)}
                   </select>
-                  <p className="text-sm text-slate-700 mt-2 leading-relaxed">{bi('所選模型會先試；如請求失敗，才會自動試下一個。唔使入設定更改。', 'The selected model is tried first; if the request fails, the next model is tried automatically. No need to open Settings.')}</p>
+                  <p className="text-sm text-slate-700 mt-2 leading-relaxed">{bi('固定模型會在 Dots3-Note 和 Nemotron 3.5 之間後備。選「免費隨機模型」會直接交由 OpenRouter 隨機揀模型，可能較慢。', 'Fixed models fall back between Dots3-Note and Nemotron 3.5. The free random option calls OpenRouter’s random router directly and may take longer.')}</p>
                 </Card>
 
                 {!isOnline && <p className="text-base text-amber-900 bg-amber-50 border border-amber-400 rounded-xl p-3">{bi('而家冇網絡，暫時讀唔到單據。連線後再影相，或者先手動輸入。', 'No connection, so the receipt cannot be read yet. Take a photo once you are online, or enter items manually for now.')}</p>}
@@ -4793,7 +4793,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                             {FREE_MODELS.map(([id, zh, en]) => <option key={id} value={id}>{bi(zh, en)}</option>)}
                           </optgroup>
                         </select>
-                        <p className="text-base text-slate-700 mt-2 leading-relaxed">{bi('讀唔到時會自動試其他模型。', 'If it cannot read the receipt, it tries another model.')}</p>
+                        <p className="text-base text-slate-700 mt-2 leading-relaxed">{bi('固定模型失敗時會互相後備；隨機模型則由 OpenRouter 直接隨機選擇，可能較慢。', 'Fixed models fall back to each other; the random option uses OpenRouter’s random router directly and may take longer.')}</p>
                       </div>
 
                       <div>

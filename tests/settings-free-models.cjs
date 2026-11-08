@@ -9,6 +9,7 @@ const { chromium } = playwrightPath ? require(playwrightPath) : require('playwri
 const freeModel = 'dots-studio/dots-3-note-preview:free';
 const retiredNanoModel = 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free';
 const lastFallbackModel = 'nvidia/nemotron-3.5-super-vl:free';
+const randomModel = 'openrouter/free';
 const testApiKey = 'test-openrouter-key-preserve-on-migration';
 
 (async () => {
@@ -45,7 +46,10 @@ const testApiKey = 'test-openrouter-key-preserve-on-migration';
       }, freeModel);
       assert.equal(await scanSelect.inputValue(), freeModel, `${storageKind}: retired Nano preference migrates to Dots3-Note`);
       const scanChoices = await scanSelect.locator('option').evaluateAll(nodes => nodes.map(node => node.value));
-      assert.deepEqual(scanChoices, [freeModel, lastFallbackModel], 'first screen omits the failed Nano candidate');
+      assert.deepEqual(scanChoices, [freeModel, lastFallbackModel, randomModel], 'first screen includes the explicit random option');
+      await scanSelect.selectOption(randomModel);
+      await page.waitForFunction(model => JSON.parse(localStorage.getItem('billSplitterApiConfig') || 'null')?.model === model, randomModel);
+      assert.equal(await scanSelect.inputValue(), randomModel, 'first-screen random selection persists immediately');
       await scanSelect.selectOption(lastFallbackModel);
       await page.waitForFunction(model => JSON.parse(localStorage.getItem('billSplitterApiConfig') || 'null')?.model === model, lastFallbackModel);
       assert.equal(await page.getByTestId('scan-model-select').inputValue(), lastFallbackModel, 'first-screen model selection persists immediately');
@@ -100,11 +104,16 @@ const testApiKey = 'test-openrouter-key-preserve-on-migration';
       assert.equal(await select.inputValue(), freeModel, `${storageKind}: old paid model must fall back to free`);
       assert.equal(await page.getByTestId('paid-models-opt-in').count(), 0, 'paid-model toggle must be absent');
       const choices = await select.locator('option').evaluateAll(nodes => nodes.map(node => node.value));
-      assert(choices.length > 0 && choices.every(model => model.endsWith(':free')), 'only free models may be selected');
-      assert.deepEqual(choices, [freeModel, lastFallbackModel]);
+      assert(choices.length > 0 && choices.every(model => model.endsWith(':free') || model === randomModel), 'only free models and the free random router may be selected');
+      assert.deepEqual(choices, [freeModel, lastFallbackModel, randomModel]);
       assert.equal(choices.includes('google/gemma-4-31b-it:free'), false, 'Gemma 4 31B is removed after repeated user failures');
       assert.equal(choices.includes('google/gemma-4-26b-a4b-it:free'), false, 'Gemma 4 26B is removed after repeated user failures');
       assert.equal(choices.includes('thinkingmachines/inkling-small:free'), false, 'retired Inkling model is removed from settings');
+      await select.selectOption(randomModel);
+      await page.waitForFunction(model => JSON.parse(localStorage.getItem('billSplitterApiConfig') || 'null')?.model === model, randomModel);
+      assert.equal(await select.inputValue(), randomModel, 'settings random selection persists immediately');
+      await select.selectOption(freeModel);
+      await page.waitForFunction(model => JSON.parse(localStorage.getItem('billSplitterApiConfig') || 'null')?.model === model, freeModel);
       const settingsText = await page.locator('body').innerText();
       assert(!settingsText.includes('進階／可能產生費用'));
       assert(!settingsText.includes('Advanced / may cost money'));

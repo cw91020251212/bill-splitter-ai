@@ -40,7 +40,7 @@
     window.navigator.standalone === true;
 
   /* ---------------------------------------------------------- service worker */
-  var RELEASE_VERSION = 'v114-ocr-dots-benchmarked-prompt';
+  var RELEASE_VERSION = 'v114-ocr-random-router-option';
   var waitingWorker = null;
   var registrationPromise = null;
   var reloadRequested = false;

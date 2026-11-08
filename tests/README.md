@@ -20,7 +20,7 @@ R112 的 `friend-recognition.cjs` 驗證計算按鈕有中英動作提示、網�
 
 R113 的 `friend-recognition.cjs` 驗證活動名稱「確定」按鈕使用 smooth scroll 前往分享按鈕、活動名稱未建立連結前仍可修改，以及結算 CTA 主文字與提示文字均無 text-shadow/drop-shadow。
 
-R114 的 `tutorial-ui.cjs` 驗證雙語 18 階段教學、第二步分享與第三步先設定後回覆、第四步 Web-first 及預設收合後備、示例試算、退出還原及 Step 1–4 重啟；`tutorial-safety.cjs` 驗證不觸發真實分享、剪貼簿、相機或 API。兩段示範影片均保持 R114 前原始資產。`settings-free-models.cjs` 驗證左上角只顯示 `R114`、v2 已保存 Nano 選擇遷移到 Dots3-Note、第一步可直接選模型並保存，且 OpenRouter key 不被覆蓋；選項只列 Dots3-Note 與最後後備 Nemotron 3.5 VL。`recognition-retry-ui.cjs` 驗證 Dots3-Note 預設、Nemotron 3.5 VL 末位回退、兩模型 cascade 和正式 prompt 的商品行／數量／內含稅檢查。`friend-whatsapp-details.cjs` 以不同新舊菜名重現 OCR 更新，驗證新 hash 帶入最新項目名稱，同時保留 session、加密回覆 room 和活動 metadata。
+R114 的 `tutorial-ui.cjs` 驗證雙語 18 階段教學、第二步分享與第三步先設定後回覆、第四步 Web-first 及預設收合後備、示例試算、退出還原及 Step 1–4 重啟；`tutorial-safety.cjs` 驗證不觸發真實分享、剪貼簿、相機或 API。兩段示範影片均保持 R114 前原始資產。`settings-free-models.cjs` 驗證左上角只顯示 `R114`、舊 Nano 選擇遷移到 Dots3-Note、首屏與設定頁都能保存 Dots、Nemotron 及 `openrouter/free`，且不覆蓋 OpenRouter key。`recognition-retry-ui.cjs` 驗證 Dots3-Note 預設及兩個固定模型的 cascade；`ocr-cascade.test.cjs` 驗證隨機路由只在明確選取時執行，不會自動進入固定 cascade。`friend-whatsapp-details.cjs` 以不同新舊菜名重現 OCR 更新，驗證新 hash 帶入最新項目名稱，同時保留 session、加密回覆 room 和活動 metadata。
 
 R104 下述八字强制密碼介面測試是歷史規格；R105 新介面以 `friend-recognition.cjs` 為準。姓名未設定碼時只能按姓名識別，不是强身份保護；保留舊密碼驗證、期限、主辦人權限及精確認帳比對測試。
 

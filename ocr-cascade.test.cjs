@@ -3,41 +3,40 @@ const assert = require('node:assert/strict');
 const ocr = require('./ocr-cascade.js');
 
 const err = (status, detail, extra = {}) => Object.assign(new Error(detail || ''), { status, detail, ...extra });
+const dotsModel = 'dots-studio/dots-3-note-preview:free';
+const lastFallbackModel = 'nvidia/nemotron-3.5-super-vl:free';
+const retiredNanoModel = 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free';
+const randomModel = 'openrouter/free';
 
-test('free defaults stay free and paid stays opt-in', () => {
-  assert.equal(ocr.DEFAULT_FREE_MODEL, 'dots-studio/dots-3-note-preview:free');
+test('free defaults stay free, random is selectable, and paid stays opt-in', () => {
+  assert.equal(ocr.DEFAULT_FREE_MODEL, dotsModel);
   assert.equal(ocr.MODEL_PREFERENCE_VERSION, 3);
-  assert.ok(ocr.FREE_MODEL_IDS.every(id => id.endsWith(':free')));
-  assert.equal(ocr.FREE_MODEL_IDS.includes('openrouter/free'), false);
+  assert.deepEqual(ocr.FREE_MODEL_IDS, [dotsModel, lastFallbackModel, randomModel]);
+  assert.deepEqual(ocr.CASCADE_MODEL_IDS, [dotsModel, lastFallbackModel]);
   assert.equal(ocr.FREE_MODEL_IDS.includes('thinkingmachines/inkling-small:free'), false);
   assert.equal(ocr.FREE_MODEL_IDS.includes('thinkingmachines/inkling:free'), false);
-  assert.equal(ocr.FREE_MODEL_IDS.includes('nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free'), false);
-  assert.equal(ocr.FREE_MODEL_IDS.includes('nvidia/nemotron-3.5-super-vl:free'), true);
-  assert.equal(ocr.FREE_MODEL_IDS.includes('dots-studio/dots-3-note-preview:free'), true);
-  assert.deepEqual(ocr.FREE_MODEL_IDS, [
-    'dots-studio/dots-3-note-preview:free',
-    'nvidia/nemotron-3.5-super-vl:free'
-  ]);
+  assert.equal(ocr.FREE_MODEL_IDS.includes(retiredNanoModel), false);
   assert.equal(ocr.FREE_MODEL_IDS.includes('google/gemma-4-31b-it:free'), false);
   assert.equal(ocr.FREE_MODEL_IDS.includes('google/gemma-4-26b-a4b-it:free'), false);
   assert.equal(ocr.FREE_MODEL_IDS.includes('qwen/qwen2.5-vl-72b-instruct:free'), false);
-  assert.equal(ocr.resolveBillModel('google/gemma-4-31b-it:free', false), ocr.DEFAULT_FREE_MODEL);
-  assert.equal(ocr.resolveBillModel('google/gemini-3.8-flash', false), ocr.DEFAULT_FREE_MODEL);
+  assert.equal(ocr.resolveBillModel(randomModel, false), randomModel);
+  assert.equal(ocr.isFreeModel(randomModel), true);
+  assert.equal(ocr.modelUsesFreeTier(randomModel, false), true);
+  assert.equal(ocr.resolveBillModel('google/gemini-3.8-flash', false), dotsModel);
   assert.equal(ocr.resolveBillModel('google/gemini-3.8-flash', true), 'google/gemini-3.8-flash');
-  assert.equal(ocr.resolveBillModel('retired/model:free', false), ocr.DEFAULT_FREE_MODEL);
+  assert.equal(ocr.resolveBillModel('retired/model:free', false), dotsModel);
   assert.equal(ocr.modelUsesFreeTier('google/gemini-3.8-flash', false), true);
   assert.equal(ocr.modelUsesFreeTier('google/gemini-3.8-flash', true), false);
 });
 
-test('cascade starts at the saved free model and visits every other free id once', () => {
-  const order = ocr.cascadeOrder('nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free');
-  assert.equal(order[0], ocr.DEFAULT_FREE_MODEL, 'retired Nano selection falls back to Dots3-Note');
-  assert.equal(order.includes('nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free'), false);
-  assert.equal(order.length, ocr.FREE_MODEL_IDS.length);
-  assert.deepEqual(new Set(order), new Set(ocr.FREE_MODEL_IDS));
-  assert.equal(ocr.cascadeOrder('google/gemini-3.8-flash')[0], ocr.DEFAULT_FREE_MODEL);
-  assert.equal(ocr.cascadeOrder('not-a-model')[0], 'dots-studio/dots-3-note-preview:free');
-  assert.equal(ocr.cascadeOrder(ocr.DEFAULT_FREE_MODEL).at(-1), 'nvidia/nemotron-3.5-super-vl:free');
+test('fixed cascade keeps its order and random is used only when explicitly selected', () => {
+  const retiredOrder = ocr.cascadeOrder(retiredNanoModel);
+  assert.deepEqual(retiredOrder, [dotsModel, lastFallbackModel], 'retired Nano selection falls back to the fixed models');
+  assert.deepEqual(ocr.cascadeOrder(dotsModel), [dotsModel, lastFallbackModel]);
+  assert.deepEqual(ocr.cascadeOrder(lastFallbackModel), [lastFallbackModel, dotsModel]);
+  assert.deepEqual(ocr.cascadeOrder(randomModel), [randomModel], 'the random router is never appended to the automatic cascade');
+  assert.deepEqual(ocr.cascadeOrder('google/gemini-3.8-flash'), [dotsModel, lastFallbackModel]);
+  assert.deepEqual(ocr.cascadeOrder('not-a-model'), [dotsModel, lastFallbackModel]);
 });
 
 test('provider loss and rate limits cascade without retrying the same model', () => {
@@ -62,16 +61,20 @@ test('provider loss and rate limits cascade without retrying the same model', ()
   assert.equal(ocr.shouldCascade(aborted), false);
 });
 
-test('request body turns reasoning off only on free vision models', () => {
+test('request body turns reasoning off only on fixed free vision models', () => {
   const messages = [{ role: 'user', content: [{ type: 'text', text: 'receipt' }] }];
   const dotsDefault = ocr.buildRequestBody(ocr.DEFAULT_FREE_MODEL, messages);
   assert.deepEqual(dotsDefault.reasoning, { enabled: false });
   assert.equal(dotsDefault.max_tokens, 4096);
   assert.equal(dotsDefault.temperature, 0.1);
-  const dots = ocr.buildRequestBody('dots-studio/dots-3-note-preview:free', messages);
+  const dots = ocr.buildRequestBody(dotsModel, messages);
   assert.deepEqual(dots.reasoning, { enabled: false });
-  const lastFallback = ocr.buildRequestBody('nvidia/nemotron-3.5-super-vl:free', messages);
+  const lastFallback = ocr.buildRequestBody(lastFallbackModel, messages);
   assert.deepEqual(lastFallback.reasoning, { enabled: false });
+  const random = ocr.buildRequestBody(randomModel, messages);
+  assert.equal(random.model, randomModel);
+  assert.equal(random.max_tokens, 4096);
+  assert.equal(random.reasoning, undefined);
   const paid = ocr.buildRequestBody('google/gemini-3.8-flash', messages);
   assert.equal(paid.reasoning, undefined);
   assert.equal(paid.max_tokens, undefined);
@@ -88,23 +91,28 @@ test('message text accepts string content, parts, and reasoning fallback', () =>
 
 test('exhausted copy stays in Traditional Chinese and names the cause', () => {
   const failures = [
-    { modelId: 'dots-studio/dots-3-note-preview:free', error: err(404, 'No endpoints found') },
-    { modelId: 'nvidia/nemotron-3.5-super-vl:free', error: err(404, 'No endpoints found for model') }
+    { modelId: dotsModel, error: err(404, 'No endpoints found') },
+    { modelId: lastFallbackModel, error: err(404, 'No endpoints found for model') }
   ];
   assert.match(ocr.exhaustedMessage(failures), /冇供應商/);
   assert.match(ocr.exhaustedDetail(failures), /Nemotron 3.5 VL：冇供應商/);
   const policy = [{ modelId: ocr.DEFAULT_FREE_MODEL, error: err(404, 'No endpoints found matching your data policy') }];
   assert.match(ocr.exhaustedMessage(policy), /私隱設定/);
   assert.match(ocr.exhaustedMessage(policy), /唔使鎖匙/);
-  const limited = ocr.FREE_MODEL_IDS.map(modelId => ({ modelId, error: err(429, 'rate limit') }));
+  const limited = ocr.CASCADE_MODEL_IDS.map(modelId => ({ modelId, error: err(429, 'rate limit') }));
   assert.match(ocr.exhaustedMessage(limited), /429/);
+  const randomLimited = [{ modelId: randomModel, error: err(429, 'rate limit') }];
+  assert.match(ocr.exhaustedMessage(randomLimited), /429/);
+  const randomTimeout = [{ modelId: randomModel, error: err(0, 'timeout', { timedOut: true }) }];
+  assert.match(ocr.exhaustedMessage(randomTimeout), /隨機模型等候逾時/);
   const mixed = [
     { modelId: ocr.DEFAULT_FREE_MODEL, error: err(0, 'timeout', { timedOut: true }) },
-    { modelId: 'nvidia/nemotron-3.5-super-vl:free', error: err(500, 'boom') }
+    { modelId: lastFallbackModel, error: err(500, 'boom') }
   ];
   assert.match(ocr.exhaustedMessage(mixed), /幾個免費模型都未能讀完/);
   assert.match(ocr.exhaustedDetail(mixed), /等候逾時/);
   assert.match(ocr.describeOpenRouterFailure(401, 'User not found'), /手動分帳同各自認帳都唔使鎖匙/);
   assert.match(ocr.waitingText(ocr.DEFAULT_FREE_MODEL), /^已送到免費 Dots3-Note/);
-  assert.match(ocr.switchText('nvidia/nemotron-3.5-super-vl:free'), /改試 Nemotron 3.5 VL/);
+  assert.match(ocr.waitingText(randomModel), /OpenRouter 免費隨機模型，可能較慢/);
+  assert.match(ocr.switchText(lastFallbackModel), /改試 Nemotron 3.5 VL/);
 });

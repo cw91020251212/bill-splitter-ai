@@ -73,10 +73,10 @@
 - [x] 第 4 步以網頁版同一連結為首選；簡單版／詳細版只作後備，先展開後備方案才展示文字報告操作；繁體中文與英文文案一致。
 - [x] 依使用者最新指示，第一條 OpenRouter API Key 影片保持原片；第二條分帳操作影片還原為修改前原始版本，逐位元與 R114 前資產相同。移除新增 OCR 片頭及其字幕 sidecar，不再剪輯或改動影片內容。
 - [x] 主程式左上角版本文字只顯示 R114，移除 V1.0.1。
-- [x] 免費 OCR cascade 依使用者偏好保留 Dots3-Note 為預設；同一遮蓋樣本六候選盤點修正了先前的列數基準：Dots 符合商品列數及應付總額，但件數／商品小計／taxTotal 和部分翻譯仍錯，不能稱為完全準確。Nano Omni 同樣漏項／錯置結算欄，已移除；Gemma 4 31B／26B 本輪免費 provider 均回覆 429，且使用者已回報失敗，不放回；Nemotron 3.5 VL 留在最後但非可靠替代。Crouton Alpha 不列入真實收據流程：Stealth AUP 對受適用法律／法規保障或限制分發的資料設限，並列出 financial information。`openrouter/free` 是隨機路由，不納入固定 cascade。六模型彙總和隱私限制記錄在本地基準報告。
+- [x] 免費 OCR cascade 以 Dots3-Note 為預設；同一遮蓋樣本六候選結果顯示件數／稅欄／部分翻譯仍錯。移除漏項及混淆結算欄的 Nano Omni，以及使用者回報失敗且本輪免費端點回覆 429 的 Gemma 4 31B／26B；Nemotron 3.5 VL 留在固定後備末位。`openrouter/free` 加入首屏及設定頁，僅手動選擇時呼叫，不混入固定 cascade，可能較慢。Crouton Alpha 不用於真實收據流程：Stealth AUP 對受適用法律／法規保障或限制分發的資料設限，並列出 financial information。六模型彙總記錄在本地基準報告。
 - [ ] OpenRouter 標示 Dots3-Note 免費版本將於 2026-12-31 下架；該日期前重新確認替代免費視覺模型及遷移。
-- [x] 第 1 步收據畫面可直接選擇模型，與設定頁同步並保存；Playwright 驗證舊預設遷移、新選擇持久化及 cascade 次序。
+- [x] 第 1 步收據畫面可直接選 Dots、Nemotron 或免費隨機路由，與設定頁同步並保存；Playwright 驗證隨機選項持久化、隨機路由只呼叫一次，固定 cascade 不含隨機路由。
 - [x] 成功重做 OCR／翻譯後，以最新項目名稱重建認帳 URL hash；保留現有 session、加密回覆 room、活動名稱及期限，並將最新結果發布至同一 session。`friend-whatsapp-details.cjs` 驗證舊、新項目名稱及 session/room/metadata。
 
-驗收：`/tmp/r114-ocr-regression.sh` 全項通過；OCR cascade 6/6、設定遷移、OCR 重試、同一連結 hash/session/room、朋友頁、雙語 18 階段教學（19 個 browser cases）、tutorial safety、Worker 授權／核心 35/35 及 diff-check 全綠。第二條影片 SHA-256 與 R114 前原始 blob 完全相同。
+驗收：各測試群組均獨立通過：OCR cascade 6/6、模型遷移與 random selector、OCR retry、同一連結 hash/session/room、朋友頁、雙語 18 階段教學（19 個 browser cases）、tutorial safety 2 項、Worker 授權／核心 35/35 及 diff-check。第二條影片 SHA-256 與 R114 前原始 blob 完全相同。
 已知測試限制：`friend-revisions.cjs` 目前 4/8 通過；舊 deny-by-default mock 尚未覆蓋目前頁面使用的 `/claims/status` 與 `/claims/submit`，因此該套件的 4 個流程無法完成。R114 未更改這些產品路徑。
