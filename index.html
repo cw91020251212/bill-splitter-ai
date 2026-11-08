@@ -80,8 +80,8 @@
   <link rel="stylesheet" href="./theme.css?v=v86-free-models-only">
   <link rel="stylesheet" href="./tutorial.css?v=v86-free-models-only">
   <!-- R114: current interactive guide; original video lessons retained. -->
-  <meta name="bill-app-release" content="v114-ocr-link-model-fix">
-  <script defer src="./pwa.js?v=v114-ocr-link-model-fix"></script>
+  <meta name="bill-app-release" content="v114-ocr-model-picker-dots-default">
+  <script defer src="./pwa.js?v=v114-ocr-model-picker-dots-default"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
@@ -1786,11 +1786,13 @@
               setIsEditingKey(false);
             }
             const allowPaid = false;
-            const resolvedModel = resolveBillModel(cfg.model, allowPaid);
+            const preferenceIsCurrent = Number(cfg.ocrModelPreferenceVersion) >= Ocr.MODEL_PREFERENCE_VERSION;
+            const requestedModel = preferenceIsCurrent ? cfg.model : DEFAULT_FREE_MODEL;
+            const resolvedModel = resolveBillModel(requestedModel, allowPaid);
             setApiModel(resolvedModel);
             let normalizedConfig = persisted;
-            if (cfg.model !== resolvedModel || cfg.allowPaidModels !== allowPaid) {
-              normalizedConfig = JSON.stringify({ ...cfg, engine: 'openrouter', model: resolvedModel, allowPaidModels: false });
+            if (cfg.model !== resolvedModel || cfg.allowPaidModels !== allowPaid || cfg.ocrModelPreferenceVersion !== Ocr.MODEL_PREFERENCE_VERSION) {
+              normalizedConfig = JSON.stringify({ ...cfg, engine: 'openrouter', model: resolvedModel, allowPaidModels: false, ocrModelPreferenceVersion: Ocr.MODEL_PREFERENCE_VERSION });
               try {
                 if (durable) localStorage.setItem('billSplitterApiConfig', normalizedConfig);
                 sessionStorage.setItem('billSplitterApiConfig', normalizedConfig);
@@ -1971,6 +1973,34 @@
         } finally { setKeyTesting(false); }
       };
 
+      const chooseOcrModel = (model) => {
+        if (tutorialDemo) return;
+        const next = resolveBillModel(model, false);
+        setApiModel(next);
+        try {
+          let config = {};
+          const stored = localStorage.getItem('billSplitterApiConfig') || sessionStorage.getItem('billSplitterApiConfig');
+          if (stored) config = JSON.parse(stored);
+          const savedKey = (typeof config.keys?.openrouter === 'string'
+            ? config.keys.openrouter
+            : (config.engine === 'openrouter' && typeof config.key === 'string' ? config.key : '')) || (!isEditingKey ? apiKey.trim() : '');
+          const payload = JSON.stringify({ ...config, engine: 'openrouter', keys: { ...(config.keys || {}), openrouter: savedKey }, model: next, allowPaidModels: false, ocrModelPreferenceVersion: Ocr.MODEL_PREFERENCE_VERSION });
+          if (rememberKey) localStorage.setItem('billSplitterApiConfig', payload);
+          else localStorage.removeItem('billSplitterApiConfig');
+          sessionStorage.setItem('billSplitterApiConfig', payload);
+        } catch (error) {
+          try {
+            const stored = sessionStorage.getItem('billSplitterApiConfig');
+            const config = stored ? JSON.parse(stored) : {};
+            const savedKey = (typeof config.keys?.openrouter === 'string' ? config.keys.openrouter : '') || (!isEditingKey ? apiKey.trim() : '');
+            sessionStorage.setItem('billSplitterApiConfig', JSON.stringify({ ...config, engine: 'openrouter', keys: { ...(config.keys || {}), openrouter: savedKey }, model: next, allowPaidModels: false, ocrModelPreferenceVersion: Ocr.MODEL_PREFERENCE_VERSION }));
+            setRememberKey(false);
+          } catch (_) {
+            toast(bi('⚠️ 未能保存模型選擇，請允許瀏覽器儲存資料。', '⚠️ Could not save the model choice. Allow browser storage and try again.'), 'error');
+          }
+        }
+      };
+
       const saveApiConfig = () => {
         if (tutorialDemo) return;
         const v = validateKey(apiKey, 'openrouter');
@@ -1985,7 +2015,7 @@
         setKeyHint('');
         const modelToSave = resolveBillModel(apiModel, allowPaidModels);
         setApiModel(modelToSave);
-        const payload = JSON.stringify({ engine: 'openrouter', keys: { openrouter: apiKey.trim() }, model: modelToSave, allowPaidModels: allowPaidModels === true });
+        const payload = JSON.stringify({ engine: 'openrouter', keys: { openrouter: apiKey.trim() }, model: modelToSave, allowPaidModels: allowPaidModels === true, ocrModelPreferenceVersion: Ocr.MODEL_PREFERENCE_VERSION });
         try {
           // Write the durable copy first. The session copy is a backup for
           // browsers that temporarily reject persistent storage.
@@ -3161,7 +3191,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
         const metadata = getClaimLinkMetadata();
         const link = new URL('./claim.html', window.location.href);
         link.searchParams.set('lang', lang === 'en' ? 'en' : 'zh-HK');
-        link.searchParams.set('v', 'v114-ocr-link-model-fix');
+        link.searchParams.set('v', 'v114-ocr-model-picker-dots-default');
         link.searchParams.set('session', session.id);
         link.hash = window.ClaimRelay
           ? window.ClaimRelay.buildHash(encodeClaimLinkPayload(payload), room, metadata)
@@ -4008,6 +4038,21 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                   </button>
                 </Card>
 
+                <Card className="border-slate-400 bg-white">
+                  <Label htmlFor="scan-model-select" className="text-base">{bi('今次辨識用邊個模型？', 'Choose a model for this scan')}</Label>
+                  <select
+                    id="scan-model-select"
+                    data-testid="scan-model-select"
+                    value={resolveBillModel(apiModel, allowPaidModels)}
+                    onChange={(event) => chooseOcrModel(event.target.value)}
+                    disabled={tutorialDemo || isAnalyzing}
+                    className="w-full rounded-xl p-3.5 text-base font-semibold text-slate-800 bg-white border border-slate-400"
+                  >
+                    {FREE_MODELS.map(([id, zh, en]) => <option key={id} value={id}>{bi(zh, en)}</option>)}
+                  </select>
+                  <p className="text-sm text-slate-700 mt-2 leading-relaxed">{bi('所選模型會先試；如請求失敗，才會自動試下一個。唔使入設定更改。', 'The selected model is tried first; if the request fails, the next model is tried automatically. No need to open Settings.')}</p>
+                </Card>
+
                 {!isOnline && <p className="text-base text-amber-900 bg-amber-50 border border-amber-400 rounded-xl p-3">{bi('而家冇網絡，暫時讀唔到單據。連線後再影相，或者先手動輸入。', 'No connection, so the receipt cannot be read yet. Take a photo once you are online, or enter items manually for now.')}</p>}
 
                 <div className={`upload-dropzone w-full rounded-2xl border border-dashed flex flex-col text-center transition-all ${isAnalyzing ? 'is-analyzing border-brand-500 bg-brand-50 shadow-inner' : 'p-10 items-center justify-center border-slate-500 bg-white hover:border-brand-500 hover:bg-slate-50 shadow-sm'}`}>
@@ -4733,8 +4778,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                           data-testid="model-select"
                           value={resolveBillModel(apiModel, allowPaidModels)}
                           onChange={(event) => {
-                            const next = resolveBillModel(event.target.value, allowPaidModels);
-                            setApiModel(next);
+                            chooseOcrModel(event.target.value);
                           }}
                           className="w-full rounded-xl p-3.5 text-base font-semibold text-slate-800 bg-white"
                         >
@@ -4783,7 +4827,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                           setRememberKey(shouldRemember);
                           try {
                             if (shouldRemember && apiKey.trim()) {
-                              const payload = JSON.stringify({ engine: 'openrouter', keys: { openrouter: apiKey.trim() }, model: resolveBillModel(apiModel, allowPaidModels), allowPaidModels: allowPaidModels === true });
+                              const payload = JSON.stringify({ engine: 'openrouter', keys: { openrouter: apiKey.trim() }, model: resolveBillModel(apiModel, allowPaidModels), allowPaidModels: allowPaidModels === true, ocrModelPreferenceVersion: Ocr.MODEL_PREFERENCE_VERSION });
                               localStorage.setItem('billSplitterApiConfig', payload);
                               sessionStorage.setItem('billSplitterApiConfig', payload);
                             } else if (!shouldRemember) {

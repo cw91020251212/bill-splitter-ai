@@ -40,7 +40,7 @@
     window.navigator.standalone === true;
 
   /* ---------------------------------------------------------- service worker */
-  var RELEASE_VERSION = 'v114-ocr-link-model-fix';
+  var RELEASE_VERSION = 'v114-ocr-model-picker-dots-default';
   var waitingWorker = null;
   var registrationPromise = null;
   var reloadRequested = false;

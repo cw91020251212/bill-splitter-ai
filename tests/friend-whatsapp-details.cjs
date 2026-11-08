@@ -23,7 +23,7 @@ const correctedItemPayload = Buffer.from(JSON.stringify([
 ])).toString('base64url');
 const claimUrl = new URL('./claim.html', base);
 claimUrl.searchParams.set('lang', 'zh-HK');
-claimUrl.searchParams.set('v', 'v114-ocr-link-model-fix');
+claimUrl.searchParams.set('v', 'v114-ocr-model-picker-dots-default');
 claimUrl.searchParams.set('session', sessionId);
 const claimMetadata = {
   title: '週末聚餐', createdAt, expiresAt, customName: '週末聚餐', expiryDays: '7'

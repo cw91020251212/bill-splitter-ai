@@ -73,7 +73,9 @@
 - [x] 第 4 步以網頁版同一連結為首選；簡單版／詳細版只作後備，先展開後備方案才展示文字報告操作；繁體中文與英文文案一致。
 - [x] 依使用者最新指示，第一條 OpenRouter API Key 影片保持原片；第二條分帳操作影片還原為修改前原始版本，逐位元與 R114 前資產相同。移除新增 OCR 片頭及其字幕 sidecar，不再剪輯或改動影片內容。
 - [x] 主程式左上角版本文字只顯示 R114，移除 V1.0.1。
-- [x] 免費 OCR cascade 保留 Nemotron 3.5 VL 為預設（使用者回報它過去最快、最正常）；Dots3-Note 作第一後備（使用者確認能成功辨識，但翻譯仍有偏差）；移除已無端點的 Inkling，其他候選只列入 2026-11-08 OpenRouter 仍有免費圖片輸入端點的 Gemma 4 31B／26B 和 Nemotron 3 Nano Omni。既有 Inkling 設定回到 Nemotron 預設；端點可用率不等於翻譯品質保證。
+- [x] 免費 OCR cascade 按最新使用者回饋改以 Dots3-Note 為預設；截至 2026-11-08，OpenRouter 公開目錄有 5 個免費視覺模型：保留 Dots、待實測的 Nemotron 3 Nano Omni 和最後後備 Nemotron 3.5 VL；依使用者實測移除無法正常辨識的 Gemma 4 31B／26B。舊模型設定遷移到 Dots 預設，新的模型選擇另存偏好版本；隨機 `openrouter/free` 不納入固定 cascade，避免落到已失敗模型。
+- [ ] OpenRouter 標示 Dots3-Note 免費版本將於 2026-12-31 下架；該日期前重新確認替代免費視覺模型及遷移。
+- [x] 第 1 步收據畫面可直接選擇模型，與設定頁同步並保存；Playwright 驗證舊預設遷移、新選擇持久化及 cascade 次序。
 - [x] 成功重做 OCR／翻譯後，以最新項目名稱重建認帳 URL hash；保留現有 session、加密回覆 room、活動名稱及期限，並將最新結果發布至同一 session。`friend-whatsapp-details.cjs` 驗證舊、新項目名稱及 session/room/metadata。
 
 驗收：`/tmp/r114-ocr-regression.sh` 全項通過；OCR cascade 6/6、設定遷移、OCR 重試、同一連結 hash/session/room、朋友頁、雙語 18 階段教學（19 個 browser cases）、tutorial safety、Worker 授權／核心 35/35 及 diff-check 全綠。第二條影片 SHA-256 與 R114 前原始 blob 完全相同。

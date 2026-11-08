@@ -11,22 +11,20 @@
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
   'use strict';
 
-  // Keep Nemotron 3.5 Super VL first: the user says it was previously the
-  // fastest and most reliable. Dots3-Note is the first fallback because it
-  // completes OCR for the user, though translation quality still needs review.
-  // The remaining ids had live free image endpoints on 2026-11-08; availability
-  // is not a promise of per-key access or translation quality. Inkling is retired.
+  // Dots3-Note is the user's currently best-performing model. Nemotron 3 Nano
+  // Omni is an untested fallback with a live free vision endpoint. Nemotron 3.5
+  // Super VL is deliberately last after the user reported severe OCR errors.
+  // Gemma 4 31B/26B are excluded per repeated user failures. Inkling is retired.
   const FREE_MODELS = [
-    ['nvidia/nemotron-3.5-super-vl:free', 'Nemotron 3.5 VL（預設）', 'Nemotron 3.5 VL (default)'],
-    ['dots-studio/dots-3-note-preview:free', 'Dots3-Note', 'Dots3-Note'],
-    ['google/gemma-4-31b-it:free', 'Gemma 4 31B', 'Gemma 4 31B'],
-    ['google/gemma-4-26b-a4b-it:free', 'Gemma 4 26B', 'Gemma 4 26B'],
-    ['nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free', 'Nemotron 3 Nano Omni', 'Nemotron 3 Nano Omni']
+    ['dots-studio/dots-3-note-preview:free', 'Dots3-Note（預設）', 'Dots3-Note (default)'],
+    ['nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free', 'Nemotron 3 Nano Omni（待實測）', 'Nemotron 3 Nano Omni (untested)'],
+    ['nvidia/nemotron-3.5-super-vl:free', 'Nemotron 3.5 VL（最後後備）', 'Nemotron 3.5 VL (last fallback)']
   ];
   const PAID_MODELS = [
     ['google/gemini-3.8-flash', 'Gemini 3.8 Flash（較快，可能收費）', 'Gemini 3.8 Flash (faster, may cost money)']
   ];
-  const DEFAULT_FREE_MODEL = 'nvidia/nemotron-3.5-super-vl:free';
+  const DEFAULT_FREE_MODEL = 'dots-studio/dots-3-note-preview:free';
+  const MODEL_PREFERENCE_VERSION = 2;
   const FREE_MODEL_IDS = FREE_MODELS.map(model => model[0]);
   const PAID_MODEL_IDS = PAID_MODELS.map(model => model[0]);
 
@@ -35,8 +33,6 @@
   const REASONING_OFF = {
     'nvidia/nemotron-3.5-super-vl:free': { enabled: false },
     'dots-studio/dots-3-note-preview:free': { enabled: false },
-    'google/gemma-4-31b-it:free': { enabled: false },
-    'google/gemma-4-26b-a4b-it:free': { enabled: false },
     'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free': { enabled: false }
   };
 
@@ -206,6 +202,7 @@
     FREE_MODELS,
     PAID_MODELS,
     DEFAULT_FREE_MODEL,
+    MODEL_PREFERENCE_VERSION,
     FREE_MODEL_IDS,
     PAID_MODEL_IDS,
     MESSAGES,

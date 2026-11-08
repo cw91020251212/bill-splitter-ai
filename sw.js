@@ -13,7 +13,7 @@
  * Bump CACHE_VERSION whenever you edit index.html so returning users get the
  * new build instead of the cached one.
  */
-const CACHE_VERSION = 'v114-ocr-link-model-fix';
+const CACHE_VERSION = 'v114-ocr-model-picker-dots-default';
 const SHELL_CACHE = `bill-splitter-shell-${CACHE_VERSION}`;
 const ASSET_CACHE = `bill-splitter-assets-${CACHE_VERSION}`;
 const CDN_CACHE = `bill-splitter-cdn-${CACHE_VERSION}`;

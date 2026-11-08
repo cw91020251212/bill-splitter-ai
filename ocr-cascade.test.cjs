@@ -5,7 +5,8 @@ const ocr = require('./ocr-cascade.js');
 const err = (status, detail, extra = {}) => Object.assign(new Error(detail || ''), { status, detail, ...extra });
 
 test('free defaults stay free and paid stays opt-in', () => {
-  assert.equal(ocr.DEFAULT_FREE_MODEL, 'nvidia/nemotron-3.5-super-vl:free');
+  assert.equal(ocr.DEFAULT_FREE_MODEL, 'dots-studio/dots-3-note-preview:free');
+  assert.equal(ocr.MODEL_PREFERENCE_VERSION, 2);
   assert.ok(ocr.FREE_MODEL_IDS.every(id => id.endsWith(':free')));
   assert.equal(ocr.FREE_MODEL_IDS.includes('openrouter/free'), false);
   assert.equal(ocr.FREE_MODEL_IDS.includes('thinkingmachines/inkling-small:free'), false);
@@ -13,8 +14,15 @@ test('free defaults stay free and paid stays opt-in', () => {
   assert.equal(ocr.FREE_MODEL_IDS.includes('nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free'), true);
   assert.equal(ocr.FREE_MODEL_IDS.includes('nvidia/nemotron-3.5-super-vl:free'), true);
   assert.equal(ocr.FREE_MODEL_IDS.includes('dots-studio/dots-3-note-preview:free'), true);
+  assert.deepEqual(ocr.FREE_MODEL_IDS, [
+    'dots-studio/dots-3-note-preview:free',
+    'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',
+    'nvidia/nemotron-3.5-super-vl:free'
+  ]);
+  assert.equal(ocr.FREE_MODEL_IDS.includes('google/gemma-4-31b-it:free'), false);
+  assert.equal(ocr.FREE_MODEL_IDS.includes('google/gemma-4-26b-a4b-it:free'), false);
   assert.equal(ocr.FREE_MODEL_IDS.includes('qwen/qwen2.5-vl-72b-instruct:free'), false);
-  assert.equal(ocr.resolveBillModel('google/gemma-4-31b-it:free', false), 'google/gemma-4-31b-it:free');
+  assert.equal(ocr.resolveBillModel('google/gemma-4-31b-it:free', false), ocr.DEFAULT_FREE_MODEL);
   assert.equal(ocr.resolveBillModel('google/gemini-3.8-flash', false), ocr.DEFAULT_FREE_MODEL);
   assert.equal(ocr.resolveBillModel('google/gemini-3.8-flash', true), 'google/gemini-3.8-flash');
   assert.equal(ocr.resolveBillModel('retired/model:free', false), ocr.DEFAULT_FREE_MODEL);
@@ -23,13 +31,14 @@ test('free defaults stay free and paid stays opt-in', () => {
 });
 
 test('cascade starts at the saved free model and visits every other free id once', () => {
-  const order = ocr.cascadeOrder('google/gemma-4-31b-it:free');
-  assert.equal(order[0], 'google/gemma-4-31b-it:free');
-  assert.deepEqual(order.slice(1).includes('google/gemma-4-31b-it:free'), false);
+  const order = ocr.cascadeOrder('nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free');
+  assert.equal(order[0], 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free');
+  assert.deepEqual(order.slice(1).includes('nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free'), false);
   assert.equal(order.length, ocr.FREE_MODEL_IDS.length);
   assert.deepEqual(new Set(order), new Set(ocr.FREE_MODEL_IDS));
   assert.equal(ocr.cascadeOrder('google/gemini-3.8-flash')[0], ocr.DEFAULT_FREE_MODEL);
-  assert.equal(ocr.cascadeOrder('not-a-model').includes('dots-studio/dots-3-note-preview:free'), true);
+  assert.equal(ocr.cascadeOrder('not-a-model')[0], 'dots-studio/dots-3-note-preview:free');
+  assert.equal(ocr.cascadeOrder(ocr.DEFAULT_FREE_MODEL).at(-1), 'nvidia/nemotron-3.5-super-vl:free');
 });
 
 test('provider loss and rate limits cascade without retrying the same model', () => {
@@ -64,8 +73,8 @@ test('request body turns reasoning off only on free vision models', () => {
   assert.deepEqual(dots.reasoning, { enabled: false });
   const omni = ocr.buildRequestBody('nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free', messages);
   assert.deepEqual(omni.reasoning, { enabled: false });
-  const gemmaSmall = ocr.buildRequestBody('google/gemma-4-26b-a4b-it:free', messages);
-  assert.deepEqual(gemmaSmall.reasoning, { enabled: false });
+  const lastFallback = ocr.buildRequestBody('nvidia/nemotron-3.5-super-vl:free', messages);
+  assert.deepEqual(lastFallback.reasoning, { enabled: false });
   const paid = ocr.buildRequestBody('google/gemini-3.8-flash', messages);
   assert.equal(paid.reasoning, undefined);
   assert.equal(paid.max_tokens, undefined);
@@ -83,10 +92,10 @@ test('message text accepts string content, parts, and reasoning fallback', () =>
 test('exhausted copy stays in Traditional Chinese and names the cause', () => {
   const failures = [
     { modelId: 'dots-studio/dots-3-note-preview:free', error: err(404, 'No endpoints found') },
-    { modelId: 'google/gemma-4-26b-a4b-it:free', error: err(404, 'No endpoints found for model') }
+    { modelId: 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free', error: err(404, 'No endpoints found for model') }
   ];
   assert.match(ocr.exhaustedMessage(failures), /冇供應商/);
-  assert.match(ocr.exhaustedDetail(failures), /Dots3-Note：冇供應商/);
+  assert.match(ocr.exhaustedDetail(failures), /Nemotron 3 Nano Omni：冇供應商/);
   const policy = [{ modelId: ocr.DEFAULT_FREE_MODEL, error: err(404, 'No endpoints found matching your data policy') }];
   assert.match(ocr.exhaustedMessage(policy), /私隱設定/);
   assert.match(ocr.exhaustedMessage(policy), /唔使鎖匙/);
@@ -94,11 +103,11 @@ test('exhausted copy stays in Traditional Chinese and names the cause', () => {
   assert.match(ocr.exhaustedMessage(limited), /429/);
   const mixed = [
     { modelId: ocr.DEFAULT_FREE_MODEL, error: err(0, 'timeout', { timedOut: true }) },
-    { modelId: 'google/gemma-4-31b-it:free', error: err(500, 'boom') }
+    { modelId: 'nvidia/nemotron-3.5-super-vl:free', error: err(500, 'boom') }
   ];
   assert.match(ocr.exhaustedMessage(mixed), /幾個免費模型都未能讀完/);
   assert.match(ocr.exhaustedDetail(mixed), /等候逾時/);
   assert.match(ocr.describeOpenRouterFailure(401, 'User not found'), /手動分帳同各自認帳都唔使鎖匙/);
-  assert.match(ocr.waitingText(ocr.DEFAULT_FREE_MODEL), /^已送到免費 Nemotron 3\.5 VL/);
-  assert.match(ocr.switchText('dots-studio/dots-3-note-preview:free'), /改試 Dots3-Note/);
+  assert.match(ocr.waitingText(ocr.DEFAULT_FREE_MODEL), /^已送到免費 Dots3-Note/);
+  assert.match(ocr.switchText('nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free'), /改試 Nemotron 3 Nano Omni/);
 });

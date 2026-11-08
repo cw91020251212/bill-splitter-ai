@@ -20,7 +20,7 @@ R112 的 `friend-recognition.cjs` 驗證計算按鈕有中英動作提示、網�
 
 R113 的 `friend-recognition.cjs` 驗證活動名稱「確定」按鈕使用 smooth scroll 前往分享按鈕、活動名稱未建立連結前仍可修改，以及結算 CTA 主文字與提示文字均無 text-shadow/drop-shadow。
 
-R114 的 `tutorial-ui.cjs` 驗證雙語 18 階段教學、第二步分享與第三步先設定後回覆、第四步 Web-first 及預設收合後備、示例試算、退出還原及 Step 1–4 重啟；`tutorial-safety.cjs` 驗證不觸發真實分享、剪貼簿、相機或 API。兩段示範影片均保持 R114 前原始資產。`settings-free-models.cjs` 驗證左上角只顯示 `R114`、退休 Inkling 設定遷移到 Nemotron 3.5 VL，並確認 OpenRouter 金鑰片來源不變；`recognition-retry-ui.cjs` 測試 Nemotron 預設、Dots3-Note 後備與重試。`friend-whatsapp-details.cjs` 以不同新舊菜名重現 OCR 更新，驗證新 hash 帶入最新項目名稱，同時保留 session、加密回覆 room 和活動 metadata。
+R114 的 `tutorial-ui.cjs` 驗證雙語 18 階段教學、第二步分享與第三步先設定後回覆、第四步 Web-first 及預設收合後備、示例試算、退出還原及 Step 1–4 重啟；`tutorial-safety.cjs` 驗證不觸發真實分享、剪貼簿、相機或 API。兩段示範影片均保持 R114 前原始資產。`settings-free-models.cjs` 驗證左上角只顯示 `R114`、舊模型設定遷移到 Dots3-Note、第一步可直接選模型並保存，且 OpenRouter key 不被覆蓋；選項只列 Dots3-Note、待實測的 Nemotron 3 Nano Omni、最後後備 Nemotron 3.5 VL，不列 Gemma 4 31B／26B。`recognition-retry-ui.cjs` 驗證 Dots3-Note 預設、Nano Omni 回退與三模型 cascade。`friend-whatsapp-details.cjs` 以不同新舊菜名重現 OCR 更新，驗證新 hash 帶入最新項目名稱，同時保留 session、加密回覆 room 和活動 metadata。
 
 R104 下述八字强制密碼介面測試是歷史規格；R105 新介面以 `friend-recognition.cjs` 為準。姓名未設定碼時只能按姓名識別，不是强身份保護；保留舊密碼驗證、期限、主辦人權限及精確認帳比對測試。
 
