@@ -30,6 +30,8 @@ R114 的 `tutorial-ui.cjs` 驗證雙語 18 階段教學、第二步分享與第�
 
 `tutorial-ui.cjs` 使用授權附上的真實 Tailwind Play CDN v3.4.17 測試 fixture，而不是只有 JavaScript 全域的空 stub，因此中英多尺寸版面斷言仍會執行實際 CSS。產品頁仍使用其原本 CDN，測試 fixture 只供 E2E 使用。
 
+`paddle-local-ocr-ui.cjs` 及 `text-import.cjs` 模擬 `showOpenFilePicker`，斷言收據圖片選擇器以 `startIn: "downloads"` 開始並提供 JPEG／PNG／WebP 類型篩選；文字匯入測試另確認 API 不可用時會回退至未限制目錄的檔案輸入，並檢查摺疊時箭頭向下、展開時向上。E2E 不會打開真實系統選檔視窗，也不使用私人收據。
+
 R104 下述八字强制密碼介面測試是歷史規格；R105 新介面以 `friend-recognition.cjs` 為準。姓名未設定碼時只能按姓名識別，不是强身份保護；保留舊密碼驗證、期限、主辦人權限及精確認帳比對測試。
 
 `friend-recognition.cjs` 另驗證外部 AI JSON 匯入建立的結果、遮蓋後相片寫入原 Worker session並在朋友詳情頁內嵌顯示；其後新裝置開啟同一認帳連結可見「新增一位」入口，繁中／英文切換後填新姓名和項目，主辦人返回收件匣重新接收及計算，更新結果仍使用原網址；原有朋友資料保留。API 全部路由到本機 Worker 測試 harness，零正式／公開 API 寫入。執行：`BASE_URL=http://127.0.0.1:4178/ node tests/friend-recognition.cjs`。

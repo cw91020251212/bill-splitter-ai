@@ -74,7 +74,9 @@ const initStorage = async (page, config) => {
 
     assert.equal(await noKeyPage.getByTestId('scan-model-select').inputValue(), 'local/paddleocr-js', 'fresh installs use local PaddleOCR + Dots by default');
     assert.equal(await noKeyPage.getByTestId('copy-receipt-json-prompt').isVisible(), true, 'the prompt-copy action is visible without expanding the import panel');
+    assert.equal(await noKeyPage.getByTestId('receipt-text-import-toggle-icon').getAttribute('data-direction'), 'down', 'a collapsed import panel uses the shared down chevron');
     await noKeyPage.getByTestId('toggle-receipt-text-import').click();
+    assert.equal(await noKeyPage.getByTestId('receipt-text-import-toggle-icon').getAttribute('data-direction'), 'up', 'an expanded import panel uses the up chevron');
     const zhImportHelp = await noKeyPage.getByTestId('receipt-text-import').innerText();
     assert.match(zhImportHelp, /單一 bill\.json/);
     assert.match(zhImportHelp, /複製整段回覆/);
@@ -117,12 +119,31 @@ const initStorage = async (page, config) => {
     assert.match(await noKeyPage.getByTestId('last-recognition-model').innerText(), /JSON.*本機|本機.*JSON/);
     assert.equal(noKeyRequests, 0, 'valid JSON is imported locally without an API key or network request');
 
+    await noKeyPage.evaluate(base64 => {
+      const bytes = Uint8Array.from(atob(base64), character => character.charCodeAt(0));
+      window.__receiptPickerCalls = [];
+      Object.defineProperty(window, 'showOpenFilePicker', {
+        configurable: true,
+        value: async options => {
+          window.__receiptPickerCalls.push(options);
+          const file = new File([bytes], 'synthetic-receipt.png', { type: 'image/png' });
+          return [{ getFile: async () => file }];
+        }
+      });
+    }, syntheticReceipt.toString('base64'));
     await noKeyPage.getByTestId('attach-receipt-image').click();
-    await noKeyPage.getByTestId('receipt-attachment-input').setInputFiles({
-      name: 'synthetic-receipt.png', mimeType: 'image/png', buffer: syntheticReceipt
+    await noKeyPage.waitForFunction(() => window.__receiptPickerCalls?.length === 1);
+    const attachmentPickerOptions = await noKeyPage.evaluate(() => window.__receiptPickerCalls[0]);
+    assert.equal(attachmentPickerOptions.startIn, 'downloads', 'the external-import photo picker opens Downloads first');
+    assert.equal(attachmentPickerOptions.multiple, true);
+    assert.deepEqual(attachmentPickerOptions.types[0].accept, {
+      'image/jpeg': ['.jpg', '.jpeg'],
+      'image/png': ['.png'],
+      'image/webp': ['.webp']
     });
     await noKeyPage.getByTestId('receipt-attachment-only-hint').waitFor({ state: 'visible' });
     assert.match(await noKeyPage.getByTestId('receipt-attachment-only-hint').innerText(), /不做 OCR|no OCR or AI/);
+    assert.match(await noKeyPage.getByTestId('imported-receipt-attachment-card').innerText(), /檔案瀏覽器選「下載」/);
     await noKeyPage.getByTestId('redaction-next-or-finish').click();
     await noKeyPage.waitForFunction(() => /已加入 1 張/.test(document.querySelector('[data-testid="receipt-attachment-status"]')?.textContent || ''), null, { timeout: 15000 });
     assert.match(await noKeyPage.getByTestId('last-recognition-model').innerText(), /JSON.*本機|本機.*JSON/, 'attaching a photo does not replace the JSON-import source label');
@@ -152,6 +173,7 @@ const initStorage = async (page, config) => {
     await noKeyPage.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '2', null, { timeout: 30000 });
     assert.match(await noKeyPage.getByTestId('imported-receipt-attachment-card').innerText(), /External AI text\/JSON has no receipt photo/);
     assert.match(await noKeyPage.getByTestId('attach-receipt-image').innerText(), /Add receipt photo/);
+    assert.match(await noKeyPage.getByTestId('imported-receipt-attachment-card').innerText(), /choose Downloads in the file browser/i);
     await noKeyPage.getByTestId('attach-receipt-image').click();
     await noKeyPage.getByTestId('receipt-attachment-input').setInputFiles({
       name: 'synthetic-receipt-second.png', mimeType: 'image/png', buffer: syntheticReceipt
@@ -161,6 +183,15 @@ const initStorage = async (page, config) => {
     await noKeyPage.getByTestId('redaction-next-or-finish').click();
     await noKeyPage.waitForFunction(() => /2 photos added/.test(document.querySelector('[data-testid="receipt-attachment-status"]')?.textContent || ''), null, { timeout: 15000 });
     assert.equal(noKeyRequests, 0, 'the English attachment-only flow also makes no API request');
+    await noKeyPage.evaluate(() => {
+      delete window.showOpenFilePicker;
+      const input = document.querySelector('[data-testid="receipt-attachment-input"]');
+      window.__fallbackPickerCalls = 0;
+      input.click = () => { window.__fallbackPickerCalls += 1; };
+    });
+    await noKeyPage.getByTestId('attach-receipt-image').click();
+    await noKeyPage.waitForFunction(() => window.__fallbackPickerCalls === 1);
+    assert.equal(await noKeyPage.getByTestId('receipt-attachment-input').getAttribute('accept'), null, 'the fallback input can browse Downloads instead of forcing an image-only media picker');
     await noKeyPage.evaluate(() => localStorage.setItem('billSplitterLanguage', 'zh-HK'));
     await noKeyPage.reload();
     await noKeyPage.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '2', null, { timeout: 30000 });

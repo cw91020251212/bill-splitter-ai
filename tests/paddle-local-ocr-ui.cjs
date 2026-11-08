@@ -80,12 +80,31 @@ const payload = {
     await page.waitForFunction(() => JSON.parse(localStorage.getItem('billSplitterApiConfig') || 'null')?.ocrEngine === 'paddlejs');
     assert.equal(await scanSelect.inputValue(), LOCAL);
 
+    await page.evaluate(base64 => {
+      const bytes = Uint8Array.from(atob(base64), character => character.charCodeAt(0));
+      window.__receiptPickerCalls = [];
+      Object.defineProperty(window, 'showOpenFilePicker', {
+        configurable: true,
+        value: async options => {
+          window.__receiptPickerCalls.push(options);
+          const file = new File([bytes], 'synthetic-receipt.png', { type: 'image/png' });
+          return [{ getFile: async () => file }];
+        }
+      });
+    }, PNG.toString('base64'));
     await page.getByTestId('receipt-upload').click();
     await page.getByTestId('receipt-image-action-menu').waitFor({ state: 'visible' });
     await page.getByTestId('add-new-receipt-photos').click();
-    await page.getByTestId('receipt-ocr-file-input').setInputFiles({
-      name: 'synthetic-receipt.png', mimeType: 'image/png', buffer: PNG
+    await page.waitForFunction(() => window.__receiptPickerCalls?.length === 1);
+    const pickerOptions = await page.evaluate(() => window.__receiptPickerCalls[0]);
+    assert.equal(pickerOptions.startIn, 'downloads', 'the primary receipt picker opens Downloads first');
+    assert.equal(pickerOptions.multiple, true);
+    assert.deepEqual(pickerOptions.types[0].accept, {
+      'image/jpeg': ['.jpg', '.jpeg'],
+      'image/png': ['.png'],
+      'image/webp': ['.webp']
     });
+    assert.equal(await page.getByTestId('receipt-ocr-file-input').getAttribute('accept'), null, 'the fallback input is not restricted to the media picker');
     await page.getByTestId('redaction-next-or-finish').waitFor({ state: 'visible' });
     await page.getByTestId('redaction-next-or-finish').click();
     await page.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '2', null, { timeout: 30000 });

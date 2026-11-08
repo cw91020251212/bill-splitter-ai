@@ -124,4 +124,14 @@
 
 - Evidence: `tests/text-import.cjs` and `tests/friend-recognition.cjs` passed with synthetic receipts; the Worker harness recorded zero public API writes.
 - The friends' detail iframe displayed the redacted image inside the original shared session URL, under the bill.
-- GitHub Pages publication for this change is pending until the final regression run.
+- The inline-photo and bill.json prompt changes were published on GitHub Pages before this picker update; the picker release is tracked below.
+
+
+## Android Downloads receipt picker and accordion arrow
+
+- [x] Receipt-file buttons use the secure-context File System Access picker with `startIn: "downloads"` when available; supported formats remain JPEG/PNG/WebP and existing client validation remains authoritative.
+- [x] Browsers without that API fall back to an unfiltered file input so the user can navigate to Downloads instead of being sent straight into an image-only media picker.
+- [x] The external-result accordion follows the shared `Accordion`: down-chevron while collapsed, up-chevron while expanded; bilingual E2E covers Downloads options, fallback, and both states.
+- Evidence: `text-import.cjs` passed the Downloads option, file-type filter, unfiltered fallback, chevron direction, bilingual prompt, and local import-persistence checks.
+- Evidence: `paddle-local-ocr-ui.cjs` passed the primary receipt picker and image-to-text-only boundary; `card-redaction-ui.cjs` confirmed the existing masking path.
+- Other regression: settings E2E passed; tutorial UI passed 19 browser cases; tutorial safety passed 2 cases; OCR cascade passed 6 unit tests.

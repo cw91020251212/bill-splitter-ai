@@ -80,8 +80,8 @@
   <link rel="stylesheet" href="./theme.css?v=v86-free-models-only">
   <link rel="stylesheet" href="./tutorial.css?v=v86-free-models-only">
   <!-- R114: current interactive guide; original video lessons retained. -->
-  <meta name="bill-app-release" content="v114-bill-json-file-prompt-20261109">
-  <script defer src="./pwa.js?v=v114-bill-json-file-prompt-20261109"></script>
+  <meta name="bill-app-release" content="v114-downloads-picker-chevron-20261109">
+  <script defer src="./pwa.js?v=v114-downloads-picker-chevron-20261109"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
@@ -2544,10 +2544,46 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
         if (fixed !== friendsReplies) setFriendsReplies(fixed);
       };
 
+      // Image-only HTML inputs open Android Chrome's media picker. Prefer the
+      // Files API at Downloads; retain a broad file-input fallback and validate
+      // the actual MIME type in the existing upload handlers.
+      const openReceiptImagePicker = async inputRef => {
+        const input = inputRef?.current;
+        if (!input) return;
+        if (typeof window.showOpenFilePicker !== 'function') {
+          input.click();
+          return;
+        }
+        let files = [];
+        try {
+          const handles = await window.showOpenFilePicker({
+            startIn: 'downloads',
+            multiple: true,
+            types: [{
+              description: uiLang === 'en' ? 'Receipt images' : '收據圖片',
+              accept: {
+                'image/jpeg': ['.jpg', '.jpeg'],
+                'image/png': ['.png'],
+                'image/webp': ['.webp']
+              }
+            }]
+          });
+          files = await Promise.all((handles || []).map(handle => handle.getFile()));
+        } catch (error) {
+          if (error?.name === 'AbortError') return;
+          if (!input.disabled) input.click();
+          return;
+        }
+        if (!files.length) return;
+        const event = { target: { files, value: '' } };
+        if (input === receiptAttachmentInputRef.current) await handleReceiptImageAttachmentUpload(event);
+        else await handleFileUpload(event);
+      };
+
       const triggerUpload = () => {
         if (tutorialDemo) { onTutorialAction?.('receipt'); return; }
         if (!apiKey.trim()) { toast('讀單據先要你自己的免費 OpenRouter 鎖匙。', 'error'); setShowSettings(true); return; }
-        if(fileInputRef.current) fileInputRef.current.click();
+        openReceiptImagePicker(fileInputRef);
       };
 
       const triggerCamera = () => {
@@ -3531,9 +3567,10 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
           <div className="space-y-2">
             <p className="font-bold text-slate-800">{bi('外部 AI 文字／JSON 不含收據相片。', 'External AI text/JSON has no receipt photo.')}</p>
             <p className="text-sm leading-relaxed text-slate-600">{bi('加入並遮蓋原圖；分享後會顯示在同一條連結的結果下方。不會用 OCR／AI 處理這張相片。', 'Add and redact the photo; when shared, it appears below the result on the same link. No OCR or AI is run on it.')}</p>
-            <Button data-testid="attach-receipt-image" variant="secondary" className="!w-full" disabled={tutorialDemo || isAnalyzing || isPreparingRedacted} onClick={() => receiptAttachmentInputRef.current?.click()}>
-              <Icon path={icons.fileImage} size={18}/>{lastImageData.length ? bi(`再加收據相片（${lastImageData.length} 張）`, `Add receipt photo (${lastImageData.length} included)`) : bi('加入收據相片', 'Add receipt photo')}
+            <Button data-testid="attach-receipt-image" variant="secondary" className="!w-full" disabled={tutorialDemo || isAnalyzing || isPreparingRedacted} onClick={() => openReceiptImagePicker(receiptAttachmentInputRef)}>
+              <Icon path={icons.fileImage} size={18}/>{lastImageData.length ? bi(`再加收據相片（${lastImageData.length} 張）`, `Add receipt photo (${lastImageData.length} included)`) : bi('從「下載」選收據相片', 'Choose receipt photo from Downloads')}
             </Button>
+            <p className="text-xs text-slate-600">{bi('如未直接開啟「下載」，請在檔案瀏覽器選「下載」。', 'If Downloads does not open directly, choose Downloads in the file browser.')}</p>
             <p data-testid="receipt-attachment-status" className="text-xs text-slate-600" role="status" aria-live="polite">{lastImageData.length ? bi(`已加入 ${lastImageData.length} 張；分享後會在同一條連結的結果下方顯示。`, `${lastImageData.length} photo${lastImageData.length === 1 ? '' : 's'} added; the same link shows them below the result.`) : bi('加入相片後，分享結果時會在同一條連結的結果下方顯示。', 'Add a photo to show it below the result on the same link.')}</p>
           </div>
         </Card>
@@ -4177,7 +4214,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
             {!tutorialDemo && claimSession && !claimSession.link && claimSecureError && <p data-testid="claim-protection-setup-error" role="alert" className="mb-4 rounded-xl border border-red-400 bg-red-50 p-3 text-sm font-semibold text-red-800">{claimSecureError}</p>}
 
             {shareReviewRequest && <window.CardShareReview key={shareReviewRequest.id} files={shareReviewRequest.files} onCancel={() => setShareReviewRequest(null)} onShare={files => shareTextWithFiles('', files, '')} />}
-            <input ref={receiptAttachmentInputRef} data-testid="receipt-attachment-input" type="file" accept="image/jpeg,image/png,image/webp" multiple className="hidden" disabled={tutorialDemo || isAnalyzing || isPreparingRedacted} onChange={handleReceiptImageAttachmentUpload} />
+            <input ref={receiptAttachmentInputRef} data-testid="receipt-attachment-input" type="file" multiple className="hidden" disabled={tutorialDemo || isAnalyzing || isPreparingRedacted} onChange={handleReceiptImageAttachmentUpload} />
 
             {showRedaction && pendingRedactionImages[redactionIndex] && (
               <div className="fixed inset-0 z-50 bg-slate-950/90 overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="receipt-redaction-title">
@@ -4321,7 +4358,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                 {!isOnline && <p className="text-base text-amber-900 bg-amber-50 border border-amber-400 rounded-xl p-3">{bi('而家冇網絡：相片及一般文字要等連線；已整理成指定 JSON 的文字可離線匯入，亦可手動輸入。', 'No connection: photos and free-form text need a connection. Formatted JSON can still be imported offline, or enter items manually.')}</p>}
 
                 <div className={`upload-dropzone w-full rounded-2xl border border-dashed flex flex-col text-center transition-all ${isAnalyzing ? 'is-analyzing border-brand-500 bg-brand-50 shadow-inner' : 'p-10 items-center justify-center border-slate-500 bg-white hover:border-brand-500 hover:bg-slate-50 shadow-sm'}`}>
-                  <input data-testid="receipt-ocr-file-input" type="file" accept="image/jpeg,image/png,image/webp" multiple className="hidden" ref={fileInputRef} onChange={handleFileUpload} />
+                  <input data-testid="receipt-ocr-file-input" type="file" multiple className="hidden" ref={fileInputRef} onChange={handleFileUpload} />
                   <input type="file" accept="image/jpeg,image/png,image/webp" capture="environment" className="hidden" ref={cameraInputRef} onChange={handleFileUpload} />
 
                   {isAnalyzing ? (
@@ -4366,7 +4403,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                             </div>
                             <div className="flex flex-col gap-2">
                               <Button data-testid="add-new-receipt-photos" variant="primary" className="!justify-start !py-3 text-left" onClick={() => { setShowImageActionMenu(false); setUploadError(''); triggerUpload(); }}>
-                                <Icon path={icons.fileImage} size={20}/><span className="flex flex-col items-start"><span>{bi('添加新照片', 'Add new photos')}</span><span className="text-xs font-normal opacity-90">{bi('從手機選擇最多 5 張圖片', 'Choose up to 5 photos from your device')}</span></span>
+                                <Icon path={icons.fileImage} size={20}/><span className="flex flex-col items-start"><span>{bi('從「下載」選單據圖片', 'Choose receipt photos from Downloads')}</span><span className="text-xs font-normal opacity-90">{bi('優先開啟下載資料夾；否則在檔案瀏覽器選「下載」（最多 5 張）', 'Starts in Downloads when supported; otherwise choose Downloads in Files (up to 5)')}</span></span>
                               </Button>
                               <Button data-testid="reuse-last-receipt-photos" variant="secondary" className="!justify-start !py-3 text-left" disabled={!lastImageData.length || isAnalyzing} onClick={() => { setShowImageActionMenu(false); retryLastUpload(); }}>
                                 <Icon path={icons.fileImage} size={20}/><span className="flex flex-col items-start"><span>{bi('用上一次的圖片重新識別', 'Re-recognize the last photos')}</span><span className="text-xs font-normal text-slate-600">{lastImageData.length ? bi(`重用整批 ${lastImageData.length} 張相片`, `Reuse all ${lastImageData.length} photos`) : bi('暫無可重用的相片', 'No previous photos available')}</span></span>
@@ -4387,7 +4424,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                         <span className="block text-base font-bold text-slate-800">{bi('已由其他 AI 讀好？貼上或上載結果', 'Have another AI read it? Paste or upload its result')}</span>
                         <span className="block mt-1 text-sm leading-relaxed text-slate-600">{bi('可貼文字或上載文字檔；提示詞會要求單一 bill.json。若 AI 不能附檔，複製整段回覆貼入即可。', 'Paste text or upload a text file. The prompt asks for one bill.json; if the AI cannot attach it, copy its full reply and paste it here.')}</span>
                       </span>
-                      <span aria-hidden="true" className="shrink-0 text-2xl font-semibold text-slate-600">{showReceiptTextImport ? '−' : '+'}</span>
+                      <span aria-hidden="true" data-testid="receipt-text-import-toggle-icon" data-direction={showReceiptTextImport ? 'up' : 'down'} className="shrink-0"><Icon path={showReceiptTextImport ? icons.chevronUp : icons.chevronDown} size={20} className="text-slate-600"/></span>
                     </button>
                     <Button data-testid="copy-receipt-json-prompt" variant="outline" className="w-full border-slate-400 bg-white sm:w-auto" disabled={tutorialDemo || isAnalyzing} onClick={copyReceiptJsonImportPrompt}><Icon path={icons.copy} size={18}/>{bi('複製讀圖提示詞', 'Copy photo-reading prompt')}</Button>
                   </div>
