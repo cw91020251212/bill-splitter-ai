@@ -40,7 +40,7 @@
     window.navigator.standalone === true;
 
   /* ---------------------------------------------------------- service worker */
-  var RELEASE_VERSION = 'v114-add-person-after-result-20261109';
+  var RELEASE_VERSION = 'v114-bill-json-file-prompt-20261109';
   var waitingWorker = null;
   var registrationPromise = null;
   var reloadRequested = false;

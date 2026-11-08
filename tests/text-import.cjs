@@ -75,20 +75,32 @@ const initStorage = async (page, config) => {
     assert.equal(await noKeyPage.getByTestId('scan-model-select').inputValue(), 'local/paddleocr-js', 'fresh installs use local PaddleOCR + Dots by default');
     assert.equal(await noKeyPage.getByTestId('copy-receipt-json-prompt').isVisible(), true, 'the prompt-copy action is visible without expanding the import panel');
     await noKeyPage.getByTestId('toggle-receipt-text-import').click();
+    const zhImportHelp = await noKeyPage.getByTestId('receipt-text-import').innerText();
+    assert.match(zhImportHelp, /單一 bill\.json/);
+    assert.match(zhImportHelp, /複製整段回覆/);
     await noKeyPage.getByTestId('copy-receipt-json-prompt').click();
     const copiedPrompt = await noKeyPage.evaluate(() => window.__copiedPrompt || '');
     assert.match(copiedPrompt, /附上的收據相片/);
     assert.match(copiedPrompt, /"items"/);
     assert.match(copiedPrompt, /"receiptTotal"/);
+    assert.match(copiedPrompt, /可下載的 UTF-8 JSON 檔，檔名 bill\.json/);
+    assert.match(copiedPrompt, /不能建立可下載附件/);
+    assert.match(copiedPrompt, /一次輸出完整 JSON/);
 
     await noKeyPage.evaluate(() => localStorage.setItem('billSplitterLanguage', 'en'));
     await noKeyPage.reload();
     await noKeyPage.getByTestId('toggle-receipt-text-import').waitFor({ state: 'visible', timeout: 30000 });
     await noKeyPage.getByTestId('toggle-receipt-text-import').click();
+    const enImportHelp = await noKeyPage.getByTestId('receipt-text-import').innerText();
+    assert.match(enImportHelp, /one bill\.json/);
+    assert.match(enImportHelp, /copy its full reply/i);
     await noKeyPage.getByTestId('copy-receipt-json-prompt').click();
     const copiedEnglishPrompt = await noKeyPage.evaluate(() => window.__copiedPrompt || '');
     assert.match(copiedEnglishPrompt, /Read the receipt photo/);
     assert.match(copiedEnglishPrompt, /receiptTotal/);
+    assert.match(copiedEnglishPrompt, /one downloadable UTF-8 JSON file named bill\.json/);
+    assert.match(copiedEnglishPrompt, /cannot create downloadable attachments/);
+    assert.match(copiedEnglishPrompt, /complete JSON once in one contiguous, copyable reply/);
 
     await noKeyPage.evaluate(() => localStorage.setItem('billSplitterLanguage', 'zh-HK'));
     await noKeyPage.reload();

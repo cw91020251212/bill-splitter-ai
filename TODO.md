@@ -86,6 +86,7 @@
 
 - [x] 首頁預設選擇 PaddleOCR.js PP-OCRv5 WASM 本機辨識＋Dots3-Note；新訪問者及 v4 以前設定（包括目前已保存的 OpenRouter 路徑）一次性遷移至此組合，偏好版本 5 起用家明確選擇的 OpenRouter 路徑會保留。首頁與設定頁的模型選項、選中值及逐路由說明同步，繁中／英文內容一致。
 - [x] 首頁新增外部 AI 讀圖提示詞複製按鈕及貼上／上載文字入口；正確格式 JSON 免鎖匙本機匯入，一般文字交給所選免費模型，互動教學第 1 階段已同步說明。
+- [x] 外部 AI 提示詞明確要求優先交付一個可下載的 UTF-8 `bill.json` 檔；若其他 AI 介面不能附檔，則一次輸出完整、可整段複製的 JSON，並在匯入區提示使用者複製整段回覆。中英雙語提示已由 `text-import.cjs` 驗證。
 - [x] 外部 AI 回覆只含文字／JSON時，可在第 2 步或結果頁另選原收據圖片；沿用本機遮蓋介面並把遮蓋後照片連回當前帳單，不會重新 OCR 或傳送給 AI，可用既有本機草稿、歷史和圖片分享功能。合成照片 E2E 驗證附加後重載仍保存。
 - [x] 同一張遮蓋收據已完成 Tesseract.js、PaddleOCR CPU、PaddleOCR.js、OCR.space Engine 2/3 的零費用可執行測試；PDF 中 17 個候選均已逐項調查，不把需註冊、帳單或未明確免費的試用額度當成 $0 實測。
 - [x] `friend-revisions.cjs` mock 已同步現行 `/claims/status`、`/claims/unlock`、`/claims/submit` API；8/8 回歸通過。

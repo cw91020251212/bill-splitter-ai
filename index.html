@@ -80,8 +80,8 @@
   <link rel="stylesheet" href="./theme.css?v=v86-free-models-only">
   <link rel="stylesheet" href="./tutorial.css?v=v86-free-models-only">
   <!-- R114: current interactive guide; original video lessons retained. -->
-  <meta name="bill-app-release" content="v114-add-person-after-result-20261109">
-  <script defer src="./pwa.js?v=v114-add-person-after-result-20261109"></script>
+  <meta name="bill-app-release" content="v114-bill-json-file-prompt-20261109">
+  <script defer src="./pwa.js?v=v114-bill-json-file-prompt-20261109"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
@@ -217,10 +217,10 @@
     const PAID_AI_JPEG_QUALITY = 0.72;
 
     const LOCAL_PADDLE_MODEL_ID = 'local/paddleocr-js';
-    const RECEIPT_JSON_IMPORT_PROMPT_ZH = `請讀取我附上的收據相片（如有多張，合併成同一張收據），辨認商品、金額並翻譯成香港繁體中文，再整理成一個有效 JSON 物件。只輸出 JSON，不要 Markdown 或解釋。商品 name 用香港繁體中文，original 保留收據原文。只把實際商品放在 items；稅、服務費、折扣放在 adjustments；小計、合計、應付及找零不可放入 items。看不清或沒有印出的欄位用 null 或空字串，勿估算、勿捏造。
+    const RECEIPT_JSON_IMPORT_PROMPT_ZH = `請讀取我附上的收據相片（如有多張，合併成同一張收據），辨認商品、金額並翻譯成香港繁體中文，再整理成一個有效 JSON 物件。優先把結果附成一個可下載的 UTF-8 JSON 檔，檔名 bill.json，檔案只包含該 JSON 物件；支援附件時不要只在聊天中顯示文字或改成 .txt，也不要拆成多個檔案。若此介面不能建立可下載附件，請在同一則回覆一次輸出完整 JSON，方便整段複製，不要分段、省略欄位或加其他文字。商品 name 用香港繁體中文，original 保留收據原文。只把實際商品放在 items；稅、服務費、折扣放在 adjustments；小計、合計、應付及找零不可放入 items。看不清或沒有印出的欄位用 null 或空字串，勿估算、勿捏造。
 格式：{"items":[{"name":"拉麵","nameEn":"","original":"ラーメン","ja":"","price":100,"qty":1,"totalQty":null,"unit":"碗","total":100}],"adjustments":[{"label":"消費税","kind":"tax","ratePercent":8,"amount":null,"baseAmount":null,"application":"separate","scope":"receipt","itemIndex":null,"order":0}],"taxTotal":null,"taxNote":"","currency":"JPY","date":"2026-03-14","receiptTotal":108}
 沒有稅費時 adjustments 必須為 []。currency 用 ISO 三位碼；不確定的 date 或 receiptTotal 用 null。`;
-    const RECEIPT_JSON_IMPORT_PROMPT_EN = `Read the receipt photo(s) I attach (combine multiple photos if they belong to the same receipt), identify the items and amounts, translate item names into Hong Kong Traditional Chinese, and return one valid JSON object. Output JSON only, with no Markdown or explanation. Preserve the printed text in original. Put actual purchased goods in items only; put tax, service fees, and discounts in adjustments. Never list subtotal, total due, payment, or change as an item. Use null or an empty string for fields that are unclear or not printed; do not estimate or invent anything.
+    const RECEIPT_JSON_IMPORT_PROMPT_EN = `Read the receipt photo(s) I attach (combine multiple photos if they belong to the same receipt), identify the items and amounts, translate item names into Hong Kong Traditional Chinese, and return one valid JSON object. Prefer to attach the result as one downloadable UTF-8 JSON file named bill.json, containing only that object. When attachments are supported, do not just display chat text, substitute a .txt file, or split the result across files. If this interface cannot create downloadable attachments, output the complete JSON once in one contiguous, copyable reply, without splitting it, omitting fields, or adding other text. Preserve the printed text in original. Put actual purchased goods in items only; put tax, service fees, and discounts in adjustments. Never list subtotal, total due, payment, or change as an item. Use null or an empty string for fields that are unclear or not printed; do not estimate or invent anything.
 Format: {"items":[{"name":"拉麵","nameEn":"ramen","original":"ラーメン","ja":"","price":100,"qty":1,"totalQty":null,"unit":"bowl","total":100}],"adjustments":[{"label":"消費税","kind":"tax","ratePercent":8,"amount":null,"baseAmount":null,"application":"separate","scope":"receipt","itemIndex":null,"order":0}],"taxTotal":null,"taxNote":"","currency":"JPY","date":"2026-03-14","receiptTotal":108}
 Use an empty adjustments array if there are no fees or discounts. Use a three-letter ISO currency code; use null for an unknown date or receiptTotal.`;
     const recognitionModelLabel = modelId => {
@@ -3523,7 +3523,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
       const copyReceiptJsonImportPrompt = () => copyToClipboard(
         uiLang === 'en' ? RECEIPT_JSON_IMPORT_PROMPT_EN : RECEIPT_JSON_IMPORT_PROMPT_ZH,
         bi('讀圖提示詞', 'image-reading prompt'),
-        bi('✅ 提示詞已複製。貼到其他 AI。', '✅ Prompt copied.')
+        bi('✅ 提示詞已複製；要求 bill.json，不能附檔就複製整段回覆。', '✅ Prompt copied; it requests bill.json, or a full reply to copy if attachments are unavailable.')
       );
 
       const renderTextImportReceiptAttachmentCard = () => (
@@ -4385,7 +4385,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                     <button type="button" data-testid="toggle-receipt-text-import" aria-expanded={showReceiptTextImport} onClick={() => setShowReceiptTextImport(value => !value)} className="w-full flex items-center justify-between gap-3 text-left">
                       <span className="min-w-0">
                         <span className="block text-base font-bold text-slate-800">{bi('已由其他 AI 讀好？貼上或上載結果', 'Have another AI read it? Paste or upload its result')}</span>
-                        <span className="block mt-1 text-sm leading-relaxed text-slate-600">{bi('可貼文字或上載文字檔；符合格式的 JSON 可免鎖匙本機匯入。', 'Paste text or upload a text file; formatted JSON imports locally without a key.')}</span>
+                        <span className="block mt-1 text-sm leading-relaxed text-slate-600">{bi('可貼文字或上載文字檔；提示詞會要求單一 bill.json。若 AI 不能附檔，複製整段回覆貼入即可。', 'Paste text or upload a text file. The prompt asks for one bill.json; if the AI cannot attach it, copy its full reply and paste it here.')}</span>
                       </span>
                       <span aria-hidden="true" className="shrink-0 text-2xl font-semibold text-slate-600">{showReceiptTextImport ? '−' : '+'}</span>
                     </button>

@@ -26,7 +26,7 @@ R114 的 `tutorial-ui.cjs` 驗證雙語 18 階段教學、第二步分享與第�
 
 `settings-free-models.cjs` 另驗證兩個選單的模型說明會隨 PaddleOCR.js 本機、Dots3-Note、Nemotron 3.5 或 OpenRouter 隨機路由選擇即時切換，並分別覆蓋繁體中文和英文；兩處文字完全一致，且符合實際圖片傳送方式、後備順序和本機首次下載約 21.5 MB 的提示。兩個選單位於互斥畫面，因此測試在切換前後比較當前值和文案；Playwright 官方說明 `waitForFunction` 會等 predicate 回傳 truthy 才完成（[API](https://playwright.dev/docs/api/class-page)），並建議優先使用自動重試的 locator assertion（[Assertions](https://playwright.dev/docs/test-assertions)）。
 
-`text-import.cjs` 驗證外部 AI 讀圖提示詞複製、JSON 貼上及文字檔匯入免鎖匙，而且 JSON 匯入不會發出網絡請求、普通文字只送文字給所選免費模型。合成相片經本機遮蓋後會保留在草稿；不重跑 OCR／不呼叫 AI。`friend-recognition.cjs` 再驗證結果已發布後加上相片會寫入原 Worker session，朋友仍開同一 URL 並在結果下方看到圖片；不建立第二條連結。`card-redaction-ui.cjs` 另覆蓋正常收據分享的遮蓋流程。
+`text-import.cjs` 驗證雙語外部 AI 讀圖提示詞要求一個可下載的 `bill.json`；若對方介面不能附檔，提示詞和匯入 UI 都引導使用者複製完整回覆。測試亦覆蓋 JSON 貼上及文字檔免鎖匙匯入，JSON 不發網絡請求、普通文字只送文字給所選免費模型。合成相片經本機遮蓋後會保留在草稿；不重跑 OCR／不呼叫 AI。`friend-recognition.cjs` 再驗證結果已發布後加上相片會寫入原 Worker session，朋友仍開同一 URL 並在結果下方看到圖片；不建立第二條連結。`card-redaction-ui.cjs` 另覆蓋正常收據分享的遮蓋流程。
 
 `tutorial-ui.cjs` 使用授權附上的真實 Tailwind Play CDN v3.4.17 測試 fixture，而不是只有 JavaScript 全域的空 stub，因此中英多尺寸版面斷言仍會執行實際 CSS。產品頁仍使用其原本 CDN，測試 fixture 只供 E2E 使用。
 
