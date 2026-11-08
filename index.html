@@ -79,9 +79,9 @@
   </style>
   <link rel="stylesheet" href="./theme.css?v=v86-free-models-only">
   <link rel="stylesheet" href="./tutorial.css?v=v86-free-models-only">
-  <!-- R113: confirm activity settings and scroll to claim-link sharing. -->
-  <meta name="bill-app-release" content="v113-activity-confirm-scroll">
-  <script defer src="./pwa.js?v=v113-activity-confirm-scroll"></script>
+  <!-- R114: refreshed interactive tutorial and Cantonese walkthrough videos. -->
+  <meta name="bill-app-release" content="v114-tutorial-web-first-cantonese">
+  <script defer src="./pwa.js?v=v114-tutorial-web-first-cantonese"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
@@ -177,7 +177,7 @@
       </label>
     );
 
-    const Accordion = ({ title, icon, children, defaultOpen = false, tone = 'slate' }) => {
+    const Accordion = ({ title, icon, children, defaultOpen = false, tone = 'slate', testId, onToggle }) => {
       const [open, setOpen] = useState(defaultOpen);
       const tones = {
         slate: 'bg-white border border-slate-500',
@@ -187,7 +187,7 @@
       };
       return (
         <div className={`rounded-xl border overflow-hidden ${tones[tone]} shadow-sm`}>
-          <button onClick={() => setOpen(!open)} className="w-full flex items-center justify-between gap-3 p-4 text-left outline-none hover:bg-slate-50 transition-colors">
+          <button data-testid={testId} aria-expanded={open} onClick={() => { const nextOpen = !open; setOpen(nextOpen); onToggle?.(nextOpen); }} className="w-full flex items-center justify-between gap-3 p-4 text-left outline-none hover:bg-slate-50 transition-colors">
             <span className="flex items-center gap-2.5 font-bold text-slate-800 text-base">
               {icon && <Icon path={icon} size={20} className="text-slate-600 shrink-0"/>}
               {title}
@@ -979,7 +979,7 @@
       const [discountAmount, setDiscountAmount] = useState('');
       const [taxNote, setTaxNote] = useState('');
       const [receiptAdjustmentDetails, setReceiptAdjustmentDetails] = useState(null);
-      const [friendsReplies, setFriendsReplies] = useState(tutorialDemo ? TUTORIAL_REPLIES : '');
+      const [friendsReplies, setFriendsReplies] = useState('');
       const friendsRepliesRef = useRef(friendsReplies);
       friendsRepliesRef.current = friendsReplies;
 
@@ -3151,7 +3151,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
         const metadata = getClaimLinkMetadata();
         const link = new URL('./claim.html', window.location.href);
         link.searchParams.set('lang', lang === 'en' ? 'en' : 'zh-HK');
-        link.searchParams.set('v', 'v113-activity-confirm-scroll');
+        link.searchParams.set('v', 'v114-tutorial-web-first-cantonese');
         link.searchParams.set('session', session.id);
         link.hash = window.ClaimRelay
           ? window.ClaimRelay.buildHash(encodeClaimLinkPayload(payload), room, metadata)
@@ -3720,13 +3720,17 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
         if (!tutorialDemo) return;
         // Prepare the relevant real controls, without replacing the editable sample.
         setShowClaimShareDialog(tutorialStage === 'share-options');
-        const shared = ['replies', 'payer', 'currency', 'payment', 'tax-method', 'calculate', 'report', 'report-share', 'detail'].includes(tutorialStage);
+        const shared = ['payer', 'currency', 'payment', 'tax-method', 'replies', 'calculate', 'report', 'report-web', 'report-fallback', 'report-share', 'detail'].includes(tutorialStage);
         claimLinkSharedRef.current = shared;
         setClaimLinkShared(shared);
         const edits = tutorialStage === 'items' ? { 0: true } : {};
         openItemEditsRef.current = edits;
         setOpenItemEdits(edits);
-        if (['report', 'report-share', 'detail'].includes(tutorialStage)) {
+        if (tutorialStage === 'replies' && !friendsRepliesRef.current.trim()) {
+          friendsRepliesRef.current = TUTORIAL_REPLIES;
+          setFriendsReplies(TUTORIAL_REPLIES);
+        }
+        if (['report', 'report-web', 'report-fallback', 'report-share', 'detail'].includes(tutorialStage)) {
           if (!calculateSplit()) onTutorialAction?.('calculation-error', !payer.trim() ? 'payer' : 'replies');
         } else if (['upload', 'manual'].includes(tutorialStage)) setStep(1);
         else if (['replies', 'payer', 'currency', 'payment', 'tax-method', 'calculate'].includes(tutorialStage)) setStep(3);
@@ -3783,7 +3787,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
               <div className="flex items-center gap-2 sm:gap-3 shrink-0">
                 <img src="./icons/icon.svg" alt="" width="48" height="48" className="app-brand-icon shrink-0" />
                 <div>
-                  <h1 className="text-xl font-extrabold text-slate-800 tracking-tight"><span className="app-brand-name block sm:inline whitespace-nowrap">{tr("分帳管家")}</span><span className="inline-flex items-baseline gap-1 sm:ml-1 whitespace-nowrap"><span data-testid="app-pro-label" className="text-brand-600 font-black">Pro</span><span data-testid="app-version-label" className="text-[10px] leading-3 font-semibold tracking-normal text-brand-700">V1.0.1 · R113</span></span></h1>
+                  <h1 className="text-xl font-extrabold text-slate-800 tracking-tight"><span className="app-brand-name block sm:inline whitespace-nowrap">{tr("分帳管家")}</span><span className="inline-flex items-baseline gap-1 sm:ml-1 whitespace-nowrap"><span data-testid="app-pro-label" className="text-brand-600 font-black">Pro</span><span data-testid="app-version-label" className="text-[10px] leading-3 font-semibold tracking-normal text-brand-700">R114</span></span></h1>
                 </div>
               </div>
               <div className="header-actions relative flex items-center gap-1.5 sm:gap-2">
@@ -4487,9 +4491,9 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                 <div id="report-share-step" className="scroll-mt-56 space-y-6">
                   <Card data-testid="friend-network-option" className="!p-0 overflow-hidden border-t-4 border-t-emerald-600">
                     <div className="p-4 bg-emerald-50 border-b border-emerald-200">
-                      <span className="inline-flex rounded-full border border-emerald-500 bg-white px-2.5 py-1 text-xs font-extrabold tracking-wide text-emerald-900">{bi('首選・網頁版', 'PREFERRED · WEB')}</span>
+                      <span data-testid="friend-web-preferred-badge" className="inline-flex rounded-full border border-emerald-500 bg-white px-2.5 py-1 text-xs font-extrabold tracking-wide text-emerald-900">{bi('首選・網頁版', 'PREFERRED · WEB')}</span>
                       <h3 className="mt-2 font-bold text-slate-800 text-base">{bi('同一條朋友認帳及結果連結', 'One link for friend claims and results')}</h3>
-                      <p className="mt-1 text-sm leading-relaxed text-slate-700">{bi('朋友用同一條連結認帳；你按下計算後，他們可在原連結查看結果。', 'Friends submit claims on this link and can view the result there after you calculate.')}</p>
+                      <p data-testid="friend-web-intro" className="mt-1 text-sm leading-relaxed text-slate-700">{bi('朋友用同一條連結認帳；你按下計算後，他們可在原連結查看結果。', 'Friends submit claims on this link and can view the result there after you calculate.')}</p>
                     </div>
                     <div className="space-y-3 p-4">
                       {getDetailedTableShareUrl() ? (
@@ -4527,7 +4531,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                     </div>
                   </Card>
                   <div data-testid="report-fallback-options">
-                    <Accordion title={bi('後備方案（簡單版／詳細版）', 'Backup options (Summary / Detailed)')} defaultOpen={tutorialDemo}>
+                    <Accordion title={bi('後備方案（簡單版／詳細版）', 'Backup options (Summary / Detailed)')} testId="report-fallback-toggle" defaultOpen={false} onToggle={(isOpen) => { if (isOpen && tutorialDemo) onTutorialAction?.('fallback-open'); }}>
                       <p data-testid="report-fallback-note" className="text-xs text-slate-600">{bi('網頁版是首選；若朋友無法開啟連結，可改用以下簡單版或詳細版文字分享。', 'Use the web link first; if a friend cannot open it, share the Summary or Detailed text below.')}</p>
                       <div className="space-y-4">
                       <div data-testid="summary-report-fallback">
@@ -4599,7 +4603,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                         <h3 className="text-base font-bold text-slate-800">{bi('1. OpenRouter API Key 設定教學', '1. OpenRouter API key setup')}</h3>
                         <p className="mt-1 mb-3 text-sm leading-relaxed text-slate-700">{bi('示範申請及設定 OpenRouter API Key。', 'Create and add an OpenRouter API key.')}</p>
                         <video data-testid="tutorial-openrouter-video" controls playsInline preload="none" aria-label={bi('OpenRouter API Key 設定影片', 'OpenRouter API key setup video')} className="mx-auto block max-h-[56dvh] w-auto max-w-full rounded-xl bg-black">
-                          <source src="./assets/OpenRouter_API_Key_Tutorial_Circled.mp4?v=20261103-1" type="video/mp4" />
+                          <source src="./assets/OpenRouter_API_Key_Tutorial_Circled.mp4?v=20261108-r114" type="video/mp4" />
                           {bi('你的瀏覽器未能播放 MP4 影片。', 'Your browser cannot play this MP4 video.')}
                         </video>
                       </article>
@@ -4608,7 +4612,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                         <h3 className="text-base font-bold text-slate-800">{bi('2. 分帳操作示範', '2. Bill-splitting walkthrough')}</h3>
                         <p className="mt-1 mb-3 text-sm leading-relaxed text-slate-700">{bi('約 1 分鐘示範分帳流程。', 'A one-minute bill-splitting walkthrough.')}</p>
                         <video data-testid="tutorial-operation-video" controls playsInline preload="none" aria-label={bi('分帳操作廣東話示範短片', 'Cantonese bill-splitting tutorial video')} className="mx-auto block max-h-[56dvh] w-auto max-w-full rounded-xl bg-black">
-                          <source src="./assets/bill-splitter-operation-cantonese.mp4" type="video/mp4" />
+                          <source src="./assets/bill-splitter-operation-cantonese.mp4?v=20261108-r114" type="video/mp4" />
                           {bi('你的瀏覽器未能播放 MP4 影片。', 'Your browser cannot play this MP4 video.')}
                         </video>
                       </article>

@@ -57,9 +57,11 @@ function draft() {
     context = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' });
     const page = await context.newPage();
     page.on('pageerror', error => failures.push(error.message));
-    let liveShareApiRequests = 0;
-    page.on('request', request => { if (/\/api\/shares/.test(request.url())) liveShareApiRequests += 1; });
-    await page.route('**/api/shares**', route => route.abort('blockedbyclient'));
+    const interceptedShareApiRequests = [];
+    await page.route('**/api/shares**', route => {
+      interceptedShareApiRequests.push(route.request().url());
+      return route.abort('blockedbyclient');
+    });
     await page.route('https://api.frankfurter.dev/v2/rate/jpy/hkd', route => route.fulfill({
       status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' },
       body: JSON.stringify({ base: 'JPY', quote: 'HKD', rate: 0.045, date: '2026-11-04' })
@@ -84,6 +86,8 @@ function draft() {
         value: Object.freeze({
           ...original,
           createSession: async () => { throw new Error('A prior activity session should be reused, not recreated.'); },
+          setupClaimProtection: async (_id, _token, members) => ({ enabled: true, claimSecurity: 'password', members: Array.isArray(members) ? members : [] }),
+          getClaimInbox: async (_id, _token, cursor = 0) => ({ enabled: true, updates: [], members: [], cursor }),
           publishSession: async (id, token, payload) => {
             window.__published = { id, token, payload: JSON.parse(JSON.stringify(payload)) };
             return { id, status: 'ready' };
@@ -104,7 +108,21 @@ function draft() {
 
     await page.getByTestId('calculate-split').click();
     await page.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '4', null, { timeout: 20000 });
-    await page.waitForFunction(() => document.querySelector('[data-testid="friend-share-ready"]')?.textContent.includes('已更新'), null, { timeout: 15000 });
+    try {
+      await page.waitForFunction(() => document.querySelector('[data-testid="friend-share-ready"]')?.textContent.includes('已更新'), null, { timeout: 15000 });
+    } catch (error) {
+      const debug = await page.evaluate(() => ({
+        step: document.querySelector('[data-live-app] main')?.dataset.currentStep,
+        published: window.__published,
+        sync: document.querySelector('[data-testid="same-link-sync-status"]')?.innerText,
+        shareCard: document.querySelector('[data-testid="friend-share-ready"]')?.innerText,
+        alerts: [...document.querySelectorAll('[role="alert"]')].map(e => e.innerText),
+        statuses: [...document.querySelectorAll('[role="status"]')].map(e => e.innerText),
+        pageTail: document.body.innerText.slice(-900)
+      }));
+      console.error('DEBUG friend-share sync:', JSON.stringify(debug));
+      throw error;
+    }
     assert.match(await page.getByTestId('same-link-sync-status').innerText(), /結果已自動更新/);
     const state = await page.evaluate(() => ({
       published: window.__published,
@@ -121,7 +139,8 @@ function draft() {
     assert.equal(state.published.payload.bill.sourceCurrency, 'JPY');
     assert.equal(state.published.payload.bill.currency, 'HKD');
     assert.equal(state.published.payload.items.length, 2);
-    assert.equal(liveShareApiRequests, 0, 'Worker requests are mocked; no live share data was uploaded');
+    const unexpectedShareApiRequests = interceptedShareApiRequests.filter(url => !/\/claims\/(?:setup|inbox)$/.test(new URL(url).pathname));
+    assert.deepEqual(unexpectedShareApiRequests, [], 'session creation and result publishing stay in-memory; only claim setup/inbox requests are intercepted locally');
 
     await page.getByTestId('friend-whatsapp-share').click();
     const waUrl = await page.evaluate(() => window.__whatsappCalls[0]);

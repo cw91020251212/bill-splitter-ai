@@ -34,7 +34,7 @@ const testApiKey = 'test-openrouter-key-preserve-on-migration';
       await page.goto(base.toString(), { waitUntil: 'networkidle' });
       const menuTrigger = page.getByTestId('header-action-menu-toggle');
       await menuTrigger.waitFor({ state: 'visible' });
-      assert.equal((await page.getByTestId('app-version-label').innerText()).trim(), 'V1.0.1 · R108');
+      assert.equal((await page.getByTestId('app-version-label').innerText()).trim(), 'R114');
       await menuTrigger.click();
       const menu = page.locator('#header-action-menu');
       await menu.waitFor({ state: 'visible' });
@@ -48,7 +48,7 @@ const testApiKey = 'test-openrouter-key-preserve-on-migration';
         documentWidth: document.documentElement.scrollWidth,
         viewportWidth: innerWidth
       }));
-      assert.equal(menuMetrics.width, 160, 'R108 retains the original 160px menu width');
+      assert.equal(menuMetrics.width, 160, 'R114 retains the original 160px menu width');
       assert.equal(menuMetrics.items.length, 6, 'all existing menu options remain');
       assert(menuMetrics.items.every(item => item.height >= 44), `all menu items are at least 44px tall: ${JSON.stringify(menuMetrics.items)}`);
       assert(menuMetrics.items.every(item => item.fontSize >= 16), 'menu text is at least 16px');
@@ -104,7 +104,7 @@ const testApiKey = 'test-openrouter-key-preserve-on-migration';
           return rect.top >= header.getBoundingClientRect().bottom - 2 && rect.top < innerHeight;
         });
         assert.equal(await page.getByTestId('tutorial-openrouter-video').isVisible(), true);
-        assert.equal(await page.locator('[data-testid="openrouter-video-card"] video source').getAttribute('src'), './assets/OpenRouter_API_Key_Tutorial_Circled.mp4?v=20261103-1');
+        assert.equal(await page.locator('[data-testid="openrouter-video-card"] video source').getAttribute('src'), './assets/OpenRouter_API_Key_Tutorial_Circled.mp4?v=20261108-r114');
         console.log('PASS empty-key-red-link-and-shortcut-opens-key-video');
       } else {
         console.log('PASS saved-key-green-link');

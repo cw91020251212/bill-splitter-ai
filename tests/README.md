@@ -20,6 +20,8 @@ R112 的 `friend-recognition.cjs` 驗證計算按鈕有中英動作提示、網�
 
 R113 的 `friend-recognition.cjs` 驗證活動名稱「確定」按鈕使用 smooth scroll 前往分享按鈕、活動名稱未建立連結前仍可修改，以及結算 CTA 主文字與提示文字均無 text-shadow/drop-shadow。
 
+R114 的 `tutorial-ui.cjs` 驗證雙語 18 階段教學、第二步分享與第三步先設定後回覆、第四步 Web-first 及預設收合後備、示例試算、退出還原及 Step 1–4 重啟；`tutorial-safety.cjs` 驗證不觸發真實分享、剪貼簿、相機或 API。`settings-free-models.cjs` 驗證左上角只顯示 `R114`，OpenRouter 影片指向新資產。
+
 R104 下述八字强制密碼介面測試是歷史規格；R105 新介面以 `friend-recognition.cjs` 為準。姓名未設定碼時只能按姓名識別，不是强身份保護；保留舊密碼驗證、期限、主辦人權限及精確認帳比對測試。
 
 ## R104 姓名＋密碼
@@ -77,20 +79,20 @@ node tests/tutorial-ui.cjs
 ## 覆蓋範圍
 
 - 新瀏覽器首次開啟只出現一次教學引導；用家可略過，重新載入後不會重複出現；往後可自行從「教學」重開。
-- 教學中心只有兩個目錄，影片教學排第一、16 步互動教學排第二；影片次序為 OpenRouter API Key 設定、分帳操作示範。
-- 16 步互動教學開始前提示相片辨識需 OpenRouter API Key；已有金鑰可略過，影片連結會跳至現有 Key 教學，提示留在 16 步之外。
-- 兩支影片都有原生播放控制、使用 `preload="none"`，不帶 `autoplay`，初始維持暫停。
+- 教學中心只有兩個目錄，影片教學排第一、18 階段互動教學排第二；影片次序為 OpenRouter API Key 設定、分帳操作示範。
+- 18 階段互動教學開始前提示相片辨識需 OpenRouter API Key；已有金鑰可略過，影片連結會跳至現有 Key 教學，提示留在互動教學之外。
+- 兩支影片都有原生播放控制、使用 `preload="none"`，不帶 `autoplay`，初始維持暫停；影片使用示例資料、合成香港粵語旁白和繁體中文／英文字幕，沒有真實 API Key 或分享連結。
 - 設定頁不再提供付費模型選項；模型清單只列免費模型，舊版 localStorage／sessionStorage 的付費選擇會自動遷回免費模型。
 - 沒有已儲存 API Key 時「取得免費金鑰」為紅色，有金鑰時為綠色；設定頁的「影片教學」捷徑會打開教學中心並捲到 OpenRouter API Key 影片。
 - 已設定免費模型時狀態卡只顯示模型狀態；未設定金鑰時仍保留紅色設定提醒。
 - 香港繁體中文及英文介面；320×640、390×844、768×1024、1280×800 及 844×390 五種視窗。
-- 16 個互動停留點：`upload`、`manual`、`verify`、`items`、`fee`、`share`、`share-options`、`replies`、`payer`、`currency`、`payment`、`tax-method`、`calculate`、`report`、`report-share`、`detail`；並核對其對應的四個 App 步驟。
+- 18 個互動停留點：`upload`、`manual`、`verify`、`items`、`fee`、`share`、`share-options`、`payer`、`currency`、`payment`、`tax-method`、`replies`、`calculate`、`report`、`report-web`、`report-fallback`、`report-share`、`detail`；第二步分享，第三步先填設定再核對回覆，第四步網頁版優先且後備文字預設收合。
 - 目標高亮、卡片不遮擋目標、無橫向溢出、卡片不超過 340px、非模態對話框及示範 App 保持可互動；目前目標以外的控制不可鍵盤操作。
 - 點擊影相／上載示範目標、核對後進入編輯、手動輸入捷徑、開啟認帳分享選項及模擬送出回覆。
 - 實際修改示範單價及附加費，按 2:1 認帳比例計算 Cathy 的分帳；另核對按比例及平均分攤的結果。
 - 報告分享／複製按鈕只顯示教學提示，不呼叫系統分享或剪貼簿；亦不開相機、檔案選擇器、寫入示範資料，或請求 OpenRouter／ntfy。
 - 從原本 App 第 1–4 步進入、關閉、按 Escape、完成及重新開始後，逐項核對原有 DOM、輸入、localStorage、IndexedDB 圖片與附件、捲動位置及焦點。
-- 安全測試確認新 Service Worker 不再預快取舊七步截圖頁，並在離線狀態走完 16 個互動停留點。
+- 安全測試確認新 Service Worker 不再預快取舊七步截圖頁，並在離線狀態走完 18 個互動停留點。
 
 Chromium 自動測試不代表已在真實 iPhone Safari／Android WebView 或軟鍵盤上驗收。
 

@@ -1,3 +1,9 @@
+## v114：互動教學與粵語示範影片更新
+
+互動教學依照現行四步流程更新：第二步分享認帳連結，第三步先設定墊支人、貨幣、收款方式及服務費分法，再核對朋友回覆；第四步以原認帳連結中的網頁結果為首選，簡單版與詳細版收在後備方案。兩段示範影片使用合成香港粵語及示例資料，並加入繁體中文／英文字幕；OpenRouter 影片保留建立金鑰內容，只更新 App 設定尾段。主程式 `R114`，PWA 快取 `v114-tutorial-web-first-cantonese`。
+
+The interactive guide now follows the current four-step flow: share the claim link in Step 2, configure payer/currency/payment/fee split before reviewing replies in Step 3, and prefer the web result on the original claim link in Step 4. Summary and Detailed remain collapsed backups. Both videos use synthetic Hong Kong Cantonese and sample data with Traditional Chinese/English subtitles; the OpenRouter key-creation section is retained while its app-settings ending is replaced.
+
 ## v112：網頁版結果分享設為首選
 
 第三步「產生分帳報告」按鈕內有細字說明：已有朋友連結時，按下會計算並更新結果，朋友可在原連結查看；尚未建立分享連結時，則說明會產生報告。第四步把「首選・網頁版」同一條朋友認帳及結果連結放最前。超長網址只在畫面上縮短並以省略號省去中段，點擊、複製及 WhatsApp 分享仍使用完整網址。簡單版和詳細版保留作後備，收在可展開的「後備方案」中。主程式 `R112`，PWA 快取 `v112-web-result-first`。
