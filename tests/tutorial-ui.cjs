@@ -334,7 +334,7 @@ async function runKeyStatusHintSmoke(browser) {
       assert(!statusText.includes('Tap to change the model or key'));
     } else {
       assert.match(statusText, /尚未設定免費鎖匙/);
-      assert.match(statusText, /設定後即可讀取外語單據/);
+      assert.match(statusText, /相片及一般文字需要免費鎖匙；符合格式的 JSON 文字可免鎖匙直接匯入/);
     }
     await context.close();
   }

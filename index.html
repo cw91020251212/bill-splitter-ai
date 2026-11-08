@@ -80,8 +80,8 @@
   <link rel="stylesheet" href="./theme.css?v=v86-free-models-only">
   <link rel="stylesheet" href="./tutorial.css?v=v86-free-models-only">
   <!-- R114: current interactive guide; original video lessons retained. -->
-  <meta name="bill-app-release" content="v114-paddle-default-20261109">
-  <script defer src="./pwa.js?v=v114-paddle-default-20261109"></script>
+  <meta name="bill-app-release" content="v114-external-ai-text-import-20261109">
+  <script defer src="./pwa.js?v=v114-external-ai-text-import-20261109"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
@@ -89,7 +89,7 @@
   <script src="./i18n.js"></script>
   <script src="./claim-relay.js?v=v107-code-focus-visible"></script>
   <script src="./ocr-cascade.js"></script>
-  <script src="./paddle-ocr-local.js?v=v114-paddle-default-20261109"></script>
+  <script src="./paddle-ocr-local.js?v=v114-external-ai-text-import-20261109"></script>
   <script src="./receipt-adjustments.js"></script>
   <script src="./share-config.js"></script>
   <script src="./bill-share-api.js?v=v107-code-focus-visible"></script>
@@ -217,17 +217,25 @@
     const PAID_AI_JPEG_QUALITY = 0.72;
 
     const LOCAL_PADDLE_MODEL_ID = 'local/paddleocr-js';
+    const RECEIPT_JSON_IMPORT_PROMPT_ZH = `請讀取我附上的收據相片（如有多張，合併成同一張收據），辨認商品、金額並翻譯成香港繁體中文，再整理成一個有效 JSON 物件。只輸出 JSON，不要 Markdown 或解釋。商品 name 用香港繁體中文，original 保留收據原文。只把實際商品放在 items；稅、服務費、折扣放在 adjustments；小計、合計、應付及找零不可放入 items。看不清或沒有印出的欄位用 null 或空字串，勿估算、勿捏造。
+格式：{"items":[{"name":"拉麵","nameEn":"","original":"ラーメン","ja":"","price":100,"qty":1,"totalQty":null,"unit":"碗","total":100}],"adjustments":[{"label":"消費税","kind":"tax","ratePercent":8,"amount":null,"baseAmount":null,"application":"separate","scope":"receipt","itemIndex":null,"order":0}],"taxTotal":null,"taxNote":"","currency":"JPY","date":"2026-03-14","receiptTotal":108}
+沒有稅費時 adjustments 必須為 []。currency 用 ISO 三位碼；不確定的 date 或 receiptTotal 用 null。`;
+    const RECEIPT_JSON_IMPORT_PROMPT_EN = `Read the receipt photo(s) I attach (combine multiple photos if they belong to the same receipt), identify the items and amounts, translate item names into Hong Kong Traditional Chinese, and return one valid JSON object. Output JSON only, with no Markdown or explanation. Preserve the printed text in original. Put actual purchased goods in items only; put tax, service fees, and discounts in adjustments. Never list subtotal, total due, payment, or change as an item. Use null or an empty string for fields that are unclear or not printed; do not estimate or invent anything.
+Format: {"items":[{"name":"拉麵","nameEn":"ramen","original":"ラーメン","ja":"","price":100,"qty":1,"totalQty":null,"unit":"bowl","total":100}],"adjustments":[{"label":"消費税","kind":"tax","ratePercent":8,"amount":null,"baseAmount":null,"application":"separate","scope":"receipt","itemIndex":null,"order":0}],"taxTotal":null,"taxNote":"","currency":"JPY","date":"2026-03-14","receiptTotal":108}
+Use an empty adjustments array if there are no fees or discounts. Use a three-letter ISO currency code; use null for an unknown date or receiptTotal.`;
     const recognitionModelLabel = modelId => {
       const value = String(modelId || '');
-      const parts = value.split('|');
+      if (value === 'local-json-import') return bi('上次使用：文字檔 JSON（本機直接匯入）', 'Previous input: text JSON (local import)');
+      const isTextInput = value.startsWith('text-input|');
+      const modelValue = isTextInput ? value.slice('text-input|'.length) : value;
+      const parts = modelValue.split('|');
       const isLocal = parts[0] === LOCAL_PADDLE_MODEL_ID;
-      const cloudModelId = isLocal ? parts.slice(1).join('|') : value;
+      const cloudModelId = isLocal ? parts.slice(1).join('|') : modelValue;
       const row = FREE_MODELS.find(model => model[0] === cloudModelId);
       const zh = row?.[1] || Ocr.shortLabel(cloudModelId);
       const en = row?.[2] || zh;
-      return isLocal
-        ? bi(`上次使用：本機 PaddleOCR.js＋${zh}`, `Previous: local PaddleOCR.js + ${en}`)
-        : bi(`上次使用：${zh}`, `Previous model: ${en}`);
+      if (isTextInput) return bi(`上次使用：文字整理＋${zh}`, `Previous: text input + ${en}`);
+      return isLocal ? bi(`上次使用：本機 PaddleOCR.js＋${zh}`, `Previous: local PaddleOCR.js + ${en}`) : bi(`上次使用：${zh}`, `Previous model: ${en}`);
     };
 
     const waitForOcrBackoff = (ms, signal) => new Promise((resolve, reject) => {
@@ -1002,6 +1010,7 @@
       const [progress, setProgress] = useState(0);
       const [progressText, setProgressText] = useState('');
       const [uploadError, setUploadError] = useState('');
+      const [receiptTextDraft, setReceiptTextDraft] = useState('');
       const [lastImageData, setLastImageData] = useState([]);
       const [friendShareInfo, setFriendShareInfo] = useState(null);
       const [friendShareStatus, setFriendShareStatus] = useState('idle');
@@ -1012,6 +1021,7 @@
       const friendShareImageBatchesRef = useRef(new WeakMap());
       const friendShareImageBatchSequenceRef = useRef(0);
       const [showImageActionMenu, setShowImageActionMenu] = useState(false);
+      const [showReceiptTextImport, setShowReceiptTextImport] = useState(false);
       const [lastRecognitionModel, setLastRecognitionModel] = useState('');
       const [showRedaction, setShowRedaction] = useState(false);
       const [pendingRedactionImages, setPendingRedactionImages] = useState([]);
@@ -1074,6 +1084,7 @@
       const [results, setResults] = useState(null);
       const fileInputRef = useRef(null);
       const cameraInputRef = useRef(null);
+      const receiptTextFileInputRef = useRef(null);
 
       const [savedHistory, setSavedHistory] = useState([]);
       const [showHistory, setShowHistory] = useState(false);
@@ -2691,24 +2702,28 @@
         }
       };
 
-      const handleFileUpload = async (event, alreadyRedacted = false, keepPreviousResultsOnFailure = false) => {
+      const handleFileUpload = async (event, alreadyRedacted = false, keepPreviousResultsOnFailure = false, receiptText = '') => {
         if (tutorialDemo) return;
         const generation = billGenerationRef.current;
         const inputTarget = event?.target;
         const files = Array.from(inputTarget?.files || []);
+        const textContent = String(receiptText || '').trim();
+        const isTextInput = Boolean(textContent);
         const clearFileSelection = () => {
           if (fileInputRef.current) fileInputRef.current.value = '';
+          if (receiptTextFileInputRef.current) receiptTextFileInputRef.current.value = '';
           if (inputTarget) inputTarget.value = '';
         };
-        if (files.length === 0) return;
+        if (files.length === 0 && !isTextInput) return;
         const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
         const totalSize = files.reduce((sum, file) => sum + file.size, 0);
 
-        if (files.length > 5) { setUploadError({ main: '一次最多可上載 5 張圖片', sub: '', action: null }); clearFileSelection(); return; }
-        if (files.some(file => !allowedTypes.includes(file.type))) { setUploadError({ main: '只支援 JPG、PNG 或 WebP 圖片格式', sub: '', action: null }); clearFileSelection(); return; }
-        if (totalSize > 12 * 1024 * 1024) { setUploadError({ main: '圖片總容量不可超過 12 MB', sub: '請壓縮後再試', action: null }); clearFileSelection(); return; }
+        if (!isTextInput && files.length > 5) { setUploadError({ main: '一次最多可上載 5 張圖片', sub: '', action: null }); clearFileSelection(); return; }
+        if (!isTextInput && files.some(file => !allowedTypes.includes(file.type))) { setUploadError({ main: '只支援 JPG、PNG 或 WebP 圖片格式', sub: '', action: null }); clearFileSelection(); return; }
+        if (!isTextInput && totalSize > 12 * 1024 * 1024) { setUploadError({ main: '圖片總容量不可超過 12 MB', sub: '請壓縮後再試', action: null }); clearFileSelection(); return; }
+        if (isTextInput && textContent.length > 200000) { setUploadError({ main: bi('文字太長；請分開處理，或上載不超過 1 MB 的文字檔。', 'Text is too long; split it or upload a text file no larger than 1 MB.'), sub: '', action: null }); clearFileSelection(); return; }
 
-        if (!alreadyRedacted) {
+        if (!isTextInput && !alreadyRedacted) {
           setUploadError('');
           setLastImageData([]);
           setIsSaved(false);
@@ -2739,7 +2754,7 @@
         setIsAnalyzing(true);
         setUploadError('');
         setProgress(0);
-        setProgressText('正在讀取圖片...');
+        setProgressText(isTextInput ? bi('正在整理文字…', 'Structuring receipt text…') : '正在讀取圖片...');
 
         const controller = new AbortController();
         ocrAbortRef.current?.abort(); ocrAbortRef.current = controller;
@@ -2747,25 +2762,47 @@
         ocrProgressRef.current = null;
 
         try {
-          if (!apiKey.trim()) throw new Error('讀單據先要你自己的免費 OpenRouter 鎖匙。');
-          const base64Promises = files.map(file => {
-            return new Promise((resolve, reject) => {
-              const reader = new FileReader();
-              reader.onload = () => resolve({ mimeType: file.type, data: reader.result.split(',')[1] });
-              reader.onerror = () => reject(new Error(`未能讀取圖片：${file.name}`));
-              reader.readAsDataURL(file);
+          let imageDataArray = [];
+          let directJsonPayload = null;
+          let directJsonImport = false;
+          if (isTextInput) {
+            setLastImageData([]);
+            setIsSaved(false);
+            try {
+              const candidate = extractPayload(textContent);
+              const validItems = Array.isArray(candidate?.items)
+                && candidate.items.length > 0
+                && candidate.items.length <= 100
+                && candidate.items.every(item => item && typeof item === 'object' && !Array.isArray(item)
+                  && String(item.name || item.nameEn || item.original || item.item || '').trim()
+                  && (item.price !== undefined || item.total !== undefined || item.amount !== undefined));
+              if (validItems) { directJsonPayload = candidate; directJsonImport = true; }
+            } catch (parseError) {}
+            if (!directJsonImport && !apiKey.trim()) {
+              throw new Error(bi('未設定免費 OpenRouter 鎖匙。一般文字需要免費模型整理；想免鎖匙匯入，請複製下方讀圖提示詞，讓另一個 AI 輸出 JSON，再貼上或上載。', 'No free OpenRouter key is set. Free-form text needs a model; for no-key import, copy the image-reading prompt below and paste or upload the JSON it returns.'));
+            }
+          } else {
+            if (!apiKey.trim()) throw new Error('讀單據先要你自己的免費 OpenRouter 鎖匙。');
+            const base64Promises = files.map(file => {
+              return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve({ mimeType: file.type, data: reader.result.split(',')[1] });
+                reader.onerror = () => reject(new Error(`未能讀取圖片：${file.name}`));
+                reader.readAsDataURL(file);
+              });
             });
-          });
-          const imageDataArray = await Promise.all(base64Promises);
-          if (generation !== billGenerationRef.current) return;
-          // Keep the last successfully read batch so a transient AI/OCR
-          // failure can be retried without selecting the files again.
-          setLastImageData(imageDataArray);
+            imageDataArray = await Promise.all(base64Promises);
+            if (generation !== billGenerationRef.current) return;
+            // Keep the last successfully read batch so a transient AI/OCR
+            // failure can be retried without selecting the files again.
+            setLastImageData(imageDataArray);
+          }
 
           const useFreeTier = modelUsesFreeTier(apiModel, allowPaidModels);
           const modelForRequest = resolveBillModel(apiModel, allowPaidModels);
-          const usePaddleLocal = ocrEngine === 'paddlejs';
-          setProgressText(usePaddleLocal
+          const usePaddleLocal = !isTextInput && ocrEngine === 'paddlejs';
+          if (directJsonImport) setProgressText(bi('已識別 JSON 格式，正在本機匯入…', 'JSON detected; importing locally…'));
+          else if (!isTextInput) setProgressText(usePaddleLocal
             ? bi('準備本機 OCR…', 'Preparing local OCR…')
             : (useFreeTier ? '正在壓縮圖片，方便免費模型處理...' : '正在壓縮圖片...'));
           const aiImages = [];
@@ -2793,9 +2830,9 @@
             }
           }
           if (generation !== billGenerationRef.current) return;
-          if (!usePaddleLocal) setProgressText(Ocr.waitingText(modelForRequest));
+          if (!usePaddleLocal && !directJsonImport) setProgressText(Ocr.waitingText(modelForRequest));
 
-          const promptText = `你幫香港人讀旅行單據（日本、韓國或其他非中文）。合併所有圖片成一份清單。只輸出一個 JSON，無 Markdown、無解釋。
+          const promptText = `你幫香港人整理旅行單據；輸入可能是單據圖片，或另一個 AI 已翻譯的單據文字。合併所有輸入成一份清單。只輸出一個 JSON，無 Markdown、無解釋。
 
 name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這是硬性規則，唔可以違反：
 - 日文、韓文或其他非中文單據：name 一定要譯成繁體中文。name 禁止含平假名、片假名、韓文，亦禁止同 original 相同。
@@ -2821,18 +2858,20 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
 - 小計、合計、內稅對象額、內稅額、收款額及找零均不是商品，絕不可放入 items；小計／合計／收款／找零也不可放入 adjustments。標明「內稅」的稅額已包含，application 必須是 included。
 - 常見日文商品詞：巾着＝束口袋／小袋，ペンケース＝筆袋，コインケース＝零錢包，ポーチ＝收納袋，シール＝貼紙。name 不可把袋翻成毛巾、鞋套或印章；保留角色／圖案名，不清楚的專名按原文音譯或保留，不要猜。
 格式：{"items":[{"name":"拉麵","nameEn":"","original":"ラーメン","ja":"","price":100,"qty":1,"totalQty":null,"unit":"碗","total":100}],"adjustments":[{"label":"消費税","kind":"tax","ratePercent":8,"amount":null,"baseAmount":null,"application":"separate","scope":"receipt","itemIndex":null,"order":0}],"taxTotal":null,"taxNote":"","currency":"JPY","date":"2026-03-14","receiptTotal":108}
-這裡有 ${files.length} 張單據。`;
+${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）。' : `這裡有 ${files.length} 張單據。`}`;
 
           let parsedItems = [];
           let parsedTax = null;
           let parsedDiscount = 0;
           let parsedCurrency = 'HKD';
 
-          const textForRequest = usePaddleLocal
-            ? `${promptText}\n\n以下是本機 PaddleOCR.js 按單據閱讀順序辨識的文字。請只根據這些文字整理；不確定的欄位不要猜，保留原文及 null／空值規則：\n\n${localOcrText}`
-            : promptText;
+          const textForRequest = isTextInput
+            ? `${promptText}\n\n以下是用戶提供的收據文字。請只根據文字內容整理，不要假設另有圖片：\n\n${textContent}`
+            : usePaddleLocal
+              ? `${promptText}\n\n以下是本機 PaddleOCR.js 按單據閱讀順序辨識的文字。請只根據這些文字整理；不確定的欄位不要猜，保留原文及 null／空值規則：\n\n${localOcrText}`
+              : promptText;
           const contentArray = [{ type: "text", text: textForRequest }];
-          if (!usePaddleLocal) aiImages.forEach(img => { contentArray.push({ type: "image_url", image_url: { url: `data:${img.mimeType};base64,${img.data}` } }); });
+          if (!usePaddleLocal && !isTextInput) aiImages.forEach(img => { contentArray.push({ type: "image_url", image_url: { url: `data:${img.mimeType};base64,${img.data}` } }); });
           const markTransient = (error, message) => {
             const transient = new Error(message || error?.message || '網絡中斷，請再試。');
             transient.transient = true;
@@ -2919,9 +2958,9 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
             throw lastError;
           };
 
-          let shaped;
-          let recognizedModelId = modelForRequest;
-          if (Ocr.isFreeModel(modelForRequest)) {
+          let shaped = directJsonPayload;
+          let recognizedModelId = directJsonImport ? 'local-json-import' : modelForRequest;
+          if (!shaped && Ocr.isFreeModel(modelForRequest)) {
             const order = Ocr.cascadeOrder(modelForRequest);
             const failures = [];
             for (let index = 0; index < order.length; index += 1) {
@@ -2949,12 +2988,12 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
               combined.detail = Ocr.exhaustedDetail(failures);
               throw combined;
             }
-          } else {
+          } else if (!shaped) {
             setProgressText(Ocr.waitingText(modelForRequest));
             shaped = await readReceiptModel(modelForRequest);
           }
           if (generation !== billGenerationRef.current || !shaped) return;
-          setProgressText('正在整理識別結果...');
+          setProgressText(directJsonImport ? bi('正在整理匯入資料…', 'Structuring imported data…') : '正在整理識別結果...');
           parsedItems = shaped.items; parsedTax = shaped.taxTotal; parsedCurrency = shaped.currency?.toUpperCase() || 'HKD';
           const formattedItems = parsedItems.map((item, idx) => {
             const names = normalizeReceiptItemNames(item);
@@ -2993,7 +3032,10 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
             if (generation !== billGenerationRef.current) return;
             setItems(finalizedItems);
             setReadReceipt(true);
-            setLastRecognitionModel(usePaddleLocal ? `${LOCAL_PADDLE_MODEL_ID}|${recognizedModelId}` : recognizedModelId);
+            setLastRecognitionModel(isTextInput
+              ? (directJsonImport ? 'local-json-import' : `text-input|${recognizedModelId}`)
+              : (usePaddleLocal ? `${LOCAL_PADDLE_MODEL_ID}|${recognizedModelId}` : recognizedModelId));
+            if (isTextInput) { setReceiptTextDraft(''); setShowReceiptTextImport(false); }
             openItemEditsRef.current = {};
             setOpenItemEdits({});
             setCurrency(parsedCurrency);
@@ -3027,6 +3069,47 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
           }
         } finally {
           if (generation === billGenerationRef.current) clearFileSelection();
+        }
+      };
+
+      const submitReceiptTextImport = () => {
+        const text = String(receiptTextDraft || '').trim();
+        if (!text) {
+          setUploadError({ main: bi('請先貼上收據文字，或上載文字檔。', 'Paste receipt text or upload a text file first.'), sub: '', action: null });
+          return;
+        }
+        setUploadError('');
+        handleFileUpload({ target: { files: [], value: '' } }, true, false, text);
+      };
+
+      const handleReceiptTextFileUpload = async event => {
+        if (tutorialDemo) return;
+        const file = event?.target?.files?.[0];
+        if (!file) return;
+        const clearTextFileSelection = () => {
+          if (receiptTextFileInputRef.current) receiptTextFileInputRef.current.value = '';
+          if (event?.target) event.target.value = '';
+        };
+        if (!/\.(txt|md|csv|json)$/i.test(String(file.name || ''))) {
+          setUploadError({ main: bi('只接受 .txt、.md、.csv 或 .json 文字檔。', 'Use a .txt, .md, .csv or .json text file.'), sub: '', action: null });
+          clearTextFileSelection();
+          return;
+        }
+        if (file.size > 1024 * 1024) {
+          setUploadError({ main: bi('文字檔不可超過 1 MB。', 'Text files must be 1 MB or smaller.'), sub: '', action: null });
+          clearTextFileSelection();
+          return;
+        }
+        try {
+          const text = await file.text();
+          if (!String(text || '').trim()) throw new Error(bi('文字檔沒有內容。', 'The text file is empty.'));
+          setReceiptTextDraft(text);
+          setUploadError('');
+          await handleFileUpload({ target: { files: [], value: '' } }, true, false, text);
+        } catch (error) {
+          setUploadError({ main: bi('文字檔讀取失敗。', 'Could not read the text file.'), sub: error?.message || '', action: null });
+        } finally {
+          clearTextFileSelection();
         }
       };
 
@@ -3337,13 +3420,19 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
         shareTextWithFiles('', claimAttachments, '');
       };
 
-      const copyToClipboard = (text, btnLabel) => {
+      const copyToClipboard = (text, btnLabel, successMessage = '') => {
         if (tutorialDemo) return;
         const textArea = document.createElement("textarea"); textArea.value = text; document.body.appendChild(textArea);
         textArea.select();
-        try { document.execCommand('copy'); toast(`✅ ${btnLabel} 已成功複製`); } catch (err) {}
+        try { document.execCommand('copy'); toast(successMessage || `✅ ${btnLabel} 已成功複製`); } catch (err) {}
         document.body.removeChild(textArea);
       };
+
+      const copyReceiptJsonImportPrompt = () => copyToClipboard(
+        uiLang === 'en' ? RECEIPT_JSON_IMPORT_PROMPT_EN : RECEIPT_JSON_IMPORT_PROMPT_ZH,
+        bi('讀圖提示詞', 'image-reading prompt'),
+        bi('✅ 提示詞已複製。貼到另一個 AI，再附上收據相片。', '✅ Prompt copied. Paste it into another AI, then attach the receipt photo.')
+      );
 
       const calculateSplit = () => {
         setStepError('');
@@ -4043,14 +4132,14 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
 
 
 
-            {/* Step 1: Photo scan is the main path; manual entry is the fallback */}
+            {/* Step 1: Photo or translated-text import; manual entry is the fallback */}
             {step === 1 && !showSettings && !showHistory && !showTutorial && (
               <div data-testid="scan-start" className={`space-y-6 animate-in fade-in duration-500${isAnalyzing ? ' is-analyzing' : ''}`}>
                 <div className="page-section-heading flex items-center gap-2 mb-2">
                   <span className="w-8 h-8 rounded-full bg-brand-100 border border-brand-500 text-brand-700 flex items-center justify-center font-bold">1</span>
                   <h2 className="text-2xl font-bold text-slate-800 tracking-tight">{tr("上載並分析單據")}</h2>
                 </div>
-                <p className="text-base text-slate-700 leading-relaxed">{bi('影相讀取單據項目和價錢。', 'Scan a receipt to read its items and prices.')}</p>
+                <p className="text-base text-slate-700 leading-relaxed">{bi('可以影相讀單；如已由其他 AI 翻譯，也可在下方貼上文字或上載文字檔。', 'Scan a receipt, or paste/upload text already translated by another AI.')}</p>
 
                 <Card className="api-settings-card bg-gradient-to-br from-brand-50 to-white border-brand-500">
                   <button
@@ -4076,7 +4165,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                       </span>
                       {!apiKey.trim() && (
                         <span className="block text-base font-medium leading-snug text-red-700">
-                          {bi('設定後即可讀取外語單據。', 'Set a key to read foreign-language receipts.')}
+                          {bi('相片及一般文字需要免費鎖匙；符合格式的 JSON 文字可免鎖匙直接匯入。', 'Photos and free-form text need a free key; formatted JSON can be imported locally without one.')}
                         </span>
                       )}
                     </div>
@@ -4101,12 +4190,18 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                       <option value={LOCAL_PADDLE_MODEL_ID}>{bi('PaddleOCR.js 本機＋Dots3-Note 整理', 'PaddleOCR.js local + Dots3-Note')}</option>
                     </optgroup>
                   </select>
-                  <p className="text-sm text-slate-700 mt-2 leading-relaxed">{ocrEngine === 'paddlejs'
-                    ? bi('先在本機用 PaddleOCR.js 讀字，再只把文字交給 Dots3-Note 翻譯及整理（必要時 Nemotron 3.5 後備）；首次載入 OCR 模型可能需約一分鐘。', 'PaddleOCR.js reads the image locally; only text goes to Dots3-Note for translation and structuring (Nemotron 3.5 is the fallback if needed). The first model load may take about a minute.')
-                    : bi('固定模型會在 Dots3-Note 和 Nemotron 3.5 之間後備。選「免費隨機模型」會直接交由 OpenRouter 隨機揀模型，可能較慢。', 'Fixed models fall back between Dots3-Note and Nemotron 3.5. The free random option calls OpenRouter’s random router directly and may take longer.')}</p>
+                  <p data-testid="scan-model-description" className="text-sm text-slate-700 mt-2 leading-relaxed">
+                    {ocrEngine === 'paddlejs'
+                      ? bi('相片先由 PaddleOCR.js 喺本機讀字，圖片唔會送去 OpenRouter；只將辨識文字交畀 Dots3-Note 翻譯及整理。若 Dots 請求失敗，先會改試 Nemotron 3.5；首次載入本機模型約需一分鐘。', 'PaddleOCR.js reads the receipt image locally; the image is not sent to OpenRouter. Only recognized text goes to Dots3-Note for translation and structuring. Nemotron 3.5 is tried only if the Dots request fails. The first local model load may take about a minute.')
+                      : apiModel === Ocr.RANDOM_ROUTER_MODEL_ID
+                        ? bi('收據圖片會交畀 OpenRouter 免費隨機路由；實際模型由 OpenRouter 選，速度和結果可能不同。此選項只會使用隨機路由，不會自動改試 Dots3-Note／Nemotron 3.5 固定模型。', 'The receipt image is sent to OpenRouter’s free random router; OpenRouter picks the actual model, so speed and results may vary. This choice uses the random route only; it does not automatically switch to the fixed Dots3-Note/Nemotron 3.5 models.')
+                        : apiModel === Ocr.CASCADE_MODEL_IDS[1]
+                          ? bi('收據圖片會交畀 OpenRouter，由 Nemotron 3.5 先處理；如請求失敗或限流，先改試 Dots3-Note。', 'The receipt image is sent to OpenRouter, with Nemotron 3.5 first; if the request fails or is rate-limited, Dots3-Note is tried next.')
+                          : bi('收據圖片會交畀 OpenRouter，由 Dots3-Note 優先辨識及整理；如請求失敗或限流，先改試 Nemotron 3.5。', 'The receipt image is sent to OpenRouter, with Dots3-Note first; if the request fails or is rate-limited, Nemotron 3.5 is tried next.')}
+                  </p>
                 </Card>
 
-                {!isOnline && <p className="text-base text-amber-900 bg-amber-50 border border-amber-400 rounded-xl p-3">{bi('而家冇網絡，暫時讀唔到單據。連線後再影相，或者先手動輸入。', 'No connection, so the receipt cannot be read yet. Take a photo once you are online, or enter items manually for now.')}</p>}
+                {!isOnline && <p className="text-base text-amber-900 bg-amber-50 border border-amber-400 rounded-xl p-3">{bi('而家冇網絡：相片及一般文字要等連線；已整理成指定 JSON 的文字可離線匯入，亦可手動輸入。', 'No connection: photos and free-form text need a connection. Formatted JSON can still be imported offline, or enter items manually.')}</p>}
 
                 <div className={`upload-dropzone w-full rounded-2xl border border-dashed flex flex-col text-center transition-all ${isAnalyzing ? 'is-analyzing border-brand-500 bg-brand-50 shadow-inner' : 'p-10 items-center justify-center border-slate-500 bg-white hover:border-brand-500 hover:bg-slate-50 shadow-sm'}`}>
                   <input type="file" accept="image/jpeg,image/png,image/webp" multiple className="hidden" ref={fileInputRef} onChange={handleFileUpload} />
@@ -4167,6 +4262,32 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                     </div>
                   )}
                 </div>
+
+                <Card data-testid="receipt-text-import" className="border-slate-400 bg-white">
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+                    <button type="button" data-testid="toggle-receipt-text-import" aria-expanded={showReceiptTextImport} onClick={() => setShowReceiptTextImport(value => !value)} className="w-full flex items-center justify-between gap-3 text-left">
+                      <span className="min-w-0">
+                        <span className="block text-base font-bold text-slate-800">{bi('已由其他 AI 讀好？貼上或上載結果', 'Have another AI read it? Paste or upload its result')}</span>
+                        <span className="block mt-1 text-sm leading-relaxed text-slate-600">{bi('可貼文字或上載文字檔；符合格式的 JSON 可免鎖匙本機匯入。', 'Paste text or upload a text file; formatted JSON imports locally without a key.')}</span>
+                      </span>
+                      <span aria-hidden="true" className="shrink-0 text-2xl font-semibold text-slate-600">{showReceiptTextImport ? '−' : '+'}</span>
+                    </button>
+                    <Button data-testid="copy-receipt-json-prompt" variant="outline" className="w-full border-slate-400 bg-white sm:w-auto" disabled={tutorialDemo || isAnalyzing} onClick={copyReceiptJsonImportPrompt}><Icon path={icons.copy} size={18}/>{bi('複製讀圖提示詞', 'Copy photo-reading prompt')}</Button>
+                  </div>
+                  {showReceiptTextImport && (
+                    <div className="mt-4 space-y-3">
+                      <label htmlFor="receipt-text-draft" className="block text-sm font-bold text-slate-700">{bi('貼上外部 AI 的 JSON 結果，或已翻譯的單據文字', 'Paste external AI JSON, or translated receipt text')}</label>
+                      <textarea id="receipt-text-draft" data-testid="receipt-text-draft" rows={5} maxLength={200000} value={receiptTextDraft} onChange={event => setReceiptTextDraft(event.target.value)} disabled={tutorialDemo || isAnalyzing} placeholder={bi('可貼上 JSON、收據文字，或另一個 AI 整理好的內容。', 'Paste JSON, receipt text, or content structured by another AI.')} className="field-round w-full text-base text-slate-800 leading-relaxed shadow-none" />
+                      <input ref={receiptTextFileInputRef} data-testid="receipt-text-file" type="file" accept=".txt,.md,.csv,.json,text/plain,text/csv,application/json" className="hidden" onChange={handleReceiptTextFileUpload} />
+                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                        <Button data-testid="choose-receipt-text-file" variant="secondary" disabled={tutorialDemo || isAnalyzing} onClick={() => receiptTextFileInputRef.current?.click()}><Icon path={icons.fileImage} size={18}/>{bi('上載文字檔（≤1 MB）', 'Upload text file (≤1 MB)')}</Button>
+                        <Button data-testid="submit-receipt-text" variant="primary" disabled={tutorialDemo || isAnalyzing || !receiptTextDraft.trim()} onClick={submitReceiptTextImport}>{isAnalyzing ? bi('整理中…', 'Processing…') : bi('整理這段文字', 'Process this text')}</Button>
+                      </div>
+                      <p className="text-sm leading-relaxed text-slate-600">{bi('流程：複製提示詞，在另一個 AI 對話貼上並附上收據相片；再把回覆 JSON 貼在上方或存成 .json 上載。JSON 會在本機匯入；一般文字則交畀上方選的免費模型整理。', 'Flow: copy the prompt, paste it into another AI chat and attach the receipt photo; then paste its JSON reply above or upload it as .json. JSON imports locally; free-form text is structured by the selected free model.')}</p>
+                      {uploadError && <p data-testid="receipt-text-import-error" role="alert" className="rounded-lg border border-amber-400 bg-amber-50 p-2 text-sm text-amber-900">{typeof uploadError === 'string' ? tr(uploadError) : tr(uploadError.sub || uploadError.main || '讀取失敗')}</p>}
+                    </div>
+                  )}
+                </Card>
 
                 <div data-testid="entry-method-choice" className="text-center py-2">
                   <ChoiceDivider />

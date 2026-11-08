@@ -13,6 +13,12 @@ const randomModel = 'openrouter/free';
 const localPaddleModel = 'local/paddleocr-js';
 const testApiKey = 'test-openrouter-key-preserve-on-migration';
 
+async function assertRouteDescription(page, expectedText, label) {
+  await page.waitForFunction(text => document.querySelector('[data-testid="scan-model-description"]')?.innerText.includes(text), expectedText);
+  const actual = await page.getByTestId('scan-model-description').innerText();
+  assert(actual.includes(expectedText), `${label}: ${actual}`);
+}
+
 (async () => {
   const browser = await chromium.launch({
     headless: true,
@@ -36,6 +42,26 @@ const testApiKey = 'test-openrouter-key-preserve-on-migration';
     assert.equal(await firstVisitSelect.inputValue(), localPaddleModel, 'first visit defaults to PaddleOCR.js local + Dots3-Note');
     assert.equal((await firstVisitPage.getByTestId('app-version-label').innerText()).trim(), 'R114');
     console.log('PASS first-visit default is PaddleOCR.js local + Dots3-Note');
+
+    await assertRouteDescription(firstVisitPage, '圖片唔會送去 OpenRouter', 'local route explains that the image stays on-device');
+    await firstVisitSelect.selectOption(freeModel);
+    await assertRouteDescription(firstVisitPage, 'Dots3-Note 優先', 'Dots route names its primary model');
+    await firstVisitSelect.selectOption(lastFallbackModel);
+    await assertRouteDescription(firstVisitPage, 'Nemotron 3.5 先處理', 'Nemotron route becomes primary when selected');
+    await firstVisitSelect.selectOption(randomModel);
+    await assertRouteDescription(firstVisitPage, 'OpenRouter 免費隨機路由', 'random route is described separately');
+    await assertRouteDescription(firstVisitPage, '不會自動改試', 'random route explains that fixed-model fallback is not used');
+    await firstVisitSelect.selectOption(localPaddleModel);
+    await assertRouteDescription(firstVisitPage, '只將辨識文字交畀 Dots3-Note', 'local route describes its OCR-to-model handoff');
+
+    await firstVisitPage.evaluate(() => localStorage.setItem('billSplitterLanguage', 'en'));
+    await firstVisitPage.reload({ waitUntil: 'networkidle' });
+    await firstVisitSelect.waitFor({ state: 'visible' });
+    await assertRouteDescription(firstVisitPage, 'the image is not sent to OpenRouter', 'English local-route description');
+    await firstVisitSelect.selectOption(randomModel);
+    await assertRouteDescription(firstVisitPage, 'OpenRouter’s free random router', 'English random-route description');
+    await assertRouteDescription(firstVisitPage, 'does not automatically switch', 'English random-route fallback detail');
+    console.log('PASS model-specific descriptions update for all routes in Traditional Chinese and English');
     await firstVisitContext.close();
 
     for (const storageKind of ['localStorage', 'sessionStorage']) {
