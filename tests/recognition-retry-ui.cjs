@@ -17,7 +17,7 @@ const detailedViewScreenshotPath = path.join(outputDir, 'detailed-view-preview.p
 const detailedViewInitialScreenshotPath = path.join(outputDir, 'detailed-view-before-select.png');
 const PNG = fs.readFileSync(path.join(__dirname, 'fixtures', 'receipt-preview.png')).toString('base64');
 const DEFAULT_MODEL = 'dots-studio/dots-3-note-preview:free';
-const FALLBACK_MODEL = 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free';
+const FALLBACK_MODEL = 'nvidia/nemotron-3.5-super-vl:free';
 const itemPayload = name => ({
   items: [{ name, nameEn: name, original: 'Receipt item', price: 100, qty: 1, total: 100 }],
   adjustments: [], taxTotal: 0, taxNote: '', currency: 'HKD', date: null, receiptTotal: 100
@@ -63,12 +63,17 @@ const success = payload => ({
       const content = body.messages?.find(message => message.role === 'user')?.content;
       observedImageCounts.push(Array.isArray(content) ? content.filter(part => part.type === 'image_url').length : 0);
       if (requestCount === 1) {
+        const promptText = Array.isArray(content) ? content.find(part => part.type === 'text')?.text || '' : '';
+        assert.match(promptText, /每個新的商品名稱若有自己的右欄金額/);
+        assert.match(promptText, /小計、合計、內稅對象額/);
+      }
+      if (requestCount === 1) {
         assert.equal(body.model, DEFAULT_MODEL, 'the user-confirmed Dots3-Note default is tried first');
         await route.fulfill({ status: 429, contentType: 'application/json', body: JSON.stringify({ error: { message: 'rate limit exceeded' } }) });
         return;
       }
       if (requestCount === 2) {
-        assert.equal(body.model, FALLBACK_MODEL, 'a busy Dots3-Note falls through to the untested Nano Omni candidate');
+        assert.equal(body.model, FALLBACK_MODEL, 'a busy Dots3-Note falls through to the last-resort Nemotron 3.5 VL');
         await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(success(itemPayload('首次成功結果'))) });
         return;
       }
@@ -114,7 +119,7 @@ const success = payload => ({
     await page.getByTestId('redaction-next-or-finish').click();
     await page.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '2', null, { timeout: 30000 });
     await page.getByText('首次成功結果', { exact: false }).waitFor({ state: 'visible' });
-    assert.match(await page.getByTestId('last-recognition-model').innerText(), /Nemotron 3 Nano Omni/);
+    assert.match(await page.getByTestId('last-recognition-model').innerText(), /Nemotron 3.5 VL/);
 
     await page.locator('.step-nav button').first().click();
     await page.getByTestId('receipt-upload').click();
@@ -158,10 +163,10 @@ const success = payload => ({
     await page.getByTestId('recognition-retry-error').waitFor({ state: 'visible' });
     assert.match(await page.getByTestId('recognition-retry-error').innerText(), /仍保留上次成功結果/);
     await page.getByText('重新識別結果', { exact: false }).waitFor({ state: 'visible' });
-    assert.equal(requestCount, 7, 'final retry cascades through the three current free vision models before returning the prior result');
+    assert.equal(requestCount, 6, 'final retry cascades through the two retained free models before returning the prior result');
     assert.equal(observedModels[0], DEFAULT_MODEL);
     assert.equal(observedModels[1], FALLBACK_MODEL);
-    assert.equal(observedModels[6], 'nvidia/nemotron-3.5-super-vl:free', 'the user-reported unreliable Nemotron 3.5 is attempted last');
+    assert.equal(observedModels[5], 'nvidia/nemotron-3.5-super-vl:free', 'the user-reported unreliable Nemotron 3.5 is attempted last');
     assert.deepEqual(failures, [], failures.join('\n'));
     console.log(`PASS 390px local UI: reuse is disabled before success, add-new batch of two photos, whole-batch re-recognition without reopening the picker, successful replacement, and failed retry preserving results (${requestCount} mocked OCR requests).`);
 

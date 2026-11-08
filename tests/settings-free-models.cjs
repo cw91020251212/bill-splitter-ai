@@ -7,7 +7,7 @@ if (!['127.0.0.1', 'localhost'].includes(base.hostname)) throw new Error('This t
 const playwrightPath = process.env.PLAYWRIGHT_MODULE;
 const { chromium } = playwrightPath ? require(playwrightPath) : require('playwright');
 const freeModel = 'dots-studio/dots-3-note-preview:free';
-const nanoModel = 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free';
+const retiredNanoModel = 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free';
 const lastFallbackModel = 'nvidia/nemotron-3.5-super-vl:free';
 const testApiKey = 'test-openrouter-key-preserve-on-migration';
 
@@ -23,31 +23,32 @@ const testApiKey = 'test-openrouter-key-preserve-on-migration';
       const context = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' });
       const page = await context.newPage();
       await page.goto(new URL('tests/README.md', base).toString(), { waitUntil: 'domcontentloaded' });
-      await page.evaluate(({ kind, key }) => {
+      await page.evaluate(({ kind, key, model }) => {
         const legacy = JSON.stringify({
           engine: 'openrouter',
           keys: { openrouter: key },
-          model: 'nvidia/nemotron-3.5-super-vl:free',
-          allowPaidModels: true
+          model,
+          allowPaidModels: true,
+          ocrModelPreferenceVersion: 2
         });
         window[kind].setItem('billSplitterApiConfig', legacy);
         localStorage.setItem('billSplitterHistory', '[]');
-      }, { kind: storageKind, key: savedKey });
+      }, { kind: storageKind, key: savedKey, model: retiredNanoModel });
       await page.goto(base.toString(), { waitUntil: 'networkidle' });
       const scanSelect = page.getByTestId('scan-model-select');
       await scanSelect.waitFor({ state: 'visible' });
       await page.waitForFunction(model => {
         try {
           const stored = JSON.parse(localStorage.getItem('billSplitterApiConfig') || 'null');
-          return stored?.model === model && stored.ocrModelPreferenceVersion === 2;
+          return stored?.model === model && stored.ocrModelPreferenceVersion === 3;
         } catch (error) { return false; }
       }, freeModel);
-      assert.equal(await scanSelect.inputValue(), freeModel, `${storageKind}: old Nemotron default migrates to Dots3-Note`);
+      assert.equal(await scanSelect.inputValue(), freeModel, `${storageKind}: retired Nano preference migrates to Dots3-Note`);
       const scanChoices = await scanSelect.locator('option').evaluateAll(nodes => nodes.map(node => node.value));
-      assert.deepEqual(scanChoices, [freeModel, nanoModel, lastFallbackModel], 'first screen offers only current live free vision candidates in preferred order');
-      await scanSelect.selectOption(nanoModel);
-      await page.waitForFunction(model => JSON.parse(localStorage.getItem('billSplitterApiConfig') || 'null')?.model === model, nanoModel);
-      assert.equal(await page.getByTestId('scan-model-select').inputValue(), nanoModel, 'first-screen model selection persists immediately');
+      assert.deepEqual(scanChoices, [freeModel, lastFallbackModel], 'first screen omits the failed Nano candidate');
+      await scanSelect.selectOption(lastFallbackModel);
+      await page.waitForFunction(model => JSON.parse(localStorage.getItem('billSplitterApiConfig') || 'null')?.model === model, lastFallbackModel);
+      assert.equal(await page.getByTestId('scan-model-select').inputValue(), lastFallbackModel, 'first-screen model selection persists immediately');
       await scanSelect.selectOption(freeModel);
       await page.waitForFunction(model => JSON.parse(localStorage.getItem('billSplitterApiConfig') || 'null')?.model === model, freeModel);
       const menuTrigger = page.getByTestId('header-action-menu-toggle');
@@ -100,7 +101,7 @@ const testApiKey = 'test-openrouter-key-preserve-on-migration';
       assert.equal(await page.getByTestId('paid-models-opt-in').count(), 0, 'paid-model toggle must be absent');
       const choices = await select.locator('option').evaluateAll(nodes => nodes.map(node => node.value));
       assert(choices.length > 0 && choices.every(model => model.endsWith(':free')), 'only free models may be selected');
-      assert.deepEqual(choices, [freeModel, nanoModel, lastFallbackModel]);
+      assert.deepEqual(choices, [freeModel, lastFallbackModel]);
       assert.equal(choices.includes('google/gemma-4-31b-it:free'), false, 'Gemma 4 31B is removed after repeated user failures');
       assert.equal(choices.includes('google/gemma-4-26b-a4b-it:free'), false, 'Gemma 4 26B is removed after repeated user failures');
       assert.equal(choices.includes('thinkingmachines/inkling-small:free'), false, 'retired Inkling model is removed from settings');
@@ -138,7 +139,7 @@ const testApiKey = 'test-openrouter-key-preserve-on-migration';
       }));
       assert.equal(saved.local.allowPaidModels, false);
       assert.equal(saved.local.model, freeModel);
-      assert.equal(saved.local.ocrModelPreferenceVersion, 2);
+      assert.equal(saved.local.ocrModelPreferenceVersion, 3);
       assert.equal(saved.local.keys.openrouter, savedKey, 'API key must survive migration');
       if (storageKind === 'sessionStorage') {
         assert.equal(saved.session.allowPaidModels, false, 'session copy must also be migrated');

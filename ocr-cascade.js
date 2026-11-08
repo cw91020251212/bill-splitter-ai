@@ -11,20 +11,19 @@
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
   'use strict';
 
-  // Dots3-Note is the user's currently best-performing model. Nemotron 3 Nano
-  // Omni is an untested fallback with a live free vision endpoint. Nemotron 3.5
-  // Super VL is deliberately last after the user reported severe OCR errors.
+  // Dots3-Note is the user's currently best-performing model. The masked-receipt
+  // benchmark found that Nano Omni mixed settlement rows into items and omitted
+  // prices, so it is excluded. Nemotron 3.5 Super VL stays last per user feedback.
   // Gemma 4 31B/26B are excluded per repeated user failures. Inkling is retired.
   const FREE_MODELS = [
     ['dots-studio/dots-3-note-preview:free', 'Dots3-Note（預設）', 'Dots3-Note (default)'],
-    ['nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free', 'Nemotron 3 Nano Omni（待實測）', 'Nemotron 3 Nano Omni (untested)'],
     ['nvidia/nemotron-3.5-super-vl:free', 'Nemotron 3.5 VL（最後後備）', 'Nemotron 3.5 VL (last fallback)']
   ];
   const PAID_MODELS = [
     ['google/gemini-3.8-flash', 'Gemini 3.8 Flash（較快，可能收費）', 'Gemini 3.8 Flash (faster, may cost money)']
   ];
   const DEFAULT_FREE_MODEL = 'dots-studio/dots-3-note-preview:free';
-  const MODEL_PREFERENCE_VERSION = 2;
+  const MODEL_PREFERENCE_VERSION = 3;
   const FREE_MODEL_IDS = FREE_MODELS.map(model => model[0]);
   const PAID_MODEL_IDS = PAID_MODELS.map(model => model[0]);
 
@@ -32,8 +31,7 @@
   // support the documented reasoning parameter and accept enabled:false.
   const REASONING_OFF = {
     'nvidia/nemotron-3.5-super-vl:free': { enabled: false },
-    'dots-studio/dots-3-note-preview:free': { enabled: false },
-    'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free': { enabled: false }
+    'dots-studio/dots-3-note-preview:free': { enabled: false }
   };
 
   const OCR_ATTEMPT_MS = 50000;
