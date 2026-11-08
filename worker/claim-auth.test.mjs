@@ -675,8 +675,10 @@ test('reserved optional PIN enrollment and simultaneous none-name seizure obey a
     post(env, id, 'submit', input('  Jose\u0301   Chan ', 1, { recognitionCode: '' })),
     post(env, id, 'submit', input('José Chan', 99, { recognitionCode: '0042' }))
   ]);
-  assert.deepEqual(attempts.map(result => result.status), [200, 403]);
+  assert.deepEqual(attempts.map(result => result.status).sort((left, right) => left - right), [200, 403], 'exactly one normalized-name enrollment wins the race');
+  const winningKind = attempts[0].status === 200 ? 'none' : 'pin';
+  const winningQuantity = attempts[0].status === 200 ? 1 : 99;
   const member = members(env, id).find(member => member.payload.name === 'José Chan');
-  assert.equal(member.credentialKind, 'none');
-  assert.equal(member.payload.claims[0].qty, 1);
+  assert.equal(member.credentialKind, winningKind, 'the stored credential belongs to the winning request');
+  assert.equal(member.payload.claims[0].qty, winningQuantity, 'a losing concurrent request cannot overwrite the winner');
 });

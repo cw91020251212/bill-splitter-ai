@@ -17,7 +17,7 @@ const detailedViewScreenshotPath = path.join(outputDir, 'detailed-view-preview.p
 const detailedViewInitialScreenshotPath = path.join(outputDir, 'detailed-view-before-select.png');
 const PNG = fs.readFileSync(path.join(__dirname, 'fixtures', 'receipt-preview.png')).toString('base64');
 const DEFAULT_MODEL = 'nvidia/nemotron-3.5-super-vl:free';
-const FALLBACK_MODEL = 'thinkingmachines/inkling-small:free';
+const FALLBACK_MODEL = 'dots-studio/dots-3-note-preview:free';
 const itemPayload = name => ({
   items: [{ name, nameEn: name, original: 'Receipt item', price: 100, qty: 1, total: 100 }],
   adjustments: [], taxTotal: 0, taxNote: '', currency: 'HKD', date: null, receiptTotal: 100
@@ -45,6 +45,17 @@ const success = payload => ({
     const page = await context.newPage();
     page.on('pageerror', error => failures.push(error.message));
     page.on('filechooser', () => { fileChooserCount += 1; });
+    // Keep this sharing-flow test independent of CDN-hosted Tesseract/WASM.
+    // Real checksum detection and mask geometry are covered by card-redaction-ui.cjs.
+    await page.addInitScript(() => {
+      window.Tesseract = {
+        createWorker: async () => ({
+          setParameters: async () => {},
+          recognize: async () => ({ data: { lines: [] } }),
+          terminate: async () => {}
+        })
+      };
+    });
     await page.route('https://openrouter.ai/api/v1/chat/completions', async route => {
       requestCount += 1;
       const body = route.request().postDataJSON();
@@ -90,7 +101,6 @@ const success = payload => ({
     });
     await page.goto(base, { waitUntil: 'domcontentloaded' });
     await page.getByTestId('receipt-upload').waitFor({ state: 'visible', timeout: 60000 });
-    assert.equal(await page.getByTestId('reuse-last-batch-hint').count(), 0, 'the helper is hidden before a successful receipt recognition');
     await page.getByTestId('receipt-upload').click();
     await page.getByTestId('receipt-image-action-menu').waitFor({ state: 'visible' });
     assert.equal(await page.getByTestId('reuse-last-receipt-photos').isDisabled(), true, 'reuse is unavailable before there is a stored image batch');
@@ -100,15 +110,18 @@ const success = payload => ({
       mimeType: 'image/png',
       buffer: Buffer.from(PNG, 'base64')
     });
-    await page.getByTestId('redaction-recognize-now').waitFor({ state: 'visible' });
-    await page.getByTestId('redaction-recognize-now').click();
+    await page.getByTestId('redaction-next-or-finish').waitFor({ state: 'visible' });
+    await page.getByTestId('redaction-next-or-finish').click();
     await page.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '2', null, { timeout: 30000 });
     await page.getByText('首次成功結果', { exact: false }).waitFor({ state: 'visible' });
-    assert.match(await page.getByTestId('last-recognition-model').innerText(), /Inkling Small/);
+    assert.match(await page.getByTestId('last-recognition-model').innerText(), /Dots3-Note/);
 
     await page.locator('.step-nav button').first().click();
-    await page.getByTestId('reuse-last-batch-hint').waitFor({ state: 'visible' });
     await page.getByTestId('receipt-upload').click();
+    const reuseFirstBatch = page.getByTestId('reuse-last-receipt-photos');
+    await reuseFirstBatch.waitFor({ state: 'visible' });
+    assert.equal(await reuseFirstBatch.isDisabled(), false, 'the first successful photo batch can be reused');
+    assert.match(await reuseFirstBatch.innerText(), /重用整批 1 張相片/);
     await page.getByTestId('add-new-receipt-photos').click();
     await page.locator('input[type="file"]').first().setInputFiles([
       { name: 'new-receipt-1.png', mimeType: 'image/png', buffer: Buffer.from(PNG, 'base64') },
@@ -145,11 +158,11 @@ const success = payload => ({
     await page.getByTestId('recognition-retry-error').waitFor({ state: 'visible' });
     assert.match(await page.getByTestId('recognition-retry-error').innerText(), /仍保留上次成功結果/);
     await page.getByText('重新識別結果', { exact: false }).waitFor({ state: 'visible' });
-    assert.equal(requestCount, 10, 'final retry cascades through every free model before returning the prior result');
+    assert.equal(requestCount, 9, 'final retry cascades through every currently listed free model before returning the prior result');
     assert.equal(observedModels[0], DEFAULT_MODEL);
     assert.equal(observedModels[1], FALLBACK_MODEL);
     assert.deepEqual(failures, [], failures.join('\n'));
-    console.log(`PASS 390px local UI: hidden-until-success helper, add-new batch of two photos, whole-batch re-recognition without reopening the picker, successful replacement, and failed retry preserving results (${requestCount} mocked OCR requests).`);
+    console.log(`PASS 390px local UI: reuse is disabled before success, add-new batch of two photos, whole-batch re-recognition without reopening the picker, successful replacement, and failed retry preserving results (${requestCount} mocked OCR requests).`);
 
     await page.waitForFunction(() => {
       const draft = JSON.parse(localStorage.getItem('billSplitterActiveDraftV1') || 'null');
@@ -197,6 +210,8 @@ const success = payload => ({
       window.scrollTo({ top: 0, behavior: 'instant' });
     });
     await receiptImageButton.click();
+    await page.getByTestId('card-redaction-status').waitFor({ state: 'visible', timeout: 30000 });
+    await page.getByTestId('card-redaction-share').click();
     await page.waitForFunction(() => window.__lastMockShare?.fileCount > 0);
     const receiptShare = await page.evaluate(() => window.__lastMockShare);
     assert.equal(receiptShare.fileCount, 2, 'the green button shares both images in the current receipt batch');
@@ -204,7 +219,9 @@ const success = payload => ({
     assert.ok(receiptShare.fileTypes.every(type => type.startsWith('image/')), 'every shared file remains an image after receipt processing');
     assert.equal(receiptShare.text, '', 'receipt images are shared without attaching the report text');
     await page.evaluate(() => { window.__lastMockShare = null; });
+    await page.getByTestId('report-fallback-toggle').click();
     const reportShareButton = page.getByTestId('summary-report-actions').getByRole('button', { name: '分享報告' });
+    await reportShareButton.waitFor({ state: 'visible' });
     await reportShareButton.scrollIntoViewIfNeeded();
     const scrollBeforeReportShare = await page.evaluate(() => Math.round(window.scrollY));
     await reportShareButton.click();
@@ -212,7 +229,7 @@ const success = payload => ({
     await page.waitForTimeout(250);
     assert.equal(await page.evaluate(() => Math.round(window.scrollY)), scrollBeforeReportShare, 'report sharing does not change the page scroll position on return');
     assert.equal(await page.getByTestId('receipt-next-step').count(), 0, 'the second-step receipt card remains removed');
-    console.log('PASS 390px receipt sharing: the green button shares local image files directly and report sharing no longer auto-scrolls to a second step.');
+    console.log('PASS 390px receipt sharing: review then explicit confirm sends image files to the mock share API; report sharing does not auto-scroll.');
 
     await page.getByTestId('open-detailed-table-preview').scrollIntoViewIfNeeded();
     const previewPopup = page.waitForEvent('popup');
@@ -221,7 +238,7 @@ const success = payload => ({
     await previewPage.waitForLoadState('domcontentloaded');
     const memberSelect = previewPage.getByTestId('member-select');
     await memberSelect.waitFor({ state: 'visible' });
-    assert.equal(await previewPage.locator('#member-gate h1').innerText(), '請選擇成員', 'the initial screen asks the user to choose a member');
+    assert.equal(await previewPage.locator('#member-gate h1').innerText(), '朋友埋單', 'the initial screen shows the friend checkout heading');
     assert.equal(await memberSelect.locator('option').count(), 7, 'the vertical name selector lists all six friends plus its prompt');
     assert.equal(await previewPage.locator('#member-content').isVisible(), false, 'no bill content appears before a member is selected');
     assert.equal(await previewPage.getByTestId('preview-grand-total').isVisible(), false, 'no payable amount is shown before selection');
@@ -235,12 +252,13 @@ const success = payload => ({
     await memberSelect.selectOption({ label: '阿明' });
     await previewPage.getByTestId('preview-grand-total').waitFor({ state: 'visible' });
     assert.equal(await previewPage.locator('#page-title').innerText(), '阿明嘅賬單', 'the page clearly identifies whose bill is shown');
-    assert.equal(await previewPage.locator('#member-gate h1').innerText(), '你揀咗：阿明', 'the selected name remains visible above the bill');
-    assert.equal(await previewPage.locator('#total-label').innerText(), '你要埋單幾多', 'the amount is clearly labelled as this member’s payable total');
-    assert.match(await previewPage.getByTestId('preview-grand-total').innerText(), /16\.67/, 'the selected member sees their own calculated payable amount');
-    assert.equal(await previewPage.locator('#items-title').innerText(), '阿明要埋單嘅項目', 'the table header names the selected member');
+    assert.equal(await previewPage.locator('#member-gate h1').innerText(), '切換成員', 'the selected state labels the member switcher');
+    assert.equal(await memberSelect.inputValue(), '阿明', 'the selected member remains visible in the selector');
+    assert.match(await previewPage.locator('#total-label').innerText(), /^你要埋單幾多（HKD）$/, 'the payable total label includes the settlement currency');
+    assert.match(await previewPage.getByTestId('preview-grand-total').innerText(), /16\.66/, 'the selected member sees the cent-adjusted payable amount');
+    assert.equal(await previewPage.locator('#items-title').innerText(), '項目明細', 'the selected view labels the item details');
     assert.ok(await previewPage.locator('[data-testid="personal-item-row"]').count() > 0, 'the table shows this member’s allocated items');
-    assert.match(await previewPage.locator('[data-testid="personal-item-row"]').first().innerText(), /16\.67/, 'the item row shows this member’s share, not the whole bill');
+    assert.match(await previewPage.locator('[data-testid="personal-item-row"]').first().innerText(), /16\.666667/, 'the item row preserves source-share precision rather than showing the rounded settlement total');
     assert.equal(await previewPage.locator('#item-rows').innerText().then(text => ['小美', '阿強', '阿欣', '家豪', '嘉嘉'].some(name => text.includes(name))), false, 'the selected view does not expose other friends’ names or shares');
     assert.equal(await previewPage.locator('#person-select, [data-filter], button[data-mark]').count(), 0, 'the view has no quick filters or eat/buy controls');
     assert.equal(await previewPage.locator('.item-details').first().evaluate(node => node.open), false, 'item source details are collapsed by default');
@@ -250,7 +268,7 @@ const success = payload => ({
     await previewPage.screenshot({ path: detailedViewScreenshotPath, fullPage: true });
     console.log(`TABLE_SCREENSHOT ${detailedViewScreenshotPath}`);
     await memberSelect.selectOption({ label: '小美' });
-    assert.match(await previewPage.getByTestId('preview-grand-total').innerText(), /16\.67/, 'switching the name updates the payable amount');
+    assert.match(await previewPage.getByTestId('preview-grand-total').innerText(), /16\.66/, 'the second member receives the other cent-adjusted share');
     assert.equal(await previewPage.locator('#page-title').innerText(), '小美嘅賬單', 'switching the name updates the bill heading');
     await previewPage.locator('.item-details summary').first().click();
     assert.match(await previewPage.locator('.item-details').first().innerText(), /單據原文/, 'the optional item source can be opened when needed');

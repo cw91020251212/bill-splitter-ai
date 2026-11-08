@@ -24,7 +24,7 @@ const sample = {
 };
 const detailUrl = share => {
   const url = new URL('detailed-view.html', base);
-  url.searchParams.set('v', 'v114-tutorial-web-first-cantonese');
+  url.searchParams.set('v', 'v114-ocr-link-model-fix');
   if (share !== undefined) url.searchParams.set('share', share);
   return url.href;
 };
@@ -106,7 +106,7 @@ async function assertFriendOnly(page) {
     const claim = new URL('claim.html', base);
     claim.searchParams.set('session', id);
     claim.searchParams.set('lang', 'zh-HK');
-    claim.searchParams.set('v', 'v114-tutorial-web-first-cantonese');
+    claim.searchParams.set('v', 'v114-ocr-link-model-fix');
     claim.hash = relay.buildHash(Buffer.from(JSON.stringify([{ id: '01', name: '茶', totalQty: null, unit: '' }])).toString('base64url'), relay.createRoom(), { title: '聚餐', createdAt: now, expiresAt: Date.parse(expiry) });
     await page.goto(claim.href, { waitUntil: 'domcontentloaded' });
     await page.locator('iframe.same-link-result').waitFor({ state: 'visible' });
@@ -115,7 +115,7 @@ async function assertFriendOnly(page) {
     const frame = await element.contentFrame();
     await frame.locator('#preview-content').waitFor({ state: 'visible' });
     await assertFriendOnly(frame);
-    assert.equal(new URL(frame.url()).searchParams.get('v'), 'v114-tutorial-web-first-cantonese');
+    assert.equal(new URL(frame.url()).searchParams.get('v'), 'v114-ocr-link-model-fix');
     await frame.locator('#friend-page-heading').click();
     await frame.locator('#member-select').selectOption({ label: '測試朋友' });
     assert.match(await frame.locator('#grand-total').innerText(), /20/);

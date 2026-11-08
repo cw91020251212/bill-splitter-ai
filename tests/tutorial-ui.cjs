@@ -281,15 +281,13 @@ async function runTutorialHubSmoke(browser) {
   const videoSources = await page.locator('[data-testid="video-lessons-directory"] video source').evaluateAll(nodes => nodes.map(node => (node.getAttribute('src') || '').split('?')[0]));
   assert.deepEqual(videoSources, ['./assets/OpenRouter_API_Key_Tutorial_Circled.mp4', './assets/bill-splitter-operation-cantonese.mp4'], 'OpenRouter setup must precede the operation clip');
   const videoSourceUrls = await page.locator('[data-testid="video-lessons-directory"] video source').evaluateAll(nodes => nodes.map(node => node.getAttribute('src')));
-  assert.deepEqual(videoSourceUrls, ['./assets/OpenRouter_API_Key_Tutorial_Circled.mp4?v=20261103-1', './assets/bill-splitter-operation-cantonese.mp4?v=20261108-r114-operation-ocr']);
+  assert.deepEqual(videoSourceUrls, ['./assets/OpenRouter_API_Key_Tutorial_Circled.mp4?v=20261103-1', './assets/bill-splitter-operation-cantonese.mp4']);
   const keyDescription = await page.locator('#openrouter-key-video p').innerText();
   assert.match(keyDescription, /OpenRouter API Key/);
   assert.doesNotMatch(keyDescription, /OCR|單據|辨識|翻譯/);
   const operationDescription = await page.locator('[data-testid="operation-video-card"] p').innerText();
-  assert.match(operationDescription, /OCR.*文字識別.*翻譯/);
-  const operationSubtitles = fs.readFileSync(path.join(__dirname, '..', 'assets', 'bill-splitter-operation-cantonese-r114.srt'), 'utf8');
-  assert.match(operationSubtitles, /OCR 文字識別/);
-  assert.match(operationSubtitles, /OCR reads items and prices/);
+  assert.match(operationDescription, /約 1 分鐘示範分帳流程/);
+  assert.doesNotMatch(operationDescription, /OCR|文字識別|翻譯/);
   const videoStates = await page.locator('[data-testid="video-lessons-directory"] video').evaluateAll(nodes => nodes.map(node => ({ autoplay: node.hasAttribute('autoplay'), paused: node.paused, preload: node.getAttribute('preload') })));
   assert.deepEqual(videoStates, [{ autoplay: false, paused: true, preload: 'none' }, { autoplay: false, paused: true, preload: 'none' }], 'videos must wait for a user tap');
   assert.match(await page.getByTestId('tutorial-hub-intro').innerText(), /教學中心/);

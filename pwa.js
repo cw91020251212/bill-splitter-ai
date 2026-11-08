@@ -40,7 +40,7 @@
     window.navigator.standalone === true;
 
   /* ---------------------------------------------------------- service worker */
-  var RELEASE_VERSION = 'v114-tutorial-web-first-cantonese-operation-ocr';
+  var RELEASE_VERSION = 'v114-ocr-link-model-fix';
   var waitingWorker = null;
   var registrationPromise = null;
   var reloadRequested = false;

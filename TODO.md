@@ -68,11 +68,13 @@
 - [x] 第二步活動名稱／連結有效期設定卡右下角新增「確定」按鈕；按下後以平滑捲動前往「分享認帳連結及附件」按鈕，不建立連結、不清除可編輯的活動名稱；繁體中文及英文均可用。
 驗收：`friend-recognition.cjs` 11 項通過，其中包含 smooth scroll 參數、分享按鈕可見、活動名稱仍可編輯及文字陰影為 none；`friend-navigation.cjs` 全部通過。
 
-# R114：同步更新互動教學與示範影片
+# R114：同步更新互動教學並保留原始示範影片
 - [x] 互動教學按現行順序示範：第 2 步分享認帳連結；第 3 步依次設定墊支人、結算貨幣、付款方式及服務費分法，再檢視朋友回覆；未收到回覆仍可完成設定，但沒有有效回覆時不能產生報告。
 - [x] 第 4 步以網頁版同一連結為首選；簡單版／詳細版只作後備，先展開後備方案才展示文字報告操作；繁體中文與英文文案一致。
-- [x] 只更新第二條分帳操作影片：片頭以合成香港粵語明確說明示例單據的 OCR 文字識別、讀取項目與價錢、翻譯成用家語言及保留原文核對，再接續現行四步操作流程；第一條 OpenRouter API Key 申請／設定影片保持原片不變。第二段附繁體中文／英文字幕，素材只用合成示例資料，不展示真實連結或 API Key。
+- [x] 依使用者最新指示，第一條 OpenRouter API Key 影片保持原片；第二條分帳操作影片還原為修改前原始版本，逐位元與 R114 前資產相同。移除新增 OCR 片頭及其字幕 sidecar，不再剪輯或改動影片內容。
 - [x] 主程式左上角版本文字只顯示 R114，移除 V1.0.1。
+- [x] 免費 OCR cascade 保留 Nemotron 3.5 VL 為預設（使用者回報它過去最快、最正常）；Dots3-Note 作第一後備（使用者確認能成功辨識，但翻譯仍有偏差）；移除已無端點的 Inkling，其他候選只列入 2026-11-08 OpenRouter 仍有免費圖片輸入端點的 Gemma 4 31B／26B 和 Nemotron 3 Nano Omni。既有 Inkling 設定回到 Nemotron 預設；端點可用率不等於翻譯品質保證。
+- [x] 成功重做 OCR／翻譯後，以最新項目名稱重建認帳 URL hash；保留現有 session、加密回覆 room、活動名稱及期限，並將最新結果發布至同一 session。`friend-whatsapp-details.cjs` 驗證舊、新項目名稱及 session/room/metadata。
 
-驗收：雙語 18 階段 `tutorial-ui.cjs`、`tutorial-safety.cjs`、R114 `settings-free-models.cjs`、`friend-navigation.cjs`、同一連結 `friend-whatsapp-details.cjs` 及 Worker 授權／核心 35 項測試通過；兩段影片皆為 1080×1920 H.264/AAC。
+驗收：`/tmp/r114-ocr-regression.sh` 全項通過；OCR cascade 6/6、設定遷移、OCR 重試、同一連結 hash/session/room、朋友頁、雙語 18 階段教學（19 個 browser cases）、tutorial safety、Worker 授權／核心 35/35 及 diff-check 全綠。第二條影片 SHA-256 與 R114 前原始 blob 完全相同。
 已知測試限制：`friend-revisions.cjs` 目前 4/8 通過；舊 deny-by-default mock 尚未覆蓋目前頁面使用的 `/claims/status` 與 `/claims/submit`，因此該套件的 4 個流程無法完成。R114 未更改這些產品路徑。

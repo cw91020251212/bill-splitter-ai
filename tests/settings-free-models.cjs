@@ -25,7 +25,7 @@ const testApiKey = 'test-openrouter-key-preserve-on-migration';
         const legacy = JSON.stringify({
           engine: 'openrouter',
           keys: { openrouter: key },
-          model: 'google/gemini-3.8-flash',
+          model: 'thinkingmachines/inkling-small:free',
           allowPaidModels: true
         });
         window[kind].setItem('billSplitterApiConfig', legacy);
@@ -82,6 +82,8 @@ const testApiKey = 'test-openrouter-key-preserve-on-migration';
       assert.equal(await page.getByTestId('paid-models-opt-in').count(), 0, 'paid-model toggle must be absent');
       const choices = await select.locator('option').evaluateAll(nodes => nodes.map(node => node.value));
       assert(choices.length > 0 && choices.every(model => model.endsWith(':free')), 'only free models may be selected');
+      assert(choices.includes(freeModel), 'the Nemotron 3.5 VL default is selectable');
+      assert.equal(choices.includes('thinkingmachines/inkling-small:free'), false, 'retired Inkling model is removed from settings');
       const settingsText = await page.locator('body').innerText();
       assert(!settingsText.includes('進階／可能產生費用'));
       assert(!settingsText.includes('Advanced / may cost money'));

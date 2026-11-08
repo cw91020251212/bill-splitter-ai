@@ -79,9 +79,9 @@
   </style>
   <link rel="stylesheet" href="./theme.css?v=v86-free-models-only">
   <link rel="stylesheet" href="./tutorial.css?v=v86-free-models-only">
-  <!-- R114: current interactive guide and OCR-first operation walkthrough. -->
-  <meta name="bill-app-release" content="v114-tutorial-web-first-cantonese-operation-ocr">
-  <script defer src="./pwa.js?v=v114-tutorial-web-first-cantonese-operation-ocr"></script>
+  <!-- R114: current interactive guide; original video lessons retained. -->
+  <meta name="bill-app-release" content="v114-ocr-link-model-fix">
+  <script defer src="./pwa.js?v=v114-ocr-link-model-fix"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
@@ -3045,6 +3045,16 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
       const ensureClaimRoom = () => {
         if (tutorialDemo) return;
         if (window.ClaimRelay?.isRoom(claimRoomRef.current)) return claimRoomRef.current;
+        const existingLink = claimSessionRef.current?.link;
+        if (existingLink && window.ClaimRelay?.readRoomFromHash) {
+          try {
+            const roomFromLink = window.ClaimRelay.readRoomFromHash(new URL(existingLink, window.location.href).hash);
+            if (window.ClaimRelay.isRoom(roomFromLink)) {
+              rememberClaimRoom(roomFromLink);
+              return roomFromLink;
+            }
+          } catch (_) {}
+        }
         if (!window.ClaimRelay?.createRoom) return null;
         const room = window.ClaimRelay.createRoom();
         rememberClaimRoom(room);
@@ -3151,7 +3161,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
         const metadata = getClaimLinkMetadata();
         const link = new URL('./claim.html', window.location.href);
         link.searchParams.set('lang', lang === 'en' ? 'en' : 'zh-HK');
-        link.searchParams.set('v', 'v114-tutorial-web-first-cantonese');
+        link.searchParams.set('v', 'v114-ocr-link-model-fix');
         link.searchParams.set('session', session.id);
         link.hash = window.ClaimRelay
           ? window.ClaimRelay.buildHash(encodeClaimLinkPayload(payload), room, metadata)
@@ -3179,12 +3189,14 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
         const metadata = getClaimLinkMetadata();
         const session = await ensureClaimSession(metadata);
         // Never distribute a link as protected until owner setup is confirmed.
-        // Idempotent setup keeps legacy claims, registered values and the same URL.
+        // Idempotent setup keeps legacy claims and registered values. Rebuild
+        // the hash each time so successful OCR corrections reach the next link.
         await ensureSecureClaimSetup(session);
         if (claimSessionRef.current?.id !== session.id) throw Object.assign(new Error('Aborted'), { name: 'AbortError' });
-        if (session.link) return session.link;
         const link = buildFriendClaimLink(session);
-        if (link) {
+        if (!link) return null;
+        if (claimSessionRef.current?.id !== session.id) throw Object.assign(new Error('Aborted'), { name: 'AbortError' });
+        if (claimSessionRef.current?.link !== link) {
           const linkedSession = { ...claimSessionRef.current, link };
           claimSessionRef.current = linkedSession;
           setClaimSession(linkedSession);
@@ -4605,14 +4617,14 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                         <video data-testid="tutorial-openrouter-video" controls playsInline preload="none" aria-label={bi('OpenRouter API Key 設定影片', 'OpenRouter API key setup video')} className="mx-auto block max-h-[56dvh] w-auto max-w-full rounded-xl bg-black">
                           <source src="./assets/OpenRouter_API_Key_Tutorial_Circled.mp4?v=20261103-1" type="video/mp4" />
                           {bi('你的瀏覽器未能播放 MP4 影片。', 'Your browser cannot play this MP4 video.')}
-                        </video>
-                      </article>
+                      </video>
+                    </article>
 
                       <article data-testid="operation-video-card" className="rounded-xl border border-slate-400 bg-slate-50 p-3">
                         <h3 className="text-base font-bold text-slate-800">{bi('2. 分帳操作示範', '2. Bill-splitting walkthrough')}</h3>
-                        <p className="mt-1 mb-3 text-sm leading-relaxed text-slate-700">{bi('示範單據 OCR 文字識別、翻譯及完整分帳流程（約 70 秒）。', 'A 70-second walkthrough of receipt OCR, translation, and the full bill-splitting flow.')}</p>
+                        <p className="mt-1 mb-3 text-sm leading-relaxed text-slate-700">{bi('約 1 分鐘示範分帳流程。', 'A one-minute bill-splitting walkthrough.')}</p>
                         <video data-testid="tutorial-operation-video" controls playsInline preload="none" aria-label={bi('分帳操作廣東話示範短片', 'Cantonese bill-splitting tutorial video')} className="mx-auto block max-h-[56dvh] w-auto max-w-full rounded-xl bg-black">
-                          <source src="./assets/bill-splitter-operation-cantonese.mp4?v=20261108-r114-operation-ocr" type="video/mp4" />
+                          <source src="./assets/bill-splitter-operation-cantonese.mp4" type="video/mp4" />
                           {bi('你的瀏覽器未能播放 MP4 影片。', 'Your browser cannot play this MP4 video.')}
                         </video>
                       </article>

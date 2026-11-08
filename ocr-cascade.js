@@ -1,8 +1,8 @@
 /*
  * Free receipt-scan cascade for 分帳管家 AI.
- * Locked on 2026-10-27 from OpenRouter /models and /models/{id}/endpoints.
- * Every id is a free vision model with at least one provider. Paid ids stay
- * opt-in. openrouter/free is not used. Friends never call this.
+ * Checked against the live OpenRouter catalog and endpoints on 2026-11-08.
+ * Keep only explicit :free image-input/text-output models with an endpoint.
+ * Paid ids stay opt-in. openrouter/free is not used. Friends never call this.
  */
 (function (root, factory) {
   const api = factory();
@@ -11,38 +11,33 @@
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
   'use strict';
 
-  // Nemotron is first: it reads documents and its Nvidia endpoint was at
-  // 100% uptime over the last 30 and 5 minutes. Gemma 4 31B stays in the
-  // list (100% over 1 day, reasoning off by default) but its 30-minute
-  // uptime was null, so it is no longer the only default.
-  // Left out on purpose:
-  // - nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free (status -5, 0% uptime)
-  // - nvidia/nemotron-3.5-content-safety:free (classifier, not a receipt reader)
-  // - every free Qwen VL id (still 0 endpoints)
+  // Keep Nemotron 3.5 Super VL first: the user says it was previously the
+  // fastest and most reliable. Dots3-Note is the first fallback because it
+  // completes OCR for the user, though translation quality still needs review.
+  // The remaining ids had live free image endpoints on 2026-11-08; availability
+  // is not a promise of per-key access or translation quality. Inkling is retired.
   const FREE_MODELS = [
     ['nvidia/nemotron-3.5-super-vl:free', 'Nemotron 3.5 VL（預設）', 'Nemotron 3.5 VL (default)'],
-    ['thinkingmachines/inkling-small:free', 'Inkling Small', 'Inkling Small'],
-    ['google/gemma-4-31b-it:free', 'Gemma 4 31B', 'Gemma 4 31B'],
     ['dots-studio/dots-3-note-preview:free', 'Dots3-Note', 'Dots3-Note'],
+    ['google/gemma-4-31b-it:free', 'Gemma 4 31B', 'Gemma 4 31B'],
     ['google/gemma-4-26b-a4b-it:free', 'Gemma 4 26B', 'Gemma 4 26B'],
-    ['thinkingmachines/inkling:free', 'Inkling', 'Inkling']
+    ['nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free', 'Nemotron 3 Nano Omni', 'Nemotron 3 Nano Omni']
   ];
   const PAID_MODELS = [
     ['google/gemini-3.8-flash', 'Gemini 3.8 Flash（較快，可能收費）', 'Gemini 3.8 Flash (faster, may cost money)']
   ];
-  const DEFAULT_FREE_MODEL = FREE_MODELS[0][0];
+  const DEFAULT_FREE_MODEL = 'nvidia/nemotron-3.5-super-vl:free';
   const FREE_MODEL_IDS = FREE_MODELS.map(model => model[0]);
   const PAID_MODEL_IDS = PAID_MODELS.map(model => model[0]);
 
-  // Reasoning left on eats the reply and the 50s budget. Inkling publishes
-  // effort "none". The others accept enabled:false and are not mandatory.
+  // Reasoning left on eats the reply and the 50s budget. These vision models
+  // support the documented reasoning parameter and accept enabled:false.
   const REASONING_OFF = {
     'nvidia/nemotron-3.5-super-vl:free': { enabled: false },
-    'thinkingmachines/inkling-small:free': { effort: 'none' },
-    'thinkingmachines/inkling:free': { effort: 'none' },
     'dots-studio/dots-3-note-preview:free': { enabled: false },
     'google/gemma-4-31b-it:free': { enabled: false },
-    'google/gemma-4-26b-a4b-it:free': { enabled: false }
+    'google/gemma-4-26b-a4b-it:free': { enabled: false },
+    'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free': { enabled: false }
   };
 
   const OCR_ATTEMPT_MS = 50000;
