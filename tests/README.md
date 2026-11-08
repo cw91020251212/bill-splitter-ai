@@ -22,6 +22,8 @@ R113 的 `friend-recognition.cjs` 驗證活動名稱「確定」按鈕使用 smo
 
 R114 的 `tutorial-ui.cjs` 驗證雙語 18 階段教學、第二步分享與第三步先設定後回覆、第四步 Web-first 及預設收合後備、示例試算、退出還原及 Step 1–4 重啟；`tutorial-safety.cjs` 驗證不觸發真實分享、剪貼簿、相機或 API。兩段示範影片均保持 R114 前原始資產。`settings-free-models.cjs` 驗證左上角只顯示 `R114`、舊 Nano 選擇遷移到 Dots3-Note、首屏與設定頁都能保存 Dots、Nemotron 及 `openrouter/free`，且不覆蓋 OpenRouter key。`recognition-retry-ui.cjs` 驗證 Dots3-Note 預設及兩個固定模型的 cascade；`ocr-cascade.test.cjs` 驗證隨機路由只在明確選取時執行，不會自動進入固定 cascade。`friend-whatsapp-details.cjs` 以不同新舊菜名重現 OCR 更新，驗證新 hash 帶入最新項目名稱，同時保留 session、加密回覆 room 和活動 metadata。
 
+`settings-free-models.cjs` 另以舊版偏好 v3、已保存的 OpenRouter 設定驗證一次性遷移到 PaddleOCR.js＋Dots3-Note；遷移後 v4 新選擇的雲端模型則會保留。`paddle-local-ocr-real-ui.cjs` 從同一舊設定直接啟動，不手動選 Paddle，實際驗證遷移後收據確實走本機 Paddle 推理。
+
 `settings-free-models.cjs` 另驗證首屏說明會隨 PaddleOCR.js 本機、Dots3-Note、Nemotron 3.5 或 OpenRouter 隨機路由選擇即時切換，並分別覆蓋繁體中文和英文；說明中的圖片傳送方式與實際後備順序須一致。
 
 `text-import.cjs` 驗證外部 AI 讀圖提示詞複製、JSON 貼上及文字檔匯入免鎖匙而且沒有網絡請求，並確認普通文字只以文字內容送到所選免費模型、不附帶圖片。

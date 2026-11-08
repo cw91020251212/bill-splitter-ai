@@ -26,7 +26,7 @@
   ];
   const DEFAULT_FREE_MODEL = 'dots-studio/dots-3-note-preview:free';
   const RANDOM_ROUTER_MODEL_ID = 'openrouter/free';
-  const MODEL_PREFERENCE_VERSION = 3;
+  const MODEL_PREFERENCE_VERSION = 4;
   const FREE_MODEL_IDS = FREE_MODELS.map(model => model[0]);
   const CASCADE_MODEL_IDS = FREE_MODEL_IDS.filter(modelId => modelId !== RANDOM_ROUTER_MODEL_ID);
   const PAID_MODEL_IDS = PAID_MODELS.map(model => model[0]);

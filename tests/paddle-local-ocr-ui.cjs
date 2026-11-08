@@ -69,7 +69,7 @@ const payload = {
       localStorage.setItem('billSplitterApiConfig', JSON.stringify({
         engine: 'openrouter', ocrEngine: 'openrouter',
         keys: { openrouter: 'local-test-key' }, model: 'dots-studio/dots-3-note-preview:free',
-        allowPaidModels: false, ocrModelPreferenceVersion: 3
+        allowPaidModels: false, ocrModelPreferenceVersion: 4
       }));
     });
     await page.goto(base.toString(), { waitUntil: 'domcontentloaded' });

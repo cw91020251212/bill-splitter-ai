@@ -80,8 +80,8 @@
   <link rel="stylesheet" href="./theme.css?v=v86-free-models-only">
   <link rel="stylesheet" href="./tutorial.css?v=v86-free-models-only">
   <!-- R114: current interactive guide; original video lessons retained. -->
-  <meta name="bill-app-release" content="v114-external-ai-text-import-20261109">
-  <script defer src="./pwa.js?v=v114-external-ai-text-import-20261109"></script>
+  <meta name="bill-app-release" content="v114-paddle-default-v4-20261109">
+  <script defer src="./pwa.js?v=v114-paddle-default-v4-20261109"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
@@ -89,7 +89,7 @@
   <script src="./i18n.js"></script>
   <script src="./claim-relay.js?v=v107-code-focus-visible"></script>
   <script src="./ocr-cascade.js"></script>
-  <script src="./paddle-ocr-local.js?v=v114-external-ai-text-import-20261109"></script>
+  <script src="./paddle-ocr-local.js?v=v114-paddle-default-v4-20261109"></script>
   <script src="./receipt-adjustments.js"></script>
   <script src="./share-config.js"></script>
   <script src="./bill-share-api.js?v=v107-code-focus-visible"></script>
@@ -1814,8 +1814,10 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
             }
             const allowPaid = false;
             const preferenceIsCurrent = Number(cfg.ocrModelPreferenceVersion) >= Ocr.MODEL_PREFERENCE_VERSION;
-            const savedOcrEngine = cfg.ocrEngine === 'openrouter' ? 'openrouter' : 'paddlejs';
-            const requestedModel = savedOcrEngine === 'paddlejs' ? DEFAULT_FREE_MODEL : (preferenceIsCurrent ? cfg.model : DEFAULT_FREE_MODEL);
+            // Before preference v4, OpenRouter may only be the previous default written by saveApiConfig.
+            // Treat those old configs as legacy and migrate them to the new local Paddle + Dots default.
+            const savedOcrEngine = preferenceIsCurrent && cfg.ocrEngine === 'openrouter' ? 'openrouter' : 'paddlejs';
+            const requestedModel = savedOcrEngine === 'openrouter' ? cfg.model : DEFAULT_FREE_MODEL;
             const resolvedModel = resolveBillModel(requestedModel, allowPaid);
             setApiModel(resolvedModel);
             setOcrEngine(savedOcrEngine);

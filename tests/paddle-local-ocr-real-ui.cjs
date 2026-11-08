@@ -62,8 +62,11 @@ const LOCAL = 'local/paddleocr-js';
     await page.goto(base.toString(), { waitUntil: 'domcontentloaded' });
     const scanSelect = page.getByTestId('scan-model-select');
     await scanSelect.waitFor({ state: 'visible', timeout: 60000 });
-    await scanSelect.selectOption(LOCAL);
-    await page.waitForFunction(() => JSON.parse(localStorage.getItem('billSplitterApiConfig') || 'null')?.ocrEngine === 'paddlejs');
+    await page.waitForFunction(() => {
+      const config = JSON.parse(localStorage.getItem('billSplitterApiConfig') || 'null');
+      return config?.ocrModelPreferenceVersion === 4 && config?.ocrEngine === 'paddlejs' && config?.model === 'dots-studio/dots-3-note-preview:free';
+    });
+    assert.equal(await scanSelect.inputValue(), LOCAL, 'legacy OpenRouter config automatically selects the Paddle + Dots default');
     await page.getByTestId('receipt-upload').click();
     await page.getByTestId('receipt-image-action-menu').waitFor({ state: 'visible' });
     await page.getByTestId('add-new-receipt-photos').click();

@@ -102,7 +102,8 @@ const success = payload => ({
         ocrEngine: 'openrouter',
         keys: { openrouter: 'local-test-key' },
         model: 'dots-studio/dots-3-note-preview:free',
-        allowPaidModels: false
+        allowPaidModels: false,
+        ocrModelPreferenceVersion: 4
       }));
     });
     await page.goto(base, { waitUntil: 'domcontentloaded' });

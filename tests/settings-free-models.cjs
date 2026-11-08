@@ -72,10 +72,11 @@ async function assertRouteDescription(page, expectedText, label) {
       await page.evaluate(({ kind, key, model }) => {
         const legacy = JSON.stringify({
           engine: 'openrouter',
+          ocrEngine: 'openrouter',
           keys: { openrouter: key },
           model,
           allowPaidModels: true,
-          ocrModelPreferenceVersion: 2
+          ocrModelPreferenceVersion: 3
         });
         window[kind].setItem('billSplitterApiConfig', legacy);
         localStorage.setItem('billSplitterHistory', '[]');
@@ -86,10 +87,10 @@ async function assertRouteDescription(page, expectedText, label) {
       await page.waitForFunction(model => {
         try {
           const stored = JSON.parse(localStorage.getItem('billSplitterApiConfig') || 'null');
-          return stored?.model === model && stored.ocrModelPreferenceVersion === 3 && stored.ocrEngine === 'paddlejs';
+          return stored?.model === model && stored.ocrModelPreferenceVersion === 4 && stored.ocrEngine === 'paddlejs';
         } catch (error) { return false; }
       }, freeModel);
-      assert.equal(await scanSelect.inputValue(), localPaddleModel, `${storageKind}: config without an OCR route defaults to PaddleOCR.js local + Dots3-Note`);
+      assert.equal(await scanSelect.inputValue(), localPaddleModel, `${storageKind}: legacy OpenRouter config migrates to PaddleOCR.js local + Dots3-Note`);
       const scanChoices = await scanSelect.locator('option').evaluateAll(nodes => nodes.map(node => node.value));
       assert.deepEqual(scanChoices, [freeModel, lastFallbackModel, randomModel, localPaddleModel], 'first screen includes random and local PaddleOCR options');
       await scanSelect.selectOption(localPaddleModel);
@@ -206,7 +207,7 @@ async function assertRouteDescription(page, expectedText, label) {
       assert.equal(saved.local.allowPaidModels, false);
       assert.equal(saved.local.model, freeModel);
       assert.equal(saved.local.ocrEngine, 'openrouter');
-      assert.equal(saved.local.ocrModelPreferenceVersion, 3);
+      assert.equal(saved.local.ocrModelPreferenceVersion, 4);
       assert.equal(saved.local.keys.openrouter, savedKey, 'API key must survive migration');
       if (storageKind === 'sessionStorage') {
         assert.equal(saved.session.allowPaidModels, false, 'session copy must also be migrated');

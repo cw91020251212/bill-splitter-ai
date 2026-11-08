@@ -142,7 +142,7 @@ const initStorage = async (page, config) => {
     await initStorage(modelPage, {
       engine: 'openrouter', ocrEngine: 'openrouter',
       keys: { openrouter: 'local-test-key' }, model: DOTS,
-      allowPaidModels: false, ocrModelPreferenceVersion: 3
+      allowPaidModels: false, ocrModelPreferenceVersion: 4
     });
     await modelPage.getByTestId('toggle-receipt-text-import').click();
     const pastedText = '芒果糯米飯 1 份 65 泰銖\n收據總額 65 泰銖';
