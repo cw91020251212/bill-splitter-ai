@@ -80,8 +80,8 @@
   <link rel="stylesheet" href="./theme.css?v=v86-free-models-only">
   <link rel="stylesheet" href="./tutorial.css?v=v86-free-models-only">
   <!-- R114: current interactive guide; original video lessons retained. -->
-  <meta name="bill-app-release" content="v114-ocr-random-router-option">
-  <script defer src="./pwa.js?v=v114-ocr-random-router-option"></script>
+  <meta name="bill-app-release" content="v114-paddle-local-option">
+  <script defer src="./pwa.js?v=v114-paddle-local-option"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
@@ -89,6 +89,7 @@
   <script src="./i18n.js"></script>
   <script src="./claim-relay.js?v=v107-code-focus-visible"></script>
   <script src="./ocr-cascade.js"></script>
+  <script src="./paddle-ocr-local.js?v=v114-paddle-local-option"></script>
   <script src="./receipt-adjustments.js"></script>
   <script src="./share-config.js"></script>
   <script src="./bill-share-api.js?v=v107-code-focus-visible"></script>
@@ -214,6 +215,20 @@
     const FREE_AI_JPEG_QUALITY = 0.6;
     const PAID_AI_MAX_EDGE = 1600;
     const PAID_AI_JPEG_QUALITY = 0.72;
+
+    const LOCAL_PADDLE_MODEL_ID = 'local/paddleocr-js';
+    const recognitionModelLabel = modelId => {
+      const value = String(modelId || '');
+      const parts = value.split('|');
+      const isLocal = parts[0] === LOCAL_PADDLE_MODEL_ID;
+      const cloudModelId = isLocal ? parts.slice(1).join('|') : value;
+      const row = FREE_MODELS.find(model => model[0] === cloudModelId);
+      const zh = row?.[1] || Ocr.shortLabel(cloudModelId);
+      const en = row?.[2] || zh;
+      return isLocal
+        ? bi(`上次使用：本機 PaddleOCR.js＋${zh}`, `Previous: local PaddleOCR.js + ${en}`)
+        : bi(`上次使用：${zh}`, `Previous model: ${en}`);
+    };
 
     const waitForOcrBackoff = (ms, signal) => new Promise((resolve, reject) => {
       if (signal?.aborted) {
@@ -1117,6 +1132,7 @@
       const [apiKey, setApiKey] = useState('');
 
       const [apiModel, setApiModel] = useState(DEFAULT_FREE_MODEL);
+      const [ocrEngine, setOcrEngine] = useState('openrouter');
       const allowPaidModels = false;
       // API keys are user settings: a normal save must survive closing/reopening
       // the app. Keep sessionStorage only as a same-tab fallback.
@@ -1790,6 +1806,7 @@
             const requestedModel = preferenceIsCurrent ? cfg.model : DEFAULT_FREE_MODEL;
             const resolvedModel = resolveBillModel(requestedModel, allowPaid);
             setApiModel(resolvedModel);
+            setOcrEngine(cfg.ocrEngine === 'paddlejs' ? 'paddlejs' : 'openrouter');
             let normalizedConfig = persisted;
             if (cfg.model !== resolvedModel || cfg.allowPaidModels !== allowPaid || cfg.ocrModelPreferenceVersion !== Ocr.MODEL_PREFERENCE_VERSION) {
               normalizedConfig = JSON.stringify({ ...cfg, engine: 'openrouter', model: resolvedModel, allowPaidModels: false, ocrModelPreferenceVersion: Ocr.MODEL_PREFERENCE_VERSION });
@@ -1975,8 +1992,11 @@
 
       const chooseOcrModel = (model) => {
         if (tutorialDemo) return;
-        const next = resolveBillModel(model, false);
+        const usePaddleLocal = model === LOCAL_PADDLE_MODEL_ID;
+        const next = usePaddleLocal ? DEFAULT_FREE_MODEL : resolveBillModel(model, false);
+        const nextEngine = usePaddleLocal ? 'paddlejs' : 'openrouter';
         setApiModel(next);
+        setOcrEngine(nextEngine);
         try {
           let config = {};
           const stored = localStorage.getItem('billSplitterApiConfig') || sessionStorage.getItem('billSplitterApiConfig');
@@ -1984,7 +2004,7 @@
           const savedKey = (typeof config.keys?.openrouter === 'string'
             ? config.keys.openrouter
             : (config.engine === 'openrouter' && typeof config.key === 'string' ? config.key : '')) || (!isEditingKey ? apiKey.trim() : '');
-          const payload = JSON.stringify({ ...config, engine: 'openrouter', keys: { ...(config.keys || {}), openrouter: savedKey }, model: next, allowPaidModels: false, ocrModelPreferenceVersion: Ocr.MODEL_PREFERENCE_VERSION });
+          const payload = JSON.stringify({ ...config, engine: 'openrouter', ocrEngine: nextEngine, keys: { ...(config.keys || {}), openrouter: savedKey }, model: next, allowPaidModels: false, ocrModelPreferenceVersion: Ocr.MODEL_PREFERENCE_VERSION });
           if (rememberKey) localStorage.setItem('billSplitterApiConfig', payload);
           else localStorage.removeItem('billSplitterApiConfig');
           sessionStorage.setItem('billSplitterApiConfig', payload);
@@ -1993,7 +2013,7 @@
             const stored = sessionStorage.getItem('billSplitterApiConfig');
             const config = stored ? JSON.parse(stored) : {};
             const savedKey = (typeof config.keys?.openrouter === 'string' ? config.keys.openrouter : '') || (!isEditingKey ? apiKey.trim() : '');
-            sessionStorage.setItem('billSplitterApiConfig', JSON.stringify({ ...config, engine: 'openrouter', keys: { ...(config.keys || {}), openrouter: savedKey }, model: next, allowPaidModels: false, ocrModelPreferenceVersion: Ocr.MODEL_PREFERENCE_VERSION }));
+            sessionStorage.setItem('billSplitterApiConfig', JSON.stringify({ ...config, engine: 'openrouter', ocrEngine: nextEngine, keys: { ...(config.keys || {}), openrouter: savedKey }, model: next, allowPaidModels: false, ocrModelPreferenceVersion: Ocr.MODEL_PREFERENCE_VERSION }));
             setRememberKey(false);
           } catch (_) {
             toast(bi('⚠️ 未能保存模型選擇，請允許瀏覽器儲存資料。', '⚠️ Could not save the model choice. Allow browser storage and try again.'), 'error');
@@ -2015,7 +2035,7 @@
         setKeyHint('');
         const modelToSave = resolveBillModel(apiModel, allowPaidModels);
         setApiModel(modelToSave);
-        const payload = JSON.stringify({ engine: 'openrouter', keys: { openrouter: apiKey.trim() }, model: modelToSave, allowPaidModels: allowPaidModels === true, ocrModelPreferenceVersion: Ocr.MODEL_PREFERENCE_VERSION });
+        const payload = JSON.stringify({ engine: 'openrouter', ocrEngine, keys: { openrouter: apiKey.trim() }, model: modelToSave, allowPaidModels: allowPaidModels === true, ocrModelPreferenceVersion: Ocr.MODEL_PREFERENCE_VERSION });
         try {
           // Write the durable copy first. The session copy is a backup for
           // browsers that temporarily reject persistent storage.
@@ -2040,7 +2060,7 @@
         if (tutorialDemo) return;
         if(window.confirm(tr("確定要清除鎖匙嗎？這將會刪除您本機上的設定。"))) {
           try { localStorage.removeItem('billSplitterApiConfig'); sessionStorage.removeItem('billSplitterApiConfig'); } catch(e) {}
-          setApiKey(''); setIsEditingKey(true); setRememberKey(false); setApiModel(DEFAULT_FREE_MODEL);
+          setApiKey(''); setIsEditingKey(true); setRememberKey(false); setApiModel(DEFAULT_FREE_MODEL); setOcrEngine('openrouter');
           toast('🗑️ 已清除鎖匙', 'error');
         }
       };
@@ -2743,21 +2763,36 @@
 
           const useFreeTier = modelUsesFreeTier(apiModel, allowPaidModels);
           const modelForRequest = resolveBillModel(apiModel, allowPaidModels);
-          setProgressText(useFreeTier ? '正在壓縮圖片，方便免費模型處理...' : '正在壓縮圖片...');
+          const usePaddleLocal = ocrEngine === 'paddlejs';
+          setProgressText(usePaddleLocal
+            ? bi('準備本機 OCR…', 'Preparing local OCR…')
+            : (useFreeTier ? '正在壓縮圖片，方便免費模型處理...' : '正在壓縮圖片...'));
           const aiImages = [];
-          for (const image of imageDataArray) {
-            try {
-              aiImages.push(await compressImageDataForAi(
-                image,
-                useFreeTier ? FREE_AI_MAX_EDGE : PAID_AI_MAX_EDGE,
-                useFreeTier ? FREE_AI_JPEG_QUALITY : PAID_AI_JPEG_QUALITY
-              ));
-            } catch (compressionError) {
-              aiImages.push(image);
+          let localOcrText = '';
+          if (usePaddleLocal) {
+            if (!window.PaddleReceiptOcr?.recognizeImages) throw new Error('本機 OCR 模組未能載入，請重新整理後再試，或改選 Dots3-Note。');
+            localOcrText = await window.PaddleReceiptOcr.recognizeImages(imageDataArray, phase => {
+              if (phase === 'loading-sdk') setProgressText(bi('首次載入本機 OCR 模組…', 'Loading the local OCR module…'));
+              else if (phase === 'loading-model') setProgressText(bi('正在載入本機 OCR 模型（首次可能需約一分鐘）…', 'Loading the local OCR model (about a minute the first time)…'));
+              else if (phase === 'recognizing') setProgressText(bi('正在本機辨識收據…', 'Recognizing the receipt locally…'));
+            });
+            if (!String(localOcrText || '').trim()) throw new Error('PaddleOCR.js 沒有讀到文字；可改選 Dots3-Note 重試。');
+            setProgressText(bi('本機辨識完成，正在交由 Dots3-Note 翻譯及整理…', 'Local OCR complete; sending recognized text to Dots3-Note for translation and structuring…'));
+          } else {
+            for (const image of imageDataArray) {
+              try {
+                aiImages.push(await compressImageDataForAi(
+                  image,
+                  useFreeTier ? FREE_AI_MAX_EDGE : PAID_AI_MAX_EDGE,
+                  useFreeTier ? FREE_AI_JPEG_QUALITY : PAID_AI_JPEG_QUALITY
+                ));
+              } catch (compressionError) {
+                aiImages.push(image);
+              }
             }
           }
           if (generation !== billGenerationRef.current) return;
-          setProgressText(Ocr.waitingText(modelForRequest));
+          if (!usePaddleLocal) setProgressText(Ocr.waitingText(modelForRequest));
 
           const promptText = `你幫香港人讀旅行單據（日本、韓國或其他非中文）。合併所有圖片成一份清單。只輸出一個 JSON，無 Markdown、無解釋。
 
@@ -2792,8 +2827,11 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
           let parsedDiscount = 0;
           let parsedCurrency = 'HKD';
 
-          const contentArray = [{ type: "text", text: promptText }];
-          aiImages.forEach(img => { contentArray.push({ type: "image_url", image_url: { url: `data:${img.mimeType};base64,${img.data}` } }); });
+          const textForRequest = usePaddleLocal
+            ? `${promptText}\n\n以下是本機 PaddleOCR.js 按單據閱讀順序辨識的文字。請只根據這些文字整理；不確定的欄位不要猜，保留原文及 null／空值規則：\n\n${localOcrText}`
+            : promptText;
+          const contentArray = [{ type: "text", text: textForRequest }];
+          if (!usePaddleLocal) aiImages.forEach(img => { contentArray.push({ type: "image_url", image_url: { url: `data:${img.mimeType};base64,${img.data}` } }); });
           const markTransient = (error, message) => {
             const transient = new Error(message || error?.message || '網絡中斷，請再試。');
             transient.transient = true;
@@ -2954,7 +2992,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
             if (generation !== billGenerationRef.current) return;
             setItems(finalizedItems);
             setReadReceipt(true);
-            setLastRecognitionModel(recognizedModelId);
+            setLastRecognitionModel(usePaddleLocal ? `${LOCAL_PADDLE_MODEL_ID}|${recognizedModelId}` : recognizedModelId);
             openItemEditsRef.current = {};
             setOpenItemEdits({});
             setCurrency(parsedCurrency);
@@ -4050,14 +4088,21 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                   <select
                     id="scan-model-select"
                     data-testid="scan-model-select"
-                    value={resolveBillModel(apiModel, allowPaidModels)}
+                    value={ocrEngine === 'paddlejs' ? LOCAL_PADDLE_MODEL_ID : resolveBillModel(apiModel, allowPaidModels)}
                     onChange={(event) => chooseOcrModel(event.target.value)}
                     disabled={tutorialDemo || isAnalyzing}
                     className="w-full rounded-xl p-3.5 text-base font-semibold text-slate-800 bg-white border border-slate-400"
                   >
-                    {FREE_MODELS.map(([id, zh, en]) => <option key={id} value={id}>{bi(zh, en)}</option>)}
+                    <optgroup label={bi('OpenRouter 免費模型', 'OpenRouter free models')}>
+                      {FREE_MODELS.map(([id, zh, en]) => <option key={id} value={id}>{bi(zh, en)}</option>)}
+                    </optgroup>
+                    <optgroup label={bi('本機 OCR', 'On-device OCR')}>
+                      <option value={LOCAL_PADDLE_MODEL_ID}>{bi('PaddleOCR.js 本機＋Dots3-Note 整理', 'PaddleOCR.js local + Dots3-Note')}</option>
+                    </optgroup>
                   </select>
-                  <p className="text-sm text-slate-700 mt-2 leading-relaxed">{bi('固定模型會在 Dots3-Note 和 Nemotron 3.5 之間後備。選「免費隨機模型」會直接交由 OpenRouter 隨機揀模型，可能較慢。', 'Fixed models fall back between Dots3-Note and Nemotron 3.5. The free random option calls OpenRouter’s random router directly and may take longer.')}</p>
+                  <p className="text-sm text-slate-700 mt-2 leading-relaxed">{ocrEngine === 'paddlejs'
+                    ? bi('先在本機用 PaddleOCR.js 讀字，再只把文字交給 Dots3-Note 翻譯及整理（必要時 Nemotron 3.5 後備）；首次載入 OCR 模型可能需約一分鐘。', 'PaddleOCR.js reads the image locally; only text goes to Dots3-Note for translation and structuring (Nemotron 3.5 is the fallback if needed). The first model load may take about a minute.')
+                    : bi('固定模型會在 Dots3-Note 和 Nemotron 3.5 之間後備。選「免費隨機模型」會直接交由 OpenRouter 隨機揀模型，可能較慢。', 'Fixed models fall back between Dots3-Note and Nemotron 3.5. The free random option calls OpenRouter’s random router directly and may take longer.')}</p>
                 </Card>
 
                 {!isOnline && <p className="text-base text-amber-900 bg-amber-50 border border-amber-400 rounded-xl p-3">{bi('而家冇網絡，暫時讀唔到單據。連線後再影相，或者先手動輸入。', 'No connection, so the receipt cannot be read yet. Take a photo once you are online, or enter items manually for now.')}</p>}
@@ -4075,7 +4120,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                       <div className="w-full bg-brand-100 border border-brand-300 rounded-full h-3 overflow-hidden shadow-inner" aria-hidden="true">
                         <div className="ocr-indeterminate bg-brand-500 h-3 rounded-full"></div>
                       </div>
-                      {lastRecognitionModel && <p data-testid="last-recognition-model" className="mt-2 text-xs text-slate-600 text-left">{bi(`上次使用：${Ocr.shortLabel(lastRecognitionModel)}`, `Previous model: ${Ocr.shortLabel(lastRecognitionModel)}`)}</p>}
+                      {lastRecognitionModel && <p data-testid="last-recognition-model" className="mt-2 text-xs text-slate-600 text-left">{recognitionModelLabel(lastRecognitionModel)}</p>}
                       <p className="text-base text-slate-700 mt-4 leading-relaxed">{bi('請稍候。完成後會帶你去核對項目。', 'Please wait. You can check the items when it finishes.')}</p>
                     </div>
                   ) : (
@@ -4142,7 +4187,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                       <h2 className="verify-hint" data-testid="verify-title">{tr("核對單據")}</h2>
                       <p className="verify-hint-sub" data-testid="verify-subtitle">{tr("AI 已讀好，改錯嘅就得")}</p>
                       <p className="verify-summary" data-testid="verify-summary">{tf("已讀到 {0} 項 · 總額 {1}", [items.length, formatMoney(receiptTotal, detectedCurrency)])}</p>
-                      {lastRecognitionModel && <p data-testid="last-recognition-model" className="mt-1 text-xs text-slate-600">{bi(`上次使用：${Ocr.shortLabel(lastRecognitionModel)}`, `Previous model: ${Ocr.shortLabel(lastRecognitionModel)}`)}</p>}
+                      {lastRecognitionModel && <p data-testid="last-recognition-model" className="mt-1 text-xs text-slate-600">{recognitionModelLabel(lastRecognitionModel)}</p>}
                     </div>
                   ) : (
                     <h2 className="text-2xl font-bold text-slate-800 tracking-tight">{tr("核對項目與各自認帳")}</h2>
@@ -4793,7 +4838,9 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                             {FREE_MODELS.map(([id, zh, en]) => <option key={id} value={id}>{bi(zh, en)}</option>)}
                           </optgroup>
                         </select>
-                        <p className="text-base text-slate-700 mt-2 leading-relaxed">{bi('固定模型失敗時會互相後備；隨機模型則由 OpenRouter 直接隨機選擇，可能較慢。', 'Fixed models fall back to each other; the random option uses OpenRouter’s random router directly and may take longer.')}</p>
+                        <p className="text-base text-slate-700 mt-2 leading-relaxed">{ocrEngine === 'paddlejs'
+                          ? bi('首屏目前使用 PaddleOCR.js 本機讀字；此處選擇的免費模型負責把 OCR 文字翻譯及整理成項目，失敗時再按預設次序後備。', 'The first screen currently uses PaddleOCR.js locally; the selected free model translates and structures the recognized text, with the normal fallback order if needed.')
+                          : bi('固定模型失敗時會互相後備；隨機模型則由 OpenRouter 直接隨機選擇，可能較慢。', 'Fixed models fall back to each other; the random option uses OpenRouter’s random router directly and may take longer.')}</p>
                       </div>
 
                       <div>
@@ -4834,7 +4881,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                           setRememberKey(shouldRemember);
                           try {
                             if (shouldRemember && apiKey.trim()) {
-                              const payload = JSON.stringify({ engine: 'openrouter', keys: { openrouter: apiKey.trim() }, model: resolveBillModel(apiModel, allowPaidModels), allowPaidModels: allowPaidModels === true, ocrModelPreferenceVersion: Ocr.MODEL_PREFERENCE_VERSION });
+                              const payload = JSON.stringify({ engine: 'openrouter', ocrEngine, keys: { openrouter: apiKey.trim() }, model: resolveBillModel(apiModel, allowPaidModels), allowPaidModels: allowPaidModels === true, ocrModelPreferenceVersion: Ocr.MODEL_PREFERENCE_VERSION });
                               localStorage.setItem('billSplitterApiConfig', payload);
                               sessionStorage.setItem('billSplitterApiConfig', payload);
                             } else if (!shouldRemember) {

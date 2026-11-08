@@ -40,7 +40,7 @@
     window.navigator.standalone === true;
 
   /* ---------------------------------------------------------- service worker */
-  var RELEASE_VERSION = 'v114-ocr-random-router-option';
+  var RELEASE_VERSION = 'v114-paddle-local-option';
   var waitingWorker = null;
   var registrationPromise = null;
   var reloadRequested = false;

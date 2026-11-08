@@ -10,6 +10,7 @@ const freeModel = 'dots-studio/dots-3-note-preview:free';
 const retiredNanoModel = 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free';
 const lastFallbackModel = 'nvidia/nemotron-3.5-super-vl:free';
 const randomModel = 'openrouter/free';
+const localPaddleModel = 'local/paddleocr-js';
 const testApiKey = 'test-openrouter-key-preserve-on-migration';
 
 (async () => {
@@ -46,9 +47,18 @@ const testApiKey = 'test-openrouter-key-preserve-on-migration';
       }, freeModel);
       assert.equal(await scanSelect.inputValue(), freeModel, `${storageKind}: retired Nano preference migrates to Dots3-Note`);
       const scanChoices = await scanSelect.locator('option').evaluateAll(nodes => nodes.map(node => node.value));
-      assert.deepEqual(scanChoices, [freeModel, lastFallbackModel, randomModel], 'first screen includes the explicit random option');
+      assert.deepEqual(scanChoices, [freeModel, lastFallbackModel, randomModel, localPaddleModel], 'first screen includes random and local PaddleOCR options');
+      await scanSelect.selectOption(localPaddleModel);
+      await page.waitForFunction(model => {
+        const stored = JSON.parse(localStorage.getItem('billSplitterApiConfig') || 'null');
+        return stored?.ocrEngine === 'paddlejs' && stored.model === model;
+      }, freeModel);
+      assert.equal(await scanSelect.inputValue(), localPaddleModel, 'local PaddleOCR selection persists as a separate OCR engine');
       await scanSelect.selectOption(randomModel);
-      await page.waitForFunction(model => JSON.parse(localStorage.getItem('billSplitterApiConfig') || 'null')?.model === model, randomModel);
+      await page.waitForFunction(model => {
+        const stored = JSON.parse(localStorage.getItem('billSplitterApiConfig') || 'null');
+        return stored?.model === model && stored?.ocrEngine === 'openrouter';
+      }, randomModel);
       assert.equal(await scanSelect.inputValue(), randomModel, 'first-screen random selection persists immediately');
       await scanSelect.selectOption(lastFallbackModel);
       await page.waitForFunction(model => JSON.parse(localStorage.getItem('billSplitterApiConfig') || 'null')?.model === model, lastFallbackModel);
@@ -148,6 +158,7 @@ const testApiKey = 'test-openrouter-key-preserve-on-migration';
       }));
       assert.equal(saved.local.allowPaidModels, false);
       assert.equal(saved.local.model, freeModel);
+      assert.equal(saved.local.ocrEngine, 'openrouter');
       assert.equal(saved.local.ocrModelPreferenceVersion, 3);
       assert.equal(saved.local.keys.openrouter, savedKey, 'API key must survive migration');
       if (storageKind === 'sessionStorage') {
