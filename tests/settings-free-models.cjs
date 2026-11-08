@@ -104,7 +104,7 @@ const testApiKey = 'test-openrouter-key-preserve-on-migration';
           return rect.top >= header.getBoundingClientRect().bottom - 2 && rect.top < innerHeight;
         });
         assert.equal(await page.getByTestId('tutorial-openrouter-video').isVisible(), true);
-        assert.equal(await page.locator('[data-testid="openrouter-video-card"] video source').getAttribute('src'), './assets/OpenRouter_API_Key_Tutorial_Circled.mp4?v=20261108-r114');
+        assert.equal(await page.locator('[data-testid="openrouter-video-card"] video source').getAttribute('src'), './assets/OpenRouter_API_Key_Tutorial_Circled.mp4?v=20261108-r114-receipt-ocr');
         console.log('PASS empty-key-red-link-and-shortcut-opens-key-video');
       } else {
         console.log('PASS saved-key-green-link');

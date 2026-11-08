@@ -80,8 +80,8 @@
   <link rel="stylesheet" href="./theme.css?v=v86-free-models-only">
   <link rel="stylesheet" href="./tutorial.css?v=v86-free-models-only">
   <!-- R114: refreshed interactive tutorial and Cantonese walkthrough videos. -->
-  <meta name="bill-app-release" content="v114-tutorial-web-first-cantonese">
-  <script defer src="./pwa.js?v=v114-tutorial-web-first-cantonese"></script>
+  <meta name="bill-app-release" content="v114-tutorial-web-first-cantonese-receipt-ocr">
+  <script defer src="./pwa.js?v=v114-tutorial-web-first-cantonese-receipt-ocr"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
@@ -4601,9 +4601,9 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
                     <div className="space-y-4 px-4 pb-4">
                       <article id="openrouter-key-video" data-testid="openrouter-video-card" className="scroll-mt-24 rounded-xl border border-slate-400 bg-slate-50 p-3">
                         <h3 className="text-base font-bold text-slate-800">{bi('1. OpenRouter API Key 設定教學', '1. OpenRouter API key setup')}</h3>
-                        <p className="mt-1 mb-3 text-sm leading-relaxed text-slate-700">{bi('示範申請及設定 OpenRouter API Key。', 'Create and add an OpenRouter API key.')}</p>
+                        <p className="mt-1 mb-3 text-sm leading-relaxed text-slate-700">{bi('示範單據上載、AI 辨識及翻譯，並介紹 OpenRouter API Key 設定。', 'See a sample receipt upload, AI recognition and translation, then configure an OpenRouter API key.')}</p>
                         <video data-testid="tutorial-openrouter-video" controls playsInline preload="none" aria-label={bi('OpenRouter API Key 設定影片', 'OpenRouter API key setup video')} className="mx-auto block max-h-[56dvh] w-auto max-w-full rounded-xl bg-black">
-                          <source src="./assets/OpenRouter_API_Key_Tutorial_Circled.mp4?v=20261108-r114" type="video/mp4" />
+                          <source src="./assets/OpenRouter_API_Key_Tutorial_Circled.mp4?v=20261108-r114-receipt-ocr" type="video/mp4" />
                           {bi('你的瀏覽器未能播放 MP4 影片。', 'Your browser cannot play this MP4 video.')}
                         </video>
                       </article>

@@ -1,8 +1,8 @@
 ## v114：互動教學與粵語示範影片更新
 
-互動教學依照現行四步流程更新：第二步分享認帳連結，第三步先設定墊支人、貨幣、收款方式及服務費分法，再核對朋友回覆；第四步以原認帳連結中的網頁結果為首選，簡單版與詳細版收在後備方案。兩段示範影片使用合成香港粵語及示例資料，並加入繁體中文／英文字幕；OpenRouter 影片保留建立金鑰內容，只更新 App 設定尾段。主程式 `R114`，PWA 快取 `v114-tutorial-web-first-cantonese`。
+互動教學依照現行四步流程更新：第二步分享認帳連結，第三步先設定墊支人、貨幣、收款方式及服務費分法，再核對朋友回覆；第四步以原認帳連結中的網頁結果為首選，簡單版與詳細版收在後備方案。兩段示範影片使用合成香港粵語及示例資料，並加入繁體中文／英文字幕；OpenRouter 影片新增示例單據上載、AI 辨識及翻譯片頭，保留建立金鑰教學並更新 App 設定尾段。主程式 `R114`，PWA 快取 `v114-tutorial-web-first-cantonese-receipt-ocr`。
 
-The interactive guide now follows the current four-step flow: share the claim link in Step 2, configure payer/currency/payment/fee split before reviewing replies in Step 3, and prefer the web result on the original claim link in Step 4. Summary and Detailed remain collapsed backups. Both videos use synthetic Hong Kong Cantonese and sample data with Traditional Chinese/English subtitles; the OpenRouter key-creation section is retained while its app-settings ending is replaced.
+The interactive guide now follows the current four-step flow: share the claim link in Step 2, configure payer/currency/payment/fee split before reviewing replies in Step 3, and prefer the web result on the original claim link in Step 4. Summary and Detailed remain collapsed backups. Both videos use synthetic Hong Kong Cantonese and sample data with Traditional Chinese/English subtitles; the OpenRouter video now opens with a sample receipt upload, AI recognition and translation, retains the key-creation section, and ends with the current app settings.
 
 ## v112：網頁版結果分享設為首選
 

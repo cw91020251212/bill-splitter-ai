@@ -1,45 +1,47 @@
 1
-00:00:00,900 --> 00:00:11,000
-示範申請 OpenRouter API Key 並連接「分帳管家」。
-按 Sign up 註冊；已有帳戶就直接登入。
-Create an OpenRouter API key and connect Bill Splitter.
-Select Sign up, or log in if you have an account.
+00:00:00,000 --> 00:00:12,400
+上載示例單據；AI 讀出項目和金額，
+翻譯成你選擇的語言，再用於分帳計算；原文保留核對。
+Upload a sample receipt. AI extracts items and prices,
+translates them into your app language for bill splitting,
+and keeps the original text for review.
 
 2
-00:00:11,000 --> 00:00:21,500
-新用戶可在 Sign up 畫面選 Google 圖示，用 Gmail 登記。
-New users can choose the Google icon and sign up with Gmail.
+00:00:13,400 --> 00:00:22,400
+未有帳戶按 Sign up；已有帳戶直接登入。
+Choose Sign up, or log in if you already have an account.
 
 3
-00:00:21,500 --> 00:00:31,600
-登入後開啟 API Keys，按 New Key，命名並設定有效期。
-Open API Keys, select New Key, name the key, and set expiry.
+00:00:23,500 --> 00:00:29,400
+新用戶可選 Google，用 Gmail 登記。
+New users can choose Google to sign up with Gmail.
 
 4
-00:00:31,600 --> 00:00:41,900
-建議有效期選一年，不要選永久。Credit limit 選 Custom amount。
-Choose one year, not No expiration. Set Custom amount.
+00:00:34,000 --> 00:00:41,200
+登入後開啟 API Keys，按 New Key 並命名，再設定有效期。
+Open API Keys, select New Key, name it, and set its expiry.
 
 5
-00:00:42,000 --> 00:00:52,100
-免費模型將額度設為 0，可避免意外收費；再檢查有效期。
-For free models, set the limit to zero to avoid unexpected charges.
+00:00:44,100 --> 00:00:51,800
+有效期建議選一年，避免設定為永久。
+A one-year expiry is recommended; avoid No expiration.
 
 6
-00:00:52,100 --> 00:01:02,200
-確認期限和額度後按 Create。新金鑰只完整顯示一次。
-Select Create, then copy and store the key securely. It appears once.
+00:00:54,500 --> 00:01:04,300
+免費模型的額度設為 $0，可避免意外收費。
+For free models, set the limit to $0 to avoid unexpected charges.
 
 7
-00:01:02,700 --> 00:01:13,400
-返回分帳管家設定，選擇標示免費的模型，貼上 API Key。
-按「儲存並驗證」，確認連線成功。
-Return to Bill Splitter settings and choose a model marked Free.
-Paste the API key, select Save & Verify, and confirm the connection.
+00:01:04,600 --> 00:01:13,600
+確認期限和額度後按 Create；新金鑰只完整顯示一次。
+Review the expiry and limit, then select Create. The full key appears only once.
 
 8
-00:01:13,400 --> 00:01:20,500
-需要在這部裝置記住金鑰時，先選擇保存選項。
-金鑰只保存在本機設定，不要傳給朋友。
-Choose the save option only if needed on this device.
-The key stays in local settings; never send it to friends.
+00:01:14,100 --> 00:01:23,200
+示範只用假金鑰：選標示 Free 的模型，輸入 API Key，再儲存並驗證。
+Demo only: use a dummy key. Choose a Free model, enter it, and select Save & Verify.
+
+9
+00:01:23,600 --> 00:01:32,400
+金鑰只保存在本機；需要才啟用記住金鑰，切勿分享。
+The key stays on this device. Enable Remember only if needed, and never share it.
