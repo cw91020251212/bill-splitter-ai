@@ -84,7 +84,7 @@
 
 ## R114 OCR supplement follow-up (2026-11-08)
 
-- [x] 首屏新增可選 PaddleOCR.js PP-OCRv5 WASM 本機辨識路徑；保留 Dots3-Note 預設。收據圖像留在瀏覽器，只把辨識文字交給既有免費模型翻譯及整理，必要時再走 Nemotron 後備。
+- [x] 首屏預設選擇 PaddleOCR.js PP-OCRv5 WASM 本機辨識＋Dots3-Note；新訪問者及沒有已保存 OCR 路徑的設定使用此組合，已保存的 OpenRouter 路徑仍保留。收據圖像留在瀏覽器，只把辨識文字交給免費模型翻譯及整理，必要時再走 Nemotron 後備。
 - [x] 同一張遮蓋收據已完成 Tesseract.js、PaddleOCR CPU、PaddleOCR.js、OCR.space Engine 2/3 的零費用可執行測試；PDF 中 17 個候選均已逐項調查，不把需註冊、帳單或未明確免費的試用額度當成 $0 實測。
 - [x] `friend-revisions.cjs` mock 已同步現行 `/claims/status`、`/claims/unlock`、`/claims/submit` API；8/8 回歸通過。
 - [x] R114 現行範圍回歸完成，本機 OCR 補充功能已發布至 GitHub Pages；測試範圍、commit 及舊版 R104 測試說明見下方。

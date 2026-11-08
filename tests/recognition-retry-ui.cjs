@@ -99,6 +99,7 @@ const success = payload => ({
       localStorage.setItem('billSplitterHistory', '[]');
       localStorage.setItem('billSplitterApiConfig', JSON.stringify({
         engine: 'openrouter',
+        ocrEngine: 'openrouter',
         keys: { openrouter: 'local-test-key' },
         model: 'dots-studio/dots-3-note-preview:free',
         allowPaidModels: false

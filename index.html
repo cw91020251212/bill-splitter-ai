@@ -80,8 +80,8 @@
   <link rel="stylesheet" href="./theme.css?v=v86-free-models-only">
   <link rel="stylesheet" href="./tutorial.css?v=v86-free-models-only">
   <!-- R114: current interactive guide; original video lessons retained. -->
-  <meta name="bill-app-release" content="v114-paddle-local-option">
-  <script defer src="./pwa.js?v=v114-paddle-local-option"></script>
+  <meta name="bill-app-release" content="v114-paddle-default-20261109">
+  <script defer src="./pwa.js?v=v114-paddle-default-20261109"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
@@ -89,7 +89,7 @@
   <script src="./i18n.js"></script>
   <script src="./claim-relay.js?v=v107-code-focus-visible"></script>
   <script src="./ocr-cascade.js"></script>
-  <script src="./paddle-ocr-local.js?v=v114-paddle-local-option"></script>
+  <script src="./paddle-ocr-local.js?v=v114-paddle-default-20261109"></script>
   <script src="./receipt-adjustments.js"></script>
   <script src="./share-config.js"></script>
   <script src="./bill-share-api.js?v=v107-code-focus-visible"></script>
@@ -1132,7 +1132,7 @@
       const [apiKey, setApiKey] = useState('');
 
       const [apiModel, setApiModel] = useState(DEFAULT_FREE_MODEL);
-      const [ocrEngine, setOcrEngine] = useState('openrouter');
+      const [ocrEngine, setOcrEngine] = useState('paddlejs');
       const allowPaidModels = false;
       // API keys are user settings: a normal save must survive closing/reopening
       // the app. Keep sessionStorage only as a same-tab fallback.
@@ -1803,13 +1803,14 @@
             }
             const allowPaid = false;
             const preferenceIsCurrent = Number(cfg.ocrModelPreferenceVersion) >= Ocr.MODEL_PREFERENCE_VERSION;
-            const requestedModel = preferenceIsCurrent ? cfg.model : DEFAULT_FREE_MODEL;
+            const savedOcrEngine = cfg.ocrEngine === 'openrouter' ? 'openrouter' : 'paddlejs';
+            const requestedModel = savedOcrEngine === 'paddlejs' ? DEFAULT_FREE_MODEL : (preferenceIsCurrent ? cfg.model : DEFAULT_FREE_MODEL);
             const resolvedModel = resolveBillModel(requestedModel, allowPaid);
             setApiModel(resolvedModel);
-            setOcrEngine(cfg.ocrEngine === 'paddlejs' ? 'paddlejs' : 'openrouter');
+            setOcrEngine(savedOcrEngine);
             let normalizedConfig = persisted;
-            if (cfg.model !== resolvedModel || cfg.allowPaidModels !== allowPaid || cfg.ocrModelPreferenceVersion !== Ocr.MODEL_PREFERENCE_VERSION) {
-              normalizedConfig = JSON.stringify({ ...cfg, engine: 'openrouter', model: resolvedModel, allowPaidModels: false, ocrModelPreferenceVersion: Ocr.MODEL_PREFERENCE_VERSION });
+            if (cfg.model !== resolvedModel || cfg.allowPaidModels !== allowPaid || cfg.ocrModelPreferenceVersion !== Ocr.MODEL_PREFERENCE_VERSION || cfg.ocrEngine !== savedOcrEngine) {
+              normalizedConfig = JSON.stringify({ ...cfg, engine: 'openrouter', ocrEngine: savedOcrEngine, model: resolvedModel, allowPaidModels: false, ocrModelPreferenceVersion: Ocr.MODEL_PREFERENCE_VERSION });
               try {
                 if (durable) localStorage.setItem('billSplitterApiConfig', normalizedConfig);
                 sessionStorage.setItem('billSplitterApiConfig', normalizedConfig);
@@ -2060,7 +2061,7 @@
         if (tutorialDemo) return;
         if(window.confirm(tr("確定要清除鎖匙嗎？這將會刪除您本機上的設定。"))) {
           try { localStorage.removeItem('billSplitterApiConfig'); sessionStorage.removeItem('billSplitterApiConfig'); } catch(e) {}
-          setApiKey(''); setIsEditingKey(true); setRememberKey(false); setApiModel(DEFAULT_FREE_MODEL); setOcrEngine('openrouter');
+          setApiKey(''); setIsEditingKey(true); setRememberKey(false); setApiModel(DEFAULT_FREE_MODEL); setOcrEngine('paddlejs');
           toast('🗑️ 已清除鎖匙', 'error');
         }
       };

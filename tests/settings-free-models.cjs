@@ -20,6 +20,24 @@ const testApiKey = 'test-openrouter-key-preserve-on-migration';
     args: ['--no-sandbox']
   });
   try {
+    const firstVisitContext = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' });
+    const firstVisitPage = await firstVisitContext.newPage();
+    await firstVisitPage.goto(new URL('tests/README.md', base).toString(), { waitUntil: 'domcontentloaded' });
+    await firstVisitPage.evaluate(() => {
+      localStorage.clear();
+      sessionStorage.clear();
+      localStorage.setItem('billSplitterFirstVisitVideoHubSeenV1', '1');
+      localStorage.setItem('billSplitterLanguage', 'zh-HK');
+      localStorage.setItem('billSplitterHistory', '[]');
+    });
+    await firstVisitPage.goto(base.toString(), { waitUntil: 'networkidle' });
+    const firstVisitSelect = firstVisitPage.getByTestId('scan-model-select');
+    await firstVisitSelect.waitFor({ state: 'visible' });
+    assert.equal(await firstVisitSelect.inputValue(), localPaddleModel, 'first visit defaults to PaddleOCR.js local + Dots3-Note');
+    assert.equal((await firstVisitPage.getByTestId('app-version-label').innerText()).trim(), 'R114');
+    console.log('PASS first-visit default is PaddleOCR.js local + Dots3-Note');
+    await firstVisitContext.close();
+
     for (const storageKind of ['localStorage', 'sessionStorage']) {
       const savedKey = storageKind === 'sessionStorage' ? testApiKey : '';
       const context = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' });
@@ -42,10 +60,10 @@ const testApiKey = 'test-openrouter-key-preserve-on-migration';
       await page.waitForFunction(model => {
         try {
           const stored = JSON.parse(localStorage.getItem('billSplitterApiConfig') || 'null');
-          return stored?.model === model && stored.ocrModelPreferenceVersion === 3;
+          return stored?.model === model && stored.ocrModelPreferenceVersion === 3 && stored.ocrEngine === 'paddlejs';
         } catch (error) { return false; }
       }, freeModel);
-      assert.equal(await scanSelect.inputValue(), freeModel, `${storageKind}: retired Nano preference migrates to Dots3-Note`);
+      assert.equal(await scanSelect.inputValue(), localPaddleModel, `${storageKind}: config without an OCR route defaults to PaddleOCR.js local + Dots3-Note`);
       const scanChoices = await scanSelect.locator('option').evaluateAll(nodes => nodes.map(node => node.value));
       assert.deepEqual(scanChoices, [freeModel, lastFallbackModel, randomModel, localPaddleModel], 'first screen includes random and local PaddleOCR options');
       await scanSelect.selectOption(localPaddleModel);
@@ -60,6 +78,9 @@ const testApiKey = 'test-openrouter-key-preserve-on-migration';
         return stored?.model === model && stored?.ocrEngine === 'openrouter';
       }, randomModel);
       assert.equal(await scanSelect.inputValue(), randomModel, 'first-screen random selection persists immediately');
+      await page.reload({ waitUntil: 'networkidle' });
+      await scanSelect.waitFor({ state: 'visible' });
+      assert.equal(await scanSelect.inputValue(), randomModel, 'an explicitly saved OpenRouter route survives reload');
       await scanSelect.selectOption(lastFallbackModel);
       await page.waitForFunction(model => JSON.parse(localStorage.getItem('billSplitterApiConfig') || 'null')?.model === model, lastFallbackModel);
       assert.equal(await page.getByTestId('scan-model-select').inputValue(), lastFallbackModel, 'first-screen model selection persists immediately');
@@ -166,6 +187,20 @@ const testApiKey = 'test-openrouter-key-preserve-on-migration';
         assert.equal(saved.session.model, freeModel);
         assert.equal(saved.session.keys.openrouter, testApiKey);
       }
+      await page.evaluate(model => {
+        const config = JSON.parse(localStorage.getItem('billSplitterApiConfig') || 'null');
+        delete config.ocrEngine;
+        config.model = model;
+        config.ocrModelPreferenceVersion = 3;
+        localStorage.setItem('billSplitterApiConfig', JSON.stringify(config));
+      }, randomModel);
+      await page.reload({ waitUntil: 'networkidle' });
+      await scanSelect.waitFor({ state: 'visible' });
+      assert.equal(await scanSelect.inputValue(), localPaddleModel, 'a config without a saved OCR route migrates to the full local+Dots default');
+      const migratedDefault = await page.evaluate(() => JSON.parse(localStorage.getItem('billSplitterApiConfig') || 'null'));
+      assert.equal(migratedDefault.ocrEngine, 'paddlejs');
+      assert.equal(migratedDefault.model, freeModel, 'the default local combo uses Dots3-Note, not the stale random router model');
+      console.log('PASS missing OCR-engine migration restores PaddleOCR.js local + Dots3-Note');
       await context.close();
     }
   } finally {

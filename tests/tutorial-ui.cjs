@@ -37,7 +37,7 @@ async function seed(page, step, language) {
     localStorage.setItem('billSplitterActiveDraftV1', JSON.stringify(record));
     localStorage.setItem('billSplitterLanguage', language);
     localStorage.setItem('billSplitterHistory', JSON.stringify([{ id: 'sentinel-history', date: '2026-10-27', simplified: '保留的歷史', detailed: '保留的明細', receiptImageCount: 1 }]));
-    localStorage.setItem('billSplitterApiConfig', JSON.stringify({ engine: 'openrouter', key: '', model: 'nvidia/nemotron-nano-12b-v2-vl:free', allowPaidModels: false }));
+    localStorage.setItem('billSplitterApiConfig', JSON.stringify({ engine: 'openrouter', ocrEngine: 'openrouter', key: '', model: 'nvidia/nemotron-nano-12b-v2-vl:free', allowPaidModels: false }));
     const db = await new Promise((resolve, reject) => {
       const r = indexedDB.open('billSplitterLocalData', 1);
       r.onupgradeneeded = () => r.result.createObjectStore('receipts', { keyPath: 'recordId' });
@@ -316,7 +316,7 @@ async function runKeyStatusHintSmoke(browser) {
     const page = await context.newPage();
     await page.goto(base + 'tests/README.md', { waitUntil: 'networkidle' });
     await page.evaluate(key => {
-      localStorage.setItem('billSplitterApiConfig', JSON.stringify({ engine: 'openrouter', keys: { openrouter: key }, model: 'nvidia/nemotron-3.5-super-vl:free', allowPaidModels: false }));
+      localStorage.setItem('billSplitterApiConfig', JSON.stringify({ engine: 'openrouter', ocrEngine: 'openrouter', keys: { openrouter: key }, model: 'nvidia/nemotron-3.5-super-vl:free', allowPaidModels: false }));
       localStorage.setItem('billSplitterHistory', '[]');
       localStorage.setItem('billSplitterLanguage', 'zh-HK');
     }, key);
