@@ -110,9 +110,9 @@ const initStorage = async (page, config) => {
       name: 'synthetic-receipt.png', mimeType: 'image/png', buffer: syntheticReceipt
     });
     await noKeyPage.getByTestId('receipt-attachment-only-hint').waitFor({ state: 'visible' });
-    assert.match(await noKeyPage.getByTestId('receipt-attachment-only-hint').innerText(), /不做 OCR|no OCR or AI upload/);
+    assert.match(await noKeyPage.getByTestId('receipt-attachment-only-hint').innerText(), /不做 OCR|no OCR or AI/);
     await noKeyPage.getByTestId('redaction-next-or-finish').click();
-    await noKeyPage.waitForFunction(() => /已附加 1 張/.test(document.querySelector('[data-testid="receipt-attachment-status"]')?.textContent || ''), null, { timeout: 15000 });
+    await noKeyPage.waitForFunction(() => /已加入 1 張/.test(document.querySelector('[data-testid="receipt-attachment-status"]')?.textContent || ''), null, { timeout: 15000 });
     assert.match(await noKeyPage.getByTestId('last-recognition-model').innerText(), /JSON.*本機|本機.*JSON/, 'attaching a photo does not replace the JSON-import source label');
     assert.equal(noKeyRequests, 0, 'photo attachment does not send the image to OpenRouter');
     await noKeyPage.waitForFunction(async () => {
@@ -132,22 +132,22 @@ const initStorage = async (page, config) => {
     }, null, { timeout: 15000 });
     await noKeyPage.reload();
     await noKeyPage.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '2', null, { timeout: 30000 });
-    assert.match(await noKeyPage.getByTestId('receipt-attachment-status').innerText(), /已附加 1 張/, 'the attached photo remains with the imported bill after reload');
+    assert.match(await noKeyPage.getByTestId('receipt-attachment-status').innerText(), /已加入 1 張/, 'the attached photo remains with the imported bill after reload');
     assert.equal(noKeyRequests, 0, 'restoring the attached photo also makes no API request');
 
     await noKeyPage.evaluate(() => localStorage.setItem('billSplitterLanguage', 'en'));
     await noKeyPage.reload();
     await noKeyPage.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '2', null, { timeout: 30000 });
-    assert.match(await noKeyPage.getByTestId('imported-receipt-attachment-card').innerText(), /External AI text\/JSON has no photo/);
-    assert.match(await noKeyPage.getByTestId('attach-receipt-image').innerText(), /Add photo/);
+    assert.match(await noKeyPage.getByTestId('imported-receipt-attachment-card').innerText(), /External AI text\/JSON has no receipt photo/);
+    assert.match(await noKeyPage.getByTestId('attach-receipt-image').innerText(), /Add receipt photo/);
     await noKeyPage.getByTestId('attach-receipt-image').click();
     await noKeyPage.getByTestId('receipt-attachment-input').setInputFiles({
       name: 'synthetic-receipt-second.png', mimeType: 'image/png', buffer: syntheticReceipt
     });
     await noKeyPage.getByTestId('receipt-attachment-only-hint').waitFor({ state: 'visible' });
-    assert.match(await noKeyPage.getByTestId('receipt-attachment-only-hint').innerText(), /no OCR or AI upload/);
+    assert.match(await noKeyPage.getByTestId('receipt-attachment-only-hint').innerText(), /no OCR or AI/);
     await noKeyPage.getByTestId('redaction-next-or-finish').click();
-    await noKeyPage.waitForFunction(() => /2 receipt photos attached/.test(document.querySelector('[data-testid="receipt-attachment-status"]')?.textContent || ''), null, { timeout: 15000 });
+    await noKeyPage.waitForFunction(() => /2 photos added/.test(document.querySelector('[data-testid="receipt-attachment-status"]')?.textContent || ''), null, { timeout: 15000 });
     assert.equal(noKeyRequests, 0, 'the English attachment-only flow also makes no API request');
     await noKeyPage.evaluate(() => localStorage.setItem('billSplitterLanguage', 'zh-HK'));
     await noKeyPage.reload();

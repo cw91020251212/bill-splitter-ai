@@ -80,8 +80,8 @@
   <link rel="stylesheet" href="./theme.css?v=v86-free-models-only">
   <link rel="stylesheet" href="./tutorial.css?v=v86-free-models-only">
   <!-- R114: current interactive guide; original video lessons retained. -->
-  <meta name="bill-app-release" content="v114-paddle-default-v5-local-models-20261109">
-  <script defer src="./pwa.js?v=v114-paddle-default-v5-local-models-20261109"></script>
+  <meta name="bill-app-release" content="v114-add-person-after-result-20261109">
+  <script defer src="./pwa.js?v=v114-add-person-after-result-20261109"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
@@ -1034,6 +1034,7 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
       const [redactionImageLoadedVersion, setRedactionImageLoadedVersion] = useState(0);
       const [isPreparingRedacted, setIsPreparingRedacted] = useState(false);
       const [receiptAttachmentOnly, setReceiptAttachmentOnly] = useState(false);
+      const [receiptImageSharePending, setReceiptImageSharePending] = useState(false);
       const redactionImageRef = useRef(null);
       const redactionCanvasRef = useRef(null);
       const redactionDragRef = useRef(null);
@@ -2716,6 +2717,7 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
             })));
             if (generation !== billGenerationRef.current) return;
             setLastImageData(current => [...current, ...appendedImages]);
+            if (results && claimSessionRef.current?.link) setReceiptImageSharePending(true);
             setIsSaved(false);
             setUploadError('');
             setReceiptAttachmentOnly(false);
@@ -2725,7 +2727,7 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
             setShowRedaction(false);
             setRedactionDrag(null);
             redactionDragRef.current = null;
-            toast(bi('✅ 相片已附加（不做 OCR／AI）。', '✅ Photo attached (no OCR/AI).'));
+            toast(bi('✅ 相片已加入；分享後會顯示在同一條結果連結（不做 OCR／AI）。', '✅ Photo added; it appears on the same result link when shared (no OCR/AI).'));
             return;
           }
           setPendingRedactionImages([]);
@@ -3527,12 +3529,12 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
       const renderTextImportReceiptAttachmentCard = () => (
         <Card data-testid="imported-receipt-attachment-card" className="border-slate-400 bg-white">
           <div className="space-y-2">
-            <p className="font-bold text-slate-800">{bi('外部 AI 文字／JSON 不含原圖。', 'External AI text/JSON has no photo.')}</p>
-            <p className="text-sm leading-relaxed text-slate-600">{bi('可附原圖並遮蓋私隱；只附圖，不做 OCR／AI。', 'Attach a redacted photo only; no OCR or AI upload.')}</p>
+            <p className="font-bold text-slate-800">{bi('外部 AI 文字／JSON 不含收據相片。', 'External AI text/JSON has no receipt photo.')}</p>
+            <p className="text-sm leading-relaxed text-slate-600">{bi('加入並遮蓋原圖；分享後會顯示在同一條連結的結果下方。不會用 OCR／AI 處理這張相片。', 'Add and redact the photo; when shared, it appears below the result on the same link. No OCR or AI is run on it.')}</p>
             <Button data-testid="attach-receipt-image" variant="secondary" className="!w-full" disabled={tutorialDemo || isAnalyzing || isPreparingRedacted} onClick={() => receiptAttachmentInputRef.current?.click()}>
-              <Icon path={icons.fileImage} size={18}/>{lastImageData.length ? bi(`再加相片（${lastImageData.length} 張）`, `Add photo (${lastImageData.length} attached)`) : bi('附加原圖', 'Attach photo')}
+              <Icon path={icons.fileImage} size={18}/>{lastImageData.length ? bi(`再加收據相片（${lastImageData.length} 張）`, `Add receipt photo (${lastImageData.length} included)`) : bi('加入收據相片', 'Add receipt photo')}
             </Button>
-            <p data-testid="receipt-attachment-status" className="text-xs text-slate-600" role="status" aria-live="polite">{lastImageData.length ? bi(`目前已附加 ${lastImageData.length} 張收據相片。`, `${lastImageData.length} receipt photo${lastImageData.length === 1 ? '' : 's'} attached.`) : bi('尚未附加收據相片。', 'No receipt photo attached yet.')}</p>
+            <p data-testid="receipt-attachment-status" className="text-xs text-slate-600" role="status" aria-live="polite">{lastImageData.length ? bi(`已加入 ${lastImageData.length} 張；分享後會在同一條連結的結果下方顯示。`, `${lastImageData.length} photo${lastImageData.length === 1 ? '' : 's'} added; the same link shows them below the result.`) : bi('加入相片後，分享結果時會在同一條連結的結果下方顯示。', 'Add a photo to show it below the result on the same link.')}</p>
           </div>
         </Card>
       );
@@ -3775,6 +3777,24 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
         }
         return JSON.stringify({ ...shareable, imageBatchId });
       }, [results, items, payer, currency, detectedCurrency, taxSplitMethod, paymentMethods, draftAssets.revision, uiLang, lastImageData, receiptAdjustmentDetails, taxAmount, discountAmount]);
+
+      useEffect(() => {
+        if (!receiptImageSharePending) return;
+        if (tutorialDemo || !results || !claimSessionRef.current?.link) {
+          setReceiptImageSharePending(false);
+          return;
+        }
+        if (friendShareInfo?.signature === currentFriendShareSignature) {
+          setReceiptImageSharePending(false);
+          return;
+        }
+        if (friendShareStatus === 'uploading' || friendShareRequestRef.current) return;
+        const timer = window.setTimeout(() => {
+          setReceiptImageSharePending(false);
+          createFriendShareLink();
+        }, 1200);
+        return () => window.clearTimeout(timer);
+      }, [receiptImageSharePending, currentFriendShareSignature, friendShareInfo?.signature, friendShareStatus, results, tutorialDemo]);
 
       useEffect(() => {
         // Publish only a newly computed bill, never a restored draft or tutorial.
@@ -4166,14 +4186,14 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                     <div className="flex items-start justify-between gap-3 mb-3">
                       <div>
                         <p className="text-xs font-bold uppercase tracking-wider text-brand-700">{tr("隱私保護")}</p>
-                        <h2 id="receipt-redaction-title" className="text-xl font-bold text-slate-900 mt-1">{receiptAttachmentOnly ? bi('遮蓋後附加收據相片', 'Redact and attach receipt photo') : tr("先遮蓋敏感資料")}</h2>
+                        <h2 id="receipt-redaction-title" className="text-xl font-bold text-slate-900 mt-1">{receiptAttachmentOnly ? bi('遮蓋後加入收據相片', 'Redact and add receipt photo') : tr("先遮蓋敏感資料")}</h2>
                       </div>
-                      <button type="button" onClick={cancelReceiptRedaction} disabled={isPreparingRedacted} aria-label={receiptAttachmentOnly ? bi('取消附加', 'Cancel attachment') : tr("取消此次掃描")} className="w-10 h-10 shrink-0 rounded-xl border border-slate-400 text-slate-600 hover:bg-slate-100 text-2xl leading-none">×</button>
+                      <button type="button" onClick={cancelReceiptRedaction} disabled={isPreparingRedacted} aria-label={receiptAttachmentOnly ? bi('取消加圖', 'Cancel photo') : tr("取消此次掃描")} className="w-10 h-10 shrink-0 rounded-xl border border-slate-400 text-slate-600 hover:bg-slate-100 text-2xl leading-none">×</button>
                     </div>
 
                     <div className="rounded-xl border border-amber-500 bg-amber-50 p-3 mb-4">
                       <p className="text-sm font-semibold text-amber-900">{bi('遮住電話、卡號、會員號；保留項目與金額。', 'Cover phone/card/member numbers; keep items and amounts.')}</p>
-                      {receiptAttachmentOnly && <p data-testid="receipt-attachment-only-hint" className="mt-2 text-sm font-semibold text-amber-900">{bi('只附遮蓋後相片，不做 OCR／AI。', 'Attach only; no OCR or AI upload.')}</p>}
+                      {receiptAttachmentOnly && <p data-testid="receipt-attachment-only-hint" className="mt-2 text-sm font-semibold text-amber-900">{bi('只在本機遮蓋，不做 OCR／AI；分享結果時會把相片放在同一條連結的結果下方。', 'Redaction stays local; no OCR or AI. When shared, the photo appears below the result on the same link.')}</p>}
                     </div>
 
                     <div className="flex items-start gap-3 mb-4">
@@ -4224,10 +4244,10 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                     </div>
 
                     <div className="flex flex-col gap-2">
-                      {redactionIndex < pendingRedactionImages.length - 1 && <button type="button" data-testid="redaction-recognize-now" onClick={startOcrWithRedactedImages} disabled={isPreparingRedacted} className="green-action px-3 py-3 rounded-xl bg-brand-600 hover:bg-brand-700 font-bold text-sm disabled:opacity-60">{isPreparingRedacted ? bi('正在準備圖片…', 'Preparing images…') : receiptAttachmentOnly ? bi('遮蓋後附加', 'Redact and attach') : bi('直接識別', 'Recognize now')}</button>}
+                      {redactionIndex < pendingRedactionImages.length - 1 && <button type="button" data-testid="redaction-recognize-now" onClick={startOcrWithRedactedImages} disabled={isPreparingRedacted} className="green-action px-3 py-3 rounded-xl bg-brand-600 hover:bg-brand-700 font-bold text-sm disabled:opacity-60">{isPreparingRedacted ? bi('正在準備圖片…', 'Preparing images…') : receiptAttachmentOnly ? bi('遮蓋後加入', 'Redact and add') : bi('直接識別', 'Recognize now')}</button>}
                       <div className="grid grid-cols-2 gap-2">
-                        <button type="button" onClick={cancelReceiptRedaction} disabled={isPreparingRedacted} className="px-3 py-3 rounded-xl border border-slate-400 bg-white text-slate-700 font-bold text-sm disabled:opacity-50">{receiptAttachmentOnly ? bi('取消附加', 'Cancel attachment') : tr("取消此次掃描")}</button>
-                        <button type="button" data-testid="redaction-next-or-finish" onClick={() => redactionIndex < pendingRedactionImages.length - 1 ? setRedactionIndex(index => index + 1) : startOcrWithRedactedImages()} disabled={isPreparingRedacted} className="px-3 py-3 rounded-xl border border-brand-600 bg-white text-brand-800 font-bold text-sm disabled:opacity-60">{isPreparingRedacted ? bi('正在準備圖片…', 'Preparing images…') : redactionIndex < pendingRedactionImages.length - 1 ? tr("下一張圖片") : receiptAttachmentOnly ? bi('遮蓋完成，附加圖片', 'Finish redaction and attach') : tr("遮蓋完成，開始識別")}</button>
+                        <button type="button" onClick={cancelReceiptRedaction} disabled={isPreparingRedacted} className="px-3 py-3 rounded-xl border border-slate-400 bg-white text-slate-700 font-bold text-sm disabled:opacity-50">{receiptAttachmentOnly ? bi('取消加圖', 'Cancel photo') : tr("取消此次掃描")}</button>
+                        <button type="button" data-testid="redaction-next-or-finish" onClick={() => redactionIndex < pendingRedactionImages.length - 1 ? setRedactionIndex(index => index + 1) : startOcrWithRedactedImages()} disabled={isPreparingRedacted} className="px-3 py-3 rounded-xl border border-brand-600 bg-white text-brand-800 font-bold text-sm disabled:opacity-60">{isPreparingRedacted ? bi('正在準備圖片…', 'Preparing images…') : redactionIndex < pendingRedactionImages.length - 1 ? tr("下一張圖片") : receiptAttachmentOnly ? bi('遮蓋完成，加入相片', 'Finish redaction and add photo') : tr("遮蓋完成，開始識別")}</button>
                       </div>
                     </div>
                   </Card>
@@ -4381,7 +4401,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                         <Button data-testid="submit-receipt-text" variant="primary" disabled={tutorialDemo || isAnalyzing || !receiptTextDraft.trim()} onClick={submitReceiptTextImport}>{isAnalyzing ? bi('整理中…', 'Processing…') : bi('整理這段文字', 'Process this text')}</Button>
                       </div>
                       <p className="text-sm leading-relaxed text-slate-600">{bi('把提示詞和收據交給其他 AI；貼上或上載 JSON。JSON 本機匯入，純文字用所選模型整理。', 'Give another AI the prompt and receipt; paste or upload its JSON. JSON imports locally; text uses the selected model.')}</p>
-                      <p className="text-sm leading-relaxed text-slate-600">{bi('匯入後可在第 2 步附原圖。', 'Attach the original photo in Step 2.')}</p>
+                      <p className="text-sm leading-relaxed text-slate-600">{bi('匯入後在第 2 步加入原圖；分享結果時會顯示在同一條連結下方。', 'Add the original photo in Step 2; it appears below the result on the same link when shared.')}</p>
                       {uploadError && <p data-testid="receipt-text-import-error" role="alert" className="rounded-lg border border-amber-400 bg-amber-50 p-2 text-sm text-amber-900">{typeof uploadError === 'string' ? tr(uploadError) : tr(uploadError.sub || uploadError.main || '讀取失敗')}</p>}
                     </div>
                   )}
@@ -4806,15 +4826,40 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
 
                 {claimSession?.link && <div data-testid="same-link-sync-status" role="status" className={`rounded-xl border p-3 text-sm font-semibold leading-relaxed ${friendShareStatus === 'error' ? 'border-red-400 bg-red-50 text-red-800' : 'border-emerald-400 bg-emerald-50 text-emerald-900'}`}>
                   {friendShareStatus === 'uploading' ? bi('正在把結果更新到原本同一條連結…', 'Updating the result on the same link…')
+                    : receiptImageSharePending ? bi('正在把收據相片加入原本同一條連結…', 'Adding the receipt photo to the same original link…')
                     : friendShareInfo?.signature === currentFriendShareSignature ? bi('結果已自動更新。朋友打開原本嗰條連結就睇到，唔使再發第二條。', 'Result updated automatically. Friends can use the original link; no second link needed.')
                     : friendShareStatus === 'error' ? `${bi('結果未同步成功：', 'Result sync failed: ')}${friendShareError}`
                     : bi('朋友結果會沿用原本同一條連結。', 'Friends use the original link for results.')}
                   {friendShareStatus === 'error' && <button type="button" data-testid="retry-same-link-sync" onClick={createFriendShareLink} className="ml-2 underline">{bi('重試', 'Retry')}</button>}
                 </div>}
 
+                <Card data-testid="add-missing-person-guide" className="border-blue-300 bg-blue-50 !shadow-none">
+                  <div className="space-y-2">
+                    <h3 className="text-base font-extrabold text-blue-900">{bi('漏咗朋友？可以補加', 'Forgot someone? Add them')}</h3>
+                    {claimSession?.link ? (
+                      <p className="text-sm leading-relaxed text-blue-900">{bi('請新朋友開啟原本同一條認帳連結，按「新增一位」並填自己的認帳。提交後按下方「返回接收認帳」，再按「重新接收」及重新產生報告。原有認帳不會被改，結果仍會更新到同一條連結。', 'Ask the new friend to open the original link, tap “Add person,” and submit their claims. Then return to the inbox, refresh, and recalculate. Existing claims stay unchanged; the result remains on the same link.')}</p>
+                    ) : (
+                      <>
+                        <p className="text-sm leading-relaxed text-blue-900">{bi('返回第 3 步，在「朋友交返的認帳」末尾加上新姓名及項目份數，再產生報告。', 'Go back to Step 3 and append the new name and item quantities to “Friends’ replies,” then recalculate.')}</p>
+                        <code className="block rounded-lg bg-white/80 p-2 text-xs text-blue-950">{bi('姓名：新朋友\n01 = 1', 'Name: New friend\n01 = 1')}</code>
+                      </>
+                    )}
+                    <Button data-testid="return-to-claim-inbox" onClick={() => {
+                      setStepError('');
+                      setStep(3);
+                      window.setTimeout(() => {
+                        const target = document.querySelector(claimSession?.link ? '[data-testid="claim-inbox"]' : '[data-testid="claim-replies"]');
+                        target?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                      }, 100);
+                    }} variant="secondary" className="!w-full !border-blue-400 !bg-white !text-blue-900 hover:!bg-blue-100">
+                      {claimSession?.link ? bi('返回接收認帳', 'Return to claim inbox') : bi('返回修改認帳', 'Return to edit claims')}
+                    </Button>
+                  </div>
+                </Card>
+
                 {isTextImportResult && renderTextImportReceiptAttachmentCard()}
 
-                {lastImageData.length > 0 && (
+                {lastImageData.length > 0 && !isTextImportResult && (
                   <Button data-testid="share-receipt-images" onClick={shareCurrentReceipts} variant="primary" className="!w-full green-action-dark !bg-emerald-700 hover:!bg-emerald-800 !border-emerald-900 !shadow-none focus:!ring-emerald-600" style={{ backgroundColor: '#047857', borderColor: '#065f46', boxShadow: 'none' }}>
                     <Icon path={icons.share} size={20} className="!filter-none"/>{bi(`分享單據圖片（${lastImageData.length} 張）`, `Share receipt images (${lastImageData.length})`)}
                   </Button>

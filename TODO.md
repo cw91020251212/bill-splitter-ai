@@ -106,3 +106,21 @@
 - [x] Real Chromium inference loaded both model tar files from the app origin (HTTP 200), made no request to Paddle's archive host, and sent text only to the mocked Dots3-Note endpoint. On the redacted sample, 4 of 5 tracked numeric values were recognized; the cash amount `3000` was missed, so the existing human-review step remains important.
 - [x] Tutorial E2E uses the actual compressed Tailwind Play CDN v3.4.17 script under its MIT license, preserving real CSS/layout assertions. The tutorial remains 18 stages with both original video files unchanged.
 - [x] Regression passed: v4-to-v5 settings migration and selector sync; text/JSON import with attachment and persistence; 19 tutorial browser cases; 2 tutorial-safety cases; Paddle mock and real inference; OCR retry; card redaction; same-link hash/session/room; 6 OCR cascade unit tests.
+
+
+## Add a participant after results are published
+
+- [x] A friend who opens the original protected claim link after results are ready can clearly start a fresh claim under another name and submit their own items without editing or deleting existing claims.
+- [x] The organizer's result page explains how to receive the late claim, recalculate, and update the result on the original link; manual-reply users are shown the supported name/item format.
+- [x] The late-add flow is available in Traditional Chinese and English and is covered end-to-end with the real local claim Worker harness, with no public API writes.
+
+
+## Inline receipt photos on the original result link
+
+- [x] After external AI text/JSON import, users can add the original receipt in Step 2 and redact it locally; this photo does not run OCR or go to any AI service.
+- [x] When the result is shared or updated, the redacted photo is stored in the same existing share session and appears below the bill on that original result link; do not create a separate photo link or require a second URL.
+- [x] The UI explains this in Traditional Chinese and English, and the local Worker E2E proves the original URL, persisted image, and inline friend view without public API writes.
+
+- Evidence: `tests/text-import.cjs` and `tests/friend-recognition.cjs` passed with synthetic receipts; the Worker harness recorded zero public API writes.
+- The friends' detail iframe displayed the redacted image inside the original shared session URL, under the bill.
+- GitHub Pages publication for this change is pending until the final regression run.
