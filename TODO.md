@@ -79,4 +79,19 @@
 - [x] 成功重做 OCR／翻譯後，以最新項目名稱重建認帳 URL hash；保留現有 session、加密回覆 room、活動名稱及期限，並將最新結果發布至同一 session。`friend-whatsapp-details.cjs` 驗證舊、新項目名稱及 session/room/metadata。
 
 驗收：各測試群組均獨立通過：OCR cascade 6/6、模型遷移與 random selector、OCR retry、同一連結 hash/session/room、朋友頁、雙語 18 階段教學（19 個 browser cases）、tutorial safety 2 項、Worker 授權／核心 35/35 及 diff-check。第二條影片 SHA-256 與 R114 前原始 blob 完全相同。
-已知測試限制：`friend-revisions.cjs` 目前 4/8 通過；舊 deny-by-default mock 尚未覆蓋目前頁面使用的 `/claims/status` 與 `/claims/submit`，因此該套件的 4 個流程無法完成。R114 未更改這些產品路徑。
+歷史測試限制（已解除）：friend-revisions 舊版 mock 未涵蓋目前的認帳 API；本輪改用現行 `/claims/status`、`/claims/unlock`、`/claims/submit` contract 後，8/8 通過，沒有放寬產品授權邏輯。
+
+
+## R114 OCR supplement follow-up (2026-11-08)
+
+- [x] 首屏新增可選 PaddleOCR.js PP-OCRv5 WASM 本機辨識路徑；保留 Dots3-Note 預設。收據圖像留在瀏覽器，只把辨識文字交給既有免費模型翻譯及整理，必要時再走 Nemotron 後備。
+- [x] 同一張遮蓋收據已完成 Tesseract.js、PaddleOCR CPU、PaddleOCR.js、OCR.space Engine 2/3 的零費用可執行測試；PDF 中 17 個候選均已逐項調查，不把需註冊、帳單或未明確免費的試用額度當成 $0 實測。
+- [x] `friend-revisions.cjs` mock 已同步現行 `/claims/status`、`/claims/unlock`、`/claims/submit` API；8/8 回歸通過。
+- [x] R114 現行範圍回歸完成，本機 OCR 補充功能已發布至 GitHub Pages；測試範圍、commit 及舊版 R104 測試說明見下方。
+
+
+## R114 public deployment (2026-11-08)
+
+- GitHub Pages workflow `42490619449` completed successfully for commit `4b9038bc214807bd9b3def05baed26e79edd89a8`; the live index and `paddle-ocr-local.js` were fetched successfully, and the visible app version remains R114.
+- Current-scope regression passed: 35 Worker tests, 19 bilingual tutorial browser cases, 2 tutorial-safety cases, 11 current friend-recognition cases, 8 friend-revisions cases, Paddle local data-flow/settings, OCR retry/sharing, and same-link hash/session/room checks.
+- The legacy `friend-password.cjs` R104 harness still asserts a removed repeat-password field and mandatory owner approval, which conflict with the later R105 optional-PIN/no-mandatory-confirmation requirements. Legacy-password compatibility is covered by current `friend-recognition.cjs` and Worker authorization tests.
