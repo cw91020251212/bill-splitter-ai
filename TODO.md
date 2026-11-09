@@ -219,4 +219,6 @@
 - [x] 繁體中文及英文頁面都可辨識級別，三段控制可在窄手機螢幕操作，文字放大不造成橫向溢位。
 - [x] 新認帳連結、同連結成績 iframe、既有短連結 redirect 及 PWA 快取均指向新版本字體控制。
 - [x] 本機驗收：`settings-free-models.cjs`、`friend-navigation.cjs`、`friend-recognition.cjs` 全部通過；Worker core/auth 36/36 通過；JS syntax 與 `git diff --check` 通過。測試無外部 API 寫入。
-- [ ] GitHub Pages 與 Cloudflare Worker 正式發佈及公開 smoke check。
+- [x] GitHub Pages workflow `42667912975` 成功，公開 index／detail／claim／theme／PWA 資產均 HTTP 200；正式 HTML 包含三級字體控制和 R117 cache token。
+- [x] Cloudflare content-only 更新既有 `bill-splitter-share` Worker；三個 modules 的部署 SHA 已核對，其中 `worker-core.mjs` 與測試來源 hash 相同。唯讀 `GET /health` 回應 200 `ok`；虛構短碼 redirect 回 302 並帶 R117 版本參數。
+- [x] 公開 Pages 上的 `friend-navigation.cjs`、`friend-recognition.cjs` 通過；API 全部 mock，沒有對正式認帳資料或 KV 寫入。
