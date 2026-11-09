@@ -360,6 +360,110 @@ body.bg-slate-50 { background: var(--page-grey); color: var(--ink); }
 #root:has(main[data-current-step="4"]) .step-nav button:nth-child(4) { background: #e6f1e9; border-color: #5f9873; color: #29835f; }
 #root:has(main[data-current-step="4"]) .step-nav button:nth-child(4) > span:first-child { background: #80d9aa; border-color: #29835f; color: #fff; }
 
+/* R115: carry each active step's restrained tint through its whole work area.
+   Global brand and primary buttons remain green; this sheet is light-mode only. */
+#root main[data-current-step="1"] {
+  --stage-accent: #74798e;
+  --stage-ink: #454a60;
+  --stage-soft: #eff0f5;
+  --stage-border: #b7b9c5;
+  --stage-wash: #fafafd;
+}
+#root main[data-current-step="2"] {
+  --stage-accent: #6d68b0;
+  --stage-ink: #3c3578;
+  --stage-soft: #eeecfb;
+  --stage-border: #c4c0df;
+  --stage-wash: #fbfafe;
+}
+#root main[data-current-step="3"] {
+  --stage-accent: #a97922;
+  --stage-ink: #684609;
+  --stage-soft: #fff1cf;
+  --stage-border: #dfc894;
+  --stage-wash: #fffdf7;
+}
+#root main[data-current-step="4"] {
+  --stage-accent: #5f9873;
+  --stage-ink: #285c3c;
+  --stage-soft: #e6f1e9;
+  --stage-border: #b7d1be;
+  --stage-wash: #f8fbf8;
+}
+#root main[data-current-step] [data-stage-surface] {
+  box-sizing: border-box;
+  padding: 12px;
+  border: 1px solid var(--stage-border);
+  border-left: 4px solid var(--stage-accent);
+  border-radius: 18px;
+  background: var(--stage-wash);
+}
+#root main[data-current-step] .page-section-heading { border-bottom-color: var(--stage-border); }
+#root main[data-current-step] .page-section-heading > span {
+  background: var(--stage-soft);
+  border-color: var(--stage-accent);
+  color: var(--stage-ink);
+}
+#root main[data-current-step] .page-section-heading h2:not(.verify-hint) { color: var(--stage-ink); }
+
+/* Step 1 is a cool grey-violet; later steps remain lavender, amber and green. */
+#root main[data-current-step="1"] .page-section-heading h2 { color: #454a60; }
+#root main[data-current-step="1"] .page-section-heading > span { background: #eff0f5; border-color: #74798e; color: #454a60; }
+#root:has(main[data-current-step="1"]) .step-nav button:nth-child(1) { background: #eff0f5; border-color: #74798e; color: #454a60; }
+#root:has(main[data-current-step="1"]) .step-nav button:nth-child(1) > span:first-child { background: #555b73; border-color: #454a60; color: #fff; }
+#root:has(main[data-current-step="1"]) .step-progress-fill { background: #74798e; }
+#root:has(main[data-current-step="2"]) .step-progress-fill { background: #6d68b0; }
+#root:has(main[data-current-step="3"]) .step-progress-fill { background: #a97922; }
+#root:has(main[data-current-step="4"]) .step-progress-fill { background: #5f9873; }
+
+/* Step 2's two returned-claim panels now share its lavender stage marker. */
+#root main[data-current-step="2"] [data-testid="claim-followup"] {
+  padding: 12px;
+  border: 1px solid #c4c0df;
+  border-left: 4px solid #6d68b0;
+  border-radius: 16px;
+  background: #f5f3fc;
+}
+#root main[data-current-step="2"] [data-testid="claim-inbox"] { border-color: #6d68b0; }
+#root main[data-current-step="2"] [data-testid="claim-replies"] { border-color: #807ab8 !important; }
+#root main[data-current-step="2"] [data-testid="claim-replies"]:focus {
+  border-color: #4a4588 !important;
+  outline: 3px solid #6d68b024;
+  outline-offset: 1px;
+}
+
+/* Selected settlement choices echo Step 3's amber without recoloring its CTA. */
+#root main[data-current-step="3"] button[aria-pressed="true"] {
+  background: #fff1cf;
+  border-color: #a97922;
+  color: #704a08;
+}
+#root main[data-current-step="3"] [data-testid="payment-method"][class*="bg-brand-50"] {
+  background: #fff7e5;
+  border-color: #a97922;
+  color: #704a08;
+}
+#root main[data-current-step="3"] [data-tutorial-target="tax-method"] label[class*="bg-brand-50"] {
+  background: #fff7e5;
+  border-color: #a97922;
+}
+#root main[data-current-step="3"] input[type="radio"] { accent-color: #a97922; }
+
+/* The owner-side Step 4 uses the same light green as its completion marker. */
+#root main[data-current-step="4"] [data-testid="final-summary-preview"] {
+  border-top-color: #7caf88;
+  color: #2e5337;
+}
+#root main[data-current-step="4"] [data-testid="add-missing-person-guide"] {
+  background: #eff6f1;
+  border-color: #83aa8d;
+}
+#root main[data-current-step="4"] [data-testid="add-missing-person-guide"] :is(h3, p) { color: #285c3c !important; }
+#root main[data-current-step="4"] [data-testid="add-missing-person-guide"] button {
+  border-color: #5f9873 !important;
+  color: #285c3c !important;
+}
+
 /* Receipt inspection uses a bright paper-like surface; camera and modal
    backdrops remain unchanged. Do not alter the uploaded image pixels. */
 #root [role="dialog"][aria-labelledby="receipt-redaction-title"] .bg-slate-900 {

@@ -16,11 +16,11 @@
     { key: 'fee', step: 2, target: '[data-tutorial-target="fee"]', title: ['服務費填金額，不是百分比', 'Enter a fee amount, not a percentage'], copy: ['服務費／附加稅填金額；示例是 $12。', 'Enter the fee or tax amount; the sample is $12.'] },
     { key: 'share', step: 2, target: '[data-tutorial-target="open-claim-share"]', title: ['核對好，再請朋友認帳', 'Invite friends after checking'], copy: ['朋友用連結填份數，無需你的鎖匙；教學只開示例。', 'Friends claim via the link without your key; this tutorial only opens a sample.'] },
     { key: 'share-options', step: 2, target: '[data-tutorial-target="send-claim-link"]', title: ['隱藏的分享選項在這裡', 'Inside the sharing options'], copy: ['收據相片會顯示在同一結果連結下方。教學只載入示例，不會分享。', 'Receipt photos appear below the result on the same link. This demo shares nothing.'], prefer: 'top' },
+    { key: 'replies', step: 2, target: '[data-testid="claim-replies"]', title: ['在此核對朋友回覆', 'Check friend replies here'], copy: ['在第二步接收或貼上回覆；有效認帳才能產生報告。', 'Receive or paste replies in Step 2; a valid claim is needed for the report.'], prefer: 'top' },
     { key: 'payer', step: 3, target: '[data-tutorial-target="calculation-settings"]', title: ['誰先付款，就填誰', 'Name the person who paid first'], copy: ['填墊支人姓名，須與認帳姓名一致。', 'Enter the payer’s name as it appears in the claim.'] },
     { key: 'currency', step: 3, target: '[data-tutorial-target="currency"]', title: ['選擇結算貨幣', 'Choose the settlement currency'], copy: ['先確認單據貨幣，再選結算貨幣。', 'Confirm the receipt currency, then choose the settlement currency.'] },
     { key: 'payment', step: 3, target: '[data-testid="payment-methods"]', title: ['收款方式可以多選', 'Choose one or more payment methods'], copy: ['可多選收款方式；報告只列出，不會扣款。', 'Select payment methods; they appear in the report only.'] },
     { key: 'tax-method', step: 3, target: '[data-tutorial-target="tax-method"]', title: ['決定服務費怎樣分', 'Choose how to split the fee'], copy: ['服務費可按消費比例或平均分。', 'Split the fee by spend or equally.'] },
-    { key: 'replies', step: 3, target: '[data-testid="claim-replies"]', title: ['設定完成後，再核對朋友回覆', 'Review friend replies after your settings'], copy: ['在此核對朋友回覆；須有有效認帳才能產生報告。', 'Review replies here; a valid claim is needed for the report.'], prefer: 'top' },
     { key: 'calculate', step: 3, target: '[data-testid="calculate-split"]', title: ['收到有效認帳後才計算', 'Calculate only after a usable claim'], copy: ['按「產生分帳報告」計算；只會顯示示例。', 'Use Calculate to view the sample; nothing is published.'], prefer: 'top' },
     { key: 'report', step: 4, target: '[data-testid="friend-web-preferred-badge"]', title: ['計算完成，網頁版是首選', 'Calculated: the web link is preferred'], copy: ['先用網頁版分享結果；簡單版和詳細版留作後備。', 'Share the result on the web first; Summary and Detailed are backups.'], prefer: 'top' },
     { key: 'report-web', step: 4, target: '[data-testid="friend-web-intro"]', title: ['朋友由同一條連結查看結果', 'Friends view results on the same link'], copy: ['朋友用同一認帳連結看結果，不用另發；教學不會真的傳送。', 'Friends use the same claim link; no second link. This guide sends nothing.'], prefer: 'top' },
@@ -50,7 +50,7 @@
     };
     var goKey = function (key) { var next = STEPS.findIndex(function (s) { return s.key === key; }); if (next !== -1) goTo(next); };
     var onAction = function (action, detail) {
-      var destinations = { receipt: 'verify', manual: 'items', edit: 'items', 'share-open': 'share-options', shared: 'payer', calculated: 'report', 'fallback-open': 'report-share' };
+      var destinations = { receipt: 'verify', manual: 'items', edit: 'items', 'share-open': 'share-options', shared: 'replies', calculated: 'report', 'fallback-open': 'report-share' };
       if (destinations[action]) goKey(destinations[action]);
       else if (action === 'calculation-error') {
         goKey(detail === 'payer' ? 'payer' : 'replies');

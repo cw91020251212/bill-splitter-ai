@@ -77,11 +77,11 @@
     ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
   ::-webkit-scrollbar-thumb:hover { background: #64748b; }
   </style>
-  <link rel="stylesheet" href="./theme.css?v=v86-free-models-only">
+  <link rel="stylesheet" href="./theme.css?v=v115-claims-stage-colors-20261109">
   <link rel="stylesheet" href="./tutorial.css?v=v86-free-models-only">
   <!-- R114: current interactive guide; original video lessons retained. -->
-  <meta name="bill-app-release" content="v114-payment-font-accessibility-20261109">
-  <script defer src="./pwa.js?v=v114-payment-font-accessibility-20261109"></script>
+  <meta name="bill-app-release" content="v115-claims-stage-colors-20261109">
+  <script defer src="./pwa.js?v=v115-claims-stage-colors-20261109"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
@@ -96,7 +96,7 @@
   <script src="./card-redaction.js?v=v97-card-number-redaction"></script>
   <script src="./card-share-review.js?v=v97-card-number-redaction"></script>
   <script src="./exchange-rates.js?v=v90-cross-currency-settlement"></script>
-  <script src="./tutorial.js?v=v90-cross-currency-settlement"></script>
+  <script src="./tutorial.js?v=v115-claims-stage-colors-20261109"></script>
   <script type="text/babel">
     const { useState, useRef, useEffect, useLayoutEffect, useMemo } = React;
     const tr = value => window.BillI18n.t(value);
@@ -1964,6 +1964,15 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
         }, 2500);
       };
 
+      const focusMountedField = (key) => {
+        const el = fieldRefs.current[key];
+        if (!el) return;
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.focus({ preventScroll: true });
+        el.classList.add('flash-target');
+        setTimeout(() => el.classList.remove('flash-target'), 1500);
+      };
+
       const focusField = (key) => {
         if (tutorialDemo || tutorialSuspendedRef.current) return;
         const match = /^item-(?:name|price|qty)-(\d+)$/.exec(String(key || ''));
@@ -1978,27 +1987,36 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
             return;
           }
         }
-        const el = fieldRefs.current[key];
-        if (!el) return;
-        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        el.focus({ preventScroll: true });
-        el.classList.add('flash-target');
-        setTimeout(() => el.classList.remove('flash-target'), 1500);
+        if (key === 'replies' && step !== 2) {
+          setStep(2);
+          window.setTimeout(() => focusMountedField(key), 180);
+          return;
+        }
+        focusMountedField(key);
       };
 
       const focusReplyLine = (lineNo) => {
         if (tutorialDemo || tutorialSuspendedRef.current) return;
-        const el = fieldRefs.current.replies;
-        if (!el) return;
-        const lines = el.value.split('\n');
-        const start = lines.slice(0, lineNo - 1).join('\n').length + (lineNo > 1 ? 1 : 0);
-        const end = start + (lines[lineNo - 1] || '').length;
-        el.focus();
-        el.setSelectionRange(start, end);
-        const lineH = parseFloat(getComputedStyle(el).lineHeight) || 20;
-        el.scrollTop = Math.max(0, (lineNo - 3) * lineH);
-        el.classList.add('flash-target');
-        setTimeout(() => el.classList.remove('flash-target'), 1500);
+        const focusLine = () => {
+          const el = fieldRefs.current.replies;
+          if (!el) return;
+          const lines = el.value.split('\n');
+          const start = lines.slice(0, lineNo - 1).join('\n').length + (lineNo > 1 ? 1 : 0);
+          const end = start + (lines[lineNo - 1] || '').length;
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          el.focus({ preventScroll: true });
+          el.setSelectionRange(start, end);
+          const lineH = parseFloat(getComputedStyle(el).lineHeight) || 20;
+          el.scrollTop = Math.max(0, (lineNo - 3) * lineH);
+          el.classList.add('flash-target');
+          setTimeout(() => el.classList.remove('flash-target'), 1500);
+        };
+        if (step !== 2) {
+          setStep(2);
+          window.setTimeout(focusLine, 180);
+          return;
+        }
+        focusLine();
       };
 
       const testKey = async () => {
@@ -3959,7 +3977,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
             if (emptyNameIdx !== -1) push(2, 'S2', `項目 ${items[emptyNameIdx].id} 未填寫名稱`, '請填寫名稱以便認帳', { label: '填寫', run: () => focusField(`item-name-${emptyNameIdx}`) });
         }
         if (step >= 2 && items.length === 0) push(2, 'S3', '請至少新增一個項目', '', { label: '新增', run: () => { setStep(2); addItemAndFocus(); } });
-        if (step === 2 && !friendsReplies.trim() && items.length > 0) push(2, 'S4', bi('尚未收到朋友的認帳', 'No friend replies yet'), bi('可以先填墊支人和貨幣，之後再貼回覆', 'Fill in the payer and currency first; replies can be added later.'), { label: bi('下一步', 'Next'), run: goToPayerStep });
+        if (step === 2 && !friendsReplies.trim() && items.length > 0) push(2, 'S4', bi('尚未收到朋友的認帳', 'No friend replies yet'), bi('先分享連結，之後在此核對回覆。', 'Share the link first; check replies here later.'), { label: bi('下一步', 'Next'), run: goToPayerStep });
 
         if (step === 3 && claimInfo && claimInfo.issues.length > 0) {
             const firstIssue = claimInfo.issues[0];
@@ -3991,7 +4009,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
             push(5, 'G1', '請上傳單據照片，讓 AI 幫你讀取', '或手動建立項目', { label: '手動輸入', run: () => { setShowSettings(false); startManualEntry(); } });
         }
         if (step === 3 && items.length > 0 && (!friendsReplies.trim() || !claimInfo?.people?.length)) {
-            push(2, 'S4', bi('尚未收到可計算的朋友認帳', 'Waiting for a usable friend reply'), bi('可先填墊支人和貨幣；收到並解析至少一份認帳後，才可產生報告。', 'You can fill in the payer and currency first. A parsed reply is required before generating the report.'), { label: bi('查看認帳', 'View replies'), run: () => document.querySelector('[data-testid="claim-followup"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' }) });
+            push(2, 'S4', bi('尚未收到可計算的朋友認帳', 'Waiting for a usable friend reply'), bi('先填結算設定，再回第 2 步核對認帳。', 'Fill in settlement settings, then check replies in Step 2.'), { label: bi('查看認帳', 'View replies'), run: () => focusField('replies') });
         }
 
         if (step === 3 && payer.trim() && items.length > 0 && friendsReplies.trim() && claimInfo?.people?.length) {
@@ -4094,7 +4112,8 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
         if (['report', 'report-web', 'report-fallback', 'report-share', 'detail'].includes(tutorialStage)) {
           if (!calculateSplit()) onTutorialAction?.('calculation-error', !payer.trim() ? 'payer' : 'replies');
         } else if (['upload', 'manual'].includes(tutorialStage)) setStep(1);
-        else if (['replies', 'payer', 'currency', 'payment', 'tax-method', 'calculate'].includes(tutorialStage)) setStep(3);
+        else if (tutorialStage === 'replies') setStep(2);
+        else if (['payer', 'currency', 'payment', 'tax-method', 'calculate'].includes(tutorialStage)) setStep(3);
         else setStep(2);
       }, [tutorialDemo, tutorialStage]);
 
@@ -4209,7 +4228,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                     const done = step > num;
                     const active = step === num;
                     return (
-                      <button key={num} onClick={() => jumpToStep(num)} className={`flex min-w-0 flex-col sm:flex-row justify-center items-center gap-1 sm:gap-2 rounded-lg px-1 py-1 text-center transition-all active:scale-[0.98] outline-none ${active ? 'text-brand-700 bg-brand-50' : done ? 'text-slate-600 hover:bg-slate-100' : 'text-slate-400'}`}>
+                      <button key={num} data-step={num} onClick={() => jumpToStep(num)} className={`flex min-w-0 flex-col sm:flex-row justify-center items-center gap-1 sm:gap-2 rounded-lg px-1 py-1 text-center transition-all active:scale-[0.98] outline-none ${active ? 'text-brand-700 bg-brand-50' : done ? 'text-slate-600 hover:bg-slate-100' : 'text-slate-400'}`}>
                         <span className={`w-5 h-5 shrink-0 rounded-full flex items-center justify-center text-[11px] font-bold border ${active ? 'bg-brand-600 border-brand-600 text-white shadow-sm' : done ? 'bg-white border-brand-500 text-brand-600' : 'bg-white border-slate-400 text-slate-500'}`}>{done ? '✓' : num}</span>
                         <span className="text-xs font-semibold leading-tight">{tr(label)}</span>
                       </button>
@@ -4320,7 +4339,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
 
             {/* Step 1: Photo or translated-text import; manual entry is the fallback */}
             {step === 1 && !showSettings && !showHistory && !showTutorial && (
-              <div data-testid="scan-start" className={`space-y-6 animate-in fade-in duration-500${isAnalyzing ? ' is-analyzing' : ''}`}>
+              <div data-testid="scan-start" data-stage-surface="1" className={`space-y-6 animate-in fade-in duration-500${isAnalyzing ? ' is-analyzing' : ''}`}>
                 <div className="page-section-heading flex items-center gap-2 mb-2">
                   <span className="w-8 h-8 rounded-full bg-brand-100 border border-brand-500 text-brand-700 flex items-center justify-center font-bold">1</span>
                   <h2 className="text-2xl font-bold text-slate-800 tracking-tight">{tr("上載並分析單據")}</h2>
@@ -4480,7 +4499,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
 
             {/* Step 2: Items & Claims */}
             {step === 2 && !showHistory && !showSettings && !showTutorial && (
-              <div data-testid="items-step" className="space-y-6 animate-in fade-in duration-500">
+              <div data-testid="items-step" data-stage-surface="2" className="space-y-6 animate-in fade-in duration-500">
                 <div className="page-section-heading flex items-start gap-2 mb-2">
                   <span className="w-8 h-8 rounded-full bg-brand-100 border border-brand-500 text-brand-700 flex items-center justify-center font-bold">2</span>
                   {items.length === 0 ? (
@@ -4690,6 +4709,47 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                     </dialog>
                     )}
                   </div>
+                <div
+                  ref={claimFollowupRef}
+                  data-testid="claim-followup"
+                  data-claim-shared={claimLinkShared ? 'true' : 'false'}
+                  data-claim-returned={claimFollowupOpen ? 'true' : 'false'}
+                  className={claimFollowupOpen ? 'space-y-6' : 'claim-await-share space-y-6'}
+                  aria-disabled={claimFollowupOpen ? undefined : true}
+                  {...(claimFollowupOpen ? {} : { inert: '' })}
+                >
+                  <Card data-testid="claim-inbox" className="!p-4 mb-4 border-brand-600">
+                    <h3 className="text-lg font-extrabold text-slate-800">{bi('認帳回覆', 'Share replies')}</h3>
+                    <p data-testid="claim-inbox-status" className="mt-3 text-base font-bold leading-relaxed text-slate-800" role="status">
+                      {!tutorialDemo && claimRoom && !claimSession
+                        ? bi('舊公開自動接收已停用。請建立新的受保護連結，或手動貼回覆。', 'Old public receiving is disabled. Create a protected link, or paste replies manually.')
+                        : !tutorialDemo && claimSecureError
+                          ? claimSecureError
+                          : !tutorialDemo && claimSecurePhase === 'setting-up'
+                            ? bi('正在準備認帳接收…', 'Preparing claim receiving…')
+                            : claimSession && inboxPhase === 'receiving'
+                              ? bi('正在接收認帳…', 'Receiving claims…')
+                              : claimFollowupOpen && inboxPeople.length >= 1
+                                ? bi(`現有認帳 ${inboxPeople.length} 位：${inboxPeople.join('、')}`, `Current claims ${inboxPeople.length}: ${inboxPeople.join(', ')}`)
+                                : tutorialDemo
+                                  ? bi('先複製或分享上面的連結。', 'Copy or share the link above first.')
+                                  : bi('等候朋友交返認帳。', 'Waiting for friends to send their claims.')}
+                    </p>
+                    {inboxNote && claimSession && <p className="mt-2 text-base font-semibold text-brand-800">{bi(`最新交到：${inboxNote}`, `Latest: ${inboxNote}`)}</p>}
+                    <Button data-testid="claim-inbox-refresh" variant="outline" className="!w-full mt-3" disabled={!claimSession || inboxPhase === 'receiving' || claimSecurePhase === 'setting-up'} onClick={() => pullClaimsRef.current(true)}>{bi('重新接收', 'Check again')}</Button>
+                  </Card>
+                  <Label className="flex items-center justify-between mb-3">
+                    <span>{bi('朋友交返的認帳', 'Friends’ claims')}</span>
+                    <span className="text-sm font-normal text-slate-600">{bi('可稍後填', 'Optional')}</span>
+                  </Label>
+                  <textarea
+                    data-testid="claim-replies"
+                    ref={el => fieldRefs.current.replies = el} value={friendsReplies} onChange={(e) => {setFriendsReplies(e.target.value); setReconciliation(null); setStepError('');}} onPaste={handlePasteReplies} onFocus={onFocusReplies} onBlur={onBlurReplies}
+                    placeholder={bi('朋友回覆會顯示於此；亦可貼上 WhatsApp 後備。', 'Friend replies appear here. You can also paste a WhatsApp backup.')}
+                    className="w-full h-48 bg-white border border-slate-500 rounded-xl p-4 text-base font-mono text-slate-700 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none resize-y shadow-inner leading-relaxed">
+                  </textarea>
+                </div>
+
                     <div className="flex gap-3 pt-2">
                       <Button variant="secondary" className="w-1/3 !px-2 border-slate-500" onClick={() => { setStepError(''); setStep(1); }}>{tr("上一步")}</Button>
                       <Button data-testid="go-to-payer" variant="primary" className="w-2/3" onClick={goToPayerStep}>{bi('下一步', 'Next')}<Icon path={icons.arrowRight} size={18}/></Button>
@@ -4701,7 +4761,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
 
             {/* Step 3: Calculation Settings */}
             {step === 3 && !showHistory && !showSettings && !showTutorial && (
-              <div className="space-y-6 animate-in fade-in duration-500">
+              <div data-testid="calculation-step" data-stage-surface="3" className="space-y-6 animate-in fade-in duration-500">
                 <div className="page-section-heading flex items-center gap-2 mb-2">
                   <span className="w-8 h-8 rounded-full bg-brand-100 border border-brand-500 text-brand-700 flex items-center justify-center font-bold">3</span>
                   <h2 className="text-2xl font-bold text-slate-800 tracking-tight">{tr("結算細節設定")}</h2>
@@ -4736,7 +4796,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                             </label>
                           ))}
                         </div>
-                        <p className="text-xs text-amber-800 mt-2">{bi('可直接在上方朋友認帳欄補回未認帳數量。', 'Add the missing claims in the friend replies field above.')}</p>
+                        <p className="text-xs text-amber-800 mt-2">{bi('回第 2 步補回未認帳數量。', 'Add missing claims in Step 2.')}</p>
                       </div>
                     )}
                   </Card>
@@ -4822,47 +4882,6 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                   </div>
                 </Card>
 
-                <div
-                  ref={claimFollowupRef}
-                  data-testid="claim-followup"
-                  data-claim-shared={claimLinkShared ? 'true' : 'false'}
-                  data-claim-returned={claimFollowupOpen ? 'true' : 'false'}
-                  className={claimFollowupOpen ? 'space-y-6' : 'claim-await-share space-y-6'}
-                  aria-disabled={claimFollowupOpen ? undefined : true}
-                  {...(claimFollowupOpen ? {} : { inert: '' })}
-                >
-                  <Card data-testid="claim-inbox" className="!p-4 mb-4 border-brand-600">
-                    <h3 className="text-lg font-extrabold text-slate-800">{bi('認帳回覆', 'Share replies')}</h3>
-                    <p data-testid="claim-inbox-status" className="mt-3 text-base font-bold leading-relaxed text-slate-800" role="status">
-                      {!tutorialDemo && claimRoom && !claimSession
-                        ? bi('舊公開自動接收已停用。請建立新的受保護連結，或手動貼回覆。', 'Old public receiving is disabled. Create a protected link, or paste replies manually.')
-                        : !tutorialDemo && claimSecureError
-                          ? claimSecureError
-                          : !tutorialDemo && claimSecurePhase === 'setting-up'
-                            ? bi('正在準備認帳接收…', 'Preparing claim receiving…')
-                            : claimSession && inboxPhase === 'receiving'
-                              ? bi('正在接收認帳…', 'Receiving claims…')
-                              : claimFollowupOpen && inboxPeople.length >= 1
-                                ? bi(`現有認帳 ${inboxPeople.length} 位：${inboxPeople.join('、')}`, `Current claims ${inboxPeople.length}: ${inboxPeople.join(', ')}`)
-                                : tutorialDemo
-                                  ? bi('先複製或分享上面的連結。', 'Copy or share the link above first.')
-                                  : bi('等候朋友交返認帳。', 'Waiting for friends to send their claims.')}
-                    </p>
-                    {inboxNote && claimSession && <p className="mt-2 text-base font-semibold text-brand-800">{bi(`最新交到：${inboxNote}`, `Latest: ${inboxNote}`)}</p>}
-                    <Button data-testid="claim-inbox-refresh" variant="outline" className="!w-full mt-3" disabled={!claimSession || inboxPhase === 'receiving' || claimSecurePhase === 'setting-up'} onClick={() => pullClaimsRef.current(true)}>{bi('重新接收', 'Check again')}</Button>
-                  </Card>
-                  <Label className="flex items-center justify-between mb-3">
-                    <span>{bi('朋友交返的認帳', 'Friends’ claims')}</span>
-                    <span className="text-sm font-normal text-slate-600">{bi('可稍後填', 'Optional')}</span>
-                  </Label>
-                  <textarea
-                    data-testid="claim-replies"
-                    ref={el => fieldRefs.current.replies = el} value={friendsReplies} onChange={(e) => {setFriendsReplies(e.target.value); setReconciliation(null); setStepError('');}} onPaste={handlePasteReplies} onFocus={onFocusReplies} onBlur={onBlurReplies}
-                    placeholder={bi('朋友回覆會顯示於此；亦可貼上 WhatsApp 後備。', 'Friend replies appear here. You can also paste a WhatsApp backup.')}
-                    className="w-full h-48 bg-white border border-slate-500 rounded-xl p-4 text-base font-mono text-slate-700 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none resize-y shadow-inner leading-relaxed">
-                  </textarea>
-                </div>
-
                 <div className="flex gap-3 pt-2">
                   <Button variant="secondary" className="w-1/3 !px-2 border-slate-500" onClick={() => setStep(2)}>{tr("上一步")}</Button>
                   <Button data-testid="calculate-split" variant="primary" className="w-2/3 flex-col gap-1 text-center leading-tight" disabled={!friendsReplies.trim() || !claimInfo?.people?.length} onClick={() => { const calculated = calculateSplit(); if (tutorialDemo) onTutorialAction?.(calculated ? 'calculated' : 'calculation-error', !payer.trim() ? 'payer' : 'replies'); }}>
@@ -4875,7 +4894,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
 
             {/* Step 4: Results */}
             {step === 4 && results && !showHistory && !showSettings && !showTutorial && (
-              <div className="space-y-6 animate-in fade-in duration-500">
+              <div data-testid="results-step" data-stage-surface="4" className="space-y-6 animate-in fade-in duration-500">
                 <div className="page-section-heading flex items-center gap-2 mb-2">
                   <span className="w-8 h-8 rounded-full bg-brand-600 text-white flex items-center justify-center font-bold"><Icon path={icons.check} size={18}/></span>
                   <h2 className="text-2xl font-bold text-slate-800 tracking-tight">{bi('結果', 'Results')}</h2>
@@ -4896,11 +4915,11 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                     {claimSession?.link ? (
                       <p className="text-sm leading-relaxed text-blue-900">{bi('朋友開原連結按「新增一位」；再重新接收、計算。', 'Add via link; refresh & recalc.')}</p>
                     ) : (
-                      <p className="text-sm leading-relaxed text-blue-900">{bi('或第 3 步加姓名、項目。', 'Or add name/items in Step 3.')}</p>
+                      <p className="text-sm leading-relaxed text-blue-900">{bi('或第 2 步加姓名、項目。', 'Or add name/items in Step 2.')}</p>
                     )}
                     <Button data-testid="return-to-claim-inbox" onClick={() => {
                       setStepError('');
-                      setStep(3);
+                      setStep(2);
                       window.setTimeout(() => {
                         const target = document.querySelector(claimSession?.link ? '[data-testid="claim-inbox"]' : '[data-testid="claim-replies"]');
                         target?.scrollIntoView({ behavior: 'smooth', block: 'center' });

@@ -176,6 +176,9 @@ async function submit(page, c, codeValue, qty) {
 }
 async function hostFixture() {
   const host = await pageFor('host', true); await host.goto(new URL('index.html', site).href, { waitUntil: 'domcontentloaded', timeout: 30000 });
+  await host.getByTestId('scan-start').waitFor({ state: 'visible' });
+  const step1Accent = await host.getByTestId('scan-start').evaluate(el => getComputedStyle(el).borderLeftColor);
+  assert.equal(step1Accent, 'rgb(116, 121, 142)', 'Step 1 work area uses its grey-violet accent');
   await host.getByTestId('toggle-receipt-text-import').click();
   await host.getByTestId('receipt-text-draft').fill(JSON.stringify({ items: [{ name: 'QA茶', nameEn: 'QA tea', original: 'QA茶', ja: '', price: 100, qty: 1, totalQty: null, unit: '', total: 100 }], adjustments: [], taxTotal: 0, taxNote: '', currency: 'HKD', date: null, receiptTotal: 100 }));
   await host.getByTestId('submit-receipt-text').click();
@@ -228,10 +231,16 @@ async function hostFixture() {
   assert(nextScrollMetrics.frames.at(-1).time - nextScrollMetrics.frames[0].time >= 1600, 'step-2 downward movement is deliberately slow');
   assert.equal(await host.getByTestId('go-to-payer').innerText().then(text => text.trim().startsWith('下一步')), true, 'the original green next-step CTA remains available and is not activated automatically');
   assert.equal(await host.getByTestId('claim-activity-name').isDisabled(), false, 'activity name remains editable until a link is actually shared');
+  assert.equal(await host.getByTestId('claim-inbox').isVisible(), true, 'claim inbox is on Step 2');
+  assert.equal(await host.getByTestId('claim-replies').isVisible(), true, 'manual reply field is on Step 2');
+  const step2Accent = await host.getByTestId('items-step').evaluate(el => getComputedStyle(el).borderLeftColor);
+  assert.equal(step2Accent, 'rgb(109, 104, 176)', 'Step 2 work area uses its lavender accent');
   await host.getByTestId('go-to-payer').click();
   await until(async () => await host.getByPlaceholder('輸入姓名', { exact: true }).isVisible(), 'can advance to payer before friends reply');
-  assert.equal(await host.getByTestId('claim-inbox').isVisible(), true, 'friend inbox is available on step 3');
-  assert.equal(await host.getByTestId('claim-replies').isVisible(), true, 'reply text area is available on step 3');
+  assert.equal(await host.getByTestId('claim-inbox').count(), 0, 'claim inbox is not duplicated on Step 3');
+  assert.equal(await host.getByTestId('claim-replies').count(), 0, 'reply field is not duplicated on Step 3');
+  const step3Accent = await host.getByTestId('calculation-step').evaluate(el => getComputedStyle(el).borderLeftColor);
+  assert.equal(step3Accent, 'rgb(169, 121, 34)', 'Step 3 work area uses its amber accent');
   assert.equal(await host.getByTestId('calculate-split').isDisabled(), true, 'report remains disabled before any friend reply');
   assert.match(await host.getByTestId('calculate-split-hint').innerText(), /按下後會計算並產生分帳報告/, 'disabled CTA still explains its action');
   await host.getByPlaceholder('輸入姓名', { exact: true }).fill('QA墊支人');
@@ -242,7 +251,6 @@ async function hostFixture() {
       ['currency', '[data-testid="receipt-currency-control"]'],
       ['payment', '[data-testid="payment-methods"]'],
       ['fee-split', '[data-tutorial-target="tax-method"]'],
-      ['replies', '[data-testid="claim-followup"]'],
       ['report', '[data-testid="calculate-split"]']
     ].map(([name, selector]) => ({ name, node: document.querySelector(selector) }));
     return {
@@ -251,11 +259,11 @@ async function hostFixture() {
     };
   });
   assert.deepEqual(sectionOrder.missing, [], 'all settlement controls are present');
-  assert.deepEqual(sectionOrder.order, ['payer', 'currency', 'payment', 'fee-split', 'replies', 'report'], 'friend replies sit after all settlement settings and immediately before the report action');
+  assert.deepEqual(sectionOrder.order, ['payer', 'currency', 'payment', 'fee-split', 'report'], 'Step 3 keeps settlement settings before the report action');
   await host.locator('.step-nav').getByRole('button', { name: '各自認帳' }).click();
-  await until(async () => await host.getByTestId('claim-expiry-days').isVisible(), 'can return to replies after advancing');
-  assert.equal(await host.getByTestId('claim-inbox').count(), 0, 'inbox is no longer duplicated on step 2');
-  assert.equal(await host.getByTestId('claim-replies').count(), 0, 'reply text area is no longer duplicated on step 2');
+  await until(async () => await host.getByTestId('claim-expiry-days').isVisible(), 'can return to Step 2 replies');
+  assert.equal(await host.getByTestId('claim-inbox').count(), 1, 'inbox is available once on Step 2');
+  assert.equal(await host.getByTestId('claim-replies').count(), 1, 'reply field is available once on Step 2');
   await host.getByTestId('claim-activity-name').fill('QA識別碼驗收'); await host.getByTestId('claim-expiry-days').selectOption('1'); const before = harness.requests.length;
   assert.equal((await host.getByTestId('copy-friend-claim-link').innerText()).trim(), '複製連結給朋友');
   assert.equal((await host.getByTestId('open-claim-share-button').innerText()).trim(), '分享連結及附件給朋友');
@@ -267,11 +275,19 @@ async function hostSettle(fixture, qty, initial = false, names = [A, B]) {
   const { host, c, link } = fixture;
   if (!host) return publish(c, [payload(A, qty), payload(B)]);
   await host.bringToFront(); await host.evaluate(() => window.dispatchEvent(new Event('focus')));
-  const nav = host.locator('.step-nav').getByRole('button', { name: '分帳運算' });
-  await until(async () => { const refresh = host.getByTestId('claim-inbox-refresh'); if (!await refresh.count()) { if (await nav.count()) await nav.click(); return false; } if (!await refresh.isEnabled()) return false; await refresh.click(); return true; }, 'owner refresh current inbox');
-  await until(async () => { const replies = host.getByTestId('claim-replies'); if (!await replies.count()) { if (await nav.count()) await nav.click(); return false; } const text = await replies.inputValue(); return names.every(name => text.includes(`姓名：${name}`)) && Number(text.split(`姓名：${A}`)[1]?.match(/認帳份數\s*=\s*([\d.]+)/)?.[1]) === qty; }, 'host sees one exact current revision');
+  const claimsNav = host.locator('.step-nav').getByRole('button', { name: '各自認帳' });
+  const calcNav = host.locator('.step-nav').getByRole('button', { name: '分帳運算' });
+  await until(async () => {
+    const refresh = host.getByTestId('claim-inbox-refresh');
+    if (!await refresh.count()) { if (await claimsNav.count()) await claimsNav.click(); return false; }
+    if (!await refresh.isEnabled()) return false;
+    try { await refresh.click({ timeout: 1000 }); return true; }
+    catch (error) { if (!await refresh.count()) return false; throw error; }
+  }, 'owner refresh current inbox on Step 2');
+  await until(async () => { const replies = host.getByTestId('claim-replies'); if (!await replies.count()) { if (await claimsNav.count()) await claimsNav.click(); return false; } const text = await replies.inputValue(); return names.every(name => text.includes(`姓名：${name}`)) && Number(text.split(`姓名：${A}`)[1]?.match(/認帳份數\s*=\s*([\d.]+)/)?.[1]) === qty; }, 'host sees one exact current revision');
   const text = await host.getByTestId('claim-replies').inputValue(); assert.equal(text.split(`姓名：${A}`).length - 1, 1); secretFree(text);
-  await until(async () => await host.getByTestId('calculate-split').isEnabled(), 'friend replies enable report generation');
+  if (await calcNav.count()) await calcNav.click();
+  await until(async () => await host.getByTestId('calculate-split').isEnabled(), 'friend replies enable report generation on Step 3');
   assert.match(await host.getByTestId('calculate-split-hint').innerText(), /朋友可在原本連結查看結果/, 'shared-link CTA explains friends can view the result at their original link');
   const ctaStyles = await host.getByTestId('calculate-split').evaluate(button => {
     const hint = button.querySelector('[data-testid="calculate-split-hint"]');
@@ -284,6 +300,9 @@ async function hostSettle(fixture, qty, initial = false, names = [A, B]) {
   const payer = host.getByPlaceholder('輸入姓名', { exact: true }); if (await payer.inputValue() !== A) await payer.fill(A);
   const before = harness.requests.length;
   await host.getByTestId('calculate-split').click();
+  await until(async () => await host.getByTestId('results-step').count(), 'Step 4 results surface appears');
+  const step4Accent = await host.getByTestId('results-step').evaluate(el => getComputedStyle(el).borderLeftColor);
+  assert.equal(step4Accent, 'rgb(95, 152, 115)', 'Step 4 work area uses its light-green accent');
   // The organizer explicitly recalculates; the application then publishes the
   // original session automatically, without any test-side result PUT.
   await until(() => harness.requests.slice(before).some(r => r.id === c.id && r.method === 'PUT' && r.status === 200 && r.input?.items?.[0]?.shares?.find(s => s.person === A)?.quantity === qty && names.every(name => r.input.participants.some(p => p.name === name))), 'host recalculation publishes original-session PUT', 35000);

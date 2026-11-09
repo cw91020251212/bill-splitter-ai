@@ -9,14 +9,14 @@ const base = process.env.BASE_URL || 'http://127.0.0.1:4178/';
 if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?\//.test(base)) throw new Error('This state-writing test is local-only.');
 const out = process.env.TEST_OUTPUT_DIR || '/tmp/bill-tutorial-qa';
 fs.mkdirSync(out, { recursive: true });
-const stages = ['upload', 'manual', 'verify', 'items', 'fee', 'share', 'share-options', 'payer', 'currency', 'payment', 'tax-method', 'replies', 'calculate', 'report', 'report-web', 'report-fallback', 'report-share', 'detail'];
-const steps = [1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4];
+const stages = ['upload', 'manual', 'verify', 'items', 'fee', 'share', 'share-options', 'replies', 'payer', 'currency', 'payment', 'tax-method', 'calculate', 'report', 'report-web', 'report-fallback', 'report-share', 'detail'];
+const steps = [1, 1, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4];
 const selectors = [
   '[data-testid="receipt-source-actions"]', '[data-testid="start-manual"]', '[data-testid="verify-item"]',
   '[data-tutorial-target="item-fields"]', '[data-tutorial-target="fee"]', '[data-tutorial-target="open-claim-share"]',
-  '[data-tutorial-target="send-claim-link"]', '[data-tutorial-target="calculation-settings"]',
-  '[data-tutorial-target="currency"]', '[data-testid="payment-methods"]', '[data-tutorial-target="tax-method"]',
-  '[data-testid="claim-replies"]', '[data-testid="calculate-split"]', '[data-testid="friend-web-preferred-badge"]',
+  '[data-tutorial-target="send-claim-link"]', '[data-testid="claim-replies"]',
+  '[data-tutorial-target="calculation-settings"]', '[data-tutorial-target="currency"]', '[data-testid="payment-methods"]',
+  '[data-tutorial-target="tax-method"]', '[data-testid="calculate-split"]', '[data-testid="friend-web-preferred-badge"]',
   '[data-testid="friend-web-intro"]', '[data-testid="report-fallback-toggle"]',
   '[data-testid="summary-report-actions"]', '[data-testid="detail-report-actions"]'
 ];
@@ -163,12 +163,12 @@ async function clickShareOpener(page) {
 }
 async function clickSendClaim(page) {
   await target(page, 6).click();
-  await waitStage(page, 'payer');
+  await waitStage(page, 'replies');
 }
 async function advance(page, index) {
   if (index === 5) return clickShareOpener(page);
   if (index === 6) return clickSendClaim(page);
-  if (index === 7) await target(page, 7).locator('input').first().fill('阿明');
+  if (index === 8) await target(page, 8).locator('input').first().fill('阿明');
   if (index === 12) {
     await target(page, 12).click();
     await waitStage(page, 'report');
@@ -203,17 +203,16 @@ async function runEditedSample(page, language) {
   await page.getByTestId('tutorial-next').click(); await waitStage(page, 'share');
   await clickShareOpener(page);
   await clickSendClaim(page);
-  const payerInput = target(page, 7).locator('input').first();
+  await target(page, 7).fill('姓名：阿明\n01 = 2\n\n姓名：Cathy\n01 = 1');
+  await page.getByTestId('tutorial-next').click(); await waitStage(page, 'payer');
+  const payerInput = target(page, 8).locator('input').first();
   if (await payerInput.count()) await payerInput.fill('Cathy');
-  for (const [index, nextStage] of [[7, 'currency'], [8, 'payment'], [9, 'tax-method']]) {
+  for (const [index, nextStage] of [[8, 'currency'], [9, 'payment'], [10, 'tax-method']]) {
     await page.getByTestId('tutorial-next').click(); await waitStage(page, nextStage);
   }
-  const taxRadios = target(page, 10).locator('input[type="radio"]');
+  const taxRadios = target(page, 11).locator('input[type="radio"]');
   assert(await taxRadios.count() >= 2, language + ': missing fee split choices');
-  assert.equal(await demo(page).getByTestId('calculate-split').isDisabled(), true, language + ': report must stay disabled before replies arrive');
   await taxRadios.nth(0).check(); // after a $30 bill-wide discount, the $150 item base becomes $120; with $15 tax Cathy owes $45.
-  await page.getByTestId('tutorial-next').click(); await waitStage(page, 'replies');
-  await target(page, 11).fill('姓名：阿明\n01 = 2\n\n姓名：Cathy\n01 = 1');
   await page.getByTestId('tutorial-next').click(); await waitStage(page, 'calculate');
   await target(page, 12).click(); await waitStage(page, 'report');
   await page.getByTestId('tutorial-next').click(); await waitStage(page, 'report-web');
@@ -225,11 +224,10 @@ async function runEditedSample(page, language) {
   assert.equal(owedAmount(report), '90.00', language + ': proportional fee split should calculate the sample debt');
 
   // Equal fee/tax split changes the amount owed after the same discount.
-  for (const previous of ['report-fallback', 'report-web', 'report', 'calculate', 'replies', 'tax-method']) {
+  for (const previous of ['report-fallback', 'report-web', 'report', 'calculate', 'tax-method']) {
     await page.getByTestId('tutorial-prev').click(); await waitStage(page, previous);
   }
   await taxRadios.nth(1).check();
-  await page.getByTestId('tutorial-next').click(); await waitStage(page, 'replies');
   await page.getByTestId('tutorial-next').click(); await waitStage(page, 'calculate');
   await target(page, 12).click(); await waitStage(page, 'report');
   await page.getByTestId('tutorial-next').click(); await waitStage(page, 'report-web');
@@ -259,15 +257,16 @@ async function runPayerRecovery(page, before, label) {
     await page.getByTestId('tutorial-next').click(); await waitStage(page, stage);
   }
   await clickShareOpener(page); await clickSendClaim(page);
-  const payer = target(page, 7).locator('input').first();
+  await page.getByTestId('tutorial-next').click(); await waitStage(page, 'payer');
+  const payer = target(page, 8).locator('input').first();
   await payer.fill('');
-  for (const stage of ['currency', 'payment', 'tax-method', 'replies', 'calculate']) {
+  for (const stage of ['currency', 'payment', 'tax-method', 'calculate']) {
     await page.getByTestId('tutorial-next').click(); await waitStage(page, stage);
   }
   await target(page, 12).click(); await waitStage(page, 'payer');
   await page.getByTestId('tutorial-feedback').waitFor({ state: 'visible' });
   await payer.fill('阿明');
-  for (const stage of ['currency', 'payment', 'tax-method', 'replies', 'calculate']) {
+  for (const stage of ['currency', 'payment', 'tax-method', 'calculate']) {
     await page.getByTestId('tutorial-next').click(); await waitStage(page, stage);
   }
   await target(page, 12).click(); await waitStage(page, 'report');

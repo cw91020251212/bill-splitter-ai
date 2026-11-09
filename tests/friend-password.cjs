@@ -304,8 +304,8 @@ async function hostCreate() {
   return { host, link, created };
 }
 async function hostPull(host, names) {
-  // The Step 3 inbox can be temporarily unmounted while the app invalidates a result.
-  const nav = host.locator('.step-nav').getByRole('button', { name: '分帳運算' });
+  // The Step 2 inbox can be temporarily unmounted while the app invalidates a result.
+  const nav = host.locator('.step-nav').getByRole('button', { name: '各自認帳' });
   await host.bringToFront();
   await host.evaluate(() => window.dispatchEvent(new Event('focus')));
   await until(async () => {

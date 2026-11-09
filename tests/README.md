@@ -12,15 +12,15 @@ R108 在 `node tests/settings-free-models.cjs` 驗證 390px 及 320px 視窗下�
 
 R109 的 `friend-recognition.cjs` 驗證新認帳連結預設 14 日，以及沒有朋友回覆時仍可前進填墊支人再返回。`friend-navigation.cjs` 驗證分享認帳／結果頁使用藍色 accent，而主辦人本機預覽仍保留綠色；其 API 全被 mock，不讀寫正式帳單。
 
-R110 的 `friend-recognition.cjs` 驗證認帳收件箱和回覆欄只在第三步顯示、無回覆時報告按鈕停用且仍可填墊支人／貨幣、有效回覆到達後按鈕啟用並在同頁結算。教學 UI／安全測試的 replies 階段步驟映射亦已改為第三步。
+R115 將認帳收件箱及「朋友交返的認帳」欄移回第二步；`friend-recognition.cjs` 驗證兩個面板只在第二步出現、第三步結算設定及報告按鈕仍正常、無有效回覆時報告按鈕停用、收到回覆後仍可結算。回覆錯誤定位及結果頁「認帳」捷徑亦返回第二步。
 
-R111 的 `friend-recognition.cjs` 另檢查第三步 DOM 順序：墊支人、貨幣、付款方式、附加費分攤、認帳回覆欄、產生報告按鈕。
+互動教學及安全測試同步改為第二步分享後接收／核對回覆，再進入第三步填結算設定；四個步驟的工作區底色、步驟導覽色及核心色彩斷言亦納入 E2E。
 
 R112 的 `friend-recognition.cjs` 驗證計算按鈕有中英動作提示、網頁分享卡先於後備文字版、超長朋友網址僅縮短顯示且 href 保持完整、簡單／詳細版預設收起並可展開。`cross-currency-ui.cjs` 會先展開後備區再測試文字版操作。
 
 `friend-recognition.cjs` 驗證第二步活動名稱／期限區的按鈕顯示「下一步」，不再自動跳至分享控制；外部 AI JSON 匯入後保留在第二步頂端、先顯示原收據附圖區，按下頂端「下一步」後以慢速動畫移至底部綠色按鈕。活動名稱仍可在建立連結前修改，結算 CTA 主文字與提示文字均無 text-shadow/drop-shadow。
 
-R114 的 `tutorial-ui.cjs` 驗證雙語 18 階段教學、第二步分享與第三步先設定後回覆、第四步 Web-first 及預設收合後備、示例試算、退出還原及 Step 1–4 重啟；`tutorial-safety.cjs` 驗證不觸發真實分享、剪貼簿、相機或 API。兩段示範影片均保持 R114 前原始資產。`settings-free-models.cjs` 驗證左上角只顯示 `R114`、舊 OpenRouter 預設遷移到 PaddleOCR.js＋Dots3-Note、首頁與設定頁兩個模型選單的選項和值同步、切換方向互通、說明逐路由一致，且不覆蓋 OpenRouter key。`recognition-retry-ui.cjs` 驗證 Dots3-Note 與兩個固定模型的 cascade；`ocr-cascade.test.cjs` 驗證隨機路由只在明確選取時執行，不會自動進入固定 cascade。`friend-whatsapp-details.cjs` 以不同新舊菜名重現 OCR 更新，驗證新 hash 帶入最新項目名稱，同時保留 session、加密回覆 room 和活動 metadata。
+R114/R115 的 `tutorial-ui.cjs` 驗證雙語 18 階段教學、第二步分享及核對回覆、第三步設定後計算、第四步 Web-first 及預設收合後備、示例試算、退出還原及 Step 1–4 重啟；`tutorial-safety.cjs` 驗證不觸發真實分享、剪貼簿、相機或 API。兩段示範影片均保持 R114 前原始資產。`settings-free-models.cjs` 驗證左上角只顯示 `R114`、舊 OpenRouter 預設遷移到 PaddleOCR.js＋Dots3-Note、首頁與設定頁兩個模型選單的選項和值同步、切換方向互通、說明逐路由一致，且不覆蓋 OpenRouter key。`recognition-retry-ui.cjs` 驗證 Dots3-Note 與兩個固定模型的 cascade；`ocr-cascade.test.cjs` 驗證隨機路由只在明確選取時執行，不會自動進入固定 cascade。`friend-whatsapp-details.cjs` 以不同新舊菜名重現 OCR 更新，驗證新 hash 帶入最新項目名稱，同時保留 session、加密回覆 room 和活動 metadata。
 
 `settings-free-models.cjs` 另以偏好 v4、已保存的 OpenRouter＋Dots 設定驗證一次性遷移到 PaddleOCR.js＋Dots3-Note；遷移後 v5 新選擇的雲端模型則會保留。`paddle-local-ocr-real-ui.cjs` 從同一 v4 設定直接啟動，不手動選 Paddle，實際驗證遷移後收據確實走本機 Paddle 推理；它亦斷言 detection／recognition 兩個模型 tar 均以 HTTP 200 從網站同源載入，且不連 Paddle 官方模型站。
 
@@ -107,7 +107,7 @@ node tests/tutorial-ui.cjs
 - 沒有已儲存 API Key 時「取得免費金鑰」為紅色，有金鑰時為綠色；設定頁的「影片教學」捷徑會打開教學中心並捲到 OpenRouter API Key 影片。
 - 已設定免費模型時狀態卡只顯示模型狀態；未設定金鑰時仍保留紅色設定提醒。
 - 香港繁體中文及英文介面；320×640、390×844、768×1024、1280×800 及 844×390 五種視窗。
-- 18 個互動停留點：`upload`、`manual`、`verify`、`items`、`fee`、`share`、`share-options`、`payer`、`currency`、`payment`、`tax-method`、`replies`、`calculate`、`report`、`report-web`、`report-fallback`、`report-share`、`detail`；第二步分享，第三步先填設定再核對回覆，第四步網頁版優先且後備文字預設收合。
+- 18 個互動停留點：`upload`、`manual`、`verify`、`items`、`fee`、`share`、`share-options`、`replies`、`payer`、`currency`、`payment`、`tax-method`、`calculate`、`report`、`report-web`、`report-fallback`、`report-share`、`detail`；第二步分享並核對回覆，第三步填結算設定後計算，第四步網頁版優先且後備文字預設收合。
 - 目標高亮、卡片不遮擋目標、無橫向溢出、卡片不超過 340px、非模態對話框及示範 App 保持可互動；目前目標以外的控制不可鍵盤操作。
 - 點擊影相／上載示範目標、核對後進入編輯、手動輸入捷徑、開啟認帳分享選項及模擬送出回覆。
 - 實際修改示範單價及附加費，按 2:1 認帳比例計算 Cathy 的分帳；另核對按比例及平均分攤的結果。
