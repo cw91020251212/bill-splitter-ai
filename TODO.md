@@ -209,4 +209,5 @@
 - [x] 隨機碼改用均勻抽樣的字母／數字／符號字元；服務端同樣驗證格式，仍只保存雜湊，不改 rate limit、舊 PIN／密碼兼容或既有認帳。
 - [x] 更新靜態資產、分享 URL、PWA release 與 service-worker cache epoch；公開 R114 產品版本字樣不變。
 - [x] 本機驗收：Worker 單元測試 35/35、認帳 Playwright 12/12、朋友結果頁導航／配色 E2E 全部通過；測試 API 全部使用本機模擬，沒有寫入真實帳單。
-- [ ] 推送 GitHub Pages 並安全更新現有 Cloudflare Worker；部署後再做正式網址 smoke check。
+- [x] 已推送 GitHub Pages，並以 content-only API 更新現有 Cloudflare Worker；不改 KV／Durable Object／secret／設定。
+- [x] 正式驗收：Pages workflow `42636289717` 成功，公開頁 HTTP 200 並載入 R116 資產；Worker modules SHA-256 與已測試來源吻合，`GET /health` 回應 HTTP 200 `ok`。沒有對正式帳單或 KV 執行寫入。
