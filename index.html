@@ -33,7 +33,10 @@
     }
   </script>
   <style>
-    html[lang="en"] .app-header-row h1 { font-size: 18px; line-height: 1.3; }
+    html { --app-font-scale: 1; font-size: 16px; }
+    html[data-app-text-size="small"] { --app-font-scale: .875; font-size: 14px; }
+    html[data-app-text-size="large"] { --app-font-scale: 1.25; font-size: 20px; }
+    html[lang="en"] .app-header-row h1 { font-size: 1.125rem; line-height: 1.3; }
     html[lang="en"] button { overflow-wrap: break-word; }
     html[lang="en"] .step-nav button span:last-child { max-width: 100%; }
     @media (max-width: 379px) {
@@ -52,6 +55,11 @@
     input:focus, textarea:focus {
       border-color: #67c99a !important; /* 聚焦時變為品牌深綠 */
     }
+    #header-action-menu [data-testid="app-text-size-control"] button[aria-pressed="true"] {
+      border-color: #176a43;
+      background: #ddf5e7;
+      color: #104d31;
+    }
 
     .animate-spin { animation: spin 1s linear infinite; }
     @keyframes spin { 100% { transform: rotate(360deg); } }
@@ -60,9 +68,9 @@
       100% { transform: translateX(360%); }
     }
     .ocr-indeterminate { width: 36%; animation: ocrSlide 1.3s ease-in-out infinite; }
-    input, textarea, select { font-size: 16px !important; }
+    input, textarea, select { font-size: 1rem !important; }
     @media (max-width: 639px) {
-      input, textarea, select { font-size: 18px !important; }
+      input, textarea, select { font-size: 1.125rem !important; }
     }
 
     @keyframes flashTarget {
@@ -77,11 +85,11 @@
     ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
   ::-webkit-scrollbar-thumb:hover { background: #64748b; }
   </style>
-  <link rel="stylesheet" href="./theme.css?v=v116-friend-link-contrast-code-20261109">
+  <link rel="stylesheet" href="./theme.css?v=v117-readable-text-3-levels-20261110">
   <link rel="stylesheet" href="./tutorial.css?v=v86-free-models-only">
   <!-- R114: current interactive guide; original video lessons retained. -->
-  <meta name="bill-app-release" content="v116-friend-link-contrast-code-20261109">
-  <script defer src="./pwa.js?v=v116-friend-link-contrast-code-20261109"></script>
+  <meta name="bill-app-release" content="v117-readable-text-3-levels-20261110">
+  <script defer src="./pwa.js?v=v117-readable-text-3-levels-20261110"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
@@ -96,7 +104,7 @@
   <script src="./card-redaction.js?v=v97-card-number-redaction"></script>
   <script src="./card-share-review.js?v=v97-card-number-redaction"></script>
   <script src="./exchange-rates.js?v=v90-cross-currency-settlement"></script>
-  <script src="./tutorial.js?v=v116-friend-link-contrast-code-20261109"></script>
+    <script src="./tutorial.js?v=v117-readable-text-3-levels-20261110"></script>
   <script type="text/babel">
     const { useState, useRef, useEffect, useLayoutEffect, useMemo } = React;
     const tr = value => window.BillI18n.t(value);
@@ -971,6 +979,20 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
 
     function App({ tutorialDemo = false, tutorialStage = '', tutorialSuspended = false, onStartTutorial, onTutorialAction } = {}) {
       const [uiLang, setUiLang] = useState(() => window.BillI18n.language);
+      const [appTextSize, setAppTextSize] = useState(() => {
+        try {
+          const saved = localStorage.getItem('billSplitterAppTextSizeV1');
+          return ['small', 'normal', 'large'].includes(saved) ? saved : 'normal';
+        } catch (_) { return 'normal'; }
+      });
+      const chooseAppTextSize = size => {
+        if (!['small', 'normal', 'large'].includes(size)) return;
+        setAppTextSize(size);
+        try { localStorage.setItem('billSplitterAppTextSizeV1', size); } catch (_) {}
+      };
+      useLayoutEffect(() => {
+        document.documentElement.dataset.appTextSize = appTextSize;
+      }, [appTextSize]);
       const changeUiLanguage = language => {
         if (tutorialDemo) return;
         window.BillI18n.setLanguage(language);
@@ -1954,7 +1976,7 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
       const toast = (text, type = 'success') => {
         const msg = document.createElement('div');
         const color = type === 'error' ? '#dc2626' : '#29835f';
-        msg.style.cssText = `position:fixed;top:24px;left:50%;transform:translateX(-50%);background:${color};color:white;padding:12px 24px;border-radius:12px;z-index:9999;font-weight:600;font-size:14px;box-shadow:0 10px 25px -5px rgba(0,0,0,0.15);max-width:90vw;text-align:center;animation:fade-in-down 0.3s ease-out;`;
+        msg.style.cssText = `position:fixed;top:24px;left:50%;transform:translateX(-50%);background:${color};color:white;padding:12px 24px;border-radius:12px;z-index:9999;font-weight:600;font-size:calc(14px * var(--app-font-scale, 1));box-shadow:0 10px 25px -5px rgba(0,0,0,0.15);max-width:90vw;text-align:center;animation:fade-in-down 0.3s ease-out;`;
         msg.textContent = tr(text);
         document.body.appendChild(msg);
         setTimeout(() => {
@@ -2410,7 +2432,7 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
         const storageKey = 'billSplitterDetailTablePreviewV1';
         try {
           localStorage.setItem(storageKey, JSON.stringify(previewData));
-          const previewWindow = window.open('./detailed-view.html', '_blank');
+          const previewWindow = window.open('./detailed-view.html?v=v117-readable-text-3-levels-20261110', '_blank');
           if (!previewWindow) {
             localStorage.removeItem(storageKey);
             toast(bi('允許彈窗', 'Allow pop-ups'), 'error');
@@ -3491,7 +3513,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
         const metadata = getClaimLinkMetadata();
         const link = new URL('./claim.html', window.location.href);
         link.searchParams.set('lang', lang === 'en' ? 'en' : 'zh-HK');
-        link.searchParams.set('v', 'v116-friend-link-contrast-code-20261109');
+        link.searchParams.set('v', 'v117-readable-text-3-levels-20261110');
         link.searchParams.set('session', session.id);
         link.hash = window.ClaimRelay
           ? window.ClaimRelay.buildHash(encodeClaimLinkPayload(payload), room, metadata)
@@ -4186,11 +4208,19 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                     <button type="button" id="header-action-menu-toggle" data-testid="header-action-menu-toggle" ref={headerActionMenuTriggerRef} aria-controls="header-action-menu" aria-expanded={showHeaderMenu} aria-label={bi('開啟功能選單', 'Open actions menu')} onClick={() => setShowHeaderMenu(open => !open)} className="header-action-menu-trigger green-action green-action-dark flex min-h-[38px] items-center justify-center rounded-lg border border-emerald-900 bg-brand-600 px-2.5 py-1.5 text-sm font-semibold text-white transition-all active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-emerald-900">
                       {tr("選單")}
                     </button>
-                    <div ref={headerActionPanelRef} id="header-action-menu" role="group" aria-label={bi('首頁操作', 'Home actions')} hidden={!showHeaderMenu} className={`${showHeaderMenu ? 'absolute' : 'hidden'} right-0 top-full z-[70] mt-1 flex w-40 max-w-[calc(100vw-1rem)] flex-col gap-2 rounded-xl border border-slate-400 bg-white p-[3px] shadow-lg`}>
+                    <div ref={headerActionPanelRef} id="header-action-menu" role="group" aria-label={bi('首頁操作', 'Home actions')} hidden={!showHeaderMenu} className={`${showHeaderMenu ? 'absolute' : 'hidden'} right-0 top-full z-[70] mt-1 flex w-52 max-w-[calc(100vw-1rem)] flex-col gap-2 rounded-xl border border-slate-400 bg-white p-[3px] shadow-lg`}>
                       <button type="button" data-testid="header-update-app" onClick={() => { if (tutorialDemo || !ensureDraftSavedForSharing()) return; window.BillAppUpdate?.reloadLatest(); }} className="header-action-menu-item min-h-[44px] w-full rounded-lg border border-slate-500 bg-slate-100 px-2 py-1 text-left text-base font-semibold text-slate-800">{bi('更新程式（保留帳單）', 'Update app (keep bill)')}</button>
                       <button type="button" data-testid="header-language-toggle" data-ui-language={uiLang === 'en' ? 'zh-HK' : 'en'} onClick={() => changeUiLanguage(uiLang === 'en' ? 'zh-HK' : 'en')} aria-label={uiLang === 'en' ? 'Switch to Traditional Chinese' : '切換至 English'} className="header-action-menu-item header-action-menu-item-language min-h-[44px] w-full rounded-lg border border-slate-500 bg-slate-100 px-2 py-1 text-left text-base font-semibold text-slate-800 transition-all hover:bg-brand-50 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500">
                         {uiLang === 'en' ? '繁體中文' : '切換至 English'}
                       </button>
+                      <div data-testid="app-text-size-control" role="group" aria-label={bi('字體大小', 'Text size')} className="w-full rounded-lg border border-slate-400 bg-slate-50 p-2">
+                        <span className="mb-1 block px-1 text-sm font-semibold text-slate-700">{bi('字體大小', 'Text size')}</span>
+                        <div className="grid grid-cols-3 gap-1">
+                          <button type="button" data-testid="app-text-size-small" aria-label={bi('小字體', 'Small text')} aria-pressed={appTextSize === 'small'} onClick={() => chooseAppTextSize('small')} className="min-h-[44px] rounded-lg border border-slate-500 bg-white text-base font-bold text-slate-800 hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500">A−</button>
+                          <button type="button" data-testid="app-text-size-normal" aria-label={bi('標準字體', 'Standard text')} aria-pressed={appTextSize === 'normal'} onClick={() => chooseAppTextSize('normal')} className="min-h-[44px] rounded-lg border border-slate-500 bg-white text-base font-bold text-slate-800 hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500">A</button>
+                          <button type="button" data-testid="app-text-size-large" aria-label={bi('大字體', 'Large text')} aria-pressed={appTextSize === 'large'} onClick={() => chooseAppTextSize('large')} className="min-h-[44px] rounded-lg border border-slate-500 bg-white text-base font-bold text-slate-800 hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500">A+</button>
+                        </div>
+                      </div>
                       <button type="button" data-testid="start-tutorial" disabled={!draftReady || isAnalyzing || isSavingRecord} onClick={() => {
                         headerActionMenuTriggerRef.current?.focus({ preventScroll: true });
                         tutorialMenuOrigin.current = { x: window.scrollX, y: window.scrollY };

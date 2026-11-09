@@ -211,3 +211,12 @@
 - [x] 本機驗收：Worker 單元測試 35/35、認帳 Playwright 12/12、朋友結果頁導航／配色 E2E 全部通過；測試 API 全部使用本機模擬，沒有寫入真實帳單。
 - [x] 已推送 GitHub Pages，並以 content-only API 更新現有 Cloudflare Worker；不改 KV／Durable Object／secret／設定。
 - [x] 正式驗收：Pages workflow `42636289717` 成功，公開頁 HTTP 200 並載入 R116 資產；Worker modules SHA-256 與已測試來源吻合，`GET /health` 回應 HTTP 200 `ok`。沒有對正式帳單或 KV 執行寫入。
+
+## R117：三段字體大小
+- [x] 主程式選單提供「小／標準／大」三段字體大小選擇，A−／A／A+ 清楚顯示目前選擇；標準為預設，可用於照顧老花眼用家。
+- [x] 主程式大小選擇記存在本機，重新開啟後保留；不干擾帳單草稿、OCR 設定和認帳資料。
+- [x] 朋友成績頁由原本兩段調整為三段；保留目前標準字級為中間選項，另有較小和較大選項，並記住朋友端所選級別；舊版已選大字的偏好會遷移為「大」。
+- [x] 繁體中文及英文頁面都可辨識級別，三段控制可在窄手機螢幕操作，文字放大不造成橫向溢位。
+- [x] 新認帳連結、同連結成績 iframe、既有短連結 redirect 及 PWA 快取均指向新版本字體控制。
+- [x] 本機驗收：`settings-free-models.cjs`、`friend-navigation.cjs`、`friend-recognition.cjs` 全部通過；Worker core/auth 36/36 通過；JS syntax 與 `git diff --check` 通過。測試無外部 API 寫入。
+- [ ] GitHub Pages 與 Cloudflare Worker 正式發佈及公開 smoke check。

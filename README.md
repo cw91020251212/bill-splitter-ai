@@ -1,3 +1,9 @@
+## R117：三段字體大小
+
+主程式「選單」加入 A−／A／A+，可直接選小、標準或大字；標準為預設，字體級別記存在本機。朋友成績頁亦改為三段選擇，中間 A 為原本標準大小，另可選小字或大字；保留過往已選 A+ 的偏好。兩頁均適用繁體中文及英文，並按 320px 手機寬度驗收。朋友短連結和認帳頁內嵌成績亦帶新版本參數。產品版本標籤維持 `R114`，PWA cache epoch 為 `v117-readable-text-3-levels-20261110`。
+
+The main menu now offers A− / A / A+ for small, standard and large text, with standard selected by default and the choice saved locally. The friend result page also has three direct choices; A is its previous standard size, and the previous A+ preference is preserved. Both pages support Traditional Chinese and English and were checked at a 320px mobile width. Friend links and the embedded result use the new cache-busting version. The product badge remains `R114`; the PWA cache epoch is `v117-readable-text-3-levels-20261110`.
+
 ## v114：互動教學更新（示範影片保持原片）
 
 互動教學依照現行四步流程更新：第二步分享認帳連結，第三步先設定墊支人、貨幣、收款方式及服務費分法，再核對朋友回覆；第四步以原認帳連結中的網頁結果為首選，簡單版與詳細版收在後備方案。OCR 預設為免費 Dots3-Note；單一遮蓋樣本仍發現件數、稅欄和個別品名錯誤，不能宣稱完全準確，結果須人工核對。Nemotron 3 Nano Omni 在同一樣本漏項並混淆結算資料，已移除；Gemma 4 31B／26B 按使用者回報失敗移除，本次免費端點亦均回覆 429；Nemotron 3.5 VL 留在固定後備末位，但仍非可靠首選。首屏和設定頁可選 Dots、Nemotron 或 OpenRouter 免費隨機路由；隨機路由只在手動選取時呼叫，可能較慢，不會混進固定後備。舊 Nano 選擇遷移回 Dots。成功重做辨識後會以最新項目名稱刷新認帳 URL hash，保留原 session、回覆 room 及活動資料，再發布最新結果。兩段示範影片均還原為 R114 前原始影片，不再剪輯。主程式標籤維持 `R114`，PWA 快取 `v114-ocr-random-router-option`。

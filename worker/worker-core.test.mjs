@@ -60,6 +60,17 @@ const sample = {
 
 async function json(response) { return response.json(); }
 
+test('short friend links redirect to the current versioned result page', async () => {
+  const id = 'A'.repeat(22);
+  const response = await handleRequest(request(`https://worker.test/s/${id}?e=1794268800`), env());
+  assert.equal(response.status, 302);
+  const destination = new URL(response.headers.get('Location'));
+  assert(destination.pathname.endsWith('/detailed-view.html'), `redirect targets detailed-view.html: ${destination.pathname}`);
+  assert.equal(destination.searchParams.get('share'), id);
+  assert.equal(destination.searchParams.get('e'), '1794268800');
+  assert.equal(destination.searchParams.get('v'), 'v117-readable-text-3-levels-20261110');
+});
+
 test('one claim session changes from pending to ready only with organizer token', async () => {
   const storage = env();
   const now = Date.now();

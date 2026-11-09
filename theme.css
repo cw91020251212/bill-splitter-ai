@@ -221,8 +221,8 @@ body.bg-slate-50 { background: var(--page-grey); color: var(--ink); }
   #root .header-actions { gap: 4px; }
   #root .app-header-row > div:first-child { gap: 6px; }
   #root .app-header-row > div:first-child > div:first-child { width: 32px; height: 36px; }
-  #root .app-header-row h1 { font-size: 18px; }
-  html[lang="en"] #root .app-header-row h1 { font-size: 16px; }
+  #root .app-header-row h1 { font-size: calc(18px * var(--app-font-scale, 1)); }
+  html[lang="en"] #root .app-header-row h1 { font-size: calc(16px * var(--app-font-scale, 1)); }
   #root .item-price-quantity-row { flex-direction: column; gap: 8px; }
   #root .item-price-quantity-row > div:last-child { width: 100%; }
 }
@@ -512,10 +512,10 @@ body.bg-slate-50 { background: var(--page-grey); color: var(--ink); }
 @media (max-width: 479px) {
   #root .app-header-row > div:first-child { min-width: 0; flex-shrink: 1; }
   #root .app-header-row > div:first-child > div:last-child { min-width: 0; }
-  #root .app-header-row h1 { font-size: 18px; }
+  #root .app-header-row h1 { font-size: calc(18px * var(--app-font-scale, 1)); }
 }
 @media (min-width: 390px) and (max-width: 479px) {
-  html[lang="en"] #root .app-header-row h1 { font-size: 13px; }
+  html[lang="en"] #root .app-header-row h1 { font-size: calc(13px * var(--app-font-scale, 1)); }
 }
 /* Reserve real space for the brand on narrow screens; never hide or clip it. */
 @media (max-width: 389px) {
@@ -524,19 +524,19 @@ body.bg-slate-50 { background: var(--page-grey); color: var(--ink); }
   #root .app-header-row > div:first-child > div.app-brand-icon:first-child { display: flex; width: 30px; height: 36px; border-radius: 10px; }
   #root .app-brand-icon svg { width: 20px; height: 20px; }
   #root .header-actions { gap: 4px; }
-  #root .app-header-row h1 { font-size: 17px; }
-  html[lang="en"] #root .app-header-row h1 { font-size: 13px; }
+  #root .app-header-row h1 { font-size: calc(17px * var(--app-font-scale, 1)); }
+  html[lang="en"] #root .app-header-row h1 { font-size: calc(13px * var(--app-font-scale, 1)); }
 }
 @media (max-width: 359px) {
   #root .app-header-row { padding-left: 6px; padding-right: 6px; column-gap: 4px; }
   #root .app-header-row > div:first-child > div.app-brand-icon:first-child { width: 28px; height: 36px; }
   #root .header-actions { gap: 3px; }
-  #root .app-header-row h1 { font-size: 16px; }
-  html[lang="en"] #root .app-header-row h1 { font-size: 12px; }
+  #root .app-header-row h1 { font-size: calc(16px * var(--app-font-scale, 1)); }
+  html[lang="en"] #root .app-header-row h1 { font-size: calc(12px * var(--app-font-scale, 1)); }
 }
 
 /* Alternative actions: localised text remains readable and is never a button. */
-#root .choice-divider { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; min-width: 0; color: var(--muted-ink); font-size: 13px; font-weight: 600; line-height: 1.5; text-transform: none; }
+#root .choice-divider { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; min-width: 0; color: var(--muted-ink); font-size: calc(13px * var(--app-font-scale, 1)); font-weight: 600; line-height: 1.5; text-transform: none; }
 #root .choice-divider::before, #root .choice-divider::after { content: ""; flex: 1; height: 1px; background: #c4b8a8; }
 #root .choice-divider-inline { width: auto; flex: 0 0 auto; align-self: center; }
 #root .choice-divider-inline::before, #root .choice-divider-inline::after { display: none; }
@@ -549,40 +549,40 @@ body.bg-slate-50 { background: var(--page-grey); color: var(--ink); }
 /* Phone reading size. Landing, settings, scan, and form labels use a larger scale than the tightened text-xs copy. */
 @media (max-width: 639px) {
   #root main :is(h2.text-xl, h2.text-2xl) {
-    font-size: 26px;
+    font-size: calc(26px * var(--app-font-scale, 1));
     line-height: 1.3;
   }
   #root main h3 {
-    font-size: 22px;
+    font-size: calc(22px * var(--app-font-scale, 1));
     line-height: 1.35;
   }
   #root main .text-xs {
-    font-size: 16px;
+    font-size: calc(16px * var(--app-font-scale, 1));
     line-height: 1.5;
   }
   #root main .text-sm {
-    font-size: 17px;
+    font-size: calc(17px * var(--app-font-scale, 1));
     line-height: 1.5;
   }
   #root main :is(.text-base, select) {
-    font-size: 18px;
+    font-size: calc(18px * var(--app-font-scale, 1));
     line-height: 1.5;
   }
   #root main :is(label.uppercase, .uppercase.tracking-wider) {
     letter-spacing: 0.02em;
   }
-  #root main .choice-divider { font-size: 16px; }
+  #root main .choice-divider { font-size: calc(16px * var(--app-font-scale, 1)); }
   #root main button[data-ui-language] {
     min-height: 44px;
-    font-size: 17px;
+    font-size: calc(17px * var(--app-font-scale, 1));
   }
-  #root main :is(.\!text-xs, .\!text-sm) { font-size: 16px !important; }
+  #root main :is(.\!text-xs, .\!text-sm) { font-size: calc(16px * var(--app-font-scale, 1)) !important; }
   #root main :is(.w-5.h-5, .w-6.h-6) {
-    font-size: 12px;
+    font-size: calc(12px * var(--app-font-scale, 1));
     line-height: 1;
   }
-  #root [role="status"].fixed .text-xs { font-size: 15px; line-height: 1.35; }
-  #root [role="status"].fixed .text-\[10px\] { font-size: 13px; line-height: 1.35; }
+  #root [role="status"].fixed .text-xs { font-size: calc(15px * var(--app-font-scale, 1)); line-height: 1.35; }
+  #root [role="status"].fixed .text-\[10px\] { font-size: calc(13px * var(--app-font-scale, 1)); line-height: 1.35; }
 }
 
 /* Point accents. Brand green stays on the logo, primary buttons, the scan
@@ -599,7 +599,7 @@ body.bg-slate-50 { background: var(--page-grey); color: var(--ink); }
 #root #header-action-menu > button.header-action-menu-item {
   box-sizing: border-box; display: flex; align-items: center; width: 100%; min-height: 44px;
   border: 1px solid #68756b; border-radius: 8px; padding: 8px 6px;
-  background: #ffffff; color: #26372b; font-size: 16px; font-weight: 650; line-height: 1.3;
+  background: #ffffff; color: #26372b; font-size: calc(16px * var(--app-font-scale, 1)); font-weight: 650; line-height: 1.3;
   text-align: left; box-shadow: none; transition: background-color .15s ease, border-color .15s ease, transform .15s ease;
 }
 #root #header-action-menu > button.header-action-menu-item:not(:disabled):hover {
@@ -623,7 +623,7 @@ body.bg-slate-50 { background: var(--page-grey); color: var(--ink); }
 #root #header-action-menu > button.header-action-menu-item-guide:not(:disabled):hover { background: #ffedc1; border-color: #a97922; }
 #root #header-action-menu > button.header-action-menu-item-settings:not(:disabled):hover { background: #dceaf8; border-color: #315d8e; }
 #root #header-action-menu > button.header-action-menu-item-history:not(:disabled):hover { background: #eeddf6; border-color: #74438c; }
-#root #header-action-menu > button.header-action-menu-item-danger #header-clear-current-help { white-space: nowrap; font-size: 11px; line-height: 1.2; color: #80564f; }
+#root #header-action-menu > button.header-action-menu-item-danger #header-clear-current-help { white-space: nowrap; font-size: calc(11px * var(--app-font-scale, 1)); line-height: 1.2; color: #80564f; }
 #root #header-action-menu > button.header-action-menu-item-danger:not(:disabled):hover {
   border-color: #943d2a; background: #ffe2d9;
 }

@@ -151,4 +151,4 @@ UI 測試只對 localhost 執行，使用合成收據和假測試號碼，並 mo
 `friend-password.cjs` 未進入 UI：其舊 preflight 仍要求 `claim.html` 存在 `id="claim-password-repeat"`；此欄位已不存在。
 
 
-朋友結果頁易讀性：`friend-navigation.cjs` 驗證付款提醒「付款後請通知收款人」、A+/A− 約 20% 字體切換、繁英輔助標籤、本機偏好重載保存，以及 390px／320px 手機版無水平溢出。
+R117 字體易讀性：`settings-free-models.cjs` 驗證主程式選單 A−／A／A+ 三段、中英標籤、大小級距、偏好重載保存與 320px 無水平溢出；`friend-navigation.cjs` 驗證結果頁小／標準／大三段（中間為原標準、A+ 約放大 20%）、已保存 A+ 偏好遷移、付款提醒文案及 390px／320px 手機版無水平溢出。`worker-core.test.mjs` 同時驗證既有朋友短連結會帶上 R117 結果頁 cache-busting 參數。

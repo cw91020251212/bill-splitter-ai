@@ -40,7 +40,7 @@
     window.navigator.standalone === true;
 
   /* ---------------------------------------------------------- service worker */
-  var RELEASE_VERSION = 'v116-friend-link-contrast-code-20261109';
+  var RELEASE_VERSION = 'v117-readable-text-3-levels-20261110';
   var waitingWorker = null;
   var registrationPromise = null;
   var reloadRequested = false;

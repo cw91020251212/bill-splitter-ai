@@ -120,6 +120,12 @@ async function closeSettingsAndAssertMatch(page, scanSelect, settingsSelect, lab
     await firstVisitSelect.selectOption(randomModel);
     await assertRouteDescription(firstVisitPage, 'OpenRouter’s free random router', 'English random-route description');
     await assertRouteDescription(firstVisitPage, 'fixed-model fallback', 'English random-route fallback detail');
+    await firstVisitPage.getByTestId('header-action-menu-toggle').click();
+    assert.equal(await firstVisitPage.getByTestId('app-text-size-control').getAttribute('aria-label'), 'Text size');
+    assert.equal(await firstVisitPage.getByTestId('app-text-size-small').getAttribute('aria-label'), 'Small text');
+    assert.equal(await firstVisitPage.getByTestId('app-text-size-normal').getAttribute('aria-label'), 'Standard text');
+    assert.equal(await firstVisitPage.getByTestId('app-text-size-large').getAttribute('aria-label'), 'Large text');
+    await firstVisitPage.getByTestId('header-action-menu-toggle').click();
     const englishSettings = await openSettingsAndAssertMatch(firstVisitPage, firstVisitSelect, 'English random route');
     await closeSettingsAndAssertMatch(firstVisitPage, firstVisitSelect, englishSettings, 'English random route');
     console.log('PASS model-specific descriptions update for all routes in Traditional Chinese and English');
@@ -190,12 +196,42 @@ async function closeSettingsAndAssertMatch(page, scanSelect, settingsSelect, lab
         documentWidth: document.documentElement.scrollWidth,
         viewportWidth: innerWidth
       }));
-      assert.equal(menuMetrics.width, 160, 'R114 retains the original 160px menu width');
+      assert.equal(menuMetrics.width, 208, 'menu widens modestly to fit the font-size control');
       assert.equal(menuMetrics.items.length, 6, 'all existing menu options remain');
       assert(menuMetrics.items.every(item => item.height >= 44), `all menu items are at least 44px tall: ${JSON.stringify(menuMetrics.items)}`);
       assert(menuMetrics.items.every(item => item.fontSize >= 16), 'menu text is at least 16px');
       assert(menuMetrics.gap >= 8, 'menu items have at least 8px vertical separation');
       assert(menuMetrics.documentWidth <= menuMetrics.viewportWidth, 'menu does not create horizontal overflow');
+      const fontControl = page.getByTestId('app-text-size-control');
+      const smallText = page.getByTestId('app-text-size-small');
+      const normalText = page.getByTestId('app-text-size-normal');
+      const largeText = page.getByTestId('app-text-size-large');
+      assert.equal(await fontControl.isVisible(), true, 'font-size setting is available inside the main menu');
+      assert.equal(await normalText.getAttribute('aria-pressed'), 'true', 'standard size is the default selection');
+      const standardHeaderSize = Number.parseFloat(await page.locator('.app-header-row h1').evaluate(node => getComputedStyle(node).fontSize));
+      await smallText.click();
+      assert.equal(await page.locator('html').getAttribute('data-app-text-size'), 'small');
+      const smallHeaderSize = Number.parseFloat(await page.locator('.app-header-row h1').evaluate(node => getComputedStyle(node).fontSize));
+      assert(smallHeaderSize < standardHeaderSize * .9, `small tier is visibly smaller: ${smallHeaderSize} < ${standardHeaderSize}`);
+      await largeText.click();
+      assert.equal(await largeText.getAttribute('aria-pressed'), 'true');
+      const largeHeaderSize = Number.parseFloat(await page.locator('.app-header-row h1').evaluate(node => getComputedStyle(node).fontSize));
+      assert(largeHeaderSize > standardHeaderSize * 1.15, `large tier is visibly larger: ${largeHeaderSize} > ${standardHeaderSize}`);
+      await page.setViewportSize({ width: 320, height: 844 });
+      assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, 'large text has no horizontal overflow at 320px');
+      await page.setViewportSize({ width: 390, height: 844 });
+      await page.reload({ waitUntil: 'networkidle' });
+      await page.getByTestId('scan-model-select').waitFor({ state: 'visible' });
+      assert.equal(await page.locator('html').getAttribute('data-app-text-size'), 'large', 'large font selection persists across reload');
+      await page.getByTestId('header-action-menu-toggle').click();
+      await page.getByTestId('app-text-size-normal').click();
+      assert.equal(await page.locator('html').getAttribute('data-app-text-size'), 'normal');
+      assert(Math.abs(Number.parseFloat(await page.locator('.app-header-row h1').evaluate(node => getComputedStyle(node).fontSize)) - standardHeaderSize) < 1, 'standard restores the baseline font size');
+      assert.equal(await normalText.getAttribute('aria-pressed'), 'true');
+      await page.reload({ waitUntil: 'networkidle' });
+      await page.getByTestId('scan-model-select').waitFor({ state: 'visible' });
+      assert.equal(await page.locator('html').getAttribute('data-app-text-size'), 'normal', 'standard font selection also persists across reload');
+      await page.getByTestId('header-action-menu-toggle').click();
       await page.setViewportSize({ width: 320, height: 844 });
       const narrowMenuMetrics = await menu.evaluate(node => ({
         width: node.getBoundingClientRect().width,
@@ -203,10 +239,11 @@ async function closeSettingsAndAssertMatch(page, scanSelect, settingsSelect, lab
         documentWidth: document.documentElement.scrollWidth,
         viewportWidth: innerWidth
       }));
-      assert.equal(narrowMenuMetrics.width, 160, '320px viewport retains the original menu width');
+      assert(narrowMenuMetrics.width <= 304, '320px viewport menu remains within safe viewport width');
       assert(narrowMenuMetrics.items.every(height => height >= 44), '320px viewport preserves touch target heights');
       assert(narrowMenuMetrics.documentWidth <= narrowMenuMetrics.viewportWidth, '320px viewport has no horizontal menu overflow');
       await page.setViewportSize({ width: 390, height: 844 });
+      assert.equal(await page.locator('html').getAttribute('data-app-text-size'), 'normal', 'standard font selection persists across reload');
       if (process.env.MENU_SCREENSHOT_PATH && storageKind === 'localStorage') {
         await page.screenshot({ path: process.env.MENU_SCREENSHOT_PATH });
       }

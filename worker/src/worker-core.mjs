@@ -399,6 +399,7 @@ export async function handleRequest(request, env, now = Date.now()) {
     let destination;
     try { destination = new URL('detailed-view.html', siteBase.endsWith('/') ? siteBase : `${siteBase}/`); }
     catch (_) { return textResponse('分享頁未設定。', 503); }
+    destination.searchParams.set('v', 'v117-readable-text-3-levels-20261110');
     destination.searchParams.set('share', shortMatch[1]);
     const expiryHint = url.searchParams.get('e');
     if (expiryHint && /^\d{10}$/.test(expiryHint)) destination.searchParams.set('e', expiryHint);

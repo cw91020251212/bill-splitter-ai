@@ -10,6 +10,7 @@
     :root { color-scheme:light; --ink:#1d2a21; --muted:#68756c; --line:#68766c; --separator:#9aa69c; --paper:#f4f6f2; --green:#176a43; --green-dark:#104d31; --green-pale:#e7f2e9; --shadow:0 12px 32px rgba(27,54,35,.07); --readable-text-scale:1; }
     * { box-sizing:border-box; }
     body { margin:0; background:var(--paper); color:var(--ink); font:calc(16px * var(--readable-text-scale, 1))/1.5 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+    body.small-text { --readable-text-scale:.9; }
     body.large-text { --readable-text-scale:1.2; }
     a,button,summary { -webkit-tap-highlight-color:transparent; }
     a:focus-visible,button:focus-visible,summary:focus-visible { outline:3px solid #b38830; outline-offset:3px; border-radius:7px; }
@@ -17,8 +18,10 @@
     .back { color:var(--green-dark); font-weight:750; text-decoration:none; }
     .edit-claims-button { margin-right:auto; min-height:32px; padding:5px 9px; border:1px solid #b9cbbb; border-radius:8px; background:#f7faf7; color:var(--green-dark); font:inherit; font-size:calc((12px) * var(--readable-text-scale, 1)); font-weight:750; white-space:nowrap; cursor:pointer; }
     .edit-claims-button:disabled { opacity:.55; cursor:not-allowed; }
-    .font-size-toggle { flex:0 0 auto; min-width:48px; min-height:44px; padding:7px 10px; border:1px solid #b9cbbb; border-radius:9px; background:#f7faf7; color:var(--green-dark); font:inherit; font-size:calc((14px) * var(--readable-text-scale, 1)); font-weight:850; cursor:pointer; }
-    .font-size-toggle:focus-visible { outline:3px solid rgba(50,111,174,.35); outline-offset:2px; }
+    .font-size-toggle { display:flex; flex:0 0 auto; align-items:center; gap:2px; min-height:44px; padding:2px; border:1px solid #b9cbbb; border-radius:9px; background:#f7faf7; }
+    .font-size-option { min-width:38px; min-height:38px; padding:5px 7px; border:1px solid transparent; border-radius:6px; background:transparent; color:var(--green-dark); font:inherit; font-size:14px; font-weight:850; cursor:pointer; }
+    .font-size-option[aria-pressed="true"] { border-color:var(--green-dark); background:var(--green-dark); color:#fff; }
+    .font-size-option:focus-visible { outline:3px solid rgba(50,111,174,.55); outline-offset:1px; }
     .local-tag { padding:4px 9px; border:1px solid #cee0d0; border-radius:99px; background:#f5faf5; color:#4b6652; font-size:calc((11px) * var(--readable-text-scale, 1)); font-weight:700; white-space:nowrap; }
     main { width:min(100% - 36px,1000px); margin:26px auto 64px; }
     .empty { max-width:480px; margin:14vh auto; padding:30px 24px; border:1px solid var(--line); border-radius:20px; background:#fff; box-shadow:var(--shadow); text-align:center; }
@@ -182,7 +185,11 @@
     <button id="edit-claims" class="edit-claims-button" type="button" hidden disabled>修改認帳</button>
     <a id="local-back" class="back" hidden>← 返回分帳報告</a>
     <span id="local-tag" class="local-tag" hidden>本機預覽・不會公開</span>
-    <button id="font-size-toggle" class="font-size-toggle" type="button" aria-label="放大字體 / Increase text size" aria-pressed="false" title="放大字體">A+</button>
+    <div id="font-size-toggle" class="font-size-toggle" role="group" aria-label="字體大小 / Text size">
+      <button class="font-size-option" type="button" data-font-size="small" aria-label="小字體 / Smaller text" title="小字體 / Smaller text" aria-pressed="false">A−</button>
+      <button class="font-size-option" type="button" data-font-size="normal" aria-label="標準字體 / Standard text" title="標準字體 / Standard text" aria-pressed="true">A</button>
+      <button class="font-size-option" type="button" data-font-size="large" aria-label="大字體 / Larger text" title="大字體 / Larger text" aria-pressed="false">A+</button>
+    </div>
   </header>
   <main>
     <section id="loading-state" class="empty" aria-live="polite">
@@ -259,23 +266,30 @@
       const PREVIEW_KEY = 'billSplitterDetailTablePreviewV1';
       const $ = selector => document.querySelector(selector);
       const fontSizeToggle = $('#font-size-toggle');
-      const fontSizePreferenceKey = 'billSplitResultLargeTextV1';
-      const setLargeText = (enabled, persist = false) => {
-        document.body.classList.toggle('large-text', enabled);
-        fontSizeToggle.textContent = enabled ? 'A−' : 'A+';
-        fontSizeToggle.setAttribute('aria-pressed', String(enabled));
-        fontSizeToggle.setAttribute('aria-label', enabled ? '還原字體大小 / Reset text size' : '放大字體 / Increase text size');
-        fontSizeToggle.title = enabled ? '還原字體大小 / Reset text size' : '放大字體 / Increase text size';
+      const fontSizeOptions = Array.from(fontSizeToggle.querySelectorAll('[data-font-size]'));
+      const fontSizePreferenceKey = 'billSplitResultTextSizeV2';
+      const legacyFontSizePreferenceKey = 'billSplitResultLargeTextV1';
+      const setTextSize = (size, persist = false) => {
+        const value = ['small', 'normal', 'large'].includes(size) ? size : 'normal';
+        document.body.classList.toggle('small-text', value === 'small');
+        document.body.classList.toggle('large-text', value === 'large');
+        fontSizeOptions.forEach(option => option.setAttribute('aria-pressed', String(option.dataset.fontSize === value)));
         if (persist) {
-          try { localStorage.setItem(fontSizePreferenceKey, enabled ? '1' : '0'); } catch (_) {}
+          try {
+            localStorage.setItem(fontSizePreferenceKey, value);
+            localStorage.setItem(legacyFontSizePreferenceKey, value === 'large' ? '1' : '0');
+          } catch (_) {}
         }
       };
-      let savedLargeText = false;
-      try { savedLargeText = localStorage.getItem(fontSizePreferenceKey) === '1'; } catch (_) {}
-      setLargeText(savedLargeText);
-      fontSizeToggle.addEventListener('click', () => {
-        setLargeText(!document.body.classList.contains('large-text'), true);
-      });
+      let savedTextSize = 'normal';
+      try {
+        const saved = localStorage.getItem(fontSizePreferenceKey);
+        savedTextSize = ['small', 'normal', 'large'].includes(saved)
+          ? saved
+          : (localStorage.getItem(legacyFontSizePreferenceKey) === '1' ? 'large' : 'normal');
+      } catch (_) {}
+      setTextSize(savedTextSize);
+      fontSizeOptions.forEach(option => option.addEventListener('click', () => setTextSize(option.dataset.fontSize, true)));
       const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[char]));
       const number = value => Number.isFinite(Number(value)) ? Number(value) : 0;
       const formatMoney = (value, currency, allowFraction = false) => {

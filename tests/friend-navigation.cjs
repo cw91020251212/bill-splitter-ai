@@ -24,7 +24,7 @@ const sample = {
 };
 const detailUrl = share => {
   const url = new URL('detailed-view.html', base);
-  url.searchParams.set('v', 'v116-friend-link-contrast-code-20261109');
+  url.searchParams.set('v', 'v117-readable-text-3-levels-20261110');
   if (share !== undefined) url.searchParams.set('share', share);
   return url.href;
 };
@@ -103,17 +103,27 @@ async function assertBlueLinkContrast(page) {
     await assertFriendOnly(page);
     assert.equal(await page.locator('#share-paid-notice').innerText(), '付款後請通知收款人');
     const fontToggle = page.locator('#font-size-toggle');
+    const smallText = page.locator('[data-font-size="small"]');
+    const normalText = page.locator('[data-font-size="normal"]');
+    const largeText = page.locator('[data-font-size="large"]');
     assert.equal(await fontToggle.isVisible(), true);
     const fontToggleBox = await fontToggle.boundingBox();
-    assert(fontToggleBox.height >= 44 && fontToggleBox.width >= 48, `font control has a large tap target: ${JSON.stringify(fontToggleBox)}`);
-    assert.equal(await fontToggle.getAttribute('aria-pressed'), 'false');
-    assert.equal(await fontToggle.getAttribute('aria-label'), '放大字體 / Increase text size');
+    assert(fontToggleBox.height >= 44 && fontToggleBox.width >= 120, `three-level font control has a large tap target: ${JSON.stringify(fontToggleBox)}`);
+    assert.equal(await smallText.getAttribute('aria-pressed'), 'false');
+    assert.equal(await normalText.getAttribute('aria-pressed'), 'true');
+    assert.equal(await largeText.getAttribute('aria-pressed'), 'false');
     const normalFontSize = Number.parseFloat(await page.locator('#page-title').evaluate(node => getComputedStyle(node).fontSize));
     const normalNoticeSize = Number.parseFloat(await page.locator('#share-paid-notice').evaluate(node => getComputedStyle(node).fontSize));
-    await fontToggle.click();
-    assert.equal(await fontToggle.innerText(), 'A−');
-    assert.equal(await fontToggle.getAttribute('aria-pressed'), 'true');
-    assert.equal(await fontToggle.getAttribute('aria-label'), '還原字體大小 / Reset text size');
+    await smallText.click();
+    assert.equal(await smallText.getAttribute('aria-pressed'), 'true');
+    const smallerFontSize = Number.parseFloat(await page.locator('#page-title').evaluate(node => getComputedStyle(node).fontSize));
+    assert(smallerFontSize < normalFontSize * .95, `small text is distinct from standard: ${smallerFontSize} < ${normalFontSize}`);
+    await normalText.click();
+    assert.equal(await normalText.getAttribute('aria-pressed'), 'true');
+    const restoredStandardSize = Number.parseFloat(await page.locator('#page-title').evaluate(node => getComputedStyle(node).fontSize));
+    assert(Math.abs(restoredStandardSize - normalFontSize) < 1, `standard text restores original size: ${restoredStandardSize}`);
+    await largeText.click();
+    assert.equal(await largeText.getAttribute('aria-pressed'), 'true');
     const enlargedFontSize = Number.parseFloat(await page.locator('#page-title').evaluate(node => getComputedStyle(node).fontSize));
     assert(enlargedFontSize > normalFontSize * 1.15, `text enlarges by about 20%: ${normalFontSize} -> ${enlargedFontSize}`);
     const enlargedNoticeSize = Number.parseFloat(await page.locator('#share-paid-notice').evaluate(node => getComputedStyle(node).fontSize));
@@ -125,13 +135,12 @@ async function assertBlueLinkContrast(page) {
     await page.reload({ waitUntil: 'domcontentloaded' });
     await page.locator('#preview-content').waitFor({ state: 'visible' });
     await page.locator('#member-select').selectOption({ label: '測試朋友' });
-    assert.equal(await page.locator('body').evaluate(node => node.classList.contains('large-text')), true, 'large-text preference persists in this browser');
-    await page.locator('#font-size-toggle').click();
-    assert.equal(await page.locator('#font-size-toggle').innerText(), 'A+');
+    assert.equal(await page.locator('[data-font-size="large"]').getAttribute('aria-pressed'), 'true', 'large-text preference persists in this browser');
+    await page.locator('[data-font-size="normal"]').click();
     await page.emulateMedia({ colorScheme: 'dark' });
     await assertBlueLinkContrast(page);
     await page.emulateMedia({ colorScheme: 'light' });
-    assert.equal(await page.locator('#font-size-toggle').getAttribute('aria-pressed'), 'false');
+    assert.equal(await page.locator('[data-font-size="normal"]').getAttribute('aria-pressed'), 'true');
     const restoredFontSize = Number.parseFloat(await page.locator('#page-title').evaluate(node => getComputedStyle(node).fontSize));
     assert(Math.abs(restoredFontSize - normalFontSize) < 1, `A− restores normal text size: ${restoredFontSize}`);
     console.log('PASS shared loading, member selection, result and heading click stay on friend page.');
@@ -156,7 +165,7 @@ async function assertBlueLinkContrast(page) {
     const claim = new URL('claim.html', base);
     claim.searchParams.set('session', id);
     claim.searchParams.set('lang', 'zh-HK');
-    claim.searchParams.set('v', 'v116-friend-link-contrast-code-20261109');
+    claim.searchParams.set('v', 'v117-readable-text-3-levels-20261110');
     claim.hash = relay.buildHash(Buffer.from(JSON.stringify([{ id: '01', name: '茶', totalQty: null, unit: '' }])).toString('base64url'), relay.createRoom(), { title: '聚餐', createdAt: now, expiresAt: Date.parse(expiry) });
     await page.goto(claim.href, { waitUntil: 'domcontentloaded' });
     await page.locator('iframe.same-link-result').waitFor({ state: 'visible' });
@@ -165,7 +174,7 @@ async function assertBlueLinkContrast(page) {
     const frame = await element.contentFrame();
     await frame.locator('#preview-content').waitFor({ state: 'visible' });
     await assertFriendOnly(frame);
-    assert.equal(new URL(frame.url()).searchParams.get('v'), 'v116-friend-link-contrast-code-20261109');
+    assert.equal(new URL(frame.url()).searchParams.get('v'), 'v117-readable-text-3-levels-20261110');
     await frame.locator('#friend-page-heading').click();
     await frame.locator('#member-select').selectOption({ label: '測試朋友' });
     await assertBlueLinkContrast(frame);
@@ -185,6 +194,19 @@ async function assertBlueLinkContrast(page) {
     assert.equal(new URL(await page.locator('#local-back').getAttribute('href'), page.url()).pathname, new URL('index.html', base).pathname);
     assert.equal(await page.locator('#friend-page-heading').isVisible(), false);
     console.log('PASS organizer local preview retains its own return button.');
+    const legacyContext = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' });
+    try {
+      await legacyContext.addInitScript(data => {
+        localStorage.setItem('billSplitResultLargeTextV1', '1');
+        localStorage.setItem('billSplitterDetailTablePreviewV1', JSON.stringify(data));
+      }, sample);
+      const legacyPage = await legacyContext.newPage();
+      await legacyPage.goto(detailUrl(undefined), { waitUntil: 'domcontentloaded' });
+      await legacyPage.locator('#preview-content').waitFor({ state: 'visible' });
+      assert.equal(await legacyPage.locator('body').evaluate(node => node.classList.contains('large-text')), true, 'legacy A+ preference migrates to the large tier');
+      assert.equal(await legacyPage.locator('[data-font-size="large"]').getAttribute('aria-pressed'), 'true');
+      console.log('PASS existing friend-page A+ preference migrates to the large tier.');
+    } finally { await legacyContext.close(); }
     assert.equal(failures.length, 0, JSON.stringify(failures));
   } finally {
     await context?.close();
