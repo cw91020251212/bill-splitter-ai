@@ -13,31 +13,49 @@ const randomModel = 'openrouter/free';
 const localPaddleModel = 'local/paddleocr-js';
 const testApiKey = 'test-openrouter-key-preserve-on-migration';
 
-async function assertRouteDescription(page, expectedText, label) {
-  await page.waitForFunction(text => document.querySelector('[data-testid="scan-model-description"]')?.innerText.includes(text), expectedText);
-  const actual = await page.getByTestId('scan-model-description').innerText();
+async function readModelDescription(page, scope) {
+  const toggle = page.getByTestId(`toggle-${scope}-model-description`);
+  const description = page.getByTestId(`${scope}-model-description`);
+  if (await toggle.getAttribute('aria-expanded') !== 'true') await toggle.click();
+  await description.waitFor({ state: 'visible' });
+  return description.innerText();
+}
+
+async function assertRouteDescription(page, expectedText, label, scope = 'scan') {
+  const toggle = page.getByTestId(`toggle-${scope}-model-description`);
+  const description = page.getByTestId(`${scope}-model-description`);
+  if (await toggle.getAttribute('aria-expanded') === 'true') await toggle.click();
+  assert.equal(await toggle.getAttribute('aria-expanded'), 'false', `${label}: details start collapsed`);
+  assert.equal(await page.getByTestId(`${scope}-model-description-icon`).getAttribute('data-direction'), 'down', `${label}: collapsed chevron points down`);
+  assert.equal(await description.count(), 0, `${label}: model details are hidden until requested`);
+  await toggle.click();
+  await description.waitFor({ state: 'visible' });
+  assert.equal(await toggle.getAttribute('aria-expanded'), 'true', `${label}: details expand on arrow tap`);
+  assert.equal(await page.getByTestId(`${scope}-model-description-icon`).getAttribute('data-direction'), 'up', `${label}: expanded chevron points up`);
+  const actual = await description.innerText();
   assert(actual.includes(expectedText), `${label}: ${actual}`);
 }
 
 async function openSettingsAndAssertMatch(page, scanSelect, label) {
   const scanRoute = await scanSelect.inputValue();
-  const scanDescription = await page.getByTestId('scan-model-description').innerText();
+  const scanDescription = await readModelDescription(page, 'scan');
   await page.getByTestId('header-action-menu-toggle').click();
   await page.locator('.header-settings-button').click();
   const settingsSelect = page.getByTestId('model-select');
   await settingsSelect.waitFor({ state: 'visible' });
   assert.equal(await settingsSelect.inputValue(), scanRoute, `${label}: selected route matches after opening settings`);
-  assert.equal(await page.getByTestId('settings-model-description').innerText(), scanDescription, `${label}: descriptions match after opening settings`);
+  assert.equal(await page.getByTestId('toggle-settings-model-description').getAttribute('aria-expanded'), 'false', `${label}: settings details also start collapsed`);
+  assert.equal(await readModelDescription(page, 'settings'), scanDescription, `${label}: descriptions match after opening settings`);
   return settingsSelect;
 }
 
 async function closeSettingsAndAssertMatch(page, scanSelect, settingsSelect, label) {
   const settingsRoute = await settingsSelect.inputValue();
-  const settingsDescription = await page.getByTestId('settings-model-description').innerText();
+  const settingsDescription = await readModelDescription(page, 'settings');
   await page.getByRole('button', { name: /返回系統|Back to app/ }).click();
   await scanSelect.waitFor({ state: 'visible' });
   assert.equal(await scanSelect.inputValue(), settingsRoute, `${label}: selected route matches after returning to first screen`);
-  assert.equal(await page.getByTestId('scan-model-description').innerText(), settingsDescription, `${label}: descriptions match after returning to first screen`);
+  assert.equal(await readModelDescription(page, 'scan'), settingsDescription, `${label}: descriptions match after returning to first screen`);
 }
 
 (async () => {
@@ -81,11 +99,11 @@ async function closeSettingsAndAssertMatch(page, scanSelect, settingsSelect, lab
     const firstSettingsChoices = await firstSettingsSelect.locator('option').evaluateAll(nodes => nodes.map(node => node.value));
     assert.deepEqual(firstSettingsChoices, [freeModel, lastFallbackModel, randomModel, localPaddleModel], 'settings picker has the same cloud and local choices as the first screen');
     await firstSettingsSelect.selectOption(freeModel);
-    assert((await firstVisitPage.getByTestId('settings-model-description').innerText()).includes('Dots3-Note 優先'), 'settings Dots route has its route-specific description');
+    await assertRouteDescription(firstVisitPage, 'Dots3-Note 優先', 'settings Dots route has its route-specific description', 'settings');
     await firstSettingsSelect.selectOption(lastFallbackModel);
-    assert((await firstVisitPage.getByTestId('settings-model-description').innerText()).includes('Nemotron 3.5 優先'), 'settings Nemotron route has its route-specific description');
+    await assertRouteDescription(firstVisitPage, 'Nemotron 3.5 優先', 'settings Nemotron route has its route-specific description', 'settings');
     await firstSettingsSelect.selectOption(randomModel);
-    const settingsRandomDescription = await firstVisitPage.getByTestId('settings-model-description').innerText();
+    const settingsRandomDescription = await readModelDescription(firstVisitPage, 'settings');
     assert(settingsRandomDescription.includes('OpenRouter 免費隨機路由') && settingsRandomDescription.includes('不會自動改試'), 'settings random route explains its behavior');
     await firstSettingsSelect.selectOption(localPaddleModel);
     await closeSettingsAndAssertMatch(firstVisitPage, firstVisitSelect, firstSettingsSelect, 'settings changed back to Paddle');
@@ -193,7 +211,8 @@ async function closeSettingsAndAssertMatch(page, scanSelect, settingsSelect, lab
         await page.screenshot({ path: process.env.MENU_SCREENSHOT_PATH });
       }
       const routeBeforeSettings = await scanSelect.inputValue();
-      const descriptionBeforeSettings = await page.getByTestId('scan-model-description').innerText();
+      const descriptionBeforeSettings = await readModelDescription(page, 'scan');
+      await page.getByTestId('header-action-menu-toggle').click();
       await page.locator('.header-settings-button').click();
       let select = page.getByTestId('model-select');
       await select.waitFor({ state: 'visible' });
@@ -205,7 +224,8 @@ async function closeSettingsAndAssertMatch(page, scanSelect, settingsSelect, lab
       }, freeModel);
 
       assert.equal(await select.inputValue(), routeBeforeSettings, `${storageKind}: settings keeps the current route`);
-      assert.equal(await page.getByTestId('settings-model-description').innerText(), descriptionBeforeSettings, `${storageKind}: settings description matches the first-screen description`);
+      assert.equal(await page.getByTestId('toggle-settings-model-description').getAttribute('aria-expanded'), 'false', `${storageKind}: settings description starts hidden`);
+      assert.equal(await readModelDescription(page, 'settings'), descriptionBeforeSettings, `${storageKind}: settings description matches the first-screen description`);
       assert.equal(await page.getByTestId('paid-models-opt-in').count(), 0, 'paid-model toggle must be absent');
       const choices = await select.locator('option').evaluateAll(nodes => nodes.map(node => node.value));
       assert(choices.length > 0 && choices.every(model => model.endsWith(':free') || model === randomModel || model === localPaddleModel), 'only free models, local PaddleOCR, and the free random router may be selected');

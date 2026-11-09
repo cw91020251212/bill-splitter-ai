@@ -80,8 +80,8 @@
   <link rel="stylesheet" href="./theme.css?v=v86-free-models-only">
   <link rel="stylesheet" href="./tutorial.css?v=v86-free-models-only">
   <!-- R114: current interactive guide; original video lessons retained. -->
-  <meta name="bill-app-release" content="v114-concise-copy-or-20261109">
-  <script defer src="./pwa.js?v=v114-concise-copy-or-20261109"></script>
+  <meta name="bill-app-release" content="v114-model-details-ai-translate-20261109">
+  <script defer src="./pwa.js?v=v114-model-details-ai-translate-20261109"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
@@ -1148,6 +1148,8 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
 
       const [apiModel, setApiModel] = useState(DEFAULT_FREE_MODEL);
       const [ocrEngine, setOcrEngine] = useState('paddlejs');
+      const [showScanModelDescription, setShowScanModelDescription] = useState(false);
+      const [showSettingsModelDescription, setShowSettingsModelDescription] = useState(false);
       const allowPaidModels = false;
       // API keys are user settings: a normal save must survive closing/reopening
       // the app. Keep sessionStorage only as a same-tab fallback.
@@ -2015,8 +2017,26 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
         return bi('圖片送到 OpenRouter；Dots3-Note 優先，失敗再試 Nemotron。', 'Image goes to OpenRouter; Dots3-Note first, Nemotron fallback.');
       };
 
+      const renderModelDescriptionDisclosure = (scope, isOpen, setIsOpen) => (
+        <div className="mt-1">
+          <button
+            type="button"
+            data-testid={`toggle-${scope}-model-description`}
+            aria-label={isOpen ? bi('收起模型說明', 'Hide model details') : bi('查看模型說明', 'Show model details')}
+            aria-expanded={isOpen}
+            onClick={() => setIsOpen(open => !open)}
+            className="ml-auto flex min-h-9 min-w-9 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600"
+          >
+            <span aria-hidden="true" data-testid={`${scope}-model-description-icon`} data-direction={isOpen ? 'up' : 'down'}><Icon path={isOpen ? icons.chevronUp : icons.chevronDown} size={20} /></span>
+          </button>
+          {isOpen && <p data-testid={`${scope}-model-description`} className="text-sm text-slate-700 mt-1 leading-relaxed">{selectedOcrModelDescription()}</p>}
+        </div>
+      );
+
       const chooseOcrModel = (model) => {
         if (tutorialDemo) return;
+        setShowScanModelDescription(false);
+        setShowSettingsModelDescription(false);
         const usePaddleLocal = model === LOCAL_PADDLE_MODEL_ID;
         const next = usePaddleLocal ? DEFAULT_FREE_MODEL : resolveBillModel(model, false);
         const nextEngine = usePaddleLocal ? 'paddlejs' : 'openrouter';
@@ -4352,7 +4372,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                       <option value={LOCAL_PADDLE_MODEL_ID}>{bi('PaddleOCR.js 本機＋Dots3-Note 整理', 'PaddleOCR.js local + Dots3-Note')}</option>
                     </optgroup>
                   </select>
-                  <p data-testid="scan-model-description" className="text-sm text-slate-700 mt-2 leading-relaxed">{selectedOcrModelDescription()}</p>
+                  {renderModelDescriptionDisclosure('scan', showScanModelDescription, setShowScanModelDescription)}
                 </Card>
 
                 {!isOnline && <p className="text-base text-amber-900 bg-amber-50 border border-amber-400 rounded-xl p-3">{bi('而家冇網絡：相片及一般文字要等連線；已整理成指定 JSON 的文字可離線匯入，亦可手動輸入。', 'No connection: photos and free-form text need a connection. Formatted JSON can still be imported offline, or enter items manually.')}</p>}
@@ -4423,8 +4443,8 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                   <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
                     <button type="button" data-testid="toggle-receipt-text-import" aria-expanded={showReceiptTextImport} onClick={() => setShowReceiptTextImport(value => !value)} className="w-full flex items-center justify-between gap-3 text-left">
                       <span className="min-w-0">
-                        <span className="block text-base font-bold text-slate-800">{bi('已有 AI 結果？貼上或上載', 'AI result ready? Paste or upload')}</span>
-                        <span className="block mt-1 text-sm leading-relaxed text-slate-600">{bi('提示詞索取 bill.json；不能附檔就貼完整回覆。', 'The prompt requests bill.json; if files are unavailable, paste the full reply.')}</span>
+                        <span className="block text-base font-bold text-slate-800">{bi('搵其他 AI 幫手翻譯', 'Ask another AI to translate')}</span>
+                        <span className="block mt-1 text-sm leading-relaxed text-slate-600">{bi('提示詞＋賬單＝專用翻譯檔（.json）', 'Prompt + bill = ready-to-import .json file')}</span>
                       </span>
                       <span aria-hidden="true" data-testid="receipt-text-import-toggle-icon" data-direction={showReceiptTextImport ? 'up' : 'down'} className="shrink-0"><Icon path={showReceiptTextImport ? icons.chevronUp : icons.chevronDown} size={20} className="text-slate-600"/></span>
                     </button>
@@ -5128,7 +5148,6 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                     </div>
                     <div className="mb-6 rounded-xl border border-brand-500 bg-brand-50 p-4">
                       <div className="font-bold text-base text-brand-900">{ocrEngine === 'paddlejs' ? bi('本機 OCR＋OpenRouter 文字整理', 'Local OCR + OpenRouter text processing') : apiModel === Ocr.RANDOM_ROUTER_MODEL_ID ? bi('OpenRouter 免費隨機路由', 'OpenRouter free random route') : bi('OpenRouter 固定模型', 'OpenRouter fixed model')}</div>
-                      <p className="text-base text-slate-700 font-medium mt-1 leading-relaxed">{selectedOcrModelDescription()}</p>
                     </div>
 
                     <div className="border-t border-slate-400 pt-6 space-y-5">
@@ -5149,7 +5168,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                             <option value={LOCAL_PADDLE_MODEL_ID}>{bi('PaddleOCR.js 本機＋Dots3-Note 整理', 'PaddleOCR.js local + Dots3-Note')}</option>
                           </optgroup>
                         </select>
-                        <p data-testid="settings-model-description" className="text-base text-slate-700 mt-2 leading-relaxed">{selectedOcrModelDescription()}</p>
+                        {renderModelDescriptionDisclosure('settings', showSettingsModelDescription, setShowSettingsModelDescription)}
                       </div>
 
                       <div>

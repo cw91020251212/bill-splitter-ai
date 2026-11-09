@@ -75,7 +75,9 @@ const initStorage = async (page, config) => {
     assert.equal(await noKeyPage.getByTestId('scan-model-select').inputValue(), 'local/paddleocr-js', 'fresh installs use local PaddleOCR + Dots by default');
     assert.equal(await noKeyPage.getByTestId('copy-receipt-json-prompt').isVisible(), true, 'the prompt-copy action is visible without expanding the import panel');
     assert.equal(await noKeyPage.getByTestId('receipt-text-import-toggle-icon').getAttribute('data-direction'), 'down', 'a collapsed import panel uses the shared down chevron');
-    assert.match(await noKeyPage.getByTestId('toggle-receipt-text-import').innerText(), /已有 AI 結果？貼上或上載/);
+    const zhImportHeading = await noKeyPage.getByTestId('toggle-receipt-text-import').innerText();
+    assert.match(zhImportHeading, /搵其他 AI 幫手翻譯/);
+    assert.match(zhImportHeading, /提示詞＋賬單＝專用翻譯檔（\.json）/);
     assert.equal(await noKeyPage.getByTestId('receipt-text-import').evaluate(node => node.previousElementSibling?.getAttribute('data-testid') === 'choice-divider'), true, 'the receipt OCR and external AI import paths are separated by “or”');
     await noKeyPage.getByTestId('start-manual').click();
     await noKeyPage.getByTestId('remove-item').click({ force: true });
@@ -85,8 +87,6 @@ const initStorage = async (page, config) => {
     await noKeyPage.getByTestId('toggle-receipt-text-import').click();
     assert.equal(await noKeyPage.getByTestId('receipt-text-import-toggle-icon').getAttribute('data-direction'), 'up', 'an expanded import panel uses the up chevron');
     const zhImportHelp = await noKeyPage.getByTestId('receipt-text-import').innerText();
-    assert.match(zhImportHelp, /bill\.json/);
-    assert.match(zhImportHelp, /完整回覆/);
     assert.match(zhImportHelp, /JSON 本機匯入/);
     await noKeyPage.getByTestId('copy-receipt-json-prompt').click();
     const copiedPrompt = await noKeyPage.evaluate(() => window.__copiedPrompt || '');
@@ -102,8 +102,8 @@ const initStorage = async (page, config) => {
     await noKeyPage.getByTestId('toggle-receipt-text-import').waitFor({ state: 'visible', timeout: 30000 });
     await noKeyPage.getByTestId('toggle-receipt-text-import').click();
     const enImportHelp = await noKeyPage.getByTestId('receipt-text-import').innerText();
-    assert.match(enImportHelp, /requests bill\.json/i);
-    assert.match(enImportHelp, /paste the full reply/i);
+    assert.match(enImportHelp, /Ask another AI to translate/);
+    assert.match(enImportHelp, /Prompt \+ bill = ready-to-import \.json file/);
     await noKeyPage.getByTestId('copy-receipt-json-prompt').click();
     const copiedEnglishPrompt = await noKeyPage.evaluate(() => window.__copiedPrompt || '');
     assert.match(copiedEnglishPrompt, /Read the receipt photo/);

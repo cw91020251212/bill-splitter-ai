@@ -144,3 +144,10 @@
 - [x] 可見版本仍為 R114；PWA 與 service worker cache token 更新為 `v114-concise-copy-or-20261109`。
 - [x] Playwright 通過：`text-import.cjs`、`recognition-retry-ui.cjs`、`friend-recognition.cjs`（12 項）。
 - [x] 補充回歸：`friend-navigation.cjs`、`friend-whatsapp-details.cjs`、`settings-free-models.cjs` 均通過。
+
+
+## R114 模型說明收合與外部 AI 翻譯文案（2026-11-09）
+
+- [x] 模型說明預設隱藏，首頁與設定頁只顯示下箭嘴；按箭嘴才顯示目前所選模型說明，再按可收起；更換模型時自動收起，其他模型的說明不攤開。
+- [x] 外部 AI 區標題改為「搵其他 AI 幫手翻譯」，副標題改為「提示詞＋賬單＝專用翻譯檔（.json）」；英文同步更新。
+- [x] 更新 PWA／service worker cache token 為 `v114-model-details-ai-translate-20261109`；可見版本仍是 R114。
