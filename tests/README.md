@@ -149,3 +149,6 @@ UI 測試只對 localhost 執行，使用合成收據和假測試號碼，並 mo
 
 本次 `friend-recognition.cjs` 通過 12/12，包含兩個標籤和認帳連結建立。
 `friend-password.cjs` 未進入 UI：其舊 preflight 仍要求 `claim.html` 存在 `id="claim-password-repeat"`；此欄位已不存在。
+
+
+朋友結果頁易讀性：`friend-navigation.cjs` 驗證付款提醒「付款後請通知收款人」、A+/A− 約 20% 字體切換、繁英輔助標籤、本機偏好重載保存，以及 390px／320px 手機版無水平溢出。

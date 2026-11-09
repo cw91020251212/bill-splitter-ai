@@ -24,7 +24,7 @@ const sample = {
 };
 const detailUrl = share => {
   const url = new URL('detailed-view.html', base);
-  url.searchParams.set('v', 'v114-late-member-entry-20261109');
+  url.searchParams.set('v', 'v114-payment-font-accessibility-20261109');
   if (share !== undefined) url.searchParams.set('share', share);
   return url.href;
 };
@@ -84,6 +84,36 @@ async function assertFriendOnly(page) {
     await page.locator('#member-select').selectOption({ label: '測試朋友' });
     assert.match(await page.locator('#grand-total').innerText(), /20/);
     await assertFriendOnly(page);
+    assert.equal(await page.locator('#share-paid-notice').innerText(), '付款後請通知收款人');
+    const fontToggle = page.locator('#font-size-toggle');
+    assert.equal(await fontToggle.isVisible(), true);
+    const fontToggleBox = await fontToggle.boundingBox();
+    assert(fontToggleBox.height >= 44 && fontToggleBox.width >= 48, `font control has a large tap target: ${JSON.stringify(fontToggleBox)}`);
+    assert.equal(await fontToggle.getAttribute('aria-pressed'), 'false');
+    assert.equal(await fontToggle.getAttribute('aria-label'), '放大字體 / Increase text size');
+    const normalFontSize = Number.parseFloat(await page.locator('#page-title').evaluate(node => getComputedStyle(node).fontSize));
+    const normalNoticeSize = Number.parseFloat(await page.locator('#share-paid-notice').evaluate(node => getComputedStyle(node).fontSize));
+    await fontToggle.click();
+    assert.equal(await fontToggle.innerText(), 'A−');
+    assert.equal(await fontToggle.getAttribute('aria-pressed'), 'true');
+    assert.equal(await fontToggle.getAttribute('aria-label'), '還原字體大小 / Reset text size');
+    const enlargedFontSize = Number.parseFloat(await page.locator('#page-title').evaluate(node => getComputedStyle(node).fontSize));
+    assert(enlargedFontSize > normalFontSize * 1.15, `text enlarges by about 20%: ${normalFontSize} -> ${enlargedFontSize}`);
+    const enlargedNoticeSize = Number.parseFloat(await page.locator('#share-paid-notice').evaluate(node => getComputedStyle(node).fontSize));
+    assert(enlargedNoticeSize > normalNoticeSize * 1.15, 'payment instruction text also enlarges');
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true, 'large text does not cause horizontal overflow on mobile');
+    await page.setViewportSize({ width: 320, height: 844 });
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true, 'large text does not overflow a 320px viewport');
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await page.locator('#preview-content').waitFor({ state: 'visible' });
+    await page.locator('#member-select').selectOption({ label: '測試朋友' });
+    assert.equal(await page.locator('body').evaluate(node => node.classList.contains('large-text')), true, 'large-text preference persists in this browser');
+    await page.locator('#font-size-toggle').click();
+    assert.equal(await page.locator('#font-size-toggle').innerText(), 'A+');
+    assert.equal(await page.locator('#font-size-toggle').getAttribute('aria-pressed'), 'false');
+    const restoredFontSize = Number.parseFloat(await page.locator('#page-title').evaluate(node => getComputedStyle(node).fontSize));
+    assert(Math.abs(restoredFontSize - normalFontSize) < 1, `A− restores normal text size: ${restoredFontSize}`);
     console.log('PASS shared loading, member selection, result and heading click stay on friend page.');
 
     for (const state of ['expired', 'missing', 'network-error']) {
@@ -106,7 +136,7 @@ async function assertFriendOnly(page) {
     const claim = new URL('claim.html', base);
     claim.searchParams.set('session', id);
     claim.searchParams.set('lang', 'zh-HK');
-    claim.searchParams.set('v', 'v114-late-member-entry-20261109');
+    claim.searchParams.set('v', 'v114-payment-font-accessibility-20261109');
     claim.hash = relay.buildHash(Buffer.from(JSON.stringify([{ id: '01', name: '茶', totalQty: null, unit: '' }])).toString('base64url'), relay.createRoom(), { title: '聚餐', createdAt: now, expiresAt: Date.parse(expiry) });
     await page.goto(claim.href, { waitUntil: 'domcontentloaded' });
     await page.locator('iframe.same-link-result').waitFor({ state: 'visible' });
@@ -115,10 +145,12 @@ async function assertFriendOnly(page) {
     const frame = await element.contentFrame();
     await frame.locator('#preview-content').waitFor({ state: 'visible' });
     await assertFriendOnly(frame);
-    assert.equal(new URL(frame.url()).searchParams.get('v'), 'v114-late-member-entry-20261109');
+    assert.equal(new URL(frame.url()).searchParams.get('v'), 'v114-payment-font-accessibility-20261109');
     await frame.locator('#friend-page-heading').click();
     await frame.locator('#member-select').selectOption({ label: '測試朋友' });
     assert.match(await frame.locator('#grand-total').innerText(), /20/);
+    assert.equal(await frame.locator('#share-paid-notice').innerText(), '付款後請通知收款人');
+    assert.equal(await frame.locator('#font-size-toggle').isVisible(), true);
     assert.equal(page.url(), claim.href, 'same external friend link is unchanged');
     assert.equal(await frame.locator('[data-live-app]').count(), 0, 'main app never mounts inside friend frame');
     console.log('PASS original claim-link iframe remains friend-only with the same external URL.');
