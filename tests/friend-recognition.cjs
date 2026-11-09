@@ -319,7 +319,7 @@ async function ui() {
   const photoPublish = harness.requests.slice(photoPublishStart).find(r => r.id === c.id && r.method === 'PUT' && r.status === 200 && r.input?.images?.length === 1);
   assert(photoPublish, 'photo is written into the same existing share session');
   assert.equal(photoPublish.input.images[0].mimeType, 'image/jpeg', 'the redacted photo is compressed before sharing');
-  await until(async () => /結果已自動更新/.test(await fixture.host.getByTestId('same-link-sync-status').innerText()), 'same-link photo update finishes');
+  await until(async () => /結果已更新/.test(await fixture.host.getByTestId('same-link-sync-status').innerText()), 'same-link photo update finishes');
   await result(a, A); pass('same-link inline photo publication plus 390px optional/auth fields, random/clear, blank and PIN enrollments, initial retrieve and pending-claim preservation');
   stage = 'blank identity inline retrieve and revision';
   const blank = await gate(a, A); assert.equal(await blank.inputValue(), ''); await a.locator('#auth-confirm').click(); await a.locator('#claim-content').waitFor({ state: 'visible' }); assert.equal(await a.locator('#qty-0').inputValue(), String(INITIAL_QTY));

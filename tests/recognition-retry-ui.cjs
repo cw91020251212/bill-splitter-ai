@@ -34,7 +34,6 @@ const success = payload => ({
   });
   const failures = [];
   let requestCount = 0;
-  let fileChooserCount = 0;
   const observedModels = [];
   const observedImageCounts = [];
   try {
@@ -44,10 +43,14 @@ const success = payload => ({
     });
     const page = await context.newPage();
     page.on('pageerror', error => failures.push(error.message));
-    page.on('filechooser', () => { fileChooserCount += 1; });
     // Keep this sharing-flow test independent of CDN-hosted Tesseract/WASM.
     // Real checksum detection and mask geometry are covered by card-redaction-ui.cjs.
     await page.addInitScript(() => {
+      window.__showOpenFilePickerCalls = 0;
+      window.showOpenFilePicker = async () => {
+        window.__showOpenFilePickerCalls += 1;
+        return [];
+      };
       window.Tesseract = {
         createWorker: async () => ({
           setParameters: async () => {},
@@ -152,7 +155,7 @@ const success = payload => ({
     await page.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '2', null, { timeout: 30000 });
     await page.getByText('重新識別結果', { exact: false }).waitFor({ state: 'visible' });
     assert.equal(await page.getByText('新增相片結果', { exact: false }).count(), 0, 'a successful re-recognition replaces the previous items');
-    assert.equal(fileChooserCount, 2, 'only explicit add-new-photo actions open the file chooser; re-recognition does not');
+    assert.equal(await page.evaluate(() => window.__showOpenFilePickerCalls), 2, 'only explicit add-new-photo actions open the Downloads picker; re-recognition does not');
     assert.equal(observedImageCounts[0], 1, 'the first scan contains its selected image');
     assert.equal(observedImageCounts[2], 2, 'the added-photo scan contains both selected images');
     assert.equal(observedImageCounts[3], 2, 're-recognition resends the entire stored two-image batch');
@@ -163,7 +166,7 @@ const success = payload => ({
     await page.getByTestId('reuse-last-receipt-photos').click();
     await page.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '2', null, { timeout: 30000 });
     await page.getByTestId('recognition-retry-error').waitFor({ state: 'visible' });
-    assert.match(await page.getByTestId('recognition-retry-error').innerText(), /仍保留上次成功結果/);
+    assert.match(await page.getByTestId('recognition-retry-error').innerText(), /仍顯示舊結果/);
     await page.getByText('重新識別結果', { exact: false }).waitFor({ state: 'visible' });
     assert.equal(requestCount, 6, 'final retry cascades through the two retained free models before returning the prior result');
     assert.equal(observedModels[0], DEFAULT_MODEL);
@@ -191,7 +194,7 @@ const success = payload => ({
     });
     await page.reload({ waitUntil: 'domcontentloaded' });
     await page.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '3', null, { timeout: 30000 });
-    await page.waitForFunction(() => document.querySelector('[data-testid="draft-status"]')?.textContent.includes('草稿已儲存在') || document.querySelector('[data-testid="draft-status"]')?.textContent.includes('saving') || document.querySelector('[data-testid="calculate-split"]'), null, { timeout: 15000 });
+    await page.waitForFunction(() => document.querySelector('[data-testid="draft-status"]')?.textContent.includes('草稿已存於') || document.querySelector('[data-testid="draft-status"]')?.textContent.includes('saving') || document.querySelector('[data-testid="calculate-split"]'), null, { timeout: 15000 });
     await page.getByTestId('calculate-split').click();
     await page.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '4', null, { timeout: 15000 });
     const receiptImageButton = page.getByTestId('share-receipt-images');

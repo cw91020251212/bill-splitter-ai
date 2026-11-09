@@ -135,3 +135,12 @@
 - Evidence: `text-import.cjs` passed the Downloads option, file-type filter, unfiltered fallback, chevron direction, bilingual prompt, and local import-persistence checks.
 - Evidence: `paddle-local-ocr-ui.cjs` passed the primary receipt picker and image-to-text-only boundary; `card-redaction-ui.cjs` confirmed the existing masking path.
 - Other regression: settings E2E passed; tutorial UI passed 19 browser cases; tutorial safety passed 2 cases; OCR cascade passed 6 unit tests.
+
+
+## R114 短文案與替代流程分隔（2026-11-09）
+
+- [x] 收據 OCR 與外部 AI 匯入、拍照／手動輸入兩組同級替代流程均顯示「或」；相機／選圖、JSON 匯入／手動輸入、複製／分享等既有替代處也維持一致。
+- [x] 精簡紅圈所示繁中：草稿狀態、OCR 重試與模型摘要、外部 AI 匯入、活動名稱／有效期、稅費折扣、朋友認帳與同連結結果；英文提示保留，結算和分享資料流程不變。
+- [x] 可見版本仍為 R114；PWA 與 service worker cache token 更新為 `v114-concise-copy-or-20261109`。
+- [x] Playwright 通過：`text-import.cjs`、`recognition-retry-ui.cjs`、`friend-recognition.cjs`（12 項）。
+- [x] 補充回歸：`friend-navigation.cjs`、`friend-whatsapp-details.cjs`、`settings-free-models.cjs` 均通過。

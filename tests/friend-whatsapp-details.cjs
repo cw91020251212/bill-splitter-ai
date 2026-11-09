@@ -156,7 +156,7 @@ function draft() {
       console.error('DEBUG failed share API requests:', JSON.stringify(failedShareApiRequests));
       throw error;
     }
-    assert.match(await page.getByTestId('same-link-sync-status').innerText(), /結果已自動更新/);
+    assert.match(await page.getByTestId('same-link-sync-status').innerText(), /結果已更新/);
     const state = await page.evaluate(() => ({
       published: window.__published,
       link: document.querySelector('[data-testid="friend-share-open"]')?.href,
@@ -173,7 +173,7 @@ function draft() {
     assert.equal(refreshedItems[0].name, '重新翻譯的壽司飯糰');
     assert.equal(refreshedHash.get('room'), claimRoom.topic, 'the encrypted reply room is preserved');
     assert.equal(refreshedHash.get('title'), '週末聚餐');
-    assert.equal(state.title, '同一條朋友認帳及結果連結');
+    assert.equal(state.title, '認帳與結果共用一條連結');
     assert.equal(state.width, 390);
     assert.ok(state.scrollWidth <= state.width, 'no horizontal overflow at 390px');
     assert.equal(state.published.payload.bill.sourceCurrency, 'JPY');

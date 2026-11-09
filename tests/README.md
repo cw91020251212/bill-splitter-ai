@@ -28,6 +28,8 @@ R114 的 `tutorial-ui.cjs` 驗證雙語 18 階段教學、第二步分享與第�
 
 `text-import.cjs` 驗證雙語外部 AI 讀圖提示詞要求一個可下載的 `bill.json`；若對方介面不能附檔，提示詞和匯入 UI 都引導使用者複製完整回覆。測試亦覆蓋 JSON 貼上及文字檔免鎖匙匯入，JSON 不發網絡請求、普通文字只送文字給所選免費模型。合成相片經本機遮蓋後會保留在草稿；不重跑 OCR／不呼叫 AI。`friend-recognition.cjs` 再驗證結果已發布後加上相片會寫入原 Worker session，朋友仍開同一 URL 並在結果下方看到圖片；不建立第二條連結。`card-redaction-ui.cjs` 另覆蓋正常收據分享的遮蓋流程。
 
+本次短文案回歸亦檢查收據 OCR／外部 AI 匯入、拍照／手動輸入兩組替代流程均以「或」分隔；驗證外部 AI 說明、模型摘要、草稿狀態、重試提示及同連結分享的精簡繁中。OCR 重試測試監察 `showOpenFilePicker`，確認明確新增圖片才會開啟下載選擇器，重讀不會重開。
+
 `tutorial-ui.cjs` 使用授權附上的真實 Tailwind Play CDN v3.4.17 測試 fixture，而不是只有 JavaScript 全域的空 stub，因此中英多尺寸版面斷言仍會執行實際 CSS。產品頁仍使用其原本 CDN，測試 fixture 只供 E2E 使用。
 
 `paddle-local-ocr-ui.cjs` 及 `text-import.cjs` 模擬 `showOpenFilePicker`，斷言收據圖片選擇器以 `startIn: "downloads"` 開始並提供 JPEG／PNG／WebP 類型篩選；文字匯入測試另確認 API 不可用時會回退至未限制目錄的檔案輸入，並檢查摺疊時箭頭向下、展開時向上。E2E 不會打開真實系統選檔視窗，也不使用私人收據。

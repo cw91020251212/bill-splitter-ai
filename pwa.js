@@ -40,7 +40,7 @@
     window.navigator.standalone === true;
 
   /* ---------------------------------------------------------- service worker */
-  var RELEASE_VERSION = 'v114-downloads-picker-chevron-20261109';
+  var RELEASE_VERSION = 'v114-concise-copy-or-20261109';
   var waitingWorker = null;
   var registrationPromise = null;
   var reloadRequested = false;
