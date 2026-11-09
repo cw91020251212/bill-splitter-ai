@@ -273,7 +273,7 @@
   "附加稅金／服務費": "Tax / service charge",
   "如有額外費用請在此填寫": "Enter any extra charges here",
   "1. 分享認帳連結": "1. Share the claim link",
-  " 複製認帳連結": " Copy share link",
+  " 複製連結給朋友": " Copy link for friends",
   " 分享認帳連結及附件": " Share claim link and attachments",
   "分享認帳連結及附件": "Share claim link and attachments",
   "關閉分享視窗": "Close share window",

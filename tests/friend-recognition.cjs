@@ -257,7 +257,9 @@ async function hostFixture() {
   assert.equal(await host.getByTestId('claim-inbox').count(), 0, 'inbox is no longer duplicated on step 2');
   assert.equal(await host.getByTestId('claim-replies').count(), 0, 'reply text area is no longer duplicated on step 2');
   await host.getByTestId('claim-activity-name').fill('QA識別碼驗收'); await host.getByTestId('claim-expiry-days').selectOption('1'); const before = harness.requests.length;
-  await host.getByTestId('claim-link-actions').getByRole('button', { name: '複製認帳連結', exact: true }).click(); await host.waitForFunction(() => Boolean(document.querySelector('[data-testid="claim-link-actions"]')?.dataset.claimLink));
+  assert.equal((await host.getByTestId('copy-friend-claim-link').innerText()).trim(), '複製連結給朋友');
+  assert.equal((await host.getByTestId('open-claim-share-button').innerText()).trim(), '分享連結及附件給朋友');
+  await host.getByTestId('copy-friend-claim-link').click(); await host.waitForFunction(() => Boolean(document.querySelector('[data-testid="claim-link-actions"]')?.dataset.claimLink));
   const link = await host.getByTestId('claim-link-actions').evaluate(n => n.dataset.claimLink), c = remember(harness.requests.slice(before).find(r => r.path === '/api/shares/sessions' && r.status === 201)?.output);
   assert(c, 'actual host creates real session'); assert.equal(c.claimSecurity, 'password'); assert.equal(new URL(link).searchParams.get('session'), c.id); secretFree(link); return { host, c, link };
 }

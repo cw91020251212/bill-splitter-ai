@@ -287,7 +287,7 @@ async function hostCreate() {
   await host.getByTestId('claim-activity-name').fill('QA密碼驗收');
   await host.getByTestId('claim-expiry-days').selectOption('1');
   const before = harness.requests.length;
-  await host.getByTestId('claim-link-actions').getByRole('button', { name: '複製認帳連結', exact: true }).click();
+  await host.getByTestId('copy-friend-claim-link').click();
   await host.waitForFunction(() => Boolean(document.querySelector('[data-testid="claim-link-actions"]')?.dataset.claimLink));
   const link = await host.getByTestId('claim-link-actions').evaluate(node => node.dataset.claimLink);
   const createdRequest = harness.requests.slice(before).find(entry => entry.path === '/api/shares/sessions' && entry.status === 201);

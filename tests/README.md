@@ -143,3 +143,9 @@ node tests/card-redaction-ui.cjs
 ```
 
 UI 測試只對 localhost 執行，使用合成收據和假測試號碼，並 mock 本機 OCR／系統分享；它會在 320×800 和 390×844 擷取預覽、確認原圖逐 byte 不變、只分享遮蓋 JPEG 副本、手動補框／撤銷有效，以及 OCR 失敗時禁止分享。它不代表已在真實手機瀏覽器驗收。
+
+
+認帳連結區兩個操作都明確標示給朋友：`複製連結給朋友`／`分享連結及附件給朋友`；繁中名稱由 `friend-recognition.cjs` 驗證。
+
+本次 `friend-recognition.cjs` 通過 12/12，包含兩個標籤和認帳連結建立。
+`friend-password.cjs` 未進入 UI：其舊 preflight 仍要求 `claim.html` 存在 `id="claim-password-repeat"`；此欄位已不存在。
