@@ -294,22 +294,26 @@ async function hostFixture() {
   const link = await host.getByTestId('claim-link-actions').evaluate(n => n.dataset.claimLink), c = remember(harness.requests.slice(before).find(r => r.path === '/api/shares/sessions' && r.status === 201)?.output);
   assert(c, 'actual host creates real session'); assert.equal(c.claimSecurity, 'password'); assert.equal(new URL(link).searchParams.get('session'), c.id); secretFree(link); return { host, c, link };
 }
-async function hostSettle(fixture, qty, initial = false, names = [A, B]) {
+async function hostSettle(fixture, qty, initial = false, names = [A, B], claimsAlreadyReceived = false) {
   const { host, c, link } = fixture;
   if (!host) return publish(c, [payload(A, qty), payload(B)]);
   await host.bringToFront(); await host.evaluate(() => window.dispatchEvent(new Event('focus')));
   const claimsNav = host.locator('.step-nav').getByRole('button', { name: '各自認帳' });
   const calcNav = host.locator('.step-nav').getByRole('button', { name: '分帳運算' });
-  await until(async () => {
-    const refresh = host.getByTestId('claim-inbox-refresh');
-    if (!await refresh.count()) { if (await claimsNav.count()) await claimsNav.click(); return false; }
-    if (!await refresh.isEnabled()) return false;
-    try { await refresh.click({ timeout: 1000 }); return true; }
-    catch (error) { if (!await refresh.count()) return false; throw error; }
-  }, 'owner refresh current inbox on Step 2');
-  await until(async () => { const replies = host.getByTestId('claim-replies'); if (!await replies.count()) { if (await claimsNav.count()) await claimsNav.click(); return false; } const text = await replies.inputValue(); return names.every(name => text.includes(`姓名：${name}`)) && Number(text.split(`姓名：${A}`)[1]?.match(/認帳份數\s*=\s*([\d.]+)/)?.[1]) === qty; }, 'host sees one exact current revision');
-  const text = await host.getByTestId('claim-replies').inputValue(); assert.equal(text.split(`姓名：${A}`).length - 1, 1); secretFree(text);
-  if (await calcNav.count()) await calcNav.click();
+  if (claimsAlreadyReceived) {
+    await until(async () => await host.getByTestId('calculate-split').isEnabled(), 'late claim is received and Step 3 is ready to calculate');
+  } else {
+    await until(async () => {
+      const refresh = host.getByTestId('claim-inbox-refresh');
+      if (!await refresh.count()) { if (await claimsNav.count()) await claimsNav.click(); return false; }
+      if (!await refresh.isEnabled()) return false;
+      try { await refresh.click({ timeout: 1000 }); return true; }
+      catch (error) { if (!await refresh.count()) return false; throw error; }
+    }, 'owner refresh current inbox on Step 2');
+    await until(async () => { const replies = host.getByTestId('claim-replies'); if (!await replies.count()) { if (await claimsNav.count()) await claimsNav.click(); return false; } const text = await replies.inputValue(); return names.every(name => text.includes(`姓名：${name}`)) && Number(text.split(`姓名：${A}`)[1]?.match(/認帳份數\s*=\s*([\d.]+)/)?.[1]) === qty; }, 'host sees one exact current revision');
+    const text = await host.getByTestId('claim-replies').inputValue(); assert.equal(text.split(`姓名：${A}`).length - 1, 1); secretFree(text);
+    if (await calcNav.count()) await calcNav.click();
+  }
   await until(async () => await host.getByTestId('calculate-split').isEnabled(), 'friend replies enable report generation on Step 3');
   assert.match(await host.getByTestId('calculate-split-hint').innerText(), /朋友可在原本連結查看結果/, 'shared-link CTA explains friends can view the result at their original link');
   const ctaStyles = await host.getByTestId('calculate-split').evaluate(button => {
@@ -415,20 +419,33 @@ async function ui() {
   await late.waitForFunction(() => document.getElementById('result-add-person-title')?.textContent.includes('Forgot someone?'));
   await late.locator('#result-language-toggle').click();
   await late.waitForFunction(() => document.getElementById('result-add-person-title')?.textContent.includes('漏咗朋友'));
-  assert.match(await fixture.host.getByTestId('add-missing-person-guide').innerText(), /新增一位/, 'organizer keeps the concise same-link late claim path');
-  await fixture.host.getByTestId('return-to-claim-inbox').click();
-  await fixture.host.getByTestId('claim-inbox-refresh').waitFor({ state: 'visible' });
+  const host = fixture.host;
+  const latePersonGuide = host.getByTestId('add-missing-person-guide');
+  const guideText = await latePersonGuide.innerText();
+  assert.match(guideText, /先補人[\s\S]*再接收[\s\S]*再計算/, 'organizer gets the complete add → receive → recalculate order');
+  assert.equal((await host.getByTestId('copy-late-person-link').innerText()).trim(), '複製連結給朋友');
+  assert.equal((await host.getByTestId('receive-late-person-claims').innerText()).trim(), '朋友已交？接收新認帳');
+  await host.evaluate(() => { window.__copiedLatePersonLink = ''; document.execCommand = command => { if (command === 'copy') window.__copiedLatePersonLink = document.activeElement?.value || ''; return command === 'copy'; }; });
+  await host.getByTestId('manual-late-person-replies').click();
+  await host.waitForFunction(() => document.activeElement?.getAttribute('data-testid') === 'claim-replies', null, { timeout: 5000 });
+  await host.locator('.step-nav').getByRole('button', { name: '最終結果' }).click();
+  await latePersonGuide.waitFor({ state: 'visible' });
+  await host.getByTestId('copy-late-person-link').click();
+  assert.equal(await host.evaluate(() => window.__copiedLatePersonLink), link, 'the first action copies the same share link');
   await late.getByTestId('add-another-person').click();
   await late.locator('#claim-content').waitFor({ state: 'visible' });
   await late.locator('#person-name').fill(LATE);
   await submit(late, c, '', 1);
   assert.equal(late.url(), link, 'adding a new person does not change the original link');
-  await hostSettle(fixture, REVISED_QTY, false, [A, B, LATE]);
+  await host.bringToFront();
+  const receiveLateClaims = host.getByTestId('receive-late-person-claims');
+  if (await receiveLateClaims.count()) await receiveLateClaims.click();
+  await hostSettle(fixture, REVISED_QTY, false, [A, B, LATE], true);
   const lateResult = await result(late, LATE);
   await lateResult.locator('#receipt-content img').waitFor({ state: 'visible', timeout: 15000 });
   assert.equal(await lateResult.locator('#receipt-content img').count(), 1, 'the same result link renders the redacted receipt below the bill');
   assert.equal(late.url(), link, 'recalculated result returns on the same original URL');
-  pass('published result has a bilingual add-person CTA and inline receipt; a new friend submits on the same link; organizer refreshes and republishes all claims');
+  pass('published result has a bilingual add → receive → recalculate flow, exact-link copy and manual fallback; a new friend joins on the same link and host republishes all claims');
   stage = 'PIN identity denial, forgot options, retry and new nickname';
   let entered = await gate(a, B); await entered.fill(SYMBOL_WRONG); const denyStart = harness.requests.length; await a.locator('#auth-confirm').click();
   await until(() => harness.requests.slice(denyStart).some(r => r.path.endsWith('/claims/unlock') && r.status === 403), 'wrong PIN rejected'); assert.equal(await a.locator('#claim-content').isVisible(), false); assert.equal(await entered.inputValue(), '', 'wrong-code retry clears code');

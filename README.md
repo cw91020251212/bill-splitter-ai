@@ -1,4 +1,13 @@
 ## R117：三段字體大小
+## R118：結果頁漏人補加
+
+結果頁按次序說明「先補人、再接收、再計算」：主辦人可複製同一條連結給漏掉的朋友，朋友按「新增一位」填姓名及認帳；提交後，主辦人可接收新回覆，核對後到第三步重新計算。另可直達第二步手動貼上回覆。產品版本標籤維持 `R114`；PWA cache epoch 為 `v118-missing-person-followup-20261110`。
+
+## R118: Add a missing friend from the result page
+
+The result page now guides the organizer through “add first, receive next, recalculate last.” They can copy the same link to the missing friend, who taps “Add person” and submits their name and claims. The organizer can then receive the new reply and recalculate in Step 3, or jump directly to the Step 2 reply box for manual entry. The product badge remains `R114`; the PWA cache epoch is `v118-missing-person-followup-20261110`.
+
+## R117：三段字體大小
 
 主程式「選單」加入 A−／A／A+，可直接選小、標準或大字；標準為預設，字體級別記存在本機。朋友成績頁亦改為三段選擇，中間 A 為原本標準大小，另可選小字或大字；保留過往已選 A+ 的偏好。兩頁均適用繁體中文及英文，並按 320px 手機寬度驗收。朋友短連結和認帳頁內嵌成績亦帶新版本參數。產品版本標籤維持 `R114`，PWA cache epoch 為 `v117-readable-text-3-levels-20261110`。
 

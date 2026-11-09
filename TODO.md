@@ -222,3 +222,11 @@
 - [x] GitHub Pages workflow `42667912975` 成功，公開 index／detail／claim／theme／PWA 資產均 HTTP 200；正式 HTML 包含三級字體控制和 R117 cache token。
 - [x] Cloudflare content-only 更新既有 `bill-splitter-share` Worker；三個 modules 的部署 SHA 已核對，其中 `worker-core.mjs` 與測試來源 hash 相同。唯讀 `GET /health` 回應 200 `ok`；虛構短碼 redirect 回 302 並帶 R117 版本參數。
 - [x] 公開 Pages 上的 `friend-navigation.cjs`、`friend-recognition.cjs` 通過；API 全部 mock，沒有對正式認帳資料或 KV 寫入。
+
+## R118：結果頁漏人補加一條龍
+- [x] 結果頁先提供真正的補人入口：複製同一條連結給漏掉的朋友，讓朋友按「新增一位」填姓名及認帳；不要先顯示只會跳頁的「認帳」掣。
+- [x] 朋友交回後，主辦人可由結果頁觸發「接收新認帳」；直接返回第二步並接收，收到新回覆後自動到第三步重新計算；未有新回覆時仍留在收件區並可再試。
+- [x] 提供手動補填後備：直接跳至第二步「朋友交返的認帳」輸入欄並聚焦，貼上後可返回第三步重新計算。
+- [x] 中／英文均按先補人、再接收、再計算的次序寫清楚；所有按鈕描述其實際動作，原有朋友認帳與結果連結保持不變。
+- [x] 本機 `friend-recognition.cjs` 12/12 通過：精確連結複製、手動欄位聚焦、原連結新增朋友、主辦人接收及重新發布均驗證；外部寫入 0。
+- [ ] 推送 GitHub Pages 並確認正式部署的 R118 cache token、漏人流程及公開 E2E smoke。

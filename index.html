@@ -85,11 +85,11 @@
     ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
   ::-webkit-scrollbar-thumb:hover { background: #64748b; }
   </style>
-  <link rel="stylesheet" href="./theme.css?v=v117-readable-text-3-levels-20261110">
+  <link rel="stylesheet" href="./theme.css?v=v118-missing-person-followup-20261110">
   <link rel="stylesheet" href="./tutorial.css?v=v86-free-models-only">
   <!-- R114: current interactive guide; original video lessons retained. -->
-  <meta name="bill-app-release" content="v117-readable-text-3-levels-20261110">
-  <script defer src="./pwa.js?v=v117-readable-text-3-levels-20261110"></script>
+  <meta name="bill-app-release" content="v118-missing-person-followup-20261110">
+  <script defer src="./pwa.js?v=v118-missing-person-followup-20261110"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
@@ -104,7 +104,7 @@
   <script src="./card-redaction.js?v=v97-card-number-redaction"></script>
   <script src="./card-share-review.js?v=v97-card-number-redaction"></script>
   <script src="./exchange-rates.js?v=v90-cross-currency-settlement"></script>
-    <script src="./tutorial.js?v=v117-readable-text-3-levels-20261110"></script>
+    <script src="./tutorial.js?v=v118-missing-person-followup-20261110"></script>
   <script type="text/babel">
     const { useState, useRef, useEffect, useLayoutEffect, useMemo } = React;
     const tr = value => window.BillI18n.t(value);
@@ -2432,7 +2432,7 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
         const storageKey = 'billSplitterDetailTablePreviewV1';
         try {
           localStorage.setItem(storageKey, JSON.stringify(previewData));
-          const previewWindow = window.open('./detailed-view.html?v=v117-readable-text-3-levels-20261110', '_blank');
+          const previewWindow = window.open('./detailed-view.html?v=v118-missing-person-followup-20261110', '_blank');
           if (!previewWindow) {
             localStorage.removeItem(storageKey);
             toast(bi('允許彈窗', 'Allow pop-ups'), 'error');
@@ -3513,7 +3513,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
         const metadata = getClaimLinkMetadata();
         const link = new URL('./claim.html', window.location.href);
         link.searchParams.set('lang', lang === 'en' ? 'en' : 'zh-HK');
-        link.searchParams.set('v', 'v117-readable-text-3-levels-20261110');
+        link.searchParams.set('v', 'v118-missing-person-followup-20261110');
         link.searchParams.set('session', session.id);
         link.hash = window.ClaimRelay
           ? window.ClaimRelay.buildHash(encodeClaimLinkPayload(payload), room, metadata)
@@ -3619,6 +3619,17 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
         textArea.select();
         try { document.execCommand('copy'); toast(successMessage || `✅ ${btnLabel} 已成功複製`); } catch (err) {}
         document.body.removeChild(textArea);
+      };
+
+      const openLatePersonStep = (section, receive = false) => {
+        setStepError('');
+        setStep(2);
+        window.setTimeout(() => {
+          const target = document.querySelector(section === 'inbox' ? '[data-testid="claim-inbox"]' : '[data-testid="claim-replies"]');
+          target?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          if (receive) pullClaimsRef.current(true);
+          else target?.focus({ preventScroll: true });
+        }, 140);
       };
 
       const copyReceiptJsonImportPrompt = () => copyToClipboard(
@@ -4940,23 +4951,28 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                 </div>}
 
                 <Card data-testid="add-missing-person-guide" className="border-blue-300 bg-blue-50 !shadow-none">
-                  <div className="space-y-2">
-                    <h3 className="text-base font-extrabold text-blue-900">{bi('漏人？補加', 'Add friend')}</h3>
+                  <div className="space-y-3">
+                    <h3 className="text-base font-extrabold text-blue-900">{bi('漏咗朋友？跟住補', 'Missing a friend? Add them')}</h3>
                     {claimSession?.link ? (
-                      <p className="text-sm leading-relaxed text-blue-900">{bi('朋友開原連結按「新增一位」；再重新接收、計算。', 'Add via link; refresh & recalc.')}</p>
+                      <React.Fragment>
+                        <ol data-testid="missing-person-steps" className="list-decimal space-y-2 pl-5 text-sm leading-relaxed text-blue-900">
+                          <li><strong>{bi('先補人：', 'Add them first:')}</strong> {bi('複製同一條連結畀朋友；佢按「新增一位」填姓名和認帳。', 'Copy the same link to the friend. They choose “Add person” and enter their name and claims.')}</li>
+                          <li><strong>{bi('再接收：', 'Receive next:')}</strong> {bi('朋友交返後，按下方接收新認帳。', 'After they submit, receive the new claims below.')}</li>
+                          <li><strong>{bi('再計算：', 'Recalculate:')}</strong> {bi('核對新回覆，再到第三步按「產生分帳報告」。', 'Review the reply, then choose “Generate report” in Step 3.')}</li>
+                        </ol>
+                        <div className="grid gap-2 sm:grid-cols-2">
+                          <Button data-testid="copy-late-person-link" variant="secondary" className="!w-full !border-blue-500 !bg-white !text-blue-900" disabled={!getDetailedTableShareUrl()} onClick={() => copyToClipboard(getDetailedTableShareUrl(), bi('朋友連結', 'Friend link'), bi('已複製，傳畀漏咗的朋友。', 'Copied; send it to the missing friend.'))}>{bi('複製連結給朋友', 'Copy link for friend')}</Button>
+                          <Button data-testid="receive-late-person-claims" variant="primary" className="!w-full" onClick={() => openLatePersonStep('inbox', true)}>{bi('朋友已交？接收新認帳', 'Friend submitted? Receive claims')}</Button>
+                        </div>
+                        <p data-testid="late-person-flow-note" className="text-xs leading-relaxed text-blue-900">{bi('收到後會自動去第三步；未收到就留在第二步再試。', 'A new reply opens Step 3; if none arrives, stay in Step 2 and try again.')}</p>
+                        <Button data-testid="manual-late-person-replies" variant="outline" className="!w-full !border-blue-500 !bg-white !text-blue-900" onClick={() => openLatePersonStep('replies')}>{bi('無法用連結？手動貼上認帳', 'No link? Paste claims manually')}</Button>
+                      </React.Fragment>
                     ) : (
-                      <p className="text-sm leading-relaxed text-blue-900">{bi('或第 2 步加姓名、項目。', 'Or add name/items in Step 2.')}</p>
+                      <React.Fragment>
+                        <p className="text-sm leading-relaxed text-blue-900">{bi('到第二步「朋友交返的認帳」貼上新朋友回覆，再到第三步重新計算。', 'Paste the new friend’s reply into Friends’ claims in Step 2, then recalculate in Step 3.')}</p>
+                        <Button data-testid="manual-late-person-replies" variant="secondary" className="!w-full !border-blue-500 !bg-white !text-blue-900" onClick={() => openLatePersonStep('replies')}>{bi('前往貼上認帳', 'Go to claim replies')}</Button>
+                      </React.Fragment>
                     )}
-                    <Button data-testid="return-to-claim-inbox" onClick={() => {
-                      setStepError('');
-                      setStep(2);
-                      window.setTimeout(() => {
-                        const target = document.querySelector(claimSession?.link ? '[data-testid="claim-inbox"]' : '[data-testid="claim-replies"]');
-                        target?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                      }, 100);
-                    }} variant="secondary" className="!w-full !border-blue-400 !bg-white !text-blue-900 hover:!bg-blue-100">
-                      {claimSession?.link ? bi('認帳', 'Claims') : bi('改認帳', 'Edit claims')}
-                    </Button>
                   </div>
                 </Card>
 
