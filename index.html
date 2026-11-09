@@ -80,8 +80,8 @@
   <link rel="stylesheet" href="./theme.css?v=v86-free-models-only">
   <link rel="stylesheet" href="./tutorial.css?v=v86-free-models-only">
   <!-- R114: current interactive guide; original video lessons retained. -->
-  <meta name="bill-app-release" content="v114-model-details-ai-translate-20261109">
-  <script defer src="./pwa.js?v=v114-model-details-ai-translate-20261109"></script>
+  <meta name="bill-app-release" content="v114-step2-pause-slow-next-20261109">
+  <script defer src="./pwa.js?v=v114-step2-pause-slow-next-20261109"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
@@ -1197,7 +1197,8 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
       const claimShareDialogRef = useRef(null);
       const claimFollowupRef = useRef(null);
       const claimLinkSharedRef = useRef(false);
-      const pendingClaimShareScrollRef = useRef(false);
+      const pendingStep2EntryRef = useRef(false);
+      const step2NextScrollCancelRef = useRef(null);
       const [claimLinkShared, setClaimLinkShared] = useState(false);
       useEffect(() => {
         if (!showTutorial || !tutorialVideoJumpRef.current) return;
@@ -1663,9 +1664,67 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
         return (statusEl ? statusEl.getBoundingClientRect().top : window.innerHeight) - 12;
       };
 
+      const scrollToStep2Next = () => {
+        const target = document.querySelector('[data-testid="go-to-payer"]');
+        if (!target) return;
+        const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+        if (reducedMotion) {
+          target.scrollIntoView({ behavior: 'auto', block: 'center' });
+          return;
+        }
+        const startY = window.scrollY;
+        const rect = target.getBoundingClientRect();
+        const visibleTop = stickyHeaderBottom() + 12;
+        const visibleBottom = Math.max(visibleTop + rect.height + 24, visibleScrollBottom() - 12);
+        const desiredTop = Math.max(visibleTop, visibleBottom - rect.height - 24);
+        const maxScroll = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+        const endY = Math.min(maxScroll, Math.max(startY, startY + rect.top - desiredTop));
+        if (endY <= startY + 8) return;
+
+        step2NextScrollCancelRef.current?.();
+        let raf = 0;
+        let startTime = null;
+        let cancelled = false;
+        const removeListeners = () => {
+          window.removeEventListener('wheel', onUser);
+          window.removeEventListener('touchstart', onUser);
+          window.removeEventListener('pointerdown', onUser);
+          window.removeEventListener('keydown', onUser);
+          if (step2NextScrollCancelRef.current === cancel) step2NextScrollCancelRef.current = null;
+        };
+        const cancel = () => {
+          if (cancelled) return;
+          cancelled = true;
+          cancelAnimationFrame(raf);
+          removeListeners();
+        };
+        const onUser = event => {
+          if (event.type === 'keydown' && !['ArrowDown', 'ArrowUp', 'PageDown', 'PageUp', 'Home', 'End', ' '].includes(event.key)) return;
+          cancel();
+        };
+        window.addEventListener('wheel', onUser, { passive: true });
+        window.addEventListener('touchstart', onUser, { passive: true });
+        window.addEventListener('pointerdown', onUser, { passive: true });
+        window.addEventListener('keydown', onUser);
+        step2NextScrollCancelRef.current = cancel;
+        const duration = 1800;
+        const ease = t => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+        const frame = now => {
+          if (cancelled) return;
+          if (startTime === null) startTime = now;
+          const progress = Math.min(1, (now - startTime) / duration);
+          window.scrollTo({ top: startY + (endY - startY) * ease(progress), behavior: 'auto' });
+          if (progress < 1) raf = requestAnimationFrame(frame);
+          else { cancelled = true; removeListeners(); }
+        };
+        raf = requestAnimationFrame(frame);
+      };
+
+      useEffect(() => () => step2NextScrollCancelRef.current?.(), [step]);
+
       useEffect(() => {
         if (tutorialDemo || tutorialSuspended) return;
-        if (pendingClaimShareScrollRef.current && step === 2 && items.length) return;
+        if (pendingStep2EntryRef.current && step === 2 && items.length) return;
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }, [step, showHistory, showSettings, showTutorial]);
 
@@ -1721,7 +1780,7 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
       }, [isAnalyzing, step, progressText, showSettings, showHistory, showTutorial, tutorialSuspended]);
 
       useLayoutEffect(() => {
-        if (tutorialDemo || tutorialSuspended || !pendingClaimShareScrollRef.current) return;
+        if (tutorialDemo || tutorialSuspended || !pendingStep2EntryRef.current) return;
         if (step !== 2 || !items.length || showSettings || showHistory || showTutorial) return;
         const section = document.querySelector('[data-testid="items-step"]');
         const startTop = section
@@ -1731,64 +1790,9 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
       }, [step, items.length, showSettings, showHistory, showTutorial, tutorialSuspended]);
 
       useEffect(() => {
-        if (tutorialDemo || tutorialSuspended || !pendingClaimShareScrollRef.current) return undefined;
-        if (step !== 2 || !items.length || showSettings || showHistory || showTutorial) return undefined;
-        let cancelled = false;
-        let raf = 0;
-        let holdTimer = 0;
-        const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-        const onUser = (event) => {
-          if (event.type === 'keydown' && !['ArrowDown', 'ArrowUp', 'PageDown', 'PageUp', 'Home', 'End', ' '].includes(event.key)) return;
-          cancelled = true;
-          cancelAnimationFrame(raf);
-          clearTimeout(holdTimer);
-        };
-        window.addEventListener('wheel', onUser, { passive: true });
-        window.addEventListener('touchstart', onUser, { passive: true });
-        window.addEventListener('keydown', onUser);
-        const timer = setTimeout(() => {
-          if (cancelled) return;
-          const actions = document.querySelector('[data-testid="claim-link-actions"]');
-          const section = document.querySelector('[data-testid="items-step"]');
-          if (!actions || !section) return;
-          pendingClaimShareScrollRef.current = false;
-          const startTop = Math.max(0, window.scrollY + section.getBoundingClientRect().top - stickyHeaderBottom() - 12);
-          window.scrollTo({ top: startTop, behavior: 'auto' });
-          if (reduce) return;
-          holdTimer = setTimeout(() => {
-            if (cancelled) return;
-            const hint = document.querySelector('[data-testid="claim-share-hint"]');
-            const anchor = hint || actions;
-            const visibleTop = stickyHeaderBottom() + 12;
-            const visibleBottom = visibleScrollBottom();
-            const anchorTop = anchor.getBoundingClientRect().top;
-            const actionsBottom = actions.getBoundingClientRect().bottom;
-            let delta = anchorTop - visibleTop;
-            const projectedBottom = actionsBottom - delta;
-            if (projectedBottom > visibleBottom) delta += projectedBottom - visibleBottom;
-            const endTop = Math.max(startTop, window.scrollY + delta);
-            if (endTop <= startTop + 8) return;
-            const duration = 1500;
-            const t0 = performance.now();
-            const ease = t => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
-            const frame = now => {
-              if (cancelled) return;
-              const p = Math.min(1, (now - t0) / duration);
-              window.scrollTo({ top: startTop + (endTop - startTop) * ease(p), behavior: 'auto' });
-              if (p < 1) raf = requestAnimationFrame(frame);
-            };
-            raf = requestAnimationFrame(frame);
-          }, 400);
-        }, 60);
-        return () => {
-          cancelled = true;
-          clearTimeout(timer);
-          clearTimeout(holdTimer);
-          cancelAnimationFrame(raf);
-          window.removeEventListener('wheel', onUser);
-          window.removeEventListener('touchstart', onUser);
-          window.removeEventListener('keydown', onUser);
-        };
+        if (tutorialDemo || tutorialSuspended || !pendingStep2EntryRef.current) return;
+        if (step !== 2 || !items.length || showSettings || showHistory || showTutorial) return;
+        pendingStep2EntryRef.current = false;
       }, [step, items.length, showSettings, showHistory, showTutorial, tutorialSuspended]);
 
       useEffect(() => () => {
@@ -2476,7 +2480,7 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
         setPayer(''); setTaxSplitMethod('proportional'); setReconciliation(null); setDraftNotice('');
         setReadReceipt(false); openItemEditsRef.current = {}; setOpenItemEdits({});
         claimLinkSharedRef.current = false; setClaimLinkShared(false);
-        pendingClaimShareScrollRef.current = false;
+        pendingStep2EntryRef.current = false;
         setCurrency('HKD'); setDetectedCurrency('HKD'); setPaymentMethods(['轉數快 (FPS)']);
         setShowHistory(false); setShowSettings(false); setShowTutorial(false); setStatusExpanded(false); setStep(1);
         window.scrollTo({ top: 0, behavior: 'instant' });
@@ -3199,11 +3203,11 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
             if (appliedToastParts.length) toast(`✅ ${bi('已自動換算：', 'Calculated automatically: ')}${appliedToastParts.join(' · ')}`);
             else if (resolvedAdjustments.doubleApplicationPrevented) toast(bi('✅ 已核對收據總額，沒有重複套用稅費／折扣。', '✅ Checked the receipt total; no tax/discount was applied twice.'));
 
+            pendingStep2EntryRef.current = true;
             setStep(2);
             setIsAnalyzing(false);
             claimLinkSharedRef.current = false;
             setClaimLinkShared(false);
-            pendingClaimShareScrollRef.current = true;
           }, 600);
 
         } catch (error) {
@@ -3212,6 +3216,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
           setProgressText('');
           setUploadError({ main: '讀取失敗', sub: error?.message || '未知錯誤', detail: error?.detail || '', action: null });
           if (keepPreviousResultsOnFailure && receiptWasRead && items.length) {
+            pendingStep2EntryRef.current = true;
             setStep(2);
             toast(bi('重讀失敗，已保留舊結果。', 'Re-recognition failed; the previous successful results are kept.'), 'error');
           }
@@ -4527,12 +4532,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                   </div>
                   {claimSession?.link && <p className="text-xs font-semibold text-emerald-800">{bi('連結已建立；名稱和期限不能改。', 'Link created; name and expiry cannot be changed.')}</p>}
                   {items.length > 0 && <div className="flex justify-end pt-1">
-                    <Button data-testid="confirm-activity-settings" variant="primary" className="!w-auto min-w-24 text-sm" onClick={() => {
-                      const target = document.querySelector('[data-testid="open-claim-share-button"]');
-                      if (!target) return;
-                      const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-                      target.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'center' });
-                    }}>{bi('確定', 'Confirm')}</Button>
+                    <Button data-testid="activity-settings-next" variant="primary" className="!w-auto min-w-24 text-sm" onClick={scrollToStep2Next}>{bi('下一步', 'Next')}</Button>
                   </div>}
                 </Card>
 

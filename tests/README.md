@@ -18,7 +18,7 @@ R111 的 `friend-recognition.cjs` 另檢查第三步 DOM 順序：墊支人、�
 
 R112 的 `friend-recognition.cjs` 驗證計算按鈕有中英動作提示、網頁分享卡先於後備文字版、超長朋友網址僅縮短顯示且 href 保持完整、簡單／詳細版預設收起並可展開。`cross-currency-ui.cjs` 會先展開後備區再測試文字版操作。
 
-R113 的 `friend-recognition.cjs` 驗證活動名稱「確定」按鈕使用 smooth scroll 前往分享按鈕、活動名稱未建立連結前仍可修改，以及結算 CTA 主文字與提示文字均無 text-shadow/drop-shadow。
+`friend-recognition.cjs` 驗證第二步活動名稱／期限區的按鈕顯示「下一步」，不再自動跳至分享控制；外部 AI JSON 匯入後保留在第二步頂端、先顯示原收據附圖區，按下頂端「下一步」後以慢速動畫移至底部綠色按鈕。活動名稱仍可在建立連結前修改，結算 CTA 主文字與提示文字均無 text-shadow/drop-shadow。
 
 R114 的 `tutorial-ui.cjs` 驗證雙語 18 階段教學、第二步分享與第三步先設定後回覆、第四步 Web-first 及預設收合後備、示例試算、退出還原及 Step 1–4 重啟；`tutorial-safety.cjs` 驗證不觸發真實分享、剪貼簿、相機或 API。兩段示範影片均保持 R114 前原始資產。`settings-free-models.cjs` 驗證左上角只顯示 `R114`、舊 OpenRouter 預設遷移到 PaddleOCR.js＋Dots3-Note、首頁與設定頁兩個模型選單的選項和值同步、切換方向互通、說明逐路由一致，且不覆蓋 OpenRouter key。`recognition-retry-ui.cjs` 驗證 Dots3-Note 與兩個固定模型的 cascade；`ocr-cascade.test.cjs` 驗證隨機路由只在明確選取時執行，不會自動進入固定 cascade。`friend-whatsapp-details.cjs` 以不同新舊菜名重現 OCR 更新，驗證新 hash 帶入最新項目名稱，同時保留 session、加密回覆 room 和活動 metadata。
 
@@ -31,6 +31,8 @@ R114 的 `tutorial-ui.cjs` 驗證雙語 18 階段教學、第二步分享與第�
 本次短文案回歸亦檢查收據 OCR／外部 AI 匯入、拍照／手動輸入兩組替代流程均以「或」分隔；驗證外部 AI 說明、模型摘要、草稿狀態、重試提示及同連結分享的精簡繁中。OCR 重試測試監察 `showOpenFilePicker`，確認明確新增圖片才會開啟下載選擇器，重讀不會重開。
 
 模型說明預設收起，只顯示箭嘴；首頁與設定頁點開後顯示當前模型說明，切換模型會收起內容。外部 AI 面板使用「搵其他 AI 幫手翻譯」及「提示詞＋賬單＝專用翻譯檔（.json）」；E2E 驗證繁英文案與展開方向。
+
+第二步導覽 E2E 亦驗證收據 OCR 與外部 AI 文字／JSON 匯入成功後停在審閱區頂部，不再自動捲到分享連結；頂部活動設定按鈕只負責以約 1.8 秒動畫移到既有綠色「下一步」，不會直接進入第三步。文字／JSON 匯入時原圖附加卡留在使用者眼前。
 
 `tutorial-ui.cjs` 使用授權附上的真實 Tailwind Play CDN v3.4.17 測試 fixture，而不是只有 JavaScript 全域的空 stub，因此中英多尺寸版面斷言仍會執行實際 CSS。產品頁仍使用其原本 CDN，測試 fixture 只供 E2E 使用。
 

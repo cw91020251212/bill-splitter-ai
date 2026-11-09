@@ -181,28 +181,52 @@ async function hostFixture() {
   await host.getByTestId('submit-receipt-text').click();
   await host.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '2', null, { timeout: 30000 });
   assert.match(await host.getByTestId('verify-item').innerText(), /QA茶/, 'external AI JSON becomes the normal item-review source');
+  await host.getByTestId('imported-receipt-attachment-card').waitFor({ state: 'visible' });
+  await host.waitForTimeout(150);
+  const entryPosition = await host.evaluate(() => {
+    const section = document.querySelector('[data-testid="items-step"]');
+    const headerBottom = document.querySelector('header')?.getBoundingClientRect().bottom || 0;
+    return { scrollY: window.scrollY, sectionTop: section?.getBoundingClientRect().top, headerBottom };
+  });
+  await host.waitForTimeout(1900);
+  const settledScrollY = await host.evaluate(() => window.scrollY);
+  assert(entryPosition.sectionTop >= entryPosition.headerBottom && entryPosition.sectionTop - entryPosition.headerBottom <= 60, `text/JSON import stays at the top of step 2 instead of auto-scrolling to sharing: ${JSON.stringify(entryPosition)}`);
+  assert(Math.abs(settledScrollY - entryPosition.scrollY) < 4, 'the step-2 viewport stays at the top while the user reviews the receipt attachment');
+  const attachmentRect = await host.getByTestId('imported-receipt-attachment-card').boundingBox();
+  const viewportHeight = await host.evaluate(() => innerHeight);
+  assert(attachmentRect && attachmentRect.y < viewportHeight, 'the original-receipt attachment panel appears at the step-2 entry');
   assert.equal(await host.getByTestId('claim-expiry-days').inputValue(), '14', 'new activities default claim links to 14 days');
   await host.getByTestId('claim-activity-name').fill('QA識別碼驗收');
-  const confirmSettings = host.getByTestId('confirm-activity-settings');
-  assert.equal(await confirmSettings.innerText(), '確定', 'activity settings have a clear confirmation action');
+  const nextSettings = host.getByTestId('activity-settings-next');
+  assert.equal(await nextSettings.innerText(), '下一步', 'activity settings button is labeled next step');
+  await nextSettings.scrollIntoViewIfNeeded();
   await host.evaluate(() => {
-    const nativeScrollIntoView = Element.prototype.scrollIntoView;
-    Element.prototype.scrollIntoView = function(options) {
-      if (this.dataset.testid === 'open-claim-share-button') window.__claimShareScrollBehavior = options?.behavior;
-      return nativeScrollIntoView.call(this, options);
+    window.__stepNextScrollFrames = [];
+    const nativeScrollTo = window.scrollTo.bind(window);
+    window.scrollTo = (...args) => {
+      const top = typeof args[0] === 'object' ? args[0].top : args[1];
+      if (Number.isFinite(top)) window.__stepNextScrollFrames.push({ time: performance.now(), top });
+      return nativeScrollTo(...args);
     };
   });
-  await confirmSettings.scrollIntoViewIfNeeded();
-  const beforeConfirmScroll = await host.evaluate(() => window.scrollY);
-  await confirmSettings.click();
-  assert.equal(await host.evaluate(() => window.__claimShareScrollBehavior), 'smooth', 'confirm scrolls smoothly toward sharing');
+  const beforeNextScroll = await host.evaluate(() => window.scrollY);
+  await nextSettings.click();
   await host.waitForFunction(() => {
-    const target = document.querySelector('[data-testid="open-claim-share-button"]');
+    const target = document.querySelector('[data-testid="go-to-payer"]');
     if (!target) return false;
     const rect = target.getBoundingClientRect();
-    return rect.top >= 0 && rect.bottom <= innerHeight;
-  }, null, { timeout: 6000 });
-  assert((await host.evaluate(() => window.scrollY)) > beforeConfirmScroll, 'confirm moves down to the claim-link sharing action');
+    const statusTop = document.querySelector('div.fixed.bottom-0[role="status"]')?.getBoundingClientRect().top || innerHeight;
+    return rect.top >= 0 && rect.bottom <= statusTop - 8;
+  }, null, { timeout: 8000 });
+  await host.waitForTimeout(2000);
+  const nextScrollMetrics = await host.evaluate(() => ({
+    scrollY: window.scrollY,
+    frames: window.__stepNextScrollFrames
+  }));
+  assert(nextScrollMetrics.scrollY > beforeNextScroll, 'activity next moves down to the original green step-2 next action');
+  assert(nextScrollMetrics.frames.length > 2, 'activity next uses an animated scroll rather than a jump');
+  assert(nextScrollMetrics.frames.at(-1).time - nextScrollMetrics.frames[0].time >= 1600, 'step-2 downward movement is deliberately slow');
+  assert.equal(await host.getByTestId('go-to-payer').innerText().then(text => text.trim().startsWith('下一步')), true, 'the original green next-step CTA remains available and is not activated automatically');
   assert.equal(await host.getByTestId('claim-activity-name').isDisabled(), false, 'activity name remains editable until a link is actually shared');
   await host.getByTestId('go-to-payer').click();
   await until(async () => await host.getByPlaceholder('輸入姓名', { exact: true }).isVisible(), 'can advance to payer before friends reply');

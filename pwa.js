@@ -40,7 +40,7 @@
     window.navigator.standalone === true;
 
   /* ---------------------------------------------------------- service worker */
-  var RELEASE_VERSION = 'v114-model-details-ai-translate-20261109';
+  var RELEASE_VERSION = 'v114-step2-pause-slow-next-20261109';
   var waitingWorker = null;
   var registrationPromise = null;
   var reloadRequested = false;

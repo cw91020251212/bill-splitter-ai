@@ -151,3 +151,12 @@
 - [x] 模型說明預設隱藏，首頁與設定頁只顯示下箭嘴；按箭嘴才顯示目前所選模型說明，再按可收起；更換模型時自動收起，其他模型的說明不攤開。
 - [x] 外部 AI 區標題改為「搵其他 AI 幫手翻譯」，副標題改為「提示詞＋賬單＝專用翻譯檔（.json）」；英文同步更新。
 - [x] 更新 PWA／service worker cache token 為 `v114-model-details-ai-translate-20261109`；可見版本仍是 R114。
+
+
+## R114 第二步停留與兩段式下一步導覽（2026-11-09）
+
+- [x] 收據 OCR、外部 AI 純文字／JSON 匯入成功後進入第二部分，停在審閱區頂端，不再自動滑到認帳分享區；外部 AI 匯入的原收據附加卡顯示在頂部供用家先補相片。
+- [x] 活動名稱／連結期限區的「確定」改為「下一步」（英文 Next）；點擊後不直接進第三部分，而是以約 1.8 秒動畫移至原有底部綠色「下一步」，用家再自行繼續。
+- [x] 使用者可用觸控、滑鼠滾輪或鍵盤中斷慢速移動；遵守 reduced-motion 系統偏好。
+- [x] 更新 PWA／service worker token 為 `v114-step2-pause-slow-next-20261109`；可見版本仍是 R114。
+- [x] Playwright 通過：`friend-recognition.cjs`（第二步頂部／附圖／慢速 CTA 及 12 項分享回歸）、`recognition-retry-ui.cjs`、`text-import.cjs`、`friend-navigation.cjs`、`friend-whatsapp-details.cjs`、`settings-free-models.cjs`。

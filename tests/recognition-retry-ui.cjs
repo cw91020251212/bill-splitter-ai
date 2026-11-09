@@ -125,6 +125,15 @@ const success = payload => ({
     await page.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '2', null, { timeout: 30000 });
     await page.getByText('首次成功結果', { exact: false }).waitFor({ state: 'visible' });
     assert.match(await page.getByTestId('last-recognition-model').innerText(), /Nemotron 3.5 VL/);
+    await page.waitForTimeout(150);
+    const step2Entry = await page.evaluate(() => {
+      const section = document.querySelector('[data-testid="items-step"]');
+      const headerBottom = document.querySelector('header')?.getBoundingClientRect().bottom || 0;
+      return { scrollY: window.scrollY, sectionTop: section?.getBoundingClientRect().top, headerBottom };
+    });
+    await page.waitForTimeout(1900);
+    assert(Math.abs(step2Entry.sectionTop - step2Entry.headerBottom - 12) < 4, 'successful OCR enters step 2 at the top of the review section');
+    assert(Math.abs(await page.evaluate(() => window.scrollY) - step2Entry.scrollY) < 4, 'successful OCR does not automatically scroll down to the sharing controls');
 
     await page.locator('.step-nav button').first().click();
     await page.getByTestId('receipt-upload').click();
