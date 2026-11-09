@@ -299,10 +299,17 @@ async function hostSettle(fixture, qty, initial = false, names = [A, B]) {
   assert(visibleUrl.length < link.length, 'visible URL is shortened');
   if (link.length > 52) assert.match(visibleUrl, /…/, 'long URL is shortened with a middle ellipsis');
   assert.equal(await host.getByTestId('final-summary-preview').count(), 0, 'fallback reports are collapsed by default');
+  assert.equal(await host.getByTestId('friend-web-preferred-badge').innerText(), '首選・網頁');
+  assert.equal(await host.getByTestId('friend-web-intro').innerText(), '同一連結');
+  assert.match(await host.getByTestId('friend-network-option').innerText(), /認帳＋結果/);
+  assert.equal((await host.getByTestId('friend-share-privacy-note').innerText()).trim(), '持連結者可看帳單及收據。');
   const backups = host.getByTestId('report-fallback-options');
   await backups.getByRole('button').click();
   await host.getByTestId('final-summary-preview').waitFor({ state: 'visible' });
   await host.getByTestId('final-detail-preview').waitFor({ state: 'visible' });
+  assert.equal(await host.getByTestId('summary-report-actions').getByRole('button', { name: '分享' }).count(), 1);
+  assert.equal(await host.getByTestId('detail-report-actions').getByRole('button', { name: '分享' }).count(), 1);
+  assert.doesNotMatch(await backups.innerText(), /網頁版是首選|後備方案（簡單版／詳細版）/);
 }
 async function ui() {
   stage = 'actual host and compact optional initial form';
@@ -340,10 +347,11 @@ async function ui() {
   assert.match(await fixture.host.getByTestId('receipt-attachment-only-hint').innerText(), /同一條連結|same link/);
   await fixture.host.getByTestId('redaction-next-or-finish').click();
   await until(() => harness.record(c.id)?.data?.images?.length === 1, 'redacted photo is published into the existing result record', 25000);
+  assert.equal((await fixture.host.getByTestId('saved-record-photo-note').innerText()).trim(), '相片只存此機。');
   const photoPublish = harness.requests.slice(photoPublishStart).find(r => r.id === c.id && r.method === 'PUT' && r.status === 200 && r.input?.images?.length === 1);
   assert(photoPublish, 'photo is written into the same existing share session');
   assert.equal(photoPublish.input.images[0].mimeType, 'image/jpeg', 'the redacted photo is compressed before sharing');
-  await until(async () => /結果已更新/.test(await fixture.host.getByTestId('same-link-sync-status').innerText()), 'same-link photo update finishes');
+  await until(async () => /已更新/.test(await fixture.host.getByTestId('same-link-sync-status').innerText()), 'same-link photo update finishes');
   await result(a, A); pass('same-link inline photo publication plus 390px optional/auth fields, random/clear, blank and PIN enrollments, initial retrieve and pending-claim preservation');
   stage = 'blank identity inline retrieve and revision';
   const blank = await gate(a, A); assert.equal(await blank.inputValue(), ''); await a.locator('#auth-confirm').click(); await a.locator('#claim-content').waitFor({ state: 'visible' }); assert.equal(await a.locator('#qty-0').inputValue(), String(INITIAL_QTY));
@@ -363,7 +371,7 @@ async function ui() {
   await late.waitForFunction(() => document.getElementById('result-add-person-title')?.textContent.includes('Forgot someone?'));
   await late.locator('#result-language-toggle').click();
   await late.waitForFunction(() => document.getElementById('result-add-person-title')?.textContent.includes('漏咗朋友'));
-  assert.match(await fixture.host.getByTestId('add-missing-person-guide').innerText(), /新增一位/, 'organizer explains the same-link late claim path');
+  assert.match(await fixture.host.getByTestId('add-missing-person-guide').innerText(), /新增一位/, 'organizer keeps the concise same-link late claim path');
   await fixture.host.getByTestId('return-to-claim-inbox').click();
   await fixture.host.getByTestId('claim-inbox-refresh').waitFor({ state: 'visible' });
   await late.getByTestId('add-another-person').click();

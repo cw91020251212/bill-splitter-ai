@@ -148,20 +148,19 @@ const LOCAL = 'local/paddleocr-js';
     const metrics = {
       inputBytes: image.length,
       textCharacters: rawText.length,
-      containsTotal2860: normalized.includes('2860'),
-      containsTax260: normalized.includes('260'),
-      containsQuantity22: normalized.includes('22'),
-      containsCash3000: normalized.includes('3000'),
-      containsChange140: normalized.includes('140'),
-      label: await page.getByTestId('last-recognition-model').count() ? await page.getByTestId('last-recognition-model').last().innerText() : 'MISSING'
+        containsTotal2860: normalized.includes('2860'),
+        containsTax260: normalized.includes('260'),
+        containsQuantity22: normalized.includes('22'),
+        containsCash3000: normalized.includes('3000'),
+        containsChange140: normalized.includes('140'),
+      verifySummary: await page.getByTestId('verify-summary').innerText()
     };
     const numericHits = [metrics.containsTotal2860, metrics.containsTax260, metrics.containsQuantity22, metrics.containsCash3000, metrics.containsChange140].filter(Boolean).length;
     const missedValues = ['2860', '260', '22', '3000', '140'].filter((value, index) => ![
       metrics.containsTotal2860, metrics.containsTax260, metrics.containsQuantity22, metrics.containsCash3000, metrics.containsChange140
     ][index]);
     assert(numericHits >= 4, `at least four key numeric strings should reach the text request: ${JSON.stringify(metrics)}`);
-    assert.match(metrics.label, /PaddleOCR\.js/);
-    assert.match(metrics.label, /Dots3-Note/);
+    assert.match(metrics.verifySummary, /\d+項/);
     assert.deepEqual(pageErrors, [], pageErrors.join('\n'));
     console.log(`PASS real PaddleOCR.js + mocked Dots3-Note data flow; numeric hit rate ${numericHits}/5; no receipt image sent to OpenRouter.`);
     console.log(JSON.stringify({ ...metrics, numericHits, missedValues }));

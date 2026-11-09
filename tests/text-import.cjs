@@ -121,10 +121,11 @@ const initStorage = async (page, config) => {
     await noKeyPage.getByTestId('submit-receipt-text').click();
     await noKeyPage.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '2', null, { timeout: 30000 });
     assert.equal(await noKeyPage.getByTestId('verify-item').count(), 2, 'pasted JSON items appear in the normal review step');
+    assert.match(await noKeyPage.getByTestId('verify-summary').innerText(), /^2項/);
     const pastedRows = await noKeyPage.getByTestId('verify-item').allInnerTexts();
     assert.match(pastedRows.join('\n'), /魚蛋/);
     assert.match(pastedRows.join('\n'), /奶茶/);
-    assert.match(await noKeyPage.getByTestId('last-recognition-model').innerText(), /JSON.*本機|本機.*JSON/);
+    assert.equal(await noKeyPage.locator('[data-testid="items-step"] [data-testid="last-recognition-model"]').count(), 0, 'the review step hides redundant source/model details');
     assert.equal(noKeyRequests, 0, 'valid JSON is imported locally without an API key or network request');
 
     await noKeyPage.evaluate(base64 => {
@@ -151,10 +152,10 @@ const initStorage = async (page, config) => {
     });
     await noKeyPage.getByTestId('receipt-attachment-only-hint').waitFor({ state: 'visible' });
     assert.match(await noKeyPage.getByTestId('receipt-attachment-only-hint').innerText(), /不做 OCR|no OCR or AI/);
-    assert.match(await noKeyPage.getByTestId('imported-receipt-attachment-card').innerText(), /檔案瀏覽器選「下載」/);
+    assert.match(await noKeyPage.getByTestId('attach-receipt-image').innerText(), /後加圖片/);
     await noKeyPage.getByTestId('redaction-next-or-finish').click();
-    await noKeyPage.waitForFunction(() => /已加入 1 張/.test(document.querySelector('[data-testid="receipt-attachment-status"]')?.textContent || ''), null, { timeout: 15000 });
-    assert.match(await noKeyPage.getByTestId('last-recognition-model').innerText(), /JSON.*本機|本機.*JSON/, 'attaching a photo does not replace the JSON-import source label');
+    await noKeyPage.waitForFunction(() => /已加1張/.test(document.querySelector('[data-testid="receipt-attachment-status"]')?.textContent || ''), null, { timeout: 15000 });
+    assert.equal(await noKeyPage.getByTestId('verify-item').count(), 2, 'attaching a photo preserves the imported JSON items');
     assert.equal(noKeyRequests, 0, 'photo attachment does not send the image to OpenRouter');
     await noKeyPage.waitForFunction(async () => {
       const db = await new Promise((resolve, reject) => {
@@ -173,15 +174,15 @@ const initStorage = async (page, config) => {
     }, null, { timeout: 15000 });
     await noKeyPage.reload();
     await noKeyPage.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '2', null, { timeout: 30000 });
-    assert.match(await noKeyPage.getByTestId('receipt-attachment-status').innerText(), /已加入 1 張/, 'the attached photo remains with the imported bill after reload');
+    assert.match(await noKeyPage.getByTestId('receipt-attachment-status').innerText(), /已加1張/, 'the attached photo remains with the imported bill after reload');
+    assert.equal((await noKeyPage.getByTestId('draft-status').innerText()).trim(), '已恢復');
     assert.equal(noKeyRequests, 0, 'restoring the attached photo also makes no API request');
 
     await noKeyPage.evaluate(() => localStorage.setItem('billSplitterLanguage', 'en'));
     await noKeyPage.reload();
     await noKeyPage.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '2', null, { timeout: 30000 });
-    assert.match(await noKeyPage.getByTestId('imported-receipt-attachment-card').innerText(), /External AI text\/JSON has no receipt photo/);
-    assert.match(await noKeyPage.getByTestId('attach-receipt-image').innerText(), /Add receipt photo/);
-    assert.match(await noKeyPage.getByTestId('imported-receipt-attachment-card').innerText(), /choose Downloads in the file browser/i);
+    assert.equal((await noKeyPage.getByTestId('draft-status').innerText()).trim(), 'Restored');
+    assert.match(await noKeyPage.getByTestId('attach-receipt-image').innerText(), /Add photo/);
     await noKeyPage.getByTestId('attach-receipt-image').click();
     await noKeyPage.getByTestId('receipt-attachment-input').setInputFiles({
       name: 'synthetic-receipt-second.png', mimeType: 'image/png', buffer: syntheticReceipt
@@ -189,7 +190,7 @@ const initStorage = async (page, config) => {
     await noKeyPage.getByTestId('receipt-attachment-only-hint').waitFor({ state: 'visible' });
     assert.match(await noKeyPage.getByTestId('receipt-attachment-only-hint').innerText(), /no OCR or AI/);
     await noKeyPage.getByTestId('redaction-next-or-finish').click();
-    await noKeyPage.waitForFunction(() => /2 photos added/.test(document.querySelector('[data-testid="receipt-attachment-status"]')?.textContent || ''), null, { timeout: 15000 });
+    await noKeyPage.waitForFunction(() => /2 added/.test(document.querySelector('[data-testid="receipt-attachment-status"]')?.textContent || ''), null, { timeout: 15000 });
     assert.equal(noKeyRequests, 0, 'the English attachment-only flow also makes no API request');
     await noKeyPage.evaluate(() => {
       delete window.showOpenFilePicker;
@@ -257,7 +258,8 @@ const initStorage = async (page, config) => {
     assert.match(capturedText, /芒果糯米飯 1 份 65 泰銖/);
     assert.equal(capturedImageCount, 0, 'text-only requests contain no image payload');
     assert.match(await modelPage.getByTestId('verify-item').first().innerText(), /芒果糯米飯/);
-    assert.match(await modelPage.getByTestId('last-recognition-model').innerText(), /文字整理.*Dots3-Note|text input.*Dots3-Note/i);
+    assert.match(await modelPage.getByTestId('verify-summary').innerText(), /^1項/);
+    assert.equal(await modelPage.locator('[data-testid="items-step"] [data-testid="last-recognition-model"]').count(), 0);
     assert.deepEqual(failures, [], failures.join('\n'));
     await modelContext.close();
 

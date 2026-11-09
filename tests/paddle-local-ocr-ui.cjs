@@ -109,7 +109,8 @@ const payload = {
     await page.getByTestId('redaction-next-or-finish').click();
     await page.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '2', null, { timeout: 30000 });
     await page.getByText('本機測試商品', { exact: false }).waitFor({ state: 'visible' });
-    await page.getByTestId('last-recognition-model').waitFor({ state: 'visible' });
+    await page.getByTestId('verify-summary').waitFor({ state: 'visible' });
+    assert.match(await page.getByTestId('verify-summary').innerText(), /^1項/);
 
     const observed = await page.evaluate(() => ({ calls: window.__paddleCalls, config: JSON.parse(localStorage.getItem('billSplitterApiConfig') || 'null') }));
     assert.equal(observed.calls.length, 1, 'the selected local OCR engine runs exactly once');
@@ -124,11 +125,8 @@ const payload = {
     assert.equal(message.content.filter(part => part.type === 'text').length, 1, 'only one text payload is sent');
     assert.match(message.content[0].text, /本機 PaddleOCR\.js/);
     assert.match(message.content[0].text, /テスト商品 100円/);
-    const label = await page.getByTestId('last-recognition-model').innerText();
-    assert.match(label, /PaddleOCR\.js/);
-    assert.match(label, /Dots3-Note/);
     assert.deepEqual(failures, [], failures.join('\n'));
-    console.log('PASS: local PaddleOCR option persists; browser receives the image; OpenRouter receives text only; Dots3-Note result is displayed with local-engine attribution.');
+    console.log('PASS: local PaddleOCR option persists; browser receives the image; OpenRouter receives text only; concise item/total summary is shown.');
     await context.close();
   } finally {
     await browser.close();

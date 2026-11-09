@@ -124,7 +124,8 @@ const success = payload => ({
     await page.getByTestId('redaction-next-or-finish').click();
     await page.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '2', null, { timeout: 30000 });
     await page.getByText('首次成功結果', { exact: false }).waitFor({ state: 'visible' });
-    assert.match(await page.getByTestId('last-recognition-model').innerText(), /Nemotron 3.5 VL/);
+    assert.match(await page.getByTestId('verify-summary').innerText(), /\d+項/);
+    assert.equal(await page.locator('[data-testid="items-step"] [data-testid="last-recognition-model"]').count(), 0);
     await page.waitForTimeout(150);
     const step2Entry = await page.evaluate(() => {
       const section = document.querySelector('[data-testid="items-step"]');
@@ -168,7 +169,7 @@ const success = payload => ({
     assert.equal(observedImageCounts[0], 1, 'the first scan contains its selected image');
     assert.equal(observedImageCounts[2], 2, 'the added-photo scan contains both selected images');
     assert.equal(observedImageCounts[3], 2, 're-recognition resends the entire stored two-image batch');
-    assert.match(await page.getByTestId('last-recognition-model').innerText(), /Dots3-Note/);
+    assert.match(await page.getByTestId('verify-summary').innerText(), /\d+項/);
 
     await page.locator('.step-nav button').first().click();
     await page.getByTestId('receipt-upload').click();
@@ -240,7 +241,7 @@ const success = payload => ({
     assert.equal(receiptShare.text, '', 'receipt images are shared without attaching the report text');
     await page.evaluate(() => { window.__lastMockShare = null; });
     await page.getByTestId('report-fallback-toggle').click();
-    const reportShareButton = page.getByTestId('summary-report-actions').getByRole('button', { name: '分享報告' });
+    const reportShareButton = page.getByTestId('summary-report-actions').getByRole('button', { name: '分享' });
     await reportShareButton.waitFor({ state: 'visible' });
     await reportShareButton.scrollIntoViewIfNeeded();
     const scrollBeforeReportShare = await page.evaluate(() => Math.round(window.scrollY));

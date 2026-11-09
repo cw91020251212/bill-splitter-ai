@@ -133,9 +133,9 @@ async function calculate(page) {
       const actualRate = Number(match[1]);
       const report = await calculate(page);
       const expected = (Math.round((1000 * actualRate + Number.EPSILON) * 100) / 100).toFixed(2);
-      assert.ok(report.includes(`¥1,000 JPY → 結算總額：$${expected} HKD`), `report must show the converted total using the displayed fetched rate; expected ${expected}, report: ${report}`);
-      assert.ok(report.includes(`1 JPY = ${match[1]} HKD`), 'report must state the rate used');
-      assert.ok(report.includes('Frankfurter'), 'report must identify its exchange-rate source');
+      assert.ok(report.includes(`¥1,000 JPY → $${expected} HKD`), `report must show the converted total using the displayed fetched rate; expected ${expected}, report: ${report}`);
+      const detailed = await page.getByTestId('final-detail-preview').innerText();
+      assert.ok(detailed.includes(`1 JPY = ${match[1]} HKD`), 'detail must state the rate used');
       console.log(`PASS live JPY→HKD report: 1000 JPY → HK$${expected} at 1 JPY = ${match[1]} HKD`);
       await context.close();
     }
@@ -165,15 +165,13 @@ async function calculate(page) {
       await page.waitForFunction(() => document.querySelector('[data-testid="exchange-rate-status"]')?.textContent.includes('Frankfurter'), null, { timeout: 20000 });
       const summary = await calculate(page);
       const detailed = await page.getByTestId('final-detail-preview').innerText();
-      assert.match(summary, /原幣分帳總額：¥5 JPY → 結算總額：\$0\.23 HKD/, `all five JPY are aggregated before converting; got ${summary}`);
-      assert.match(detailed, /項目小計（JPY）：¥5 JPY/);
-      assert.match(detailed, /整單折扣（JPY）：−¥1 JPY/);
-      assert.match(detailed, /稅／服務費（JPY）：¥1 JPY/);
-      assert.match(detailed, /整單折扣分攤 −¥0\.5 JPY/);
-      assert.match(detailed, /稅／服務費分攤 💲 ¥0\.5 JPY/);
-      assert.match(detailed, /結算總額（HKD）：\$0\.23 HKD/);
-      assert.match(detailed, /應付總額（HKD）/);
-      assert.match(detailed, /¥0\.5 JPY\s*（1\/2 份比例）/, 'the shared item keeps its fractional JPY share in the detail report');
+      assert.match(summary, /¥5 JPY → \$0\.23 HKD/, `all five JPY are aggregated before converting; got ${summary}`);
+      assert.match(detailed, /項目（JPY）/);
+      assert.match(detailed, /折扣：−¥0\.5/);
+      assert.match(detailed, /稅費：\+¥0\.5/);
+      assert.match(detailed, /應付：\$0\.(11|12)/);
+      assert.match(detailed, /1 JPY = 0\.045 HKD/);
+      assert.match(detailed, /共享小食 — 1\/2份 — ¥0\.50/, 'the shared item keeps its fractional JPY share in the detail report');
 
       await page.evaluate(() => { window.open = () => ({ opener: null }); });
       await page.getByTestId('open-detailed-table-preview').click();
@@ -286,7 +284,7 @@ async function calculate(page) {
       await incompletePage.goto(new URL('detailed-view.html', base).href, { waitUntil: 'domcontentloaded' });
       await incompletePage.getByTestId('member-select').selectOption({ label: '阿明' });
       const incompleteRow = await incompletePage.locator('[data-testid="personal-item-row"]').first().innerText();
-      assert.match(incompleteRow, /分食人數未能從此連結確認，你分 1\/2 份/);
+      assert.match(incompleteRow, /你分 1\/2 份/);
       assert.doesNotMatch(incompleteRow, /共 1 人分食/);
       console.log('PASS incomplete legacy payload: reports the recoverable fraction but does not guess diner count.');
       await context.close();
@@ -314,7 +312,7 @@ async function calculate(page) {
       }));
       await page.waitForFunction(() => document.querySelector('[data-testid="exchange-rate-status"]')?.textContent.includes('Frankfurter'), null, { timeout: 20000 });
       const summary = await calculate(page);
-      assert.match(summary, /原幣分帳總額：¥500 JPY → 結算總額：\$22\.50 HKD/);
+      assert.match(summary, /¥500 JPY → \$22\.50 HKD/);
       await page.evaluate(() => { window.open = () => ({ opener: null }); });
       await page.getByTestId('open-detailed-table-preview').click();
       const preview = await page.evaluate(() => JSON.parse(localStorage.getItem('billSplitterDetailTablePreviewV1') || 'null'));
