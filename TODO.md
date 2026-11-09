@@ -229,4 +229,5 @@
 - [x] 提供手動補填後備：直接跳至第二步「朋友交返的認帳」輸入欄並聚焦，貼上後可返回第三步重新計算。
 - [x] 中／英文均按先補人、再接收、再計算的次序寫清楚；所有按鈕描述其實際動作，原有朋友認帳與結果連結保持不變。
 - [x] 本機 `friend-recognition.cjs` 12/12 通過：精確連結複製、手動欄位聚焦、原連結新增朋友、主辦人接收及重新發布均驗證；外部寫入 0。
-- [ ] 推送 GitHub Pages 並確認正式部署的 R118 cache token、漏人流程及公開 E2E smoke。
+- [x] GitHub Pages workflow `42723350524` 成功，commit `ce23fbb` 已上線；正式首頁含 R118 指引及三個操作，index／PWA／SW／theme／tutorial 資產均 HTTP 200。
+- [x] 公開頁面 `friend-recognition.cjs` 12/12 與 `friend-navigation.cjs` 全部通過；`PUBLIC_STATIC_QA=1` 將所有 API 留在 mock，正式認帳／帳單寫入 0。
