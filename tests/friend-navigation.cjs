@@ -24,7 +24,7 @@ const sample = {
 };
 const detailUrl = share => {
   const url = new URL('detailed-view.html', base);
-  url.searchParams.set('v', 'v114-payment-font-accessibility-20261109');
+  url.searchParams.set('v', 'v116-friend-link-contrast-code-20261109');
   if (share !== undefined) url.searchParams.set('share', share);
   return url.href;
 };
@@ -38,6 +38,22 @@ async function assertFriendOnly(page) {
     return url.origin === location.origin && (url.pathname.endsWith('/index.html') || url.pathname === new URL('.', location.href).pathname);
   }).length);
   assert.equal(organizerLinks, 0, 'no organizer navigation exists on friend page');
+}
+async function assertBlueLinkContrast(page) {
+  const styles = await page.evaluate(() => {
+    const get = selector => { const node = document.querySelector(selector); const css = getComputedStyle(node); return { border: css.borderTopColor, width: css.borderTopWidth, background: css.backgroundColor }; };
+    return { page: getComputedStyle(document.body).backgroundColor, card: get('#preview-content .card'), member: get('#member-select'), control: get('#font-size-toggle'), optional: get('.optional'), icon: getComputedStyle(document.querySelector('.optional > summary'), '::after').borderTopColor };
+  });
+  assert.equal(styles.page, 'rgb(188, 202, 215)');
+  for (const key of ['card', 'member', 'control', 'optional']) {
+    assert.equal(styles[key].border, 'rgb(51, 78, 104)', `${key} has a dark blue outline`);
+    assert.equal(styles[key].width, '1px', `${key} keeps a thin outline`);
+  }
+  assert.equal(styles.card.background, 'rgb(213, 223, 232)');
+  assert.equal(styles.member.background, 'rgb(198, 212, 224)');
+  assert.equal(styles.control.background, 'rgb(197, 211, 223)');
+  assert.equal(styles.optional.background, 'rgb(213, 223, 232)');
+  assert.equal(styles.icon, 'rgb(51, 78, 104)');
 }
 (async () => {
   const browser = await chromium.launch({ headless: true, executablePath: process.env.CHROMIUM_EXECUTABLE || undefined, args: ['--no-sandbox', '--disable-dev-shm-usage'] });
@@ -82,6 +98,7 @@ async function assertFriendOnly(page) {
     await page.locator('#friend-page-heading').click();
     assert.equal(page.url(), address, 'the heading is text, not a return button');
     await page.locator('#member-select').selectOption({ label: '測試朋友' });
+    await assertBlueLinkContrast(page);
     assert.match(await page.locator('#grand-total').innerText(), /20/);
     await assertFriendOnly(page);
     assert.equal(await page.locator('#share-paid-notice').innerText(), '付款後請通知收款人');
@@ -111,6 +128,9 @@ async function assertFriendOnly(page) {
     assert.equal(await page.locator('body').evaluate(node => node.classList.contains('large-text')), true, 'large-text preference persists in this browser');
     await page.locator('#font-size-toggle').click();
     assert.equal(await page.locator('#font-size-toggle').innerText(), 'A+');
+    await page.emulateMedia({ colorScheme: 'dark' });
+    await assertBlueLinkContrast(page);
+    await page.emulateMedia({ colorScheme: 'light' });
     assert.equal(await page.locator('#font-size-toggle').getAttribute('aria-pressed'), 'false');
     const restoredFontSize = Number.parseFloat(await page.locator('#page-title').evaluate(node => getComputedStyle(node).fontSize));
     assert(Math.abs(restoredFontSize - normalFontSize) < 1, `A− restores normal text size: ${restoredFontSize}`);
@@ -136,18 +156,19 @@ async function assertFriendOnly(page) {
     const claim = new URL('claim.html', base);
     claim.searchParams.set('session', id);
     claim.searchParams.set('lang', 'zh-HK');
-    claim.searchParams.set('v', 'v114-payment-font-accessibility-20261109');
+    claim.searchParams.set('v', 'v116-friend-link-contrast-code-20261109');
     claim.hash = relay.buildHash(Buffer.from(JSON.stringify([{ id: '01', name: '茶', totalQty: null, unit: '' }])).toString('base64url'), relay.createRoom(), { title: '聚餐', createdAt: now, expiresAt: Date.parse(expiry) });
     await page.goto(claim.href, { waitUntil: 'domcontentloaded' });
     await page.locator('iframe.same-link-result').waitFor({ state: 'visible' });
-    assert.equal(await page.locator('body').evaluate(node => getComputedStyle(document.documentElement).getPropertyValue('--green-dark').trim()), '#326fae', 'claim link uses blue accents');
+    assert.equal(await page.locator('body').evaluate(node => getComputedStyle(document.documentElement).getPropertyValue('--green-dark').trim()), '#234f80', 'claim link uses blue accents');
     const element = await page.locator('iframe.same-link-result').elementHandle();
     const frame = await element.contentFrame();
     await frame.locator('#preview-content').waitFor({ state: 'visible' });
     await assertFriendOnly(frame);
-    assert.equal(new URL(frame.url()).searchParams.get('v'), 'v114-payment-font-accessibility-20261109');
+    assert.equal(new URL(frame.url()).searchParams.get('v'), 'v116-friend-link-contrast-code-20261109');
     await frame.locator('#friend-page-heading').click();
     await frame.locator('#member-select').selectOption({ label: '測試朋友' });
+    await assertBlueLinkContrast(frame);
     assert.match(await frame.locator('#grand-total').innerText(), /20/);
     assert.equal(await frame.locator('#share-paid-notice').innerText(), '付款後請通知收款人');
     assert.equal(await frame.locator('#font-size-toggle').isVisible(), true);

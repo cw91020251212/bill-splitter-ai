@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#78aee8">
+  <meta name="theme-color" content="#326fae">
   <meta name="description" content="在手機上填寫賬單項目認帳，按一下就交返發起人。">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
@@ -18,14 +18,14 @@
   <style>
     :root {
       color-scheme: light;
-      --green: #78aee8;
-      --green-dark: #326fae;
-      --green-soft: #eaf3fc;
+      --green: #326fae;
+      --green-dark: #234f80;
+      --green-soft: #c5d3df;
       --ink: #17231f;
-      --muted: #61716b;
-      --line: #d5e0da;
-      --paper: #fff;
-      --page: #c8ced6;
+      --muted: #516679;
+      --line: #334e68;
+      --paper: #d5dfe8;
+      --page: #bccad7;
       --danger: #b42318;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans HK", "PingFang HK", sans-serif;
     }
@@ -135,16 +135,16 @@
       .actions { grid-template-columns: 1fr; }
     }
 
-    /* Mobile-first, high-contrast neutral surfaces with the brand green retained. */
+    /* Mobile-first, high-contrast blue-gray surfaces for friend links. */
     :root {
-      --green: #78aee8;
-      --green-dark: #326fae;
-      --green-soft: #eaf3fc;
-      --ink: #1f2e26;
-      --muted: #4d5a53;
-      --line: #91afd0;
-      --paper: #fff;
-      --page: #d0dbe8;
+      --green: #326fae;
+      --green-dark: #234f80;
+      --green-soft: #c5d3df;
+      --ink: #17231f;
+      --muted: #516679;
+      --line: #334e68;
+      --paper: #d5dfe8;
+      --page: #bccad7;
     }
     html, body { background: var(--page); }
     body { color: var(--ink); }
@@ -315,6 +315,22 @@
     @media (max-width: 380px) {
       .submit-dock { margin-left: -12px; margin-right: -12px; }
     }
+    /* Dark, 1px outlines make the blue friend-link surfaces easier to distinguish. */
+    .panel, .item-card, .preview-panel, .qty-picker { border-color: #334e68; }
+    .panel, .item-card, .qty-picker { background-color: #d5dfe8; }
+    .name-input, .qty-input, .preview, .unit-select { border-color: #334e68; background-color: #c6d4e0; }
+    .name-input:focus, .qty-input:focus, .preview:focus, .unit-select:focus-visible { border-color: #203f5c; box-shadow: 0 0 0 2px rgba(51, 78, 104, .28); }
+    .unit-select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='m3 4.5 3 3 3-3' fill='none' stroke='%23334e68' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); }
+    .notice:not(.error) { background: #c8d6e1; border-color: #334e68; }
+    .count, .item-id { background: #c1cfdb; border-color: #334e68; }
+    .name-input[readonly] { background: #c6d4e0; color: #203f5c; }
+    .language-toggle, .button:not(.primary) { border-color: #334e68; background: #d5dfe8; }
+    #copy-button:not(:disabled), #share-button:not(:disabled) { background: #c6d4e0; border-color: #334e68; }
+    #copy-button:not(:disabled):hover, #share-button:not(:disabled):hover { background: #bac8d6; }
+    .button:focus-visible, .language-toggle:focus-visible, .qty-picker-trigger:focus-visible { outline: 2px solid #203f5c; outline-offset: 2px; }
+    .qty-picker-trigger { background: #c1cfdb; border-color: #334e68; }
+    .qty-picker-option[aria-pressed="true"], .qty-picker-option:hover, .qty-picker-option:focus-visible { background: #c1cfdb; }
+    .result-add-person-panel { border-top-color: #334e68; background: rgba(193, 207, 219, .98); }
   </style>
 </head>
 <body>
@@ -351,12 +367,12 @@
               <label id="auth-password-label" class="field-label" for="auth-password">認證碼（選填）</label>
             </div>
             <div class="code-input-row">
-              <input id="auth-password" class="name-input pin-input" type="text" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" autocomplete="off" aria-describedby="claim-auth-description" spellcheck="false">
+              <input id="auth-password" class="name-input pin-input" type="text" inputmode="text" maxlength="4" pattern="[!-~]{4}" autocomplete="off" aria-describedby="claim-auth-description" autocapitalize="none" spellcheck="false">
               <button id="auth-random-code" class="text-action" type="button" hidden>隨機</button>
             </div>
           </div>
         </div>
-        <p id="claim-auth-description" class="hint identity-hint">認證碼可以唔填。</p>
+        <p id="claim-auth-description" class="hint identity-hint">4 字碼（英數符號，分大小寫），可留空。</p>
         <div class="identity-tools">
           <button id="auth-legacy-mode" class="text-action" type="button">使用舊密碼</button>
           <button id="auth-reset" class="text-action" type="button" aria-expanded="false" aria-controls="auth-recovery">忘記認證碼？</button>
@@ -402,12 +418,12 @@
                   <label id="first-password-label" class="field-label" for="claim-password">認證碼（選填）</label>
                 </div>
                 <div class="code-input-row">
-                  <input id="claim-password" class="name-input pin-input" type="text" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" autocomplete="off" aria-describedby="first-password-hint" spellcheck="false">
+                  <input id="claim-password" class="name-input pin-input" type="text" inputmode="text" maxlength="4" pattern="[!-~]{4}" autocomplete="off" aria-describedby="first-password-hint" autocapitalize="none" spellcheck="false">
                   <button id="random-code" class="text-action" type="button">隨機</button>
                 </div>
               </div>
             </div>
-            <p id="first-password-hint" class="hint identity-hint">認證碼可以唔填。</p>
+            <p id="first-password-hint" class="hint identity-hint">4 字碼（英數符號，分大小寫），可留空。</p>
             <p id="person-hint" class="hint" hidden>填發起人認得的名字。</p>
             <div id="first-identity-tools" class="identity-tools">
               <button id="first-legacy-mode" class="text-action" type="button">使用舊密碼</button>
@@ -541,7 +557,7 @@
       const firstCode = document.getElementById('first-setup-code');
       const firstFeedback = document.getElementById('first-identity-status');
       const normalizeName = value => String(value || '').normalize('NFC').replace(/\s+/g, ' ').trim();
-      const validRecognitionCode = value => value === '' || /^[0-9]{4}$/.test(value);
+      const validRecognitionCode = value => value === '' || (value.length === 4 && /^[!-~]{4}$/.test(value));
       const quantityPickerValues = ['0.5', ...Array.from({ length: 50 }, (_, index) => String(index + 1))];
       const unitOptions = [
         { id: 'portion', zh: '份', en: 'portions', aliases: ['份', 'portion', 'portions', 'share', 'shares', 'serving', 'servings', 'serving(s)'] },
@@ -581,9 +597,9 @@
           waitingTitle: '認帳已修改，等候重新結算', initialWaitingTitle: '認帳已提交，等候結算', waitingDescription: '發起人收到新認帳後會重新計算。結果更新後，仍會顯示喺同一條連結。',
           addPersonTitle: '漏咗朋友？可補加另一位', addPersonDescription: '新朋友可用同一條連結填姓名和認帳；原有認帳不會被改。發起人收到後會重新計算。', addPersonButton: '新增一位',
           editHint: '保留同一姓名；重新提交會取代之前嘅認帳。', storageWarning: '此瀏覽器未能保存填寫資料；重新開啟後可能需要再填。', clearClaim: '取消之前所有認帳',
-          authTitle: '修改認帳', authDescription: '認證碼可以唔填。', password: '舊密碼', recognitionCode: '認證碼（選填）', newCode: '新認證碼', passwordHint: '認證碼可以唔填。', legacyHint: '用返之前設定嘅密碼。', noCodeHint: '之前冇設認證碼，留空就可以開啟。', pinHint: '填返你之前設定嘅四位認證碼。',
+          authTitle: '修改認帳', authDescription: '4 字碼（英數符號，分大小寫），可留空。', password: '舊密碼', recognitionCode: '認證碼（選填）', newCode: '新認證碼', passwordHint: '4 字碼（英數符號，分大小寫），可留空。', legacyHint: '用返之前設定嘅密碼。', noCodeHint: '之前冇設認證碼，留空就可以開啟。', pinHint: '填返之前設定嘅 4 字碼。',
           confirmPassword: '開啟認帳', setPassword: '重設並開啟', checkingPassword: '正在核對…', resetPassword: '忘記認證碼？', codeLabel: '發起人確認碼', codeHint: '填確認碼，再喺上面揀新認證碼。', initialCodeHint: '填確認碼，再喺上面揀新認證碼。', ownerReset: '已有發起人確認碼？', randomCode: '隨機', useLegacy: '使用舊密碼', useCode: '使用認證碼', retryCode: '再試一次', anotherName: '重新填寫（另一暱稱）', retrieve: '搵返認帳', knownName: '呢個名已有認帳；用返認證碼，或者搵返再修改。', anotherNameHint: '請用另一個暱稱；原本嘅認帳唔會改。',
-          pinInvalid: '填四位數字，或者留空。', pinRequired: '請填返四位認證碼。', passwordShort: '舊密碼至少 8 個字。', passwordWrong: '姓名或認證碼唔啱，再試一次。', legacyWrong: '舊密碼唔啱，再試一次。', approvalNeeded: '要重設嘅話，先向發起人拎確認碼。', protectionNeeded: '服務未準備好，請發起人更新連結。', authNetwork: '暫時連唔到，請再試。', authExpired: '修改時限已過，請再開啟認帳。', noProtectedSession: '呢條舊連結唔支援修改，請向發起人拎新連結。', tooManyPasswords: seconds => `試得太多，${Math.ceil(seconds / 60)} 分鐘後再試。`,
+          pinInvalid: '填 4 字碼（不含空格），或留空。', pinRequired: '請填返 4 字碼。', passwordShort: '舊密碼至少 8 個字。', passwordWrong: '姓名或認證碼唔啱，再試一次。', legacyWrong: '舊密碼唔啱，再試一次。', approvalNeeded: '要重設嘅話，先向發起人拎確認碼。', protectionNeeded: '服務未準備好，請發起人更新連結。', authNetwork: '暫時連唔到，請再試。', authExpired: '修改時限已過，請再開啟認帳。', noProtectedSession: '呢條舊連結唔支援修改，請向發起人拎新連結。', tooManyPasswords: seconds => `試得太多，${Math.ceil(seconds / 60)} 分鐘後再試。`,
           submitFail: '暫時未能提交，請重試或用 WhatsApp 後備。',
           rateLimit: '提交人數太多，請稍後重試。',
           tooLarge: '回覆太長，請用 WhatsApp 後備。',
@@ -623,9 +639,9 @@
           waitingTitle: 'Items updated; waiting for recalculation', initialWaitingTitle: 'Items submitted; waiting for calculation', waitingDescription: 'The organizer will calculate your updated items. The result will appear on this same link.',
           addPersonTitle: 'Forgot someone? Add another person', addPersonDescription: 'Use this same link to enter another name and their claims. Existing claims stay unchanged; the organizer will recalculate.', addPersonButton: 'Add person',
           editHint: 'Keep the same name. Resubmitting replaces your previous reply.', storageWarning: 'This browser cannot save your entries. You may need to enter them again after reopening.', clearClaim: 'Cancel all previous item claims',
-          authTitle: 'Edit items', authDescription: 'You can leave the code blank.', password: 'Old password', recognitionCode: 'Code (optional)', newCode: 'New code', passwordHint: 'You can leave the code blank.', legacyHint: 'Use the password you set before.', noCodeHint: 'You did not set a code; leave it blank to open.', pinHint: 'Enter the four-digit code you set before.',
+          authTitle: 'Edit items', authDescription: '4 letters, digits or symbols; case-sensitive. Optional.', password: 'Old password', recognitionCode: 'Code (optional)', newCode: 'New code', passwordHint: '4 letters, digits or symbols; case-sensitive. Optional.', legacyHint: 'Use the password you set before.', noCodeHint: 'You did not set a code; leave it blank to open.', pinHint: 'Enter the 4-character code you set.',
           confirmPassword: 'Open items', setPassword: 'Reset and open', checkingPassword: 'Checking…', resetPassword: 'Forgot code?', codeLabel: 'Organizer confirmation code', codeHint: 'Enter the confirmation code and choose a new code above.', initialCodeHint: 'Enter the confirmation code and choose a new code above.', ownerReset: 'Have an organizer code?', randomCode: 'Random', useLegacy: 'Use old password', useCode: 'Use code', retryCode: 'Try again', anotherName: 'Start again (another name)', retrieve: 'Find my items', knownName: 'This name has items already. Use your code or find them to edit.', anotherNameHint: 'Use another nickname. Your original items will not change.',
-          pinInvalid: 'Enter four digits or leave blank.', pinRequired: 'Enter your four-digit code.', passwordShort: 'Old passwords have at least 8 characters.', passwordWrong: 'Name or code does not match. Try again.', legacyWrong: 'Old password does not match. Try again.', approvalNeeded: 'To reset, ask the organizer for a confirmation code.', protectionNeeded: 'Service not ready. Ask the organizer to update the link.', authNetwork: 'Could not connect. Please retry.', authExpired: 'Editing access expired. Open your items again.', noProtectedSession: 'This old link cannot edit items. Ask for a new link.', tooManyPasswords: seconds => `Too many attempts. Try again in ${Math.ceil(seconds / 60)} minutes.`,
+          pinInvalid: 'Enter 4 characters (no spaces), or leave blank.', pinRequired: 'Enter your 4-character code.', passwordShort: 'Old passwords have at least 8 characters.', passwordWrong: 'Name or code does not match. Try again.', legacyWrong: 'Old password does not match. Try again.', approvalNeeded: 'To reset, ask the organizer for a confirmation code.', protectionNeeded: 'Service not ready. Ask the organizer to update the link.', authNetwork: 'Could not connect. Please retry.', authExpired: 'Editing access expired. Open your items again.', noProtectedSession: 'This old link cannot edit items. Ask for a new link.', tooManyPasswords: seconds => `Too many attempts. Try again in ${Math.ceil(seconds / 60)} minutes.`,
           submitFail: 'Could not submit. Try again or use the WhatsApp fallback.',
           rateLimit: 'Too many replies. Try again later.',
           tooLarge: 'Reply too long. Use the WhatsApp fallback.',
@@ -762,13 +778,13 @@
         if (input.type !== nextType) input.value = '';
         input.type = nextType;
         input.maxLength = legacy ? 128 : 4;
-        input.inputMode = legacy ? 'text' : 'numeric';
+        input.inputMode = 'text';
         input.autocomplete = legacy ? 'current-password' : 'off';
         input.classList.toggle('pin-input', !legacy);
         input.classList.toggle('legacy-password', legacy);
         input.closest('.identity-row').classList.toggle('legacy-code', legacy);
         if (legacy) { input.minLength = 8; input.removeAttribute('pattern'); }
-        else { input.removeAttribute('minlength'); input.setAttribute('pattern', '[0-9]{4}'); }
+        else { input.removeAttribute('minlength'); input.setAttribute('pattern', '[!-~]{4}'); input.autocapitalize = 'none'; }
       }
 
       function updateFirstIdentity() {
@@ -1057,7 +1073,7 @@
           resultFrame.className = 'same-link-result';
           resultFrame.title = language === 'en' ? 'Final bill result' : '最終分帳結果';
           const resultUrl = new URL('./detailed-view.html', location.href);
-          resultUrl.searchParams.set('v', 'v114-payment-font-accessibility-20261109');
+          resultUrl.searchParams.set('v', 'v116-friend-link-contrast-code-20261109');
           resultUrl.searchParams.set('share', sessionId);
           if (session.expiresAt) resultUrl.searchParams.set('e', String(Math.floor(Date.parse(session.expiresAt) / 1000)));
           resultFrame.src = resultUrl.href;
@@ -1400,17 +1416,26 @@
       });
       nameInput.addEventListener('blur', loadFirstIdentityStatus);
       [firstPassword, authPassword].forEach(input => input.addEventListener('input', () => {
-        if (input.type === 'text') input.value = input.value.replace(/[^0-9]/g, '').slice(0, 4);
+        if (input.type === 'text') input.value = input.value.replace(/[^!-~]/g, '').slice(0, 4);
         if (input === firstPassword) { clearSubmitStatus(); updatePreview(); }
         else authFeedback.textContent = '';
       }));
       firstCode.addEventListener('input', () => { clearSubmitStatus(); updatePreview(); });
       function generateRecognitionCode(input) {
         if (!window.crypto?.getRandomValues) { showToast(messages[language].noCrypto); return; }
-        const bytes = new Uint16Array(1);
-        // Rejection sampling keeps all 10,000 choices equally likely.
-        do { window.crypto.getRandomValues(bytes); } while (bytes[0] >= 60000);
-        input.value = String(bytes[0] % 10000).padStart(4, '0');
+        const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!#$%&'()*+,-./:;<=>?@[]^_{|}~";
+        const limit = Math.floor(256 / alphabet.length) * alphabet.length;
+        const bytes = new Uint8Array(16);
+        let code = '';
+        while (code.length < 4) {
+          window.crypto.getRandomValues(bytes);
+          for (const byte of bytes) {
+            if (byte >= limit) continue;
+            code += alphabet[byte % alphabet.length];
+            if (code.length === 4) break;
+          }
+        }
+        input.value = code;
         input.dispatchEvent(new Event('input', { bubbles: true })); input.focus({ preventScroll: true });
       }
       document.getElementById('random-code').addEventListener('click', () => generateRecognitionCode(firstPassword));
@@ -1521,7 +1546,7 @@
         const reset = document.getElementById('first-code-row').open;
         const legacy = firstLegacyMode && !reset;
         if (!editingClaim && (legacy ? Array.from(firstPassword.value).length < 8 : !validRecognitionCode(firstPassword.value))) { updatePreview(); return; }
-        if (!editingClaim && reset && (!/^[0-9]{4}$/.test(firstPassword.value) || !firstCode.value.trim())) {
+        if (!editingClaim && reset && (!(firstPassword.value.length === 4 && /^[!-~]{4}$/.test(firstPassword.value)) || !firstCode.value.trim())) {
           firstFeedback.textContent = firstCode.value.trim() ? text.pinRequired : text.approvalNeeded; return;
         }
         submitting = true;

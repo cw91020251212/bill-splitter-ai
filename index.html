@@ -77,11 +77,11 @@
     ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
   ::-webkit-scrollbar-thumb:hover { background: #64748b; }
   </style>
-  <link rel="stylesheet" href="./theme.css?v=v115-claims-stage-colors-20261109">
+  <link rel="stylesheet" href="./theme.css?v=v116-friend-link-contrast-code-20261109">
   <link rel="stylesheet" href="./tutorial.css?v=v86-free-models-only">
   <!-- R114: current interactive guide; original video lessons retained. -->
-  <meta name="bill-app-release" content="v115-claims-stage-colors-20261109">
-  <script defer src="./pwa.js?v=v115-claims-stage-colors-20261109"></script>
+  <meta name="bill-app-release" content="v116-friend-link-contrast-code-20261109">
+  <script defer src="./pwa.js?v=v116-friend-link-contrast-code-20261109"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
@@ -96,7 +96,7 @@
   <script src="./card-redaction.js?v=v97-card-number-redaction"></script>
   <script src="./card-share-review.js?v=v97-card-number-redaction"></script>
   <script src="./exchange-rates.js?v=v90-cross-currency-settlement"></script>
-  <script src="./tutorial.js?v=v115-claims-stage-colors-20261109"></script>
+  <script src="./tutorial.js?v=v116-friend-link-contrast-code-20261109"></script>
   <script type="text/babel">
     const { useState, useRef, useEffect, useLayoutEffect, useMemo } = React;
     const tr = value => window.BillI18n.t(value);
@@ -3491,7 +3491,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
         const metadata = getClaimLinkMetadata();
         const link = new URL('./claim.html', window.location.href);
         link.searchParams.set('lang', lang === 'en' ? 'en' : 'zh-HK');
-        link.searchParams.set('v', 'v114-ocr-random-router-option');
+        link.searchParams.set('v', 'v116-friend-link-contrast-code-20261109');
         link.searchParams.set('session', session.id);
         link.hash = window.ClaimRelay
           ? window.ClaimRelay.buildHash(encodeClaimLinkPayload(payload), room, metadata)
@@ -4120,7 +4120,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
       const claimSecurityManagementCard = !tutorialDemo && claimSession?.link ? (
         <details data-testid="claim-password-management" className="rounded-xl border border-slate-300 bg-white p-4 space-y-3">
           <summary className="cursor-pointer text-sm font-bold text-slate-700">{bi('認證碼重設（有需要先開）', 'Reset recognition code (if needed)')}</summary>
-          <p className="text-sm leading-relaxed text-slate-700">{bi('朋友填姓名就可以認帳；四位認證碼可以唔填。忘記已設嘅碼或舊密碼，可以由你提供一次性確認碼重設，原認帳會保留。', 'Friends can claim with a name; the four-digit code is optional. If they forget a saved code or old password, provide a one-time reset code here; existing claims are kept.')}</p>
+          <p className="text-sm leading-relaxed text-slate-700">{bi('朋友填姓名就可以認帳；4 字認證碼可選填。忘記已設嘅碼或舊密碼，可由你提供一次性確認碼重設，原認帳會保留。', 'Friends can claim with a name; the 4-character code is optional. If they forget it or an old password, provide a one-time reset code; existing claims stay.')}</p>
           <p className="text-xs leading-relaxed text-slate-600">{bi('請把確認碼私下交畀本人；唔使每個朋友都設定。', 'Give the reset code privately to the person; not everyone needs to set a code.')}</p>
           <p data-testid="claim-protection-status" role="status" aria-live="polite" className={`text-sm font-semibold leading-relaxed ${claimSecureError ? 'text-red-800' : 'text-emerald-900'}`}>
             {claimSecureError || (claimSecurePhase === 'setting-up'
@@ -4658,7 +4658,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                 <div className="border-t border-slate-400 my-6 pt-6 space-y-6">
                   <div data-testid="claim-share-block" className="claim-share-block">
                     <Label className="flex items-center justify-between mb-3"><span>{tr("1. 分享認帳連結")}</span></Label>
-                    <p className="text-base text-slate-700 mb-3 leading-relaxed">{claimRoom && !claimSession && !tutorialDemo ? bi('請建立新的受保護連結；舊連結只可手動交回及核對。', 'Create a protected link; the old link supports manual replies and checking only.') : bi('朋友填姓名和項目；認證碼選填。', 'Friends enter a name and items to submit; the four-digit recognition code is optional.')}</p>
+                    <p className="text-base text-slate-700 mb-3 leading-relaxed">{claimRoom && !claimSession && !tutorialDemo ? bi('請建立新的受保護連結；舊連結只可手動交回及核對。', 'Create a protected link; the old link supports manual replies and checking only.') : bi('朋友填姓名和項目；4 字認證碼可選填。', 'Friends enter a name and items; the 4-character code is optional.')}</p>
                     <p className="text-sm text-emerald-800 mb-3 leading-relaxed">{bi('朋友先認帳；你結算後，結果更新到同一連結。', 'Share one link: friends enter their items, and your calculated result updates the same link automatically.')}</p>
                     <div data-testid="claim-link-actions" className="flex flex-col gap-3">
                       <Button data-testid="copy-friend-claim-link" variant="secondary" onClick={generateFriendClaimLink} className="!w-full text-sm bg-white hover:bg-slate-50 border-slate-500">

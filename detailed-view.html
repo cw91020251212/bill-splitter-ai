@@ -124,29 +124,29 @@
     }
     @media(min-width:721px) { .receipt-grid[data-count="2"] { grid-template-columns:1fr; } }
     body.shared-link-view {
-      --ink:#203247; --muted:#586d82; --line:#a8bfd9; --separator:#d8e4f0;
-      --paper:#f2f6fb; --green:#70a5dc; --green-dark:#326fae; --green-pale:#eaf3fc;
-      --shadow:0 12px 32px rgba(47,96,150,.08);
+      --ink:#203247; --muted:#586d82; --line:#334e68; --separator:#637b91;
+      --paper:#bccad7; --green:#70a5dc; --green-dark:#326fae; --green-pale:#c5d3df;
+      --shadow:0 12px 32px rgba(32,63,92,.14);
     }
     body.shared-link-view a:focus-visible,
     body.shared-link-view button:focus-visible,
-    body.shared-link-view summary:focus-visible { outline:3px solid rgba(50,111,174,.35); }
+    body.shared-link-view summary:focus-visible { outline:2px solid #203f5c; }
     body.shared-link-view .back,
     body.shared-link-view .member-gate--selected h1 { color:#326fae; }
     body.shared-link-view .edit-claims-button,
     body.shared-link-view .font-size-toggle,
     body.shared-link-view .item-detail-toggle {
-      border-color:#9bb9da; background:#eef5fc; color:#326fae;
+      border-color:#334e68; background:#c5d3df; color:#234f80;
     }
-    body.shared-link-view .member-gate select { border-color:#9bb9da; }
-    body.shared-link-view .member-gate select:focus-visible { outline:3px solid rgba(50,111,174,.28); }
+    body.shared-link-view .member-gate select { border-color:#334e68; background:#c6d4e0; }
+    body.shared-link-view .member-gate select:focus-visible { outline:2px solid #203f5c; }
     body.shared-link-view .total-card {
-      border-color:#326fae; background:linear-gradient(120deg,#4b88c4,#3978b6);
+      border-color:#334e68; background:linear-gradient(120deg,#4b88c4,#3978b6);
       box-shadow:0 8px 22px rgba(47,96,150,.12);
     }
     body.shared-link-view .copy-amount-button { border-color:rgba(255,255,255,.85); background:rgba(255,255,255,.14); }
     body.shared-link-view .paid-notice-button {
-      border-color:#326fae; background-color:#3978b6;
+      border-color:#334e68; background-color:#3978b6;
       background-image:linear-gradient(to top right,#326fae 0%,#3978b6 60%,#4c8dc9 100%);
     }
     body.shared-link-view .paid-notice-button:not(:disabled):hover {
@@ -156,7 +156,24 @@
     body.shared-link-view .paid-notice-status,
     body.shared-link-view .personal-breakdown .detail-list dt:last-of-type,
     body.shared-link-view .personal-breakdown .detail-list dd:last-of-type { color:#326fae; }
-    body.shared-link-view .optional > summary::after { border-color:#bdd0e5; color:#4b84bd; }
+    body.shared-link-view .optional > summary::after { border-color:#334e68; color:#234f80; }
+    body.shared-link-view .topbar { background:rgba(188,202,215,.98); }
+    body.shared-link-view .empty,
+    body.shared-link-view .member-gate,
+    body.shared-link-view .card,
+    body.shared-link-view .optional { border-color:#334e68; background-color:#d5dfe8; }
+    body.shared-link-view .local-tag { border-color:#334e68; background:#c1cfdb; }
+    body.shared-link-view th { background:#c1cfdb; color:#203f5c; }
+    body.shared-link-view .item-extra,
+    body.shared-link-view .receipt-photo,
+    body.shared-link-view .photo-placeholder,
+    body.shared-link-view .notice { background:#c8d6e1; }
+    body.shared-link-view .receipt-photo { border-color:#334e68; }
+    body.shared-link-view .receipt-photo img { background:#c8d6e1; }
+    body.shared-link-view #payment-instructions { border-color:#334e68; background:#c8d6e1; }
+    body.shared-link-view .copy-amount-button { border-color:#203f5c; background:#c5d3df; color:#203f5c; }
+    body.shared-link-view .copy-amount-button:hover { background:#bac8d6; }
+    body.shared-link-view .paid-notice-button:focus-visible { outline:2px solid #203f5c; }
   </style>
 </head>
 <body>

@@ -529,9 +529,9 @@ test('optional four-digit PIN preserves leading zeroes, registers, and authorize
   assertNoSecrets(unlocked.body, [protectedMember.recognitionCode.hash, protectedMember.recognitionCode.salt]);
 });
 
-test('initial recognition input is strictly empty string or four ASCII digits and invalid attempts reserve no names', async () => {
+test('recognition input is blank or exactly four printable ASCII characters and invalid attempts reserve no names', async () => {
   const { env, id } = await session();
-  for (const recognitionCode of [null, 1234, false, [], {}, '123', '12345', ' 1234', '1234 ', '１２３４', '12a4', '12\n4']) {
+  for (const recognitionCode of [null, 1234, false, [], {}, '123', '12345', ' 123', '12 4', '1234 ', '1234\n', '１２３４', 'éA12', '12\n4']) {
     const denied = await post(env, id, 'submit', input('Alice', 1, { recognitionCode }));
     assert.equal(denied.status, 400, JSON.stringify(recognitionCode));
     assert.equal(denied.body.code, 'invalid_recognition_code');
@@ -543,8 +543,12 @@ test('initial recognition input is strictly empty string or four ASCII digits an
     assert.equal(missing.body.code, 'not_registered');
   }
   assert.equal(members(env, id).length, 0);
-  assert.equal((await post(env, id, 'submit', input('Alice', 1, { recognitionCode: '0000' }))).status, 200);
-  assert.equal((await post(env, id, 'unlock', { name: 'Alice', recognitionCode: '0000' })).status, 200);
+  assert.equal((await post(env, id, 'submit', input('Numeric', 1, { recognitionCode: '0000' }))).status, 200);
+  assert.equal((await post(env, id, 'unlock', { name: 'Numeric', recognitionCode: '0000' })).status, 200);
+  assert.equal((await post(env, id, 'submit', input('Mixed', 1, { recognitionCode: 'aZ#4' }))).status, 200);
+  const wrongCase = await post(env, id, 'unlock', { name: 'Mixed', recognitionCode: 'Az#4' });
+  assert.equal(wrongCase.status, 403);
+  assert.equal((await post(env, id, 'unlock', { name: 'Mixed', recognitionCode: 'aZ#4' })).status, 200);
 });
 
 test('submitted none name cannot be seized by adding PIN; own name-issued ticket may set and later change PIN', async () => {
@@ -599,7 +603,7 @@ test('R104 stored password without kind field still works, cannot be blank-bypas
   assert.equal((await post(env, id, 'unlock', { name: 'Alice', password: PASSWORD })).status, 200);
 });
 
-test('owner reset to PIN requires owner approval and nonblank four digits; preserves old auth until atomic redemption', async () => {
+test('owner reset requires approval and a nonblank four-character code; preserves old auth until atomic redemption', async () => {
   const { env, id, writeToken } = await session();
   await post(env, id, 'submit', input('Alice', 1, { password: PASSWORD }));
   const oldTicket = (await post(env, id, 'unlock', { name: 'Alice', password: PASSWORD })).body.editToken;
@@ -608,23 +612,23 @@ test('owner reset to PIN requires owner approval and nonblank four digits; prese
   const approval = await post(env, id, 'approve', { name: 'Alice' }, { owner: writeToken });
   assert.equal(approval.status, 200);
   assert.deepEqual(members(env, id)[0].password, before.password);
-  for (const recognitionCode of ['', '123', 1234]) {
+  for (const recognitionCode of ['', '123', '12345', '1 34', '四abc', 1234]) {
     const denied = await post(env, id, 'unlock', { name: 'Alice', recognitionCode, setupCode: approval.body.setupCode });
     assert.equal(denied.status, 400);
     assert.equal(denied.body.code, 'invalid_recognition_code');
     assert.deepEqual(members(env, id)[0].password, before.password);
   }
-  assert.equal((await post(env, id, 'unlock', { name: 'Alice', recognitionCode: '0042', setupCode: 'forged' })).status, 409);
+  assert.equal((await post(env, id, 'unlock', { name: 'Alice', recognitionCode: 'aZ#4', setupCode: 'forged' })).status, 409);
   assert.equal((await post(env, id, 'unlock', { name: 'Alice', password: PASSWORD })).status, 200);
-  const reset = await post(env, id, 'unlock', { name: 'Alice', recognitionCode: '0042', setupCode: approval.body.setupCode });
+  const reset = await post(env, id, 'unlock', { name: 'Alice', recognitionCode: 'aZ#4', setupCode: approval.body.setupCode });
   assert.equal(reset.status, 200);
   assert.equal(reset.body.payload.claims[0].qty, 1);
   assert.equal((await status(env, id, 'Alice')).body.credentialKind, 'pin');
   assert.equal((await post(env, id, 'unlock', { name: 'Alice', password: PASSWORD })).status, 403);
   assert.equal((await post(env, id, 'submit', input('Alice', 99, { recognitionCode: '', editToken: oldTicket }))).status, 403);
-  assert.equal((await post(env, id, 'unlock', { name: 'Alice', recognitionCode: '0042', setupCode: approval.body.setupCode })).status, 409);
+  assert.equal((await post(env, id, 'unlock', { name: 'Alice', recognitionCode: 'aZ#4', setupCode: approval.body.setupCode })).status, 409);
   assert.equal((await post(env, id, 'submit', input('Alice', 2, { recognitionCode: '', editToken: reset.body.editToken }))).status, 200);
-  assert.equal((await post(env, id, 'unlock', { name: 'Alice', recognitionCode: '0042' })).status, 200);
+  assert.equal((await post(env, id, 'unlock', { name: 'Alice', recognitionCode: 'aZ#4' })).status, 200);
 });
 
 test('missing and malformed PIN failures share persistent quota; a ticket or correct PIN cannot bypass a block', async () => {

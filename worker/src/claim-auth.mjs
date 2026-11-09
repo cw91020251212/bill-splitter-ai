@@ -37,8 +37,8 @@ function passwordInput(password) {
   return password; // Deliberately do not normalize passwords; Unicode is supported verbatim.
 }
 function recognitionInput(code, allowBlank = true) {
-  if (typeof code !== 'string' || !(allowBlank && code === '') && !/^\d{4}$/.test(code)) fail(400, 'invalid_recognition_code');
-  return code; // Preserve leading zeroes; never coerce to a number or normalize.
+  if (typeof code !== 'string' || !(allowBlank && code === '') && !(code.length === 4 && /^[!-~]{4}$/.test(code))) fail(400, 'invalid_recognition_code');
+  return code; // Preserve exact text and case; never trim, coerce or normalize.
 }
 async function credentialHash(pepper, credential, salt) {
   const prehash = await hmac(pepper, credential);
@@ -229,7 +229,7 @@ export class ClaimAuth {
       const hash = await credentialHash(this.env.CLAIM_PASSWORD_PEPPER, input.password, member.password.salt);
       if (!equal(member.password.hash, hash)) return this.wrong(keys, now, 'wrong_password');
     } else if (kind === 'pin') {
-      if (typeof input.recognitionCode !== 'string' || !/^\d{4}$/.test(input.recognitionCode)) return this.wrong(keys, now, 'wrong_recognition_code');
+      if (typeof input.recognitionCode !== 'string' || input.recognitionCode.length !== 4 || !/^[!-~]{4}$/.test(input.recognitionCode)) return this.wrong(keys, now, 'wrong_recognition_code');
       const hash = await credentialHash(this.env.CLAIM_PASSWORD_PEPPER, input.recognitionCode, member.recognitionCode.salt);
       if (!equal(member.recognitionCode.hash, hash)) return this.wrong(keys, now, 'wrong_recognition_code');
     } else if (kind === 'reserved' && op === 'submit') {

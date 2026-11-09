@@ -22,8 +22,8 @@ const site = new URL(base.pathname.endsWith('.html') ? './' : (base.pathname.end
 const OUT = '/home/ubuntu/bill-R105-qa';
 const A = 'QA無碼朋友', B = 'QA保護朋友', C = 'QA新暱稱', LATE = 'QA遲加入朋友';
 const INITIAL_QTY = 1.234, REVISED_QTY = 1.2345;
-const PIN = '0042', WRONG = '9937', PASSWORD = 'QA-legacy-password-2026!';
-const secrets = new Set([PIN, WRONG, PASSWORD]), owners = new Set(), steps = [], errors = [], blocked = [], pages = [], runtimes = new Map();
+const PIN = '0042', WRONG = '9937', SYMBOL_PIN = 'aZ#4', SYMBOL_WRONG = 'Az#4', PASSWORD = 'QA-legacy-password-2026!';
+const secrets = new Set([PIN, WRONG, SYMBOL_PIN, SYMBOL_WRONG, PASSWORD]), owners = new Set(), steps = [], errors = [], blocked = [], pages = [], runtimes = new Map();
 let harness, browser, workerOrigin, stage = 'readiness', metrics = {};
 function pass(label) { steps.push(label); console.log(`PASS ${label}`); }
 function remember(body) { for (const key of ['editToken', 'setupCode', 'writeToken']) if (body?.[key]) { secrets.add(body[key]); if (key === 'writeToken') owners.add(body[key]); } return body; }
@@ -56,12 +56,15 @@ async function backend() {
   const open = remember(status(await post(c.id, 'unlock', { name: A, recognitionCode: '' }), 200, 'name and blank code retrieve'));
   assert.equal(open.payload.claims[0].qty, 1); secretFree(open.payload);
   status(await post(c.id, 'submit', payload(A, 2, { recognitionCode: '' })), 200, 'blank code revision');
-  for (const invalid of ['123', '12345', 'abcd']) status(await post(c.id, 'submit', payload('QA格式測試', 1, { recognitionCode: invalid })), 400, 'only blank or exactly four digits');
+  for (const invalid of ['123', '12345', 'a#3']) status(await post(c.id, 'submit', payload('QA格式測試', 1, { recognitionCode: invalid })), 400, 'only blank or exactly four printable ASCII characters');
   status(await post(c.id, 'submit', payload(B, 1, { recognitionCode: PIN })), 200, 'leading-zero PIN first submit'); await kind(c.id, B, 'pin');
   for (const [n, code] of [WRONG, '', undefined].entries()) { const rejected = await post(c.id, 'unlock', { name: B, ...(code === undefined ? {} : { recognitionCode: code }) }, { ip: `203.0.113.${110 + n}` }); status(rejected, 403, 'wrong, blank or missing PIN retrieval denied'); assert.equal(rejected.body.code, 'wrong_recognition_code'); assert.equal(rejected.body.payload, undefined); secretFree(rejected.body); }
   status(await post(c.id, 'submit', payload(B, 99, { recognitionCode: '' }), { ip: '203.0.113.114' }), 403, 'blank cannot overwrite PIN member');
-  const pin = remember(status(await post(c.id, 'unlock', { name: B, recognitionCode: PIN }), 200, 'correct four digits retrieve'));
+  const pin = remember(status(await post(c.id, 'unlock', { name: B, recognitionCode: PIN }), 200, 'correct 4-character numeric code retrieve'));
   assert.equal(pin.payload.claims[0].qty, 1);
+  status(await post(c.id, 'submit', payload('QA符號認證', 1, { recognitionCode: SYMBOL_PIN })), 200, 'mixed-case symbol code enrollment');
+  assert.equal((await post(c.id, 'unlock', { name: 'QA符號認證', recognitionCode: SYMBOL_WRONG })).status, 403, 'code comparison preserves case');
+  assert.equal((await post(c.id, 'unlock', { name: 'QA符號認證', recognitionCode: SYMBOL_PIN })).status, 200, 'mixed-case symbol code unlock');
   status(await post(c.id, 'submit', payload(B, 3, { editToken: pin.editToken })), 200, 'PIN editor ticket revision');
   await kind(c.id, B, 'pin');
   assert.equal(status(await post(c.id, 'unlock', { name: B, recognitionCode: PIN }), 200, 'ticket-only revision retains PIN').payload.claims[0].qty, 3);
@@ -75,7 +78,7 @@ async function backend() {
   status(await post(legacy.id, 'unlock', { name: B, recognitionCode: '' }), 409, 'unenabled legacy session still requires owner setup');
   status(await post(legacy.id, 'setup', { members: [] }, { owner: legacy.writeToken }), 200, 'seed old protected member'); await kind(legacy.id, B, 'reserved');
   const reserved = status(await post(legacy.id, 'unlock', { name: B, recognitionCode: '' }), 200, 'enabled reserved name retrieves without per-name owner approval'); assert.equal(reserved.payload.claims[0].qty, 1);
-  await publish(c, [payload(A, 2), payload(B, 3), payload('QA舊密碼')]); secretFree(status(await call(c.id), 200, 'public result'));
+  await publish(c, [payload(A, 2), payload(B, 3), payload('QA舊密碼'), payload('QA符號認證', 1)]); secretFree(status(await call(c.id), 200, 'public result'));
   secretFree(status(await call(c.id, '/claims/inbox?after=0', { owner: c.writeToken }), 200, 'organizer inbox'));
   harness.nowFor(c.id, Date.parse(c.expiresAt) + 1);
   status(await post(c.id, 'submit', payload(A, 4, { recognitionCode: '' })), 410, 'expired optional-code mutation'); assert.equal(harness.record(c.id), null); assert.equal(harness.objects.get(c.id).ctx.data.size, 0);
@@ -129,31 +132,51 @@ async function compactInitial(page) {
   assert.equal(codeStyle.textAlign, 'center', 'R107 centers the code inside the single field');
   assert(/選填|optional/i.test(await page.locator('#first-password-label').innerText()), 'optional is explicit beside the code label');
   assert.equal(await code.getAttribute('required'), null, 'recognition code is optional');
+  assert.equal(await code.getAttribute('inputmode'), 'text', 'recognition code uses a text keyboard');
+  assert.equal(await code.getAttribute('autocapitalize'), 'none', 'letter case is preserved on mobile');
   assert.equal(await page.locator('#claim-password-repeat:visible').count(), 0, 'no repeated password field');
   assert(!/至少\s*8|at least\s*8|再輸入一次密碼|Enter the password again/i.test(await page.locator('#claim-content').innerText()), 'no visible mandatory-eight/password-repeat copy');
-  assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), '390px has no horizontal overflow');
+  const palette = await page.evaluate(() => {
+    const style = selector => { const node = document.querySelector(selector); const css = getComputedStyle(node); return { border: css.borderTopColor, width: css.borderTopWidth, background: css.backgroundColor }; };
+    return { panel: style('#claim-content .panel'), item: style('#claim-content .item-card'), input: style('#person-name'), unit: style('.unit-select'), page: getComputedStyle(document.body).backgroundColor };
+  });
+  const isDarkOutline = color => {
+    const channels = color.match(/\d+(?:\.\d+)?/g)?.slice(0, 3).map(Number) || [];
+    return channels.length === 3 && channels.every(channel => channel < 128);
+  };
+  assert(isDarkOutline(palette.panel.border)); assert.equal(palette.panel.width, '1px');
+  assert(isDarkOutline(palette.item.border)); assert(isDarkOutline(palette.input.border)); assert.equal(palette.input.width, '1px');
+  assert(isDarkOutline(palette.unit.border)); assert.equal(palette.input.background, 'rgb(198, 212, 224)');
+  assert.equal(palette.panel.background, 'rgb(213, 223, 232)');
+  assert.equal(palette.page, 'rgb(188, 202, 215)');
+  const lightPage = palette.page;
+  await page.emulateMedia({ colorScheme: 'dark' });
+  assert(isDarkOutline(await page.locator('#person-name').evaluate(node => getComputedStyle(node).borderTopColor)), 'OS dark preference retains a dark outline');
+  assert.equal(await page.locator('body').evaluate(node => getComputedStyle(node).backgroundColor), lightPage, 'friend claim page keeps its independent blue-gray surface');
+  await page.emulateMedia({ colorScheme: 'light' });
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, '390px has no horizontal overflow');
   return code;
 }
 async function focusedCode(page, input, label) {
-  await input.focus(); await input.pressSequentially('1234');
-  assert.equal(await input.inputValue(), '1234', `${label}: retains all four entered digits`);
+  await input.focus(); await input.pressSequentially(SYMBOL_PIN);
+  assert.equal(await input.inputValue(), SYMBOL_PIN, `${label}: retains mixed-case letters and symbol`);
   const focused = await input.evaluate(n => ({ scrollLeft: n.scrollLeft, scrollWidth: n.scrollWidth, clientWidth: n.clientWidth }));
   assert.equal(focused.scrollLeft, 0, `${label}: caret at end must not scroll first digit out of view`);
-  assert(focused.scrollWidth <= focused.clientWidth, `${label}: four digits fit while focused`);
-  await input.fill('1234'); await input.press('End');
+  assert(focused.scrollWidth <= focused.clientWidth, `${label}: four characters fit while focused`);
+  await input.fill(SYMBOL_PIN); await input.press('End');
   const pasted = await input.evaluate(n => ({ value: n.value, scrollLeft: n.scrollLeft, scrollWidth: n.scrollWidth, clientWidth: n.clientWidth }));
-  assert.equal(pasted.value, '1234', `${label}: accepts a pasted four-digit code`);
+  assert.equal(pasted.value, SYMBOL_PIN, `${label}: accepts mixed-case letters and symbol`);
   assert.equal(pasted.scrollLeft, 0, `${label}: pasted value remains visible with caret at end`);
   assert(pasted.scrollWidth <= pasted.clientWidth, `${label}: pasted digits fit the compact field`);
-  await input.press('End'); assert.equal(await input.inputValue(), '1234');
-  await input.press('Backspace'); assert.equal(await input.inputValue(), '123');
-  await input.pressSequentially('4'); assert.equal(await input.inputValue(), '1234');
-  await input.blur(); assert.equal(await input.inputValue(), '1234', `${label}: blur preserves value`);
-  await input.focus(); assert.equal(await input.inputValue(), '1234', `${label}: refocus preserves value`);
+  await input.press('End'); assert.equal(await input.inputValue(), SYMBOL_PIN);
+  await input.press('Backspace'); assert.equal(await input.inputValue(), SYMBOL_PIN.slice(0, -1));
+  await input.pressSequentially(SYMBOL_PIN.slice(-1)); assert.equal(await input.inputValue(), SYMBOL_PIN);
+  await input.blur(); assert.equal(await input.inputValue(), SYMBOL_PIN, `${label}: blur preserves case`);
+  await input.focus(); assert.equal(await input.inputValue(), SYMBOL_PIN, `${label}: refocus preserves case`);
   const refocused = await input.evaluate(n => ({ scrollLeft: n.scrollLeft, scrollWidth: n.scrollWidth, clientWidth: n.clientWidth }));
   assert.equal(refocused.scrollLeft, 0, `${label}: refocus keeps first digit visible`);
   await input.fill('');
-  pass(`${label}: typed and pasted digits fit with caret at end; delete, retype, blur and refocus work`);
+  pass(`${label}: mixed-case letters and symbols fit; delete, retype, blur and refocus work`);
 }
 async function result(page, name) { await page.locator('iframe.same-link-result:not([hidden])').waitFor({ state: 'visible' }); const f = page.frameLocator('iframe.same-link-result'); await f.locator('#member-select').selectOption({ label: name }); return f; }
 async function gate(page, name) {
@@ -170,7 +193,7 @@ async function submit(page, c, codeValue, qty) {
   await until(() => harness.requests.slice(before).some(r => r.id === c.id && r.path.endsWith('/claims/submit') && r.status === 200), 'real submit accepted');
   const r = harness.requests.slice(before).find(r => r.id === c.id && r.path.endsWith('/claims/submit') && r.status === 200);
   assert.equal(r.input.claims[0].qty, qty, 'request retains full quantity precision');
-  if (!r.input.editToken) { assert.equal(r.input.recognitionCode, codeValue, 'first submit sends explicit blank or four digits'); assert.equal(r.input.password, undefined); }
+  if (!r.input.editToken) { assert.equal(r.input.recognitionCode, codeValue, 'first submit sends explicit blank or four characters'); assert.equal(r.input.password, undefined); }
   else { assert.equal(r.input.password, undefined); assert.equal(r.input.recognitionCode, undefined, 'authorized editor sends editToken only, not replacement credentials'); }
   assert.equal(await page.locator('iframe.same-link-result').isVisible(), false, 'old result hidden pending recalculation'); await stored(page); return before;
 }
@@ -339,9 +362,9 @@ async function ui() {
   await a.goto(link, { waitUntil: 'domcontentloaded' }); await a.locator('#claim-content').waitFor({ state: 'visible' }); await a.locator('#person-name').fill(A);
   const code = await compactInitial(a); assert.equal(await code.inputValue(), ''); await focusedCode(a, code, 'new claim');
   const random = await visible(a, '#random-code');
-  const randomBox = await random.boundingBox(); assert(randomBox.width <= 52 && randomBox.height <= 52, 'random control is tiny'); await random.click(); const generated = await code.inputValue(); assert.match(generated, /^\d{4}$/); secrets.add(generated); await code.fill(''); assert.equal(await code.inputValue(), '');
+  const randomBox = await random.boundingBox(); assert(randomBox.width <= 52 && randomBox.height <= 52, 'random control is tiny'); await random.click(); const generated = await code.inputValue(); assert.match(generated, /^[!-~]{4}$/); secrets.add(generated); await code.fill(''); assert.equal(await code.inputValue(), '');
   await shot(a, 'initial-compact-name-code'); await submit(a, c, '', INITIAL_QTY); assert.equal(a.url(), link);
-  await b.goto(link, { waitUntil: 'domcontentloaded' }); await b.locator('#claim-content').waitFor({ state: 'visible' }); await b.locator('#person-name').fill(B); const bCode = await firstCode(b); await bCode.fill(PIN); await b.locator('#qty-0').fill('1'); await stored(b); assert.equal(await bCode.inputValue(), PIN, 'draft storage check happens while code is still entered'); await submit(b, c, PIN, 1); assert.equal(await bCode.inputValue(), '', 'successful enrollment clears recognition code');
+  await b.goto(link, { waitUntil: 'domcontentloaded' }); await b.locator('#claim-content').waitFor({ state: 'visible' }); await b.locator('#person-name').fill(B); const bCode = await firstCode(b); await bCode.fill(SYMBOL_PIN); await b.locator('#qty-0').fill('1'); await stored(b); assert.equal(await bCode.inputValue(), SYMBOL_PIN, 'draft storage check happens while code is still entered'); await submit(b, c, SYMBOL_PIN, 1); assert.equal(await bCode.inputValue(), '', 'successful enrollment clears recognition code');
   const pending = await friendState(a, c); assert.equal(pending.pending.payload.name, A);
   await a.locator('#edit-claim-again').click(); await a.locator('#claim-auth-panel').waitFor({ state: 'visible' }); await until(() => a.locator('#auth-confirm').isEnabled(), 'pending name identity ready');
   await a.locator('#auth-reset').click(); await a.locator('#auth-retry').click(); assert.equal(await (await authCode(a)).inputValue(), '');
@@ -407,7 +430,7 @@ async function ui() {
   assert.equal(late.url(), link, 'recalculated result returns on the same original URL');
   pass('published result has a bilingual add-person CTA and inline receipt; a new friend submits on the same link; organizer refreshes and republishes all claims');
   stage = 'PIN identity denial, forgot options, retry and new nickname';
-  let entered = await gate(a, B); await entered.fill(WRONG); const denyStart = harness.requests.length; await a.locator('#auth-confirm').click();
+  let entered = await gate(a, B); await entered.fill(SYMBOL_WRONG); const denyStart = harness.requests.length; await a.locator('#auth-confirm').click();
   await until(() => harness.requests.slice(denyStart).some(r => r.path.endsWith('/claims/unlock') && r.status === 403), 'wrong PIN rejected'); assert.equal(await a.locator('#claim-content').isVisible(), false); assert.equal(await entered.inputValue(), '', 'wrong-code retry clears code');
   const reset = await visible(a, '#auth-reset,#auth-forgot'); await reset.click();
   const panel = a.locator('#claim-auth-panel'); assert((await panel.boundingBox()).height <= 520, 'forgot options remain inline, not a giant card');
@@ -415,12 +438,12 @@ async function ui() {
   const retry = await visible(a, '#auth-retry,[data-testid="auth-retry"]'); await retry.click(); assert.equal(await (await authCode(a)).inputValue(), '', 'retry clears recognition code');
   if (!await a.locator('#auth-recovery').isVisible()) await (await visible(a, '#auth-reset,#auth-forgot')).click(); await (await visible(a, '#auth-new-name,#auth-new-nickname,[data-testid="auth-new-nickname"]')).click();
   await a.locator('#claim-content').waitFor({ state: 'visible' }); assert.equal(await a.locator('#person-name').inputValue(), '', 'new nickname starts blank'); assert.equal(await a.locator('#person-name').evaluate(n => n.readOnly), false); assert.equal(await (await firstCode(a)).inputValue(), '');
-  const protectedOwn = status(await post(c.id, 'unlock', { name: B, recognitionCode: PIN }, { ip: '203.0.113.244' }), 200, 'new nickname flow leaves protected record untouched'); assert.equal(protectedOwn.payload.claims[0].qty, 1);
+  const protectedOwn = status(await post(c.id, 'unlock', { name: B, recognitionCode: SYMBOL_PIN }, { ip: '203.0.113.244' }), 200, 'new nickname flow leaves protected record untouched'); assert.equal(protectedOwn.payload.claims[0].qty, 1);
   await a.locator('#person-name').fill(C); await submit(a, c, '', 1); await kind(c.id, C, 'none'); await kind(c.id, B, 'pin');
   if (!fixture.host) await publish(c, [payload(A, REVISED_QTY), payload(B), payload(C)]);
   else await hostSettle(fixture, REVISED_QTY, false, [A, B, C, LATE]);
   await result(a, B);
-  entered = await gate(a, B); await entered.fill(PIN); await a.locator('#auth-confirm').click(); await a.locator('#claim-content').waitFor({ state: 'visible' }); assert.equal(await a.locator('#qty-0').inputValue(), '1'); assert.equal(await (await authCodeIfPresent(a)), '', 'verified PIN clears input');
+  entered = await gate(a, B); await entered.fill(SYMBOL_PIN); await a.locator('#auth-confirm').click(); await a.locator('#claim-content').waitFor({ state: 'visible' }); assert.equal(await a.locator('#qty-0').inputValue(), '1'); assert.equal(await (await authCodeIfPresent(a)), '', 'verified PIN clears input');
   await shot(a, 'inline-pin-edit-masked-code-cleared'); await stored(a); await stored(b);
   assert(harness.requests.slice(before).some(r => r.method === 'PUT' && r.status === 200)); pass('wrong PIN lock, forgot inline choices, cleared retry, new nickname non-overwrite and correct PIN unlock');
   stage = 'legacy password optional UI mode';

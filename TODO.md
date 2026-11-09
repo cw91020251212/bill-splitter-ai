@@ -202,3 +202,11 @@
 - [x] 更新 `index.html`、`theme.css`、`tutorial.js` 的 cache-busting token 及 service worker cache epoch；PWA 可載入新 UI，對外版本標示仍保留 R114。
 - [x] 更新主辦人流程、朋友更新流程、互動教學及安全 E2E 的步驟假設，驗證無有效認帳時報告停用，回覆到達後仍可結算。
 - 驗收：`friend-recognition.cjs` 12/12、`tutorial-ui.cjs` 19 個 browser cases（繁中／英文、多尺寸）、`tutorial-safety.cjs` 2 項及 `friend-navigation.cjs` 全部通過；涵蓋 Step 1–4 色彩、認帳面板唯一位置、回跳、停用條件及同連結重新結算。`node --check` 與 `git diff --check` 通過；沒有對外 API 寫入。
+
+## R116：朋友連結高對比與英數符號認證碼
+- [x] 認帳及朋友結果連結沿用藍色主題；把近白表面調為中階藍灰，卡片、欄位和主要控制使用深藍 1px 輪廓；焦點框維持深色，主辦人本機預覽不受影響。
+- [x] 認證碼可留空，或輸入 4 個可列印 ASCII 字元（英文字母大小寫、數字、符號；大小寫敏感、不含空格）；欄位改用文字鍵盤並關閉自動大寫。
+- [x] 隨機碼改用均勻抽樣的字母／數字／符號字元；服務端同樣驗證格式，仍只保存雜湊，不改 rate limit、舊 PIN／密碼兼容或既有認帳。
+- [x] 更新靜態資產、分享 URL、PWA release 與 service-worker cache epoch；公開 R114 產品版本字樣不變。
+- [x] 本機驗收：Worker 單元測試 35/35、認帳 Playwright 12/12、朋友結果頁導航／配色 E2E 全部通過；測試 API 全部使用本機模擬，沒有寫入真實帳單。
+- [ ] 推送 GitHub Pages 並安全更新現有 Cloudflare Worker；部署後再做正式網址 smoke check。

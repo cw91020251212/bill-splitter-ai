@@ -40,7 +40,7 @@
     window.navigator.standalone === true;
 
   /* ---------------------------------------------------------- service worker */
-  var RELEASE_VERSION = 'v115-claims-stage-colors-20261109';
+  var RELEASE_VERSION = 'v116-friend-link-contrast-code-20261109';
   var waitingWorker = null;
   var registrationPromise = null;
   var reloadRequested = false;
