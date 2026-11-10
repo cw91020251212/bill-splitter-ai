@@ -40,7 +40,7 @@
     window.navigator.standalone === true;
 
   /* ---------------------------------------------------------- service worker */
-  var RELEASE_VERSION = 'v118-missing-person-followup-20261110';
+  var RELEASE_VERSION = 'v119-collapsed-missing-person-guide-20261110';
   var waitingWorker = null;
   var registrationPromise = null;
   var reloadRequested = false;

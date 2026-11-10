@@ -1,4 +1,11 @@
-## R117：三段字體大小
+## R119：漏人補加指引預設收起
+
+結果頁的漏人補加指引預設收起，只顯示「漏咗朋友？點樣補加」和向下三角形；按下才顯示精簡的分享同一連結、接收新認帳、第三步重算及手動貼上操作。產品版本標籤維持 `R114`；PWA cache epoch 為 `v119-collapsed-missing-person-guide-20261110`。
+
+## R119: Collapse the missing-person guide by default
+
+The result page keeps the missing-person guide collapsed, showing only a short title and a downward triangle. Tapping it reveals concise actions to share the same link, receive new claims, recalculate in Step 3, or paste a reply manually. The product badge remains `R114`; the PWA cache epoch is `v119-collapsed-missing-person-guide-20261110`.
+
 ## R118：結果頁漏人補加
 
 結果頁按次序說明「先補人、再接收、再計算」：主辦人可複製同一條連結給漏掉的朋友，朋友按「新增一位」填姓名及認帳；提交後，主辦人可接收新回覆，核對後到第三步重新計算。另可直達第二步手動貼上回覆。產品版本標籤維持 `R114`；PWA cache epoch 為 `v118-missing-person-followup-20261110`。

@@ -231,3 +231,10 @@
 - [x] 本機 `friend-recognition.cjs` 12/12 通過：精確連結複製、手動欄位聚焦、原連結新增朋友、主辦人接收及重新發布均驗證；外部寫入 0。
 - [x] GitHub Pages workflow `42723350524` 成功，commit `ce23fbb` 已上線；正式首頁含 R118 指引及三個操作，index／PWA／SW／theme／tutorial 資產均 HTTP 200。
 - [x] 公開頁面 `friend-recognition.cjs` 12/12 與 `friend-navigation.cjs` 全部通過；`PUBLIC_STATIC_QA=1` 將所有 API 留在 mock，正式認帳／帳單寫入 0。
+
+## R119：漏人補加指引預設收起
+- [x] 「漏人補加」指引預設收起；收起時只顯示精簡標題及向下三角形，需要時按一下才展開。
+- [x] 展開後的指引文字和操作標籤要精簡；保留「複製同一連結給朋友 → 接收新認帳 → 第三步重新計算」及手動貼上後備流程。
+- [x] 繁體中文及英文均可看到同一個收起／展開控制，原有連結、接收、手動貼上與重算行為不變。
+- [x] R119 cache token 已更新；本機 `friend-recognition.cjs` 12/12 通過，涵蓋預設收起、三角形展開、短文案及所有操作。
+- [ ] 推送 GitHub Pages 並在公開網址重跑認帳 E2E smoke（API 全部 mock）。
