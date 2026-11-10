@@ -255,4 +255,5 @@
 - [x] 將截圖紅圈圈住的綠色「分享收據圖」按鈕位置改為預設收起的「漏咗帳單？點樣補加」卡；展開後保留「認帳單補加」及「分享帳單」兩方向。
 - [x] 分享及加圖按鈕維持白色、44px；卡號遮蓋仍預設開啟，新增圖片在本機遮蓋並由用家核對。
 - [x] 更新 R121 cache token；本機 `friend-recognition.cjs` 12/12、`card-redaction-ui.cjs`、`recognition-retry-ui.cjs` 通過，涵蓋兩卡收起、位置、雙語、遮蓋與分享確認；`node --check` 和 `git diff --check` 通過。
-- [ ] 推送 R121 並監察 Pages 部署；公開靜態頁以 mock API 驗證新卡位置與遮蓋提示。
+- [x] Commit `2065386` 已推送至 `main`；[GitHub Pages workflow 42736451247](https://github.com/cw91020251212/bill-splitter-ai/actions/runs/42736451247) 成功。公開首頁確認 R121 token，首頁、theme、PWA、Service Worker、tutorial、結果頁和認帳頁均 HTTP 200。
+- [x] 公開網址 `PUBLIC_STATIC_QA=1` 的 `friend-recognition.cjs` 12/12 通過，驗證漏朋友卡保留、新漏帳單卡位置／雙方向／雙語及同連結加圖；API 全部攔截至本機 harness，對外寫入 0。
