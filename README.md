@@ -1,3 +1,11 @@
+## R120：漏咗帳單？點樣補加
+
+展開後有兩個方向：「認帳單補加」及「分享帳單」。現有帳單圖分享前預設在本機自動遮蓋卡號，只分享遮蓋副本；已有圖片時仍可追加圖片，新圖片會在本機遮蓋並先核對。分享與加圖按鈕均為白色、44px 高。產品標籤維持 `R114`；PWA cache epoch 為 `v120-bill-share-two-directions-20261110`。
+
+## R120: Missing a bill? How to add it
+
+The expanded guide has two paths: add a missing claim or share the bill. Existing bill photos are scanned and card numbers are masked locally before sharing by default; only redacted copies are shared. Users can add more photos; each new photo is masked locally and reviewed first. Share and add-photo buttons are white and 44px high. The product badge remains `R114`; the PWA cache epoch is `v120-bill-share-two-directions-20261110`.
+
 ## R119：漏人補加指引預設收起
 
 結果頁的漏人補加指引預設收起，只顯示「漏咗朋友？點樣補加」和向下三角形；按下才顯示精簡的分享同一連結、接收新認帳、第三步重算及手動貼上操作。產品版本標籤維持 `R114`；PWA cache epoch 為 `v119-collapsed-missing-person-guide-20261110`。

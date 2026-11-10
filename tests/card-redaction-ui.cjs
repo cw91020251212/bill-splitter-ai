@@ -81,6 +81,15 @@ async function seed(page, width, height, failOcr = false) {
   await page.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '3', null, { timeout: 60000 });
   await page.getByTestId('calculate-split').click();
   await page.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '4', null, { timeout: 15000 });
+  assert.equal(await page.getByTestId('late-person-flow-details').evaluate(node => node.open), false, 'the two-direction guide starts collapsed');
+  await page.getByTestId('late-person-flow-summary').click();
+  assert.match(await page.getByTestId('receipt-redaction-default-note').innerText(), /卡號預設在本機遮蓋/);
+  const shareButtonStyle = await page.getByTestId('share-receipt-images').evaluate(button => ({ background: getComputedStyle(button).backgroundColor, height: Math.round(button.getBoundingClientRect().height) }));
+  assert.deepEqual(shareButtonStyle, { background: 'rgb(255, 255, 255)', height: 44 }, 'share-bill action uses a compact white 44px button');
+  const addAnotherButton = page.getByTestId('share-bill-direction').getByTestId('attach-receipt-image');
+  assert.equal(await addAnotherButton.isVisible(), true, 'users can add another photo after one is attached');
+  const addButtonStyle = await addAnotherButton.evaluate(button => ({ background: getComputedStyle(button).backgroundColor, height: Math.round(button.getBoundingClientRect().height) }));
+  assert.deepEqual(addButtonStyle, { background: 'rgb(255, 255, 255)', height: 44 }, 'adding another bill photo stays white and 44px high');
   await page.getByTestId('share-receipt-images').waitFor({ state: 'visible' });
   await page.evaluate(() => {
     Object.defineProperty(navigator, 'canShare', {

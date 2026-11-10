@@ -208,9 +208,11 @@ const success = payload => ({
     await page.getByTestId('calculate-split').click();
     await page.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '4', null, { timeout: 15000 });
     const receiptImageButton = page.getByTestId('share-receipt-images');
+    assert.equal(await page.getByTestId('late-person-flow-details').evaluate(node => node.open), false, 'bill directions start collapsed');
+    await page.getByTestId('late-person-flow-summary').click();
     await receiptImageButton.waitFor({ state: 'visible' });
-    assert.match(await receiptImageButton.getAttribute('class'), /!bg-emerald-700/, 'receipt sharing is a prominent green button');
-    assert.equal(await receiptImageButton.evaluate(button => getComputedStyle(button).backgroundColor), 'rgb(4, 120, 87)', 'the receipt button renders with a green background');
+    const receiptButtonStyle = await receiptImageButton.evaluate(button => ({ background: getComputedStyle(button).backgroundColor, height: Math.round(button.getBoundingClientRect().height) }));
+    assert.deepEqual(receiptButtonStyle, { background: 'rgb(255, 255, 255)', height: 44 }, 'the share-bill action is a compact white 44px button');
     assert.equal(await page.getByTestId('receipt-next-step').count(), 0, 'the separate second-step receipt card is removed');
     await page.evaluate(() => {
       Object.defineProperty(navigator, 'canShare', {
@@ -235,7 +237,7 @@ const success = payload => ({
     await page.getByTestId('card-redaction-share').click();
     await page.waitForFunction(() => window.__lastMockShare?.fileCount > 0);
     const receiptShare = await page.evaluate(() => window.__lastMockShare);
-    assert.equal(receiptShare.fileCount, 2, 'the green button shares both images in the current receipt batch');
+    assert.equal(receiptShare.fileCount, 2, 'the share-bill button shares both images in the current receipt batch');
     assert.equal(receiptShare.fileTypes.length, 2);
     assert.ok(receiptShare.fileTypes.every(type => type.startsWith('image/')), 'every shared file remains an image after receipt processing');
     assert.equal(receiptShare.text, '', 'receipt images are shared without attaching the report text');

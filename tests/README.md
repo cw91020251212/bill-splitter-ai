@@ -95,7 +95,7 @@ node tests/tutorial-ui.cjs
 
 `BASE_URL` 預設為 `http://127.0.0.1:4178/`。瀏覽器測試只允許 localhost／127.0.0.1；測試不需要 API 鎖匙。UI 測試建立本身的草稿及 IndexedDB 圖片／附件樣本，並比較教學前後原有 DOM、表單、localStorage、IndexedDB、捲動位置和焦點。
 跨貨幣 UI 測試會唯讀查詢 Frankfurter 取得實際匯率；它不傳送帳單或個人資料。匯率失敗情境則由測試攔截並模擬。
-`recognition-retry-ui.cjs` 只在本機攔截並模擬 OCR，使用本機 Tesseract worker stub，避免遮蓋分享流程依賴 CDN/WASM 下載；真實卡號偵測與遮蓋幾何由 `card-redaction-ui.cjs` 獨立覆蓋。於 390px 驗證選單、成功前停用重用、加入多張新相片、重用整批相片而不重開選擇器、成功替換及失敗保留舊結果；亦驗證綠色收據按鈕會先開啟本機卡號遮蓋檢視，經明確確認後才把圖片交給 mock Web Share，且不附上報告文字。朋友埋單頁初始只顯示標題、成員提示和六人下拉；選中後才顯示該人的應付金額和項目，並載入本機單據相片供放大。測試用收據圖是合成樣本，不代表任何真實賬單。完成時會產生 `artifacts/recognition-retry-preview.png`、`artifacts/detailed-view-before-select.png` 和 `artifacts/detailed-view-preview.png`。
+`recognition-retry-ui.cjs` 只在本機攔截並模擬 OCR，使用本機 Tesseract worker stub，避免遮蓋分享流程依賴 CDN/WASM 下載；真實卡號偵測與遮蓋幾何由 `card-redaction-ui.cjs` 獨立覆蓋。於 390px 驗證選單、成功前停用重用、加入多張新相片、重用整批相片而不重開選擇器、成功替換及失敗保留舊結果；亦驗證白色 44px「分享帳單」按鈕會先開啟本機卡號遮蓋檢視，經明確確認後才把圖片交給 mock Web Share，且不附上報告文字。朋友埋單頁初始只顯示標題、成員提示和六人下拉；選中後才顯示該人的應付金額和項目，並載入本機單據相片供放大。測試用收據圖是合成樣本，不代表任何真實賬單。完成時會產生 `artifacts/recognition-retry-preview.png`、`artifacts/detailed-view-before-select.png` 和 `artifacts/detailed-view-preview.png`。
 
 ## 覆蓋範圍
 
@@ -158,3 +158,6 @@ R118 漏人補加：`friend-recognition.cjs` 驗證結果頁按先補人、再�
 
 
 R119 漏人指引：`friend-recognition.cjs` 驗證結果卡預設收起、向下三角形展開、步驟文字精簡，並覆蓋同一連結複製、手動回覆聚焦、朋友新增及主辦人接收後重算。
+
+## R120「漏咗帳單？點樣補加」
+`friend-recognition.cjs` 驗證收起狀態及兩個方向，並以主程式語言選單切換繁體中文／英文，核對標題、方向、遮蓋提示、分享按鈕和追加圖片文案；同一認帳連結、手動附圖、遮蓋後加入與重新結算仍通過。`card-redaction-ui.cjs` 驗證分享及追加圖片按鈕為白色、44px，原圖不變且分享 payload 只含遮蓋 JPEG；合成卡號測試覆蓋 320px／390px、手動遮蓋／復原及 OCR 失敗時阻止分享。`recognition-retry-ui.cjs` 覆蓋圖片批次重試與分享確認。所有 API 使用本機 Worker／mock，對外寫入 0。

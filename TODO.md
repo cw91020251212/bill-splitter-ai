@@ -239,3 +239,12 @@
 - [x] R119 cache token 已更新；本機 `friend-recognition.cjs` 12/12 通過，涵蓋預設收起、三角形展開、短文案及所有操作。
 - [x] GitHub Pages workflow `42726408591` 成功，commit `d3d0510` 已上線；R119 首頁及 theme／PWA／tutorial 資產 HTTP 200。
 - [x] 公開 `friend-recognition.cjs` 12/12 通過；`PUBLIC_STATIC_QA=1` 全程 mock API，正式認帳／帳單寫入 0。
+
+## R120：漏咗帳單雙方向
+- [x] 收起卡標題改為「漏咗帳單？點樣補加」；展開後分成「1. 認帳單補加」與「2. 分享帳單」兩個清楚方向。
+- [x] 把帳單圖分享按鈕移進第二方向，改白色並縮至 44px 觸控高度；沿用同一連結和遮蓋邏輯。已有圖片時仍可分享或再加圖片；新增按鈕同樣為白色 44px。
+- [x] 現有帳單圖分享時預設在本機自動遮蓋卡號，只分享遮蓋副本；新增相片則明確提示先在本機遮蓋、核對後加入，不冒稱自動辨識。
+- [x] 保留中／英文、預設收起和精簡說明；無現有圖片時仍提供安全的後加圖片操作。
+- [x] 本機 E2E 覆蓋兩方向、按鈕白色／44px、預設自動遮蓋、手動補圖與原有認帳重算；`friend-recognition.cjs` 12/12、`card-redaction-ui.cjs`、`recognition-retry-ui.cjs` 通過。雙語切換驗證標題、方向、遮蓋說明及追加圖片文案；所有 API 留在本機／mock，對外寫入 0。
+- [x] 更新 R120 cache token；`node --check` 及 `git diff --check` 通過。
+- [ ] 推送 Pages、監察部署 workflow，並在公開網址執行 mock API smoke。
