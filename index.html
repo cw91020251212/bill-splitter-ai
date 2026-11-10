@@ -85,11 +85,11 @@
   ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
   ::-webkit-scrollbar-thumb:hover { background: #64748b; }
   </style>
-  <link rel="stylesheet" href="./theme.css?v=v122-imported-bill-photo-reminder-20261110">
+  <link rel="stylesheet" href="./theme.css?v=v123-issue-audit-fixes-20261110">
   <link rel="stylesheet" href="./tutorial.css?v=v86-free-models-only">
   <!-- R114: current interactive guide; original video lessons retained. -->
-  <meta name="bill-app-release" content="v122-imported-bill-photo-reminder-20261110">
-  <script defer src="./pwa.js?v=v122-imported-bill-photo-reminder-20261110"></script>
+  <meta name="bill-app-release" content="v123-issue-audit-fixes-20261110">
+  <script defer src="./pwa.js?v=v123-issue-audit-fixes-20261110"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
@@ -104,7 +104,7 @@
   <script src="./card-redaction.js?v=v97-card-number-redaction"></script>
   <script src="./card-share-review.js?v=v97-card-number-redaction"></script>
   <script src="./exchange-rates.js?v=v90-cross-currency-settlement"></script>
-    <script src="./tutorial.js?v=v122-imported-bill-photo-reminder-20261110"></script>
+    <script src="./tutorial.js?v=v123-issue-audit-fixes-20261110"></script>
   <script type="text/babel">
     const { useState, useRef, useEffect, useLayoutEffect, useMemo } = React;
     const tr = value => window.BillI18n.t(value);
@@ -788,17 +788,20 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
       }
     };
     const formatExchangeRate = (rate) => {
-      const value = Number(rate);
-      return Number.isFinite(value) ? value.toFixed(8).replace(/0+$/, '').replace(/\.$/, '') : '';
-    };
+        const value = Number(rate);
+        return Number.isFinite(value) ? value.toFixed(8).replace(/0+$/, '').replace(/\.$/, '') : '';
+      };
     const itemAmount = (item) => {
-      const total = toNum(item?.total);
-      if (total) return total;
-      const qty = toNum(item?.qty) || toNum(item?.totalQty) || 1;
-      return toNum(item?.price) * qty;
-    };
+        const rawTotal = item?.total;
+        if (rawTotal !== null && rawTotal !== undefined && String(rawTotal).trim() !== '') {
+          const total = toNum(rawTotal);
+          if (Number.isFinite(total)) return total;
+        }
+        const qty = toNum(item?.qty) || toNum(item?.totalQty) || 1;
+        return toNum(item?.price) * qty;
+      };
     const getResultsBillTotal = (result) => {
-      const explicit = Number(result?.billTotal);
+        const explicit = Number(result?.billTotal);
       if (Number.isFinite(explicit)) return explicit;
       return Object.values(result?.personTotals || {}).reduce((sum, person) => sum + toNum(person?.total), 0);
     };
@@ -1021,6 +1024,7 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
       const verifyModeRef = useRef(false);
       const displayItemName = item => uiLang === 'en' && (item?.nameEn || item?.nameEnEdited) ? item.nameEn : item?.name || '';
       const [taxAmount, setTaxAmount] = useState(tutorialDemo ? '12' : '');
+      const [taxInputError, setTaxInputError] = useState(false);
       const [discountAmount, setDiscountAmount] = useState('');
       const [taxNote, setTaxNote] = useState('');
       const [receiptAdjustmentDetails, setReceiptAdjustmentDetails] = useState(null);
@@ -1241,6 +1245,20 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
       }, [showClaimShareDialog]);
       const [reconciliation, setReconciliation] = useState(null);
       const fieldRefs = useRef({});
+      const [pendingItemRemoval, setPendingItemRemoval] = useState(null);
+      const itemRemovalDialogRef = useRef(null);
+      const keepItemButtonRef = useRef(null);
+
+      useEffect(() => {
+        const dialog = itemRemovalDialogRef.current;
+        if (!dialog) return;
+        if (pendingItemRemoval) {
+          if (!dialog.open) dialog.showModal();
+          keepItemButtonRef.current?.focus({ preventScroll: true });
+        } else if (dialog.open) {
+          dialog.close();
+        }
+      }, [pendingItemRemoval]);
 
       const [kbOpen, setKbOpen] = useState(false);
       const [statusExpanded, setStatusExpanded] = useState(false);
@@ -2009,6 +2027,11 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
             return;
           }
         }
+        if (key === 'tax-amount' && step !== 2) {
+          setStep(2);
+          window.setTimeout(() => focusMountedField(key), 180);
+          return;
+        }
         if (key === 'replies' && step !== 2) {
           setStep(2);
           window.setTimeout(() => focusMountedField(key), 180);
@@ -2432,7 +2455,7 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
         const storageKey = 'billSplitterDetailTablePreviewV1';
         try {
           localStorage.setItem(storageKey, JSON.stringify(previewData));
-          const previewWindow = window.open('./detailed-view.html?v=v122-imported-bill-photo-reminder-20261110', '_blank');
+          const previewWindow = window.open('./detailed-view.html?v=v123-issue-audit-fixes-20261110', '_blank');
           if (!previewWindow) {
             localStorage.removeItem(storageKey);
             toast(bi('允許彈窗', 'Allow pop-ups'), 'error');
@@ -3351,6 +3374,16 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
         openItemEditsRef.current = next;
         setOpenItemEdits(next);
       };
+      const requestRemoveItem = (index) => {
+        const item = items[index];
+        if (!item) return;
+        setPendingItemRemoval({ index, name: displayItemName(item).trim() || bi('此項目', 'this item') });
+      };
+      const confirmRemoveItem = () => {
+        if (!pendingItemRemoval) return;
+        removeItem(pendingItemRemoval.index);
+        setPendingItemRemoval(null);
+      };
       const openItemEdit = (index) => {
         const next = { ...openItemEditsRef.current, [index]: true };
         openItemEditsRef.current = next;
@@ -3513,7 +3546,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
         const metadata = getClaimLinkMetadata();
         const link = new URL('./claim.html', window.location.href);
         link.searchParams.set('lang', lang === 'en' ? 'en' : 'zh-HK');
-        link.searchParams.set('v', 'v122-imported-bill-photo-reminder-20261110');
+        link.searchParams.set('v', 'v123-issue-audit-fixes-20261110');
         link.searchParams.set('session', session.id);
         link.hash = window.ClaimRelay
           ? window.ClaimRelay.buildHash(encodeClaimLinkPayload(payload), room, metadata)
@@ -3657,6 +3690,14 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
       const calculateSplit = () => {
         setStepError('');
         if (!payer.trim()) { setStepError("⚠️ 請填寫墊支人姓名！"); focusField('payer'); return; }
+        const rawTaxAmount = String(taxAmount ?? '').trim();
+        const parsedTaxAmount = rawTaxAmount === '' ? 0 : Number(rawTaxAmount);
+        if (!Number.isFinite(parsedTaxAmount) || parsedTaxAmount < 0) {
+          setTaxInputError(true);
+          focusField('tax-amount');
+          return false;
+        }
+        const taxNum = ReceiptMath.roundMoney(parsedTaxAmount, detectedCurrency);
 
         const parsed = parseClaims(friendsReplies, items);
         const personClaims = parsed.claims;
@@ -3675,7 +3716,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
 
         const sourceTotal = ReceiptMath.roundMoney(
           items.reduce((sum, item) => sum + itemAmount(item), 0)
-            + ReceiptMath.roundMoney(toNum(taxAmount), detectedCurrency)
+            + taxNum
             - ReceiptMath.roundMoney(toNum(discountAmount), detectedCurrency),
           detectedCurrency
         );
@@ -3770,7 +3811,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
           personTotals[person].subtotal = Math.max(0, personTotals[person].subtotal - share);
         });
         totalItemsCost = Math.max(0, preDiscountItemsCost - discountNum);
-        const taxNum = ReceiptMath.roundMoney(toNum(taxAmount), detectedCurrency); const numPeople = Object.keys(personClaims).length;
+        const numPeople = Object.keys(personTotals).length;
         Object.keys(personTotals).forEach(person => {
           let taxShare = 0;
           if (taxSplitMethod === 'equal') taxShare = taxNum / numPeople;
@@ -4623,8 +4664,8 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                     const qtyLabel = item.totalQty != null && item.totalQty !== '' ? `${item.totalQty}${item.unit ? ` ${item.unit}` : ''}` : (item.unit || '');
                     return (
                     <Card key={idx} data-tutorial-target={idx === 0 ? "item-editor" : undefined} className="relative overflow-visible !p-4 group">
-                      <button type="button" data-testid="remove-item" onClick={() => removeItem(idx)} className="absolute -top-3 -right-3 w-8 h-8 bg-white border border-slate-400 text-slate-500 hover:text-red-700 hover:border-red-500 hover:bg-red-50 rounded-full flex items-center justify-center shadow-sm transition-colors z-10 opacity-0 group-hover:opacity-100 md:opacity-100">
-                        <Icon path={icons.trash} size={14} />
+                      <button type="button" data-testid="remove-item" aria-label={bi(`刪除項目：${displayItemName(item).trim() || '此項目'}`, `Delete item: ${displayItemName(item).trim() || 'this item'}`)} title={bi(`刪除項目：${displayItemName(item).trim() || '此項目'}`, `Delete item: ${displayItemName(item).trim() || 'this item'}`)} onClick={() => requestRemoveItem(idx)} className="absolute -top-3 -right-3 w-11 h-11 min-w-11 min-h-11 bg-white border border-slate-400 text-slate-600 hover:text-red-800 hover:border-red-700 hover:bg-red-50 rounded-full flex items-center justify-center shadow-sm transition-colors z-10 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 md:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700">
+                        <Icon path={icons.trash} size={18} />
                       </button>
                       {showVerifyRow ? (
                         <div className="flex items-start justify-between gap-3" data-testid="verify-item">
@@ -4640,7 +4681,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                       <div className="grid gap-4">
                         <div>
                           <label className="text-base font-bold text-slate-700 uppercase tracking-wider mb-1.5 block">{tr("編號 ")}{item.id}{tr(" - 名稱")}</label>
-                          <input type="text" ref={el => fieldRefs.current[`item-name-${idx}`] = el} value={displayItemName(item)} onChange={(e) => updateItem(idx, uiLang === 'en' && (item.nameEn || item.nameEnEdited) ? 'nameEn' : 'name', e.target.value)} onKeyDown={(e) => handleItemKeyDown(e, 'name', idx)} className="field-round w-full text-base font-semibold text-slate-800 outline-none" placeholder={tr("輸入項目名稱...")} />
+                          <input type="text" data-testid="item-name" ref={el => fieldRefs.current[`item-name-${idx}`] = el} value={displayItemName(item)} onChange={(e) => updateItem(idx, uiLang === 'en' && (item.nameEn || item.nameEnEdited) ? 'nameEn' : 'name', e.target.value)} onKeyDown={(e) => handleItemKeyDown(e, 'name', idx)} className="field-round w-full text-base font-semibold text-slate-800 outline-none" placeholder={tr("輸入項目名稱...")} />
                           {(item.original || item.ja) && <div className="mt-1 text-xs font-normal text-slate-500 italic truncate" title={item.original || item.ja}>{tr("原文：")}{item.original || item.ja}</div>}
                         </div>
                         <div data-tutorial-target={idx === 0 ? "item-fields" : undefined} className="item-price-quantity-row flex gap-4">
@@ -4665,6 +4706,16 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                     </Card>
                     );
                   })}
+                  <dialog ref={itemRemovalDialogRef} data-testid="remove-item-dialog" aria-labelledby="remove-item-dialog-title" aria-describedby="remove-item-dialog-description" aria-modal="true" onCancel={event => { event.preventDefault(); setPendingItemRemoval(null); }} className="m-auto w-[min(92vw,28rem)] max-w-[calc(100vw-2rem)] rounded-2xl border border-slate-400 bg-white p-5 text-slate-900 shadow-2xl backdrop:bg-slate-950/50">
+                    {pendingItemRemoval && <div className="space-y-4">
+                      <h2 id="remove-item-dialog-title" className="text-lg font-extrabold">{bi('確定刪除項目？', 'Delete this item?')}</h2>
+                      <p id="remove-item-dialog-description" className="text-base leading-relaxed">{bi(`確定從帳單刪除「${pendingItemRemoval.name}」？`, `Remove “${pendingItemRemoval.name}” from this bill?`)}</p>
+                      <div className="grid grid-cols-2 gap-3">
+                        <button type="button" ref={keepItemButtonRef} data-testid="keep-remove-item" onClick={() => setPendingItemRemoval(null)} className="min-h-11 rounded-lg border border-slate-500 bg-white px-4 py-2 font-bold text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700">{bi('保留項目', 'Keep item')}</button>
+                        <button type="button" data-testid="confirm-remove-item" onClick={confirmRemoveItem} className="min-h-11 rounded-lg border border-red-800 bg-red-800 px-4 py-2 font-bold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-800">{bi('刪除項目', 'Delete item')}</button>
+                      </div>
+                    </div>}
+                  </dialog>
                   {items.length > 0 && (
                     <React.Fragment>
                       <Button variant="outline" onClick={addItem} className="w-full border-dashed border-brand-500 bg-white/50 hover:bg-brand-50 text-brand-700"><Icon path={icons.plus} size={18}/>{tr(" 新增一筆項目")}</Button>
@@ -4684,9 +4735,10 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                       </div>
                       <div className="field-round flex items-center w-36 shrink-0 overflow-hidden shadow-sm">
                         <span className="pl-3 pr-1 text-slate-600 font-bold border-r border-slate-500 py-2">{getCurrencySymbol(detectedCurrency)}</span>
-        <input type="number" min="0" step={Math.pow(10, -ReceiptMath.currencyDecimals(detectedCurrency))} placeholder="0" value={taxAmount} onChange={(e) => { setTaxAmount(e.target.value); setReceiptAdjustmentDetails(null); }} className="w-full text-base font-bold text-slate-800 text-right outline-none shadow-none" />
+                        <input type="number" min="0" step={Math.pow(10, -ReceiptMath.currencyDecimals(detectedCurrency))} placeholder="0" value={taxAmount} data-testid="tax-amount" aria-invalid={taxInputError ? 'true' : undefined} aria-describedby={taxInputError ? 'tax-input-error' : undefined} ref={el => fieldRefs.current['tax-amount'] = el} onChange={(e) => { setTaxAmount(e.target.value); setTaxInputError(false); setStepError(''); setReceiptAdjustmentDetails(null); }} className="w-full text-base font-bold text-slate-800 text-right outline-none shadow-none" />
                       </div>
                     </div>
+                    {taxInputError && <p id="tax-input-error" data-testid="tax-input-error" role="alert" className="-mt-2 text-sm font-semibold text-red-800">{bi('⚠️ 稅費／服務費不可為負數，請輸入 0 或以上。', '⚠️ Tax / service fee cannot be negative. Enter 0 or more.')}</p>}
                     <div className="flex justify-between items-center gap-4 border-t border-slate-300 pt-3">
                       <div className="flex-1">
                         <Label className="!mb-0.5">{bi('整單折扣', 'Bill-wide discount')}</Label>

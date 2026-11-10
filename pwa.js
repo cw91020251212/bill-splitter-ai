@@ -40,7 +40,7 @@
     window.navigator.standalone === true;
 
   /* ---------------------------------------------------------- service worker */
-  var RELEASE_VERSION = 'v122-imported-bill-photo-reminder-20261110';
+  var RELEASE_VERSION = 'v123-issue-audit-fixes-20261110';
   var waitingWorker = null;
   var registrationPromise = null;
   var reloadRequested = false;

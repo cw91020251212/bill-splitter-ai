@@ -167,3 +167,6 @@ R119 漏人指引：`friend-recognition.cjs` 驗證結果卡預設收起、向�
 
 ## R122 AI 匯入後補貼原帳單
 `text-import.cjs` 驗證文字／JSON 匯入無圖片時第二步顯示繁英提醒；「補貼原帳單」沿用本機遮蓋及核對，不跑 OCR／AI，保留匯入項目，補圖完成及草稿重載後提醒維持隱藏。`friend-recognition.cjs` 檢查兩個收起卡按鈕為 40–42px；`card-redaction-ui.cjs` 及 `recognition-retry-ui.cjs` 繼續覆蓋分享卡號遮蓋。
+
+## R123 審計修正
+`calculation-regressions.cjs`（本機限定）驗證：實物數量差額由墊支人承擔時，平均稅費也按墊支人及認帳人分攤；明確 `total: 0` 保持零、缺少 `total` 才以單價×數量回算；負稅費阻止產生結果並將焦點移回稅費欄。`text-import.cjs` 驗證具名刪除確認、預設聚焦「保留」、Escape／取消不刪及明確確認才刪。`tutorial-ui.cjs` 在 390px 繁中／英文畫面核對垃圾桶按鈕 accessible name 及 44×44px。API 使用本機 mock，對外寫入 0。

@@ -61,6 +61,11 @@ async function seed(page, step, language) {
   await page.waitForFunction(expected => document.querySelector('[data-live-app] main')?.dataset.currentStep === String(expected) && !document.querySelector('[data-testid="start-tutorial"]')?.disabled, step);
   await page.waitForTimeout(600); // let original draft/image restoration settle
   if (step === 2) {
+    const trash = page.getByTestId('remove-item').first();
+    const expectedTrashName = language === 'en' ? 'Delete item: 原有帳單項目' : '刪除項目：原有帳單項目';
+    assert.equal(await trash.getAttribute('aria-label'), expectedTrashName, language + ': trash icon has a localized accessible name');
+    const trashBox = await trash.boundingBox();
+    assert.deepEqual([Math.round(trashBox.width), Math.round(trashBox.height)], [44, 44], language + ': trash target is 44×44 CSS px on mobile');
     await page.locator('[data-live-app] [data-testid="edit-item"]').click();
     await page.waitForTimeout(1900); // original focus/highlight animation is not bill state
   }

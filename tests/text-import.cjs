@@ -16,7 +16,8 @@ const DOTS = 'dots-studio/dots-3-note-preview:free';
 const jsonPastePayload = {
   items: [
     { name: '魚蛋', nameEn: 'Fish balls', original: '魚蛋', ja: '', price: 25, qty: 2, totalQty: 2, unit: '碗', total: 50 },
-    { name: '奶茶', nameEn: 'Milk tea', original: '奶茶', ja: '', price: 18, qty: 1, totalQty: 1, unit: '杯', total: 18 }
+    { name: '奶茶', nameEn: 'Milk tea', original: '奶茶', ja: '', price: 18, qty: 1, totalQty: 1, unit: '杯', total: 18 },
+    { name: '免費甜品', nameEn: 'Free dessert', original: '贈品', ja: '', price: 7.5, qty: 2, totalQty: 2, unit: '份', total: 0 }
   ],
   adjustments: [], taxTotal: 0, taxNote: '', currency: 'HKD', date: null, receiptTotal: 68
 };
@@ -80,7 +81,22 @@ const initStorage = async (page, config) => {
     assert.match(zhImportHeading, /提示詞＋賬單＝專用翻譯檔（\.json）/);
     assert.equal(await noKeyPage.getByTestId('receipt-text-import').evaluate(node => node.previousElementSibling?.getAttribute('data-testid') === 'choice-divider'), true, 'the receipt OCR and external AI import paths are separated by “or”');
     await noKeyPage.getByTestId('start-manual').click();
-    await noKeyPage.getByTestId('remove-item').click({ force: true });
+    await noKeyPage.getByTestId('item-name').first().fill('測試項目');
+    const removeItem = noKeyPage.getByTestId('remove-item').first();
+    assert.match(await removeItem.getAttribute('aria-label'), /刪除項目：測試項目/);
+    await removeItem.click({ force: true });
+    const removeDialog = noKeyPage.getByTestId('remove-item-dialog');
+    await removeDialog.waitFor({ state: 'visible' });
+    assert.match(await removeDialog.innerText(), /測試項目/);
+    assert.equal(await noKeyPage.getByTestId('keep-remove-item').evaluate(button => button === document.activeElement), true, 'the safe Keep action receives initial focus');
+    await noKeyPage.keyboard.press('Escape');
+    await removeDialog.waitFor({ state: 'hidden' });
+    assert.equal(await noKeyPage.getByTestId('remove-item').count(), 1, 'Escape cancels deletion');
+    await removeItem.click({ force: true });
+    await noKeyPage.getByTestId('keep-remove-item').click();
+    assert.equal(await noKeyPage.getByTestId('remove-item').count(), 1, 'Keep leaves the item unchanged');
+    await removeItem.click({ force: true });
+    await noKeyPage.getByTestId('confirm-remove-item').click();
     await noKeyPage.getByTestId('manual-empty-state').waitFor({ state: 'visible' });
     assert.equal(await noKeyPage.getByTestId('manual-empty-state').getByTestId('choice-divider').count(), 1, 'photo scan and manual entry are separated by “or”');
     await noKeyPage.locator('.step-nav button').first().click();
@@ -120,11 +136,13 @@ const initStorage = async (page, config) => {
     await noKeyPage.getByTestId('receipt-text-draft').fill(JSON.stringify(jsonPastePayload));
     await noKeyPage.getByTestId('submit-receipt-text').click();
     await noKeyPage.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '2', null, { timeout: 30000 });
-    assert.equal(await noKeyPage.getByTestId('verify-item').count(), 2, 'pasted JSON items appear in the normal review step');
-    assert.match(await noKeyPage.getByTestId('verify-summary').innerText(), /^2項/);
+    assert.equal(await noKeyPage.getByTestId('verify-item').count(), 3, 'pasted JSON items appear in the normal review step');
+    assert.match(await noKeyPage.getByTestId('verify-summary').innerText(), /^3項/);
     const pastedRows = await noKeyPage.getByTestId('verify-item').allInnerTexts();
     assert.match(pastedRows.join('\n'), /魚蛋/);
     assert.match(pastedRows.join('\n'), /奶茶/);
+    assert.match(pastedRows.join('\n'), /免費甜品/);
+    assert.match(pastedRows.find(row => row.includes('免費甜品')) || '', /0\.00/, 'explicit JSON total=0 stays zero instead of price × quantity');
     assert.equal(await noKeyPage.locator('[data-testid="items-step"] [data-testid="last-recognition-model"]').count(), 0, 'the review step hides redundant source/model details');
     assert.equal(noKeyRequests, 0, 'valid JSON is imported locally without an API key or network request');
     const missingBillReminder = noKeyPage.getByTestId('ai-import-bill-photo-reminder');
@@ -170,7 +188,7 @@ const initStorage = async (page, config) => {
     await noKeyPage.getByTestId('redaction-next-or-finish').click();
     await noKeyPage.waitForFunction(() => /已加1張/.test(document.querySelector('[data-testid="receipt-attachment-status"]')?.textContent || ''), null, { timeout: 15000 });
     assert.equal(await noKeyPage.getByTestId('ai-import-bill-photo-reminder').count(), 0, 'the reminder disappears after the original bill photo is attached');
-    assert.equal(await noKeyPage.getByTestId('verify-item').count(), 2, 'attaching a photo preserves the imported JSON items');
+    assert.equal(await noKeyPage.getByTestId('verify-item').count(), 3, 'attaching a photo preserves the imported JSON items');
     assert.equal(noKeyRequests, 0, 'photo attachment does not send the image to OpenRouter');
     await noKeyPage.waitForFunction(async () => {
       const db = await new Promise((resolve, reject) => {

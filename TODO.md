@@ -265,3 +265,13 @@
 - [x] PWA／Service Worker token 升至 R122；`text-import.cjs`、`friend-recognition.cjs` 12/12、`card-redaction-ui.cjs`、`recognition-retry-ui.cjs` 本機回歸通過；`node --check` 及 `git diff --check` 通過，所有 API 使用本機 mock。
 - [x] Commit `f60d7c1` 已推送至 `main`；[Pages workflow 42747383201](https://github.com/cw91020251212/bill-splitter-ai/actions/runs/42747383201) 成功。公開首頁及 theme／PWA／Service Worker／tutorial／結果頁六項資產均 HTTP 200；live HTML 含 R122 cache token、中英提醒及「漏貼帳單」新標題。
 - [x] 公開網址 `PUBLIC_STATIC_QA=1` 的 `friend-recognition.cjs` 12/12 通過，驗證新標題、40px 收起卡、雙方向及同連結流程；所有 API 攔截至本機 harness，對外寫入 0。提醒匯入／補圖互動另由四組本機 E2E 覆蓋。
+
+## R123：審計確認項修正
+- [x] 平均稅費按所有實際分攤對象計算，包含由墊支人承擔未認帳實物數量時新增的墊支人。
+- [x] 明確帳單項目總額 `0` 保持零；只有總額缺失／空白時，才以單價乘數量回算。
+- [x] 計算分帳時拒絕負稅費；雙語錯誤顯示在欄位旁、`aria-invalid` 正確，並返回第二步聚焦稅費欄。
+- [x] 刪除項目先顯示含項目名稱的確認對話框；預設焦點放在保留，取消或 Escape 不改資料。
+- [x] 垃圾桶按鈕提供繁中／英文可存取名稱及手機 44×44px 觸控目標。
+- [x] 未建分享連結前認帳輸入區的現行鎖定行為保持不變；未在未確認前改動流程。
+- [x] 本機回歸通過：`calculation-regressions.cjs` 3/3、`text-import.cjs`、`tutorial-ui.cjs` 19 個 browser cases、`friend-recognition.cjs` 12/12、`card-redaction-ui.cjs`、`recognition-retry-ui.cjs`；`node --check` 與 `git diff --check` 通過，所有業務 API 均為本機 mock。
+- [ ] 推送 R123、監察 GitHub Pages 部署，並在公開網址檢查新版本。

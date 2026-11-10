@@ -1,3 +1,11 @@
+## R123：分帳計算與刪除確認修正
+
+修正三項計算邊界：平均稅費涵蓋所有實際分攤者（包括代墊未認帳實物數量的墊支人）、明確總額 `0` 不再被單價×數量覆蓋、負稅費不能產生結果。刪除項目改為顯示名稱的確認對話框，預設聚焦「保留」；垃圾桶按鈕具繁英 accessible name 及 44×44px 觸控目標。分享連結前的認帳輸入限制維持不變。PWA cache epoch：`v123-issue-audit-fixes-20261110`。
+
+## R123: Split-calculation and deletion safeguards
+
+Fixes three calculation edge cases: equal tax includes every actual cost bearer (including a payer covering unclaimed physical units); an explicit item total of `0` is no longer replaced by price × quantity; and negative tax cannot produce a report. Item deletion now asks for confirmation by item name, with the safe “Keep” action focused by default. The trash button has localized accessible names and a 44×44px touch target. The current claim-input gate before creating a share link is unchanged. PWA cache epoch: `v123-issue-audit-fixes-20261110`.
+
 ## R122：AI 匯入後提醒補貼原帳單
 
 文字／JSON 匯入而沒有帳單圖片時，第二步即時提示補貼原帳單；遮蓋／核對後，朋友可在同一結果連結查看。此流程不重跑 OCR，也不改動已匯入項目。結果頁標題改為「漏貼帳單？點樣補加」。朋友及帳單兩張收起卡縮至 40px；分享／加圖按鈕仍為白色 44px。PWA cache epoch：`v122-imported-bill-photo-reminder-20261110`。
