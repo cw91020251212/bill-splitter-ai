@@ -292,4 +292,5 @@
 - [x] 後建分享連結時不預填／上傳本機手動回覆；連結建立後朋友回覆仍能正常接收，舊線上流程保留。
 - [x] index／PWA／Service Worker cache token 升至 `v125-manual-claim-mode-20261110`。
 - [x] 本機 `friend-recognition.cjs` 13/13、`text-import.cjs`、`card-redaction-ui.cjs`、`calculation-regressions.cjs` 3/3 通過；`node --check` 和 `git diff --check` 通過，所有 API 使用 Worker harness，外部寫入 0。
-- [ ] 推送後監察 Pages，並以公開 `PUBLIC_STATIC_QA=1` 回歸確認功能和零外部寫入。
+- [x] Commit `84d7865` 已推送至 `main`；[GitHub Pages workflow 42779205241](https://github.com/cw91020251212/bill-splitter-ai/actions/runs/42779205241) 成功。公開首頁、`pwa.js`、`sw.js` 均 HTTP 200；live HTML 確認 R125 token 及繁中／英文入口文案。
+- [x] 公開網址 `PUBLIC_STATIC_QA=1` 的 `friend-recognition.cjs` 13/13 通過：本機模式不建立／呼叫線上收件、不把回覆帶入後建連結；原線上朋友認帳仍正常，外部寫入 0。
