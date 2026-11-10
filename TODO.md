@@ -263,4 +263,5 @@
 - [x] 有圖片後自動隱藏提醒；結果頁標題改為「漏貼帳單？點樣補加」／“Forgot the bill photo?”。
 - [x] 朋友卡及帳單卡收起按鈕縮至 40px，收緊容器上下留白；白色 44px 分享／加圖按鈕不變。
 - [x] PWA／Service Worker token 升至 R122；`text-import.cjs`、`friend-recognition.cjs` 12/12、`card-redaction-ui.cjs`、`recognition-retry-ui.cjs` 本機回歸通過；`node --check` 及 `git diff --check` 通過，所有 API 使用本機 mock。
-- [ ] 推送 R122、監察 GitHub Pages 部署，並在公開網址以 mock API 驗證提醒及新標題。
+- [x] Commit `f60d7c1` 已推送至 `main`；[Pages workflow 42747383201](https://github.com/cw91020251212/bill-splitter-ai/actions/runs/42747383201) 成功。公開首頁及 theme／PWA／Service Worker／tutorial／結果頁六項資產均 HTTP 200；live HTML 含 R122 cache token、中英提醒及「漏貼帳單」新標題。
+- [x] 公開網址 `PUBLIC_STATIC_QA=1` 的 `friend-recognition.cjs` 12/12 通過，驗證新標題、40px 收起卡、雙方向及同連結流程；所有 API 攔截至本機 harness，對外寫入 0。提醒匯入／補圖互動另由四組本機 E2E 覆蓋。
