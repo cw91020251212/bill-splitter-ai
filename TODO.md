@@ -325,4 +325,5 @@
 - [x] 本機實測：三種手機尺寸均無橫向溢出；影相起點 y=198，文字區底 y=308，手動入口底 y=366。匯入後顯示 `$68.00`／2 項，首項 y=200（320 大字）或 y=187（390 及 320×700）；可見按鈕觸控區至少 44×44px。大字步驟列維持單行；1280px 桌面頂欄、步驟列、辨識卡、上載區及第二步清單座標均不變。
 - [x] 核心回歸：`calculation-regressions.cjs` 14/14；`friend-recognition.cjs` 13/13（帳單 API 全本機 mock、外部寫入 0）；`cross-currency-ui.cjs`、`friend-whatsapp-details.cjs`、`card-redaction-ui.cjs` 均通過。文字匯入、設定、OCR 重認、互動教程 19/19、安全教程 2/2 亦通過；修改檔語法與 `git diff --check` 無錯。
 - [x] 官方 Playwright 文件確認 `getByTestId` 使用 DOM `data-testid`，`.click()` 等待可見／穩定／可接收事件；先前 OCR E2E 超時不是 Playwright 已知 bug，而是測試進入第三步後錯點僅屬第二步的返回控件。已改按手機實際路徑逐步返回。[Locator 指南](https://playwright.dev/docs/locators) [click/actionability API](https://playwright.dev/docs/api/class-locator) [可見性斷言](https://playwright.dev/docs/api/class-locatorassertions)。
-- [ ] 提交並推送至 `main`；待 GitHub Pages 成功後再做公開靜態資產與 R128 token smoke。
+- [x] R128 程式提交 `99569af` 已推送至 `main`；[GitHub Pages workflow 42883834064](https://github.com/cw91020251212/bill-splitter-ai/actions/runs/42883834064) 成功。
+- [x] 公開首頁、`pwa.js`、`sw.js`、`theme.css`、`tutorial.js`、`detailed-view.html` 均 HTTP 200；公開首頁及 PWA／Service Worker 均驗證 `v128-mobile-layout-20261111`，公開網址為 https://cw91020251212.github.io/bill-splitter-ai/。
