@@ -283,4 +283,5 @@
 - [x] 稅費／折扣標題以 `label` 正式連結輸入框，金額欄加 decimal input mode；金額提示字級至少 14px。
 - [x] 簡化調整說明的內嵌框線；保留原色彩、白色 44px 分享／加圖按鈕及 A−／A／A+ 三級字體設定。
 - [x] 本機回歸通過：`friend-recognition.cjs` 12/12、`tutorial-ui.cjs` 19 個 viewport／互動案例、`text-import.cjs`、`settings-free-models.cjs`；涵蓋雙語、附件空／已選、label 關聯、decimal input mode、14px 提示及 320／390px 版面。
-- [ ] 推送 R124、監察 GitHub Pages 部署，並在公開頁確認最新文案與資產。
+- [x] Commit `9676ea4` 已推送至 `main`；[Pages workflow 42773053984](https://github.com/cw91020251212/bill-splitter-ai/actions/runs/42773053984) 成功。公開首頁、theme、PWA、Service Worker、tutorial.css／js、結果頁及認帳頁均 HTTP 200，R124 token 與繁中核心文案已確認。
+- [x] 公開網址 `PUBLIC_STATIC_QA=1` 的 `friend-recognition.cjs` 12/12 通過；所有帳單 API 攔截至本機 harness，對外寫入 0。
