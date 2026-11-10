@@ -397,7 +397,9 @@ async function ui() {
   const billGuideDetails = fixture.host.getByTestId('missing-bill-flow-details');
   const billGuideSummary = fixture.host.getByTestId('missing-bill-flow-summary');
   assert.equal(await billGuideDetails.evaluate(node => node.open), false, 'the bill guide replacing the circled share button stays collapsed');
-  assert.match(await billGuideSummary.innerText(), /漏咗帳單？點樣補加[\s\S]*▼/);
+  assert.match(await billGuideSummary.innerText(), /漏貼帳單？點樣補加[\s\S]*▼/);
+  const billSummaryHeight = Math.round((await billGuideSummary.boundingBox()).height);
+  assert(billSummaryHeight >= 40 && billSummaryHeight <= 42, `bill guide control is compact but touchable (${billSummaryHeight}px)`);
   assert.equal(await fixture.host.evaluate(() => {
     const friend = document.querySelector('[data-testid="add-missing-person-guide"]');
     const bill = document.querySelector('[data-testid="missing-bill-guide"]');
@@ -414,7 +416,7 @@ async function ui() {
   await fixture.host.getByTestId('header-language-toggle').click();
   await fixture.host.waitForFunction(() => document.querySelector('[data-testid="missing-person-claim-direction"] h3')?.textContent.trim() === '1. Add a claim');
   assert.equal((await fixture.host.getByTestId('share-bill-direction').locator('h3').innerText()).trim(), '2. Share bill');
-  assert.match(await fixture.host.getByTestId('missing-bill-flow-summary').innerText(), /Missing a bill\? How to add it/);
+  assert.match(await fixture.host.getByTestId('missing-bill-flow-summary').innerText(), /Forgot the bill photo\?/);
   assert.match(await friendGuideSummary.innerText(), /Missing someone\? Add them/);
   assert.match(await fixture.host.getByTestId('share-bill-direction').innerText(), /New photos are masked locally/);
   await fixture.host.getByTestId('header-language-toggle').click();
@@ -469,7 +471,8 @@ async function ui() {
   const flowSummary = host.getByTestId('late-person-flow-summary');
   assert.equal(await flowDetails.evaluate(node => node.open), false, 'missing-person guidance starts collapsed');
   assert.match(await flowSummary.innerText(), /漏咗朋友？點樣補加[\s\S]*▼/, 'the original missing-friend control stays in its original position');
-  assert((await flowSummary.boundingBox()).height >= 44, 'collapse control keeps a mobile-friendly touch target');
+  const friendSummaryHeight = Math.round((await flowSummary.boundingBox()).height);
+  assert(friendSummaryHeight >= 40 && friendSummaryHeight <= 42, `friend guide control is compact but touchable (${friendSummaryHeight}px)`);
   assert.equal(await host.getByTestId('copy-late-person-link').isVisible(), false, 'actions stay hidden until expanded');
   await flowSummary.click();
   assert.equal(await flowDetails.evaluate(node => node.open), true, 'downward summary expands the guide');
@@ -478,6 +481,13 @@ async function ui() {
   assert((await host.getByTestId('missing-person-steps').innerText()).length <= 100, 'expanded instructions remain concise');
   assert.equal((await host.getByTestId('copy-late-person-link').innerText()).trim(), '複製連結');
   assert.equal((await host.getByTestId('receive-late-person-claims').innerText()).trim(), '接收新認帳');
+  await host.getByTestId('receive-late-person-claims').click();
+  await host.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '2', null, { timeout: 10000 });
+  await host.getByTestId('claim-inbox').waitFor({ state: 'visible' });
+  await host.locator('.step-nav').getByRole('button', { name: '最終結果' }).click();
+  await latePersonGuide.waitFor({ state: 'visible' });
+  assert.equal(await flowDetails.evaluate(node => node.open), false, 'receiving action returns to results with the guide collapsed');
+  await flowSummary.click();
   await host.evaluate(() => { window.__copiedLatePersonLink = ''; document.execCommand = command => { if (command === 'copy') window.__copiedLatePersonLink = document.activeElement?.value || ''; return command === 'copy'; }; });
   await host.getByTestId('manual-late-person-replies').click();
   await host.waitForFunction(() => document.activeElement?.getAttribute('data-testid') === 'claim-replies', null, { timeout: 5000 });
@@ -493,9 +503,7 @@ async function ui() {
   await submit(late, c, '', 1);
   assert.equal(late.url(), link, 'adding a new person does not change the original link');
   await host.bringToFront();
-  const receiveLateClaims = host.getByTestId('receive-late-person-claims');
-  if (await receiveLateClaims.count()) await receiveLateClaims.click();
-  await hostSettle(fixture, REVISED_QTY, false, [A, B, LATE], true);
+  await hostSettle(fixture, REVISED_QTY, false, [A, B, LATE]);
   const lateResult = await result(late, LATE);
   await lateResult.locator('#receipt-content img').waitFor({ state: 'visible', timeout: 15000 });
   assert.equal(await lateResult.locator('#receipt-content img').count(), 1, 'the same result link renders the redacted receipt below the bill');

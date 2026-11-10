@@ -84,7 +84,7 @@ async function seed(page, width, height, failOcr = false) {
   assert.equal(await page.getByTestId('late-person-flow-details').evaluate(node => node.open), false, 'the two-direction guide starts collapsed');
   assert.match(await page.getByTestId('late-person-flow-summary').innerText(), /漏咗朋友？點樣補加/);
   assert.equal(await page.getByTestId('missing-bill-flow-details').evaluate(node => node.open), false, 'the guide replacing the circled share button starts collapsed');
-  assert.match(await page.getByTestId('missing-bill-flow-summary').innerText(), /漏咗帳單？點樣補加/);
+  assert.match(await page.getByTestId('missing-bill-flow-summary').innerText(), /漏貼帳單？點樣補加/);
   await page.getByTestId('missing-bill-flow-summary').click();
   assert.match(await page.getByTestId('receipt-redaction-default-note').innerText(), /卡號預設在本機遮蓋/);
   const shareButtonStyle = await page.getByTestId('share-receipt-images').evaluate(button => ({ background: getComputedStyle(button).backgroundColor, height: Math.round(button.getBoundingClientRect().height) }));

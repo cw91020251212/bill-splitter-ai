@@ -257,3 +257,10 @@
 - [x] 更新 R121 cache token；本機 `friend-recognition.cjs` 12/12、`card-redaction-ui.cjs`、`recognition-retry-ui.cjs` 通過，涵蓋兩卡收起、位置、雙語、遮蓋與分享確認；`node --check` 和 `git diff --check` 通過。
 - [x] Commit `2065386` 已推送至 `main`；[GitHub Pages workflow 42736451247](https://github.com/cw91020251212/bill-splitter-ai/actions/runs/42736451247) 成功。公開首頁確認 R121 token，首頁、theme、PWA、Service Worker、tutorial、結果頁和認帳頁均 HTTP 200。
 - [x] 公開網址 `PUBLIC_STATIC_QA=1` 的 `friend-recognition.cjs` 12/12 通過，驗證漏朋友卡保留、新漏帳單卡位置／雙方向／雙語及同連結加圖；API 全部攔截至本機 harness，對外寫入 0。
+
+## R122：AI 匯入漏貼帳單提醒與收起卡高度
+- [x] 文字／JSON 匯入後如未有帳單圖片，第二步即時提示補貼原帳單；照片沿用本機遮蓋／核對、不做 OCR／AI 的入口，且保留匯入項目。
+- [x] 有圖片後自動隱藏提醒；結果頁標題改為「漏貼帳單？點樣補加」／“Forgot the bill photo?”。
+- [x] 朋友卡及帳單卡收起按鈕縮至 40px，收緊容器上下留白；白色 44px 分享／加圖按鈕不變。
+- [x] PWA／Service Worker token 升至 R122；`text-import.cjs`、`friend-recognition.cjs` 12/12、`card-redaction-ui.cjs`、`recognition-retry-ui.cjs` 本機回歸通過；`node --check` 及 `git diff --check` 通過，所有 API 使用本機 mock。
+- [ ] 推送 R122、監察 GitHub Pages 部署，並在公開網址以 mock API 驗證提醒及新標題。

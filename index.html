@@ -85,11 +85,11 @@
   ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
   ::-webkit-scrollbar-thumb:hover { background: #64748b; }
   </style>
-  <link rel="stylesheet" href="./theme.css?v=v121-bill-guide-target-fix-20261110">
+  <link rel="stylesheet" href="./theme.css?v=v122-imported-bill-photo-reminder-20261110">
   <link rel="stylesheet" href="./tutorial.css?v=v86-free-models-only">
   <!-- R114: current interactive guide; original video lessons retained. -->
-  <meta name="bill-app-release" content="v121-bill-guide-target-fix-20261110">
-  <script defer src="./pwa.js?v=v121-bill-guide-target-fix-20261110"></script>
+  <meta name="bill-app-release" content="v122-imported-bill-photo-reminder-20261110">
+  <script defer src="./pwa.js?v=v122-imported-bill-photo-reminder-20261110"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
@@ -104,7 +104,7 @@
   <script src="./card-redaction.js?v=v97-card-number-redaction"></script>
   <script src="./card-share-review.js?v=v97-card-number-redaction"></script>
   <script src="./exchange-rates.js?v=v90-cross-currency-settlement"></script>
-    <script src="./tutorial.js?v=v121-bill-guide-target-fix-20261110"></script>
+    <script src="./tutorial.js?v=v122-imported-bill-photo-reminder-20261110"></script>
   <script type="text/babel">
     const { useState, useRef, useEffect, useLayoutEffect, useMemo } = React;
     const tr = value => window.BillI18n.t(value);
@@ -2432,7 +2432,7 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
         const storageKey = 'billSplitterDetailTablePreviewV1';
         try {
           localStorage.setItem(storageKey, JSON.stringify(previewData));
-          const previewWindow = window.open('./detailed-view.html?v=v121-bill-guide-target-fix-20261110', '_blank');
+          const previewWindow = window.open('./detailed-view.html?v=v122-imported-bill-photo-reminder-20261110', '_blank');
           if (!previewWindow) {
             localStorage.removeItem(storageKey);
             toast(bi('允許彈窗', 'Allow pop-ups'), 'error');
@@ -3513,7 +3513,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
         const metadata = getClaimLinkMetadata();
         const link = new URL('./claim.html', window.location.href);
         link.searchParams.set('lang', lang === 'en' ? 'en' : 'zh-HK');
-        link.searchParams.set('v', 'v121-bill-guide-target-fix-20261110');
+        link.searchParams.set('v', 'v122-imported-bill-photo-reminder-20261110');
         link.searchParams.set('session', session.id);
         link.hash = window.ClaimRelay
           ? window.ClaimRelay.buildHash(encodeClaimLinkPayload(payload), room, metadata)
@@ -3638,11 +3638,16 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
         bi('✅ 提示詞已複製；要求 bill.json，不能附檔就複製整段回覆。', '✅ Prompt copied; it requests bill.json, or a full reply to copy if attachments are unavailable.')
       );
 
-      const renderTextImportReceiptAttachmentCard = (shareMode = false) => (
-        <Card data-testid="imported-receipt-attachment-card" className="!p-2 border-slate-400 bg-white">
+      const renderTextImportReceiptAttachmentCard = (shareMode = false, remindBillPhoto = false) => (
+        <Card data-testid="imported-receipt-attachment-card" className={`!p-2 border-slate-400 bg-white ${remindBillPhoto ? '!border-amber-500 !bg-amber-50' : ''}`}>
+          {remindBillPhoto && <div data-testid="ai-import-bill-photo-reminder" role="status" aria-live="polite" className="mb-2 space-y-1 text-sm leading-relaxed text-amber-950">
+            <p className="font-bold">{bi('AI 只匯入項目，未有帳單圖片。', 'AI import includes the items, not the bill photo.')}</p>
+            <p>{bi('請補貼原帳單，分享後朋友可在同一結果連結查看。', 'Attach the original; friends can view it on the same result link.')}</p>
+            <p className="text-xs">{bi('卡號會先在本機遮蓋；核對後才加入。', 'Card numbers are masked locally; review before adding.')}</p>
+          </div>}
           <div className="space-y-1">
-            <Button data-testid="attach-receipt-image" variant="secondary" className={`!w-full !py-2 ${shareMode ? '!h-[44px] !min-h-[44px] !py-1 !border-blue-500 !bg-white !text-blue-900 !text-sm !shadow-none' : ''}`} style={shareMode ? { height: '44px', minHeight: '44px', backgroundColor: '#fff', color: '#1e3a8a', borderColor: '#3b82f6', boxShadow: 'none' } : undefined} disabled={tutorialDemo || isAnalyzing || isPreparingRedacted} onClick={() => openReceiptImagePicker(receiptAttachmentInputRef)}>
-              <Icon path={icons.fileImage} size={18}/>{bi(shareMode ? (lastImageData.length > 0 ? '再加帳單圖' : '加入帳單圖') : '後加圖片', shareMode ? (lastImageData.length > 0 ? 'Add another bill photo' : 'Add bill photo') : 'Add photo')}
+            <Button data-testid="attach-receipt-image" variant="secondary" className={`!w-full !py-2 ${shareMode ? '!h-[44px] !min-h-[44px] !py-1 !border-blue-500 !bg-white !text-blue-900 !text-sm !shadow-none' : remindBillPhoto ? '!h-[44px] !min-h-[44px] !py-1 !border-amber-600 !bg-white !text-amber-950 !text-sm !shadow-none' : ''}`} style={shareMode ? { height: '44px', minHeight: '44px', backgroundColor: '#fff', color: '#1e3a8a', borderColor: '#3b82f6', boxShadow: 'none' } : remindBillPhoto ? { height: '44px', minHeight: '44px', backgroundColor: '#fff', color: '#78350f', borderColor: '#d97706', boxShadow: 'none' } : undefined} disabled={tutorialDemo || isAnalyzing || isPreparingRedacted} onClick={() => openReceiptImagePicker(receiptAttachmentInputRef)}>
+              <Icon path={icons.fileImage} size={18}/>{bi(remindBillPhoto ? '補貼原帳單' : shareMode ? (lastImageData.length > 0 ? '再加帳單圖' : '加入帳單圖') : '後加圖片', remindBillPhoto ? 'Attach original bill' : shareMode ? (lastImageData.length > 0 ? 'Add another bill photo' : 'Add bill photo') : 'Add photo')}
             </Button>
             {lastImageData.length > 0 && !shareMode && <p data-testid="receipt-attachment-status" className="text-center text-xs text-slate-600" role="status" aria-live="polite">{bi(`已加${lastImageData.length}張`, `${lastImageData.length} added`)}</p>}
           </div>
@@ -4562,7 +4567,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                   </div>
                 )}
                 {items.length === 0 && <p className="text-base text-slate-700 leading-relaxed">{bi('有項目之後，先會出現認帳連結。', 'The share link appears once there is an item.')}</p>}
-                {isTextImportResult && renderTextImportReceiptAttachmentCard()}
+                {isTextImportResult && renderTextImportReceiptAttachmentCard(false, lastImageData.length === 0)}
 
                 <Card data-testid="activity-settings" className="!p-4 space-y-3">
                   <div>
@@ -4950,9 +4955,9 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                   {friendShareStatus === 'error' && <button type="button" data-testid="retry-same-link-sync" onClick={createFriendShareLink} className="ml-2 underline">{bi('重試', 'Retry')}</button>}
                   </div>}
 
-                <Card data-testid="add-missing-person-guide" className="border-blue-300 bg-blue-50 !shadow-none">
+                <Card data-testid="add-missing-person-guide" className="!px-3 !py-2 border-blue-300 bg-blue-50 !shadow-none">
                   <details data-testid="late-person-flow-details" className="group">
-                    <summary data-testid="late-person-flow-summary" aria-controls="late-person-flow-content" className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 rounded-lg py-2 text-blue-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-700 focus-visible:ring-offset-2">
+                    <summary data-testid="late-person-flow-summary" aria-controls="late-person-flow-content" className="flex min-h-10 cursor-pointer list-none items-center justify-between gap-3 rounded-lg py-1 text-blue-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-700 focus-visible:ring-offset-2">
                       <span className="font-extrabold">{bi('漏咗朋友？點樣補加', 'Missing someone? Add them')}</span>
                       <span aria-hidden="true" className="text-lg transition-transform duration-200 group-open:rotate-180">▼</span>
                     </summary>
@@ -4981,10 +4986,10 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                   </details>
                 </Card>
 
-                <Card data-testid="missing-bill-guide" className="border-blue-300 bg-blue-50 !shadow-none">
+                <Card data-testid="missing-bill-guide" className="!px-3 !py-2 border-blue-300 bg-blue-50 !shadow-none">
                   <details data-testid="missing-bill-flow-details" className="group">
-                    <summary data-testid="missing-bill-flow-summary" aria-controls="missing-bill-flow-content" className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 rounded-lg py-2 text-blue-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-700 focus-visible:ring-offset-2">
-                      <span className="font-extrabold">{bi('漏咗帳單？點樣補加', 'Missing a bill? How to add it')}</span>
+                    <summary data-testid="missing-bill-flow-summary" aria-controls="missing-bill-flow-content" className="flex min-h-10 cursor-pointer list-none items-center justify-between gap-3 rounded-lg py-1 text-blue-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-700 focus-visible:ring-offset-2">
+                      <span className="font-extrabold">{bi('漏貼帳單？點樣補加', 'Forgot the bill photo?')}</span>
                       <span aria-hidden="true" className="text-lg transition-transform duration-200 group-open:rotate-180">▼</span>
                     </summary>
                     <div id="missing-bill-flow-content" data-testid="missing-bill-flow-content" className="mt-3 space-y-3">

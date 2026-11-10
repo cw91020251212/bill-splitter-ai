@@ -127,6 +127,20 @@ const initStorage = async (page, config) => {
     assert.match(pastedRows.join('\n'), /奶茶/);
     assert.equal(await noKeyPage.locator('[data-testid="items-step"] [data-testid="last-recognition-model"]').count(), 0, 'the review step hides redundant source/model details');
     assert.equal(noKeyRequests, 0, 'valid JSON is imported locally without an API key or network request');
+    const missingBillReminder = noKeyPage.getByTestId('ai-import-bill-photo-reminder');
+    await missingBillReminder.waitFor({ state: 'visible' });
+    assert.match(await missingBillReminder.innerText(), /AI 只匯入項目，未有帳單圖片/);
+    assert.match(await missingBillReminder.innerText(), /請補貼原帳單/);
+    assert.match(await noKeyPage.getByTestId('attach-receipt-image').innerText(), /補貼原帳單/);
+    const reminderButtonStyle = await noKeyPage.getByTestId('attach-receipt-image').evaluate(button => ({ background: getComputedStyle(button).backgroundColor, height: Math.round(button.getBoundingClientRect().height) }));
+    assert.deepEqual(reminderButtonStyle, { background: 'rgb(255, 255, 255)', height: 44 }, 'the original-bill reminder offers a clear white 44px action');
+    await noKeyPage.getByTestId('header-action-menu-toggle').click();
+    await noKeyPage.getByTestId('header-language-toggle').click();
+    await noKeyPage.waitForFunction(() => document.querySelector('[data-testid="ai-import-bill-photo-reminder"]')?.textContent.includes('AI import includes the items, not the bill photo.'));
+    assert.match(await missingBillReminder.innerText(), /friends can view it on the same result link/);
+    assert.match(await noKeyPage.getByTestId('attach-receipt-image').innerText(), /Attach original bill/);
+    await noKeyPage.getByTestId('header-language-toggle').click();
+    await noKeyPage.waitForFunction(() => document.querySelector('[data-testid="ai-import-bill-photo-reminder"]')?.textContent.includes('AI 只匯入項目，未有帳單圖片'));
 
     await noKeyPage.evaluate(base64 => {
       const bytes = Uint8Array.from(atob(base64), character => character.charCodeAt(0));
@@ -152,9 +166,10 @@ const initStorage = async (page, config) => {
     });
     await noKeyPage.getByTestId('receipt-attachment-only-hint').waitFor({ state: 'visible' });
     assert.match(await noKeyPage.getByTestId('receipt-attachment-only-hint').innerText(), /不做 OCR|no OCR or AI/);
-    assert.match(await noKeyPage.getByTestId('attach-receipt-image').innerText(), /後加圖片/);
+    assert.match(await noKeyPage.getByTestId('attach-receipt-image').innerText(), /補貼原帳單/);
     await noKeyPage.getByTestId('redaction-next-or-finish').click();
     await noKeyPage.waitForFunction(() => /已加1張/.test(document.querySelector('[data-testid="receipt-attachment-status"]')?.textContent || ''), null, { timeout: 15000 });
+    assert.equal(await noKeyPage.getByTestId('ai-import-bill-photo-reminder').count(), 0, 'the reminder disappears after the original bill photo is attached');
     assert.equal(await noKeyPage.getByTestId('verify-item').count(), 2, 'attaching a photo preserves the imported JSON items');
     assert.equal(noKeyRequests, 0, 'photo attachment does not send the image to OpenRouter');
     await noKeyPage.waitForFunction(async () => {
@@ -175,13 +190,16 @@ const initStorage = async (page, config) => {
     await noKeyPage.reload();
     await noKeyPage.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '2', null, { timeout: 30000 });
     assert.match(await noKeyPage.getByTestId('receipt-attachment-status').innerText(), /已加1張/, 'the attached photo remains with the imported bill after reload');
+    assert.equal(await noKeyPage.getByTestId('ai-import-bill-photo-reminder').count(), 0, 'the restored photo also keeps the reminder hidden');
     assert.equal((await noKeyPage.getByTestId('draft-status').innerText()).trim(), '已恢復');
     assert.equal(noKeyRequests, 0, 'restoring the attached photo also makes no API request');
 
-    await noKeyPage.evaluate(() => localStorage.setItem('billSplitterLanguage', 'en'));
+    await noKeyPage.getByTestId('header-action-menu-toggle').click();
+    await noKeyPage.getByTestId('header-language-toggle').click();
     await noKeyPage.reload();
     await noKeyPage.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '2', null, { timeout: 30000 });
     assert.equal((await noKeyPage.getByTestId('draft-status').innerText()).trim(), 'Restored');
+    assert.equal(await noKeyPage.getByTestId('ai-import-bill-photo-reminder').count(), 0, 'the hidden reminder stays hidden after the English reload');
     assert.match(await noKeyPage.getByTestId('attach-receipt-image').innerText(), /Add photo/);
     await noKeyPage.getByTestId('attach-receipt-image').click();
     await noKeyPage.getByTestId('receipt-attachment-input').setInputFiles({
@@ -214,6 +232,7 @@ const initStorage = async (page, config) => {
     await noKeyPage.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '2', null, { timeout: 30000 });
     assert.equal(await noKeyPage.getByTestId('verify-item').count(), 1, 'a text file containing fenced JSON also imports locally');
     assert.match(await noKeyPage.getByTestId('verify-item').first().innerText(), /冰咖啡/);
+    assert.equal(await noKeyPage.getByTestId('ai-import-bill-photo-reminder').isVisible(), true, 'imported JSON without a photo prompts for the original bill');
     assert.equal(noKeyRequests, 0, 'text-file JSON also makes no network request');
 
     await noKeyPage.locator('.step-nav button').first().click();
@@ -259,11 +278,13 @@ const initStorage = async (page, config) => {
     assert.equal(capturedImageCount, 0, 'text-only requests contain no image payload');
     assert.match(await modelPage.getByTestId('verify-item').first().innerText(), /芒果糯米飯/);
     assert.match(await modelPage.getByTestId('verify-summary').innerText(), /^1項/);
+    assert.equal(await modelPage.getByTestId('ai-import-bill-photo-reminder').isVisible(), true, 'AI-structured text without a photo also asks for the original bill');
+    assert.match(await modelPage.getByTestId('attach-receipt-image').innerText(), /補貼原帳單/);
     assert.equal(await modelPage.locator('[data-testid="items-step"] [data-testid="last-recognition-model"]').count(), 0);
     assert.deepEqual(failures, [], failures.join('\n'));
     await modelContext.close();
 
-    console.log('PASS: copied photo-reading JSON prompt; pasted and .txt JSON imported locally; attached a synthetic receipt after JSON import without OCR/API use; attachment survived reload; free-form text used Dots as text-only.');
+    console.log('PASS: copied photo-reading JSON prompt; pasted and .txt JSON imported locally; missing-bill reminder tested in zh-HK/English; attached synthetic receipts through local redaction only; no-photo reminder hides after attach and survives reload; AI text import also prompts for the original photo.');
   } finally {
     await browser.close();
   }

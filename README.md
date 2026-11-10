@@ -1,3 +1,11 @@
+## R122：AI 匯入後提醒補貼原帳單
+
+文字／JSON 匯入而沒有帳單圖片時，第二步即時提示補貼原帳單；遮蓋／核對後，朋友可在同一結果連結查看。此流程不重跑 OCR，也不改動已匯入項目。結果頁標題改為「漏貼帳單？點樣補加」。朋友及帳單兩張收起卡縮至 40px；分享／加圖按鈕仍為白色 44px。PWA cache epoch：`v122-imported-bill-photo-reminder-20261110`。
+
+## R122: Prompt for the original bill photo after text import
+
+If text or JSON items are imported without a bill photo, Step 2 prompts the user to attach the original. After local redaction and review, friends can view the photo on the same result link. The action does not rerun OCR or change imported items. The result guide is renamed “Forgot the bill photo?” Both collapsed controls are 40px; sharing and photo actions remain white and 44px. PWA cache epoch: `v122-imported-bill-photo-reminder-20261110`.
+
 ## R121：紅圈按鈕改成漏咗帳單指引
 
 保留原本的「漏咗朋友？點樣補加」卡；將紅圈圈住的「分享收據圖」按鈕位置改成預設收起的「漏咗帳單？點樣補加」，展開後有「認帳單補加」及「分享帳單」兩個方向。卡號仍預設在本機遮蓋，分享與加圖按鈕為白色 44px；繁中／英文支援不變。產品標籤維持 `R114`；PWA cache epoch 為 `v121-bill-guide-target-fix-20261110`。
