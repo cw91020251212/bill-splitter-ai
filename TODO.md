@@ -274,4 +274,5 @@
 - [x] 垃圾桶按鈕提供繁中／英文可存取名稱及手機 44×44px 觸控目標。
 - [x] 未建分享連結前認帳輸入區的現行鎖定行為保持不變；未在未確認前改動流程。
 - [x] 本機回歸通過：`calculation-regressions.cjs` 3/3、`text-import.cjs`、`tutorial-ui.cjs` 19 個 browser cases、`friend-recognition.cjs` 12/12、`card-redaction-ui.cjs`、`recognition-retry-ui.cjs`；`node --check` 與 `git diff --check` 通過，所有業務 API 均為本機 mock。
-- [ ] 推送 R123、監察 GitHub Pages 部署，並在公開網址檢查新版本。
+- [x] Commit `b0b5777` 已推送至 `main`；[Pages workflow 42768783270](https://github.com/cw91020251212/bill-splitter-ai/actions/runs/42768783270) 成功。
+- [x] 公開首頁 R123 token／主要提示字串已確認；theme、PWA、Service Worker、tutorial、結果頁及認帳頁六項資產均 HTTP 200。公開 `PUBLIC_STATIC_QA=1` 的 `friend-recognition.cjs` 12/12 通過，API 全部攔截至本機 harness，對外寫入 0。
