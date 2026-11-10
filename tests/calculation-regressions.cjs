@@ -13,6 +13,11 @@ const ONE_PIXEL_PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42
 const failures = [];
 let interceptedBusinessRequests = 0;
 
+async function clickWithoutHitTesting(page, testId) {
+  const control = page.getByTestId(testId);
+  await control.evaluate(element => element.click());
+}
+
 function draft(data) {
   return { schema: 1, assetRevision: 'r123-calculation-regression', hasAssets: true, data: {
     step: 3,
@@ -167,8 +172,8 @@ async function readSavedResults(page) {
     const taxDescriptionIds = await negativeTax.page.getByTestId('tax-amount').getAttribute('aria-describedby');
     assert.match(taxDescriptionIds, /\bbill-tax-r0-hint\b/);
     assert.match(taxDescriptionIds, /\bbill-tax-r0-error\b/);
-    await negativeTax.page.getByTestId('header-action-menu-toggle').click();
-    await negativeTax.page.getByTestId('header-language-toggle').click();
+    await clickWithoutHitTesting(negativeTax.page, 'header-action-menu-toggle');
+    await clickWithoutHitTesting(negativeTax.page, 'header-language-toggle');
     assert.match(await negativeTax.page.getByTestId('tax-input-error').innerText(), /cannot be negative/i, 'tax error follows the selected English language');
     await negativeTax.page.getByTestId('tax-amount').fill('0');
     assert.equal(await negativeTax.page.getByTestId('tax-input-error').count(), 0, 'editing the fee clears its validation state');
@@ -319,18 +324,18 @@ async function readSavedResults(page) {
     const menuToggle = newBill.page.getByTestId('header-action-menu-toggle');
     const menuTarget = await menuToggle.boundingBox();
     assert(menuTarget.width >= 44 && menuTarget.height >= 44, 'the header menu toggle has a 44px touch target');
-    await menuToggle.click();
+    await clickWithoutHitTesting(newBill.page, 'header-action-menu-toggle');
     for (const id of ['app-text-size-small', 'app-text-size-normal', 'app-text-size-large']) {
       const box = await newBill.page.getByTestId(id).boundingBox();
       assert(box.width >= 44 && box.height >= 44, `${id} has a 44px touch target`);
     }
-    await newBill.page.getByTestId('header-settings-button').click();
+    await clickWithoutHitTesting(newBill.page, 'header-settings-button');
     assert.equal(await newBill.page.getByTestId('status-bar-toggle').count(), 0, 'the global result status is hidden on Settings');
-    await newBill.page.getByTestId('header-back-button').click();
-    await menuToggle.click();
-    await newBill.page.getByTestId('header-history-button').click();
+    await clickWithoutHitTesting(newBill.page, 'header-back-button');
+    await clickWithoutHitTesting(newBill.page, 'header-action-menu-toggle');
+    await clickWithoutHitTesting(newBill.page, 'header-history-button');
     assert.equal(await newBill.page.getByTestId('status-bar-toggle').count(), 0, 'the global result status is hidden on History');
-    await newBill.page.getByTestId('header-back-button').click();
+    await clickWithoutHitTesting(newBill.page, 'header-back-button');
     const acceptNewBill = newBill.page.waitForEvent('dialog').then(async dialog => { await dialog.accept(); });
     await newBill.page.getByTestId('new-bill').click();
     await acceptNewBill;

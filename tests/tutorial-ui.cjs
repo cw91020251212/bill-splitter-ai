@@ -350,6 +350,15 @@ async function runKeyStatusHintSmoke(browser) {
       localStorage.setItem('billSplitterLanguage', 'zh-HK');
     }, key);
     await page.goto(base, { waitUntil: 'networkidle' });
+    assert.equal(await page.getByTestId('scan-settings').evaluate(details => details.open), false, 'recognition settings remain collapsed on the phone first screen');
+    const shortHint = page.getByTestId('scan-key-short-hint');
+    if (key) {
+      assert.equal(await shortHint.count(), 0, 'configured key does not show the missing-key hint');
+    } else {
+      assert.equal(await shortHint.isVisible(), true, 'missing-key guidance appears beside photo recognition');
+      assert.match(await shortHint.innerText(), /未設鎖匙；文字／手動輸入。/);
+    }
+    await page.getByTestId('scan-settings-toggle').click();
     await page.waitForFunction(hasKey => {
       const text = document.querySelector('[data-testid="open-free-key-settings"]')?.innerText || '';
       return hasKey ? text.includes('已設定') : text.includes('尚未設定免費鎖匙');

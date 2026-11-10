@@ -2,6 +2,17 @@
 
 程式仍然是純靜態 GitHub Pages App，無需 build。Playwright 只用於開發驗收，不會載入到公開頁面；測試只可對本機執行。
 
+## R128 手機排版回歸
+
+`mobile-layout.cjs` 僅連線 localhost，驗證 320×844、390×844、320×700 首頁四種輸入入口、窄屏留白、48px 頂欄、32–40px 單行步驟列、相機／選圖位置及按鈕最小觸控尺寸；另驗證 320px 大字模式無橫向溢出、第二步總額及第一件商品的位置、手動認帳緊接清單，以及 1280px 桌面版基準幾何不變。測試不呼叫帳單或模型 API。
+
+```sh
+PLAYWRIGHT_MODULE=/path/to/playwright \
+CHROMIUM_EXECUTABLE=/usr/bin/chromium \
+BASE_URL=http://127.0.0.1:4178/ \
+node tests/mobile-layout.cjs
+```
+
 ## R127 複查回歸
 
 `calculation-regressions.cjs` 驗證負／無效商品價與數量會在第二步顯示錯誤、舊草稿認領需要逐項核對、未提交的收據文字可在本機還原且新單確認後清除。`text-import.cjs` 覆蓋有效但有負稅／折扣／商品錯誤的 JSON 不會外送 AI。`recognition-retry-ui.cjs` 用 mock OCR 測試同名不同規格的順序變更會沿用正確認領編號；完全重複而無法唯一配對時，會改發新編號並停用舊認帳。它仍只使用 localhost／mock，不寫入正式或公開帳單 API。

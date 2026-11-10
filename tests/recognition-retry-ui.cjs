@@ -150,13 +150,14 @@ const success = payload => ({
     const step2Entry = await page.evaluate(() => {
       const section = document.querySelector('[data-testid="items-step"]');
       const headerBottom = document.querySelector('header')?.getBoundingClientRect().bottom || 0;
-      return { scrollY: window.scrollY, sectionTop: section?.getBoundingClientRect().top, headerBottom };
+      const stepperBottom = document.querySelector('.stepper-panel')?.getBoundingClientRect().bottom || headerBottom;
+      return { scrollY: window.scrollY, sectionTop: section?.getBoundingClientRect().top, headerBottom, stepperBottom };
     });
     await page.waitForTimeout(1900);
-    assert(Math.abs(step2Entry.sectionTop - step2Entry.headerBottom - 12) < 4, 'successful OCR enters step 2 at the top of the review section');
+    assert(Math.abs(step2Entry.sectionTop - step2Entry.stepperBottom - 12) < 4, 'successful OCR enters step 2 just below the compact step row');
     assert(Math.abs(await page.evaluate(() => window.scrollY) - step2Entry.scrollY) < 4, 'successful OCR does not automatically scroll down to the sharing controls');
 
-    await page.locator('.step-nav button').first().click();
+    await page.getByTestId('back-to-step1').click();
     await page.getByTestId('receipt-upload').click();
     const reuseFirstBatch = page.getByTestId('reuse-last-receipt-photos');
     await reuseFirstBatch.waitFor({ state: 'visible' });
@@ -173,7 +174,7 @@ const success = payload => ({
     await page.getByText('新增相片結果', { exact: false }).waitFor({ state: 'visible' });
     assert.equal(await page.getByText('首次成功結果', { exact: false }).count(), 0, 'the newly selected batch replaces the earlier recognized items on success');
 
-    await page.locator('.step-nav button').first().click();
+    await page.getByTestId('back-to-step1').click();
     await page.getByTestId('receipt-upload').click();
     await page.getByTestId('reuse-last-receipt-photos').waitFor({ state: 'visible' });
     assert.equal(await page.getByTestId('reuse-last-receipt-photos').isDisabled(), false);
@@ -223,7 +224,7 @@ const success = payload => ({
     ], '姓名：阿明\n03 = 1碗\n姓名：小美\n04 = 2份');
     await page.reload({ waitUntil: 'domcontentloaded' });
     await page.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '2', null, { timeout: 30000 });
-    await page.locator('.step-nav button').first().click();
+    await page.getByTestId('back-to-step1').click();
     await page.getByTestId('receipt-upload').click();
     await page.getByTestId('reuse-last-receipt-photos').click();
     await page.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '2', null, { timeout: 30000 });
@@ -240,7 +241,7 @@ const success = payload => ({
     ], '姓名：阿明\n03 = 1碗\n姓名：小美\n04 = 1碗');
     await page.reload({ waitUntil: 'domcontentloaded' });
     await page.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '2', null, { timeout: 30000 });
-    await page.locator('.step-nav button').first().click();
+    await page.getByTestId('back-to-step1').click();
     await page.getByTestId('receipt-upload').click();
     await page.getByTestId('reuse-last-receipt-photos').click();
     await page.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '2', null, { timeout: 30000 });
@@ -250,7 +251,8 @@ const success = payload => ({
     await page.getByTestId('go-to-payer').click();
     assert.equal(await page.getByTestId('calculate-split').isDisabled(), true, 'stale IDs block calculation instead of silently assigning claims');
 
-    await page.locator('.step-nav button').first().click();
+    await page.getByTestId('back-to-step2').click();
+    await page.getByTestId('back-to-step1').click();
     await page.getByTestId('receipt-upload').click();
     await page.getByTestId('reuse-last-receipt-photos').click();
     await page.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '2', null, { timeout: 30000 });

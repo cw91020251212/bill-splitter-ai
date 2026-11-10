@@ -315,3 +315,14 @@
 - [x] 本機測試：`receipt-adjustments.test.cjs` 25/25、離線 `exchange-rates.test.cjs` 5/5、`calculation-regressions.cjs` 14/14（帳單 API 呼叫 0，含負數量顯示與修正）、`friend-recognition.cjs` 13/13（外部寫入 0）、`text-import.cjs`、`recognition-retry-ui.cjs`（同名不同規格／歧義案例、8 次 mock OCR）、`cross-currency-ui.cjs`、`friend-whatsapp-details.cjs`、`settings-free-models.cjs`、`tutorial-ui.cjs` 19 項、`tutorial-safety.cjs`、`card-redaction-ui.cjs` 均通過。
 - [x] 升級 R127 後再次通過設定 UI 測試；所有 JavaScript 檔 `node --check` 與 `git diff --check` 通過。
 - [x] 推送前確認遠端 `main` 與本機一致；Commit [`10beb68`](https://github.com/cw91020251212/bill-splitter-ai/commit/10beb6897562309adeebab6b3a9ced07e57ced67) 已推送。Pages workflow [42833333248](https://github.com/cw91020251212/bill-splitter-ai/actions/runs/42833333248) 成功；公開首頁、PWA、Service Worker、樣式、教程及詳細結果頁全部 HTTP 200，R127 token 正確；公開朋友認帳 live smoke 13/13 通過，所有業務 API 使用本機 mock，外部寫入 0。
+
+## R128：手機版排版與操作層級
+- [x] 手機斷點內整理頂欄與單行步驟列、留白及首頁標題；拍照／選圖、貼文字／JSON、手動輸入均以主要觸控尺寸前置；辨識設定預設收起，缺少鎖匙提示保持單行。
+- [x] 第二步先顯示總額／項數，再開始商品清單；第一件商品在 y=260px 前；手動認帳入口緊接商品清單，補圖和活動／分享設定收起在後；只調整手機 DOM 呈現順序與 CSS。
+- [x] 維持既有綠／紫配色；不修改計算、認帳或分享處理程式，桌面版不變。
+- [x] `tests/mobile-layout.cjs` 覆蓋 320×844、390×844、320×700、大字模式、橫向溢出、首頁入口及觸控目標、匯入後總額／清單首項、手動認帳順序，以及 1280px 桌面版幾何基準。
+- [x] index／PWA／Service Worker 及朋友連結令牌升至 `v128-mobile-layout-20261111`；可見版號 R128。
+- [x] 本機實測：三種手機尺寸均無橫向溢出；影相起點 y=198，文字區底 y=308，手動入口底 y=366。匯入後顯示 `$68.00`／2 項，首項 y=200（320 大字）或 y=187（390 及 320×700）；可見按鈕觸控區至少 44×44px。大字步驟列維持單行；1280px 桌面頂欄、步驟列、辨識卡、上載區及第二步清單座標均不變。
+- [x] 核心回歸：`calculation-regressions.cjs` 14/14；`friend-recognition.cjs` 13/13（帳單 API 全本機 mock、外部寫入 0）；`cross-currency-ui.cjs`、`friend-whatsapp-details.cjs`、`card-redaction-ui.cjs` 均通過。文字匯入、設定、OCR 重認、互動教程 19/19、安全教程 2/2 亦通過；修改檔語法與 `git diff --check` 無錯。
+- [x] 官方 Playwright 文件確認 `getByTestId` 使用 DOM `data-testid`，`.click()` 等待可見／穩定／可接收事件；先前 OCR E2E 超時不是 Playwright 已知 bug，而是測試進入第三步後錯點僅屬第二步的返回控件。已改按手機實際路徑逐步返回。[Locator 指南](https://playwright.dev/docs/locators) [click/actionability API](https://playwright.dev/docs/api/class-locator) [可見性斷言](https://playwright.dev/docs/api/class-locatorassertions)。
+- [ ] 提交並推送至 `main`；待 GitHub Pages 成功後再做公開靜態資產與 R128 token smoke。

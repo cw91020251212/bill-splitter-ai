@@ -1,3 +1,11 @@
+## R128：手機版排版精簡
+
+只調整手機畫面：首頁頂欄與步驟列收緊，拍照、選圖、貼文字及手動輸入更早出現；辨識設定預設收起。第二步把總額和商品清單前置，手動認帳緊接清單，補圖與活動／分享設定收起至後方。維持既有配色；不改計算、認帳、分享邏輯，桌面版位置保持不變。PWA cache epoch：`v128-mobile-layout-20261111`。
+
+## R128: Mobile layout polish
+
+Mobile-only layout changes bring the camera, image picker, text/JSON import and manual-entry actions onto the first screen, with recognition settings collapsed by default. Step 2 now leads with the bill total and item list, followed immediately by manual claims; receipt-photo and activity/share settings stay collapsed below. Existing colors remain. Calculation, claims and sharing behavior are unchanged, and desktop geometry is preserved. PWA cache epoch: `v128-mobile-layout-20261111`.
+
 ## R127：复查問題與草稿安全修正
 
 拒絕負數／無效商品金額和數量，並在第二步清楚顯示錯誤；有效 JSON 的稅費、折扣或商品資料錯誤時不會改送 AI。未提交的單據文字會留在本機草稿，取消新單可保留，確認新單則一併清除。舊草稿會先要求核對認領編號；OCR 重認可按唯一商品規格沿用編號，無法安全配對時改用新編號並阻止舊認帳錯套。設定／歷史頁不再顯示過期的結算狀態，字級選項及頂部功能選單均有至少 44px 觸控範圍。PWA cache epoch：`v127-recheck-audit-20261110`。
