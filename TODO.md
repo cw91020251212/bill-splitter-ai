@@ -303,3 +303,5 @@
 - [x] 更新手動認帳格式提示及模式狀態、表單 label、狀態列語義與教學焦點控管；小字體下的狀態按鈕、收合卡和刪除目標維持 44／40px。
 - [x] index／PWA／Service Worker、教程與分享頁 cache token 升至 `v126-followup-audit-20261110`；可見產品標籤為 R126。
 - [x] 本機測試通過：`receipt-adjustments.test.cjs` 24/24、離線匯率單元測試 5/5、`calculation-regressions.cjs` 10/10、`friend-recognition.cjs` 13/13（外部寫入 0）、`recognition-retry-ui.cjs`、`text-import.cjs`（含背景點按不刪除）、`settings-free-models.cjs`、`tutorial-ui.cjs` 19 項、`tutorial-safety.cjs`、`cross-currency-ui.cjs`、`card-redaction-ui.cjs`；語法與 `git diff --check` 通過。
+- [x] Commit [`131ff8f`](https://github.com/cw91020251212/bill-splitter-ai/commit/131ff8f8139f2c00ea1db6189baf2e8ddbad7cfe) 已推送到 `main`；[GitHub Pages workflow 42802936889](https://github.com/cw91020251212/bill-splitter-ai/actions/runs/42802936889) 成功，Pages 状態為 `built`。
+- [x] 公開首頁、`pwa.js`、`sw.js`、`theme.css`、`tutorial.js`、`detailed-view.html` 全部 HTTP 200；已確認 R126／`v126-followup-audit-20261110` 與繁中／英文手動認帳文案。公開 `PUBLIC_STATIC_QA=1` 的 `friend-recognition.cjs` 13/13 通過，所有帳單 API 走本機 mock，外部寫入 0。
