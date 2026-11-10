@@ -237,4 +237,5 @@
 - [x] 展開後的指引文字和操作標籤要精簡；保留「複製同一連結給朋友 → 接收新認帳 → 第三步重新計算」及手動貼上後備流程。
 - [x] 繁體中文及英文均可看到同一個收起／展開控制，原有連結、接收、手動貼上與重算行為不變。
 - [x] R119 cache token 已更新；本機 `friend-recognition.cjs` 12/12 通過，涵蓋預設收起、三角形展開、短文案及所有操作。
-- [ ] 推送 GitHub Pages 並在公開網址重跑認帳 E2E smoke（API 全部 mock）。
+- [x] GitHub Pages workflow `42726408591` 成功，commit `d3d0510` 已上線；R119 首頁及 theme／PWA／tutorial 資產 HTTP 200。
+- [x] 公開 `friend-recognition.cjs` 12/12 通過；`PUBLIC_STATIC_QA=1` 全程 mock API，正式認帳／帳單寫入 0。
