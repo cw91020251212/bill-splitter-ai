@@ -40,7 +40,7 @@
     window.navigator.standalone === true;
 
   /* ---------------------------------------------------------- service worker */
-  var RELEASE_VERSION = 'v120-bill-share-two-directions-20261110';
+  var RELEASE_VERSION = 'v121-bill-guide-target-fix-20261110';
   var waitingWorker = null;
   var registrationPromise = null;
   var reloadRequested = false;

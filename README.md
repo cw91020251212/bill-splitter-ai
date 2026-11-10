@@ -1,3 +1,11 @@
+## R121：紅圈按鈕改成漏咗帳單指引
+
+保留原本的「漏咗朋友？點樣補加」卡；將紅圈圈住的「分享收據圖」按鈕位置改成預設收起的「漏咗帳單？點樣補加」，展開後有「認帳單補加」及「分享帳單」兩個方向。卡號仍預設在本機遮蓋，分享與加圖按鈕為白色 44px；繁中／英文支援不變。產品標籤維持 `R114`；PWA cache epoch 為 `v121-bill-guide-target-fix-20261110`。
+
+## R121: Move the bill guide to the circled share button
+
+Keep the original “Missing someone? Add them” card. Replace the circled “Share photos” button at its original position with a collapsed “Missing a bill? How to add it” guide containing “Add a claim” and “Share bill”. Card numbers remain masked locally by default; share and add-photo actions stay white and 44px. The product badge remains `R114`; the PWA cache epoch is `v121-bill-guide-target-fix-20261110`.
+
 ## R120：漏咗帳單？點樣補加
 
 展開後有兩個方向：「認帳單補加」及「分享帳單」。現有帳單圖分享前預設在本機自動遮蓋卡號，只分享遮蓋副本；已有圖片時仍可追加圖片，新圖片會在本機遮蓋並先核對。分享與加圖按鈕均為白色、44px 高。產品標籤維持 `R114`；PWA cache epoch 為 `v120-bill-share-two-directions-20261110`。

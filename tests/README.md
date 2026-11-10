@@ -161,3 +161,6 @@ R119 漏人指引：`friend-recognition.cjs` 驗證結果卡預設收起、向�
 
 ## R120「漏咗帳單？點樣補加」
 `friend-recognition.cjs` 驗證收起狀態及兩個方向，並以主程式語言選單切換繁體中文／英文，核對標題、方向、遮蓋提示、分享按鈕和追加圖片文案；同一認帳連結、手動附圖、遮蓋後加入與重新結算仍通過。`card-redaction-ui.cjs` 驗證分享及追加圖片按鈕為白色、44px，原圖不變且分享 payload 只含遮蓋 JPEG；合成卡號測試覆蓋 320px／390px、手動遮蓋／復原及 OCR 失敗時阻止分享。`recognition-retry-ui.cjs` 覆蓋圖片批次重試與分享確認。所有 API 使用本機 Worker／mock，對外寫入 0。
+
+## R121 紅圈按鈕位置修正
+`friend-recognition.cjs`、`card-redaction-ui.cjs` 和 `recognition-retry-ui.cjs` 需分別驗證上方「漏咗朋友？點樣補加」卡仍保留並預設收起，下方原「分享收據圖」位置改為另一張預設收起的「漏咗帳單？點樣補加」卡；展開後顯示「認帳單補加」及「分享帳單」。雙語標題、分享／加圖白色 44px、預設本機遮蓋與零公開 API 寫入都納入回歸。

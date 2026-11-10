@@ -387,10 +387,25 @@ async function ui() {
   await a.locator('#cancel-claim-edit').click(); await a.locator('#revision-waiting').waitFor({ state: 'visible' });
   await hostSettle(fixture, INITIAL_QTY, true);
   assert.equal(await fixture.host.getByTestId('share-receipt-images').count(), 0, 'share action is absent until a receipt photo is added');
-  const billGuideDetails = fixture.host.getByTestId('late-person-flow-details');
-  const billGuideSummary = fixture.host.getByTestId('late-person-flow-summary');
-  assert.equal(await billGuideDetails.evaluate(node => node.open), false, 'bill follow-up guide stays collapsed by default');
+  const friendGuideDetails = fixture.host.getByTestId('late-person-flow-details');
+  const friendGuideSummary = fixture.host.getByTestId('late-person-flow-summary');
+  assert.equal(await friendGuideDetails.evaluate(node => node.open), false, 'the original missing-friend guide remains collapsed');
+  assert.match(await friendGuideSummary.innerText(), /漏咗朋友？點樣補加[\s\S]*▼/);
+  await friendGuideSummary.click();
+  assert.match(await fixture.host.getByTestId('missing-person-steps').innerText(), /複製同一連結給朋友/);
+  await friendGuideSummary.click();
+  const billGuideDetails = fixture.host.getByTestId('missing-bill-flow-details');
+  const billGuideSummary = fixture.host.getByTestId('missing-bill-flow-summary');
+  assert.equal(await billGuideDetails.evaluate(node => node.open), false, 'the bill guide replacing the circled share button stays collapsed');
   assert.match(await billGuideSummary.innerText(), /漏咗帳單？點樣補加[\s\S]*▼/);
+  assert.equal(await fixture.host.evaluate(() => {
+    const friend = document.querySelector('[data-testid="add-missing-person-guide"]');
+    const bill = document.querySelector('[data-testid="missing-bill-guide"]');
+    const report = document.querySelector('#report-share-step');
+    return Boolean(friend && bill && report
+      && (friend.compareDocumentPosition(bill) & Node.DOCUMENT_POSITION_FOLLOWING)
+      && (bill.compareDocumentPosition(report) & Node.DOCUMENT_POSITION_FOLLOWING));
+  }), true, 'the original friend guide stays above the bill guide, which replaces the circled button before report sharing');
   await billGuideSummary.click();
   assert.equal((await fixture.host.getByTestId('missing-person-claim-direction').locator('h3').innerText()).trim(), '1. 認帳單補加');
   assert.equal((await fixture.host.getByTestId('share-bill-direction').locator('h3').innerText()).trim(), '2. 分享帳單');
@@ -399,10 +414,12 @@ async function ui() {
   await fixture.host.getByTestId('header-language-toggle').click();
   await fixture.host.waitForFunction(() => document.querySelector('[data-testid="missing-person-claim-direction"] h3')?.textContent.trim() === '1. Add a claim');
   assert.equal((await fixture.host.getByTestId('share-bill-direction').locator('h3').innerText()).trim(), '2. Share bill');
-  assert.match(await fixture.host.getByTestId('late-person-flow-summary').innerText(), /Missing a bill\? How to add it/);
+  assert.match(await fixture.host.getByTestId('missing-bill-flow-summary').innerText(), /Missing a bill\? How to add it/);
+  assert.match(await friendGuideSummary.innerText(), /Missing someone\? Add them/);
   assert.match(await fixture.host.getByTestId('share-bill-direction').innerText(), /New photos are masked locally/);
   await fixture.host.getByTestId('header-language-toggle').click();
   await fixture.host.waitForFunction(() => document.querySelector('[data-testid="missing-person-claim-direction"] h3')?.textContent.trim() === '1. 認帳單補加');
+  assert.match(await friendGuideSummary.innerText(), /漏咗朋友？點樣補加/);
   const receiptSample = await fs.readFile(path.join(__dirname, 'fixtures', 'card-redaction-synthetic.png'));
   const photoPublishStart = harness.requests.length;
   await fixture.host.getByTestId('attach-receipt-image').click();
@@ -451,7 +468,7 @@ async function ui() {
   const flowDetails = host.getByTestId('late-person-flow-details');
   const flowSummary = host.getByTestId('late-person-flow-summary');
   assert.equal(await flowDetails.evaluate(node => node.open), false, 'missing-person guidance starts collapsed');
-  assert.match(await flowSummary.innerText(), /漏咗帳單？點樣補加[\s\S]*▼/, 'collapsed control has the requested concise title and downward triangle');
+  assert.match(await flowSummary.innerText(), /漏咗朋友？點樣補加[\s\S]*▼/, 'the original missing-friend control stays in its original position');
   assert((await flowSummary.boundingBox()).height >= 44, 'collapse control keeps a mobile-friendly touch target');
   assert.equal(await host.getByTestId('copy-late-person-link').isVisible(), false, 'actions stay hidden until expanded');
   await flowSummary.click();

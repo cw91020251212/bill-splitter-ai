@@ -85,11 +85,11 @@
   ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
   ::-webkit-scrollbar-thumb:hover { background: #64748b; }
   </style>
-  <link rel="stylesheet" href="./theme.css?v=v120-bill-share-two-directions-20261110">
+  <link rel="stylesheet" href="./theme.css?v=v121-bill-guide-target-fix-20261110">
   <link rel="stylesheet" href="./tutorial.css?v=v86-free-models-only">
   <!-- R114: current interactive guide; original video lessons retained. -->
-  <meta name="bill-app-release" content="v120-bill-share-two-directions-20261110">
-  <script defer src="./pwa.js?v=v120-bill-share-two-directions-20261110"></script>
+  <meta name="bill-app-release" content="v121-bill-guide-target-fix-20261110">
+  <script defer src="./pwa.js?v=v121-bill-guide-target-fix-20261110"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
@@ -104,7 +104,7 @@
   <script src="./card-redaction.js?v=v97-card-number-redaction"></script>
   <script src="./card-share-review.js?v=v97-card-number-redaction"></script>
   <script src="./exchange-rates.js?v=v90-cross-currency-settlement"></script>
-    <script src="./tutorial.js?v=v120-bill-share-two-directions-20261110"></script>
+    <script src="./tutorial.js?v=v121-bill-guide-target-fix-20261110"></script>
   <script type="text/babel">
     const { useState, useRef, useEffect, useLayoutEffect, useMemo } = React;
     const tr = value => window.BillI18n.t(value);
@@ -2432,7 +2432,7 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
         const storageKey = 'billSplitterDetailTablePreviewV1';
         try {
           localStorage.setItem(storageKey, JSON.stringify(previewData));
-          const previewWindow = window.open('./detailed-view.html?v=v120-bill-share-two-directions-20261110', '_blank');
+          const previewWindow = window.open('./detailed-view.html?v=v121-bill-guide-target-fix-20261110', '_blank');
           if (!previewWindow) {
             localStorage.removeItem(storageKey);
             toast(bi('允許彈窗', 'Allow pop-ups'), 'error');
@@ -3513,7 +3513,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
         const metadata = getClaimLinkMetadata();
         const link = new URL('./claim.html', window.location.href);
         link.searchParams.set('lang', lang === 'en' ? 'en' : 'zh-HK');
-        link.searchParams.set('v', 'v120-bill-share-two-directions-20261110');
+        link.searchParams.set('v', 'v121-bill-guide-target-fix-20261110');
         link.searchParams.set('session', session.id);
         link.hash = window.ClaimRelay
           ? window.ClaimRelay.buildHash(encodeClaimLinkPayload(payload), room, metadata)
@@ -4953,29 +4953,60 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                 <Card data-testid="add-missing-person-guide" className="border-blue-300 bg-blue-50 !shadow-none">
                   <details data-testid="late-person-flow-details" className="group">
                     <summary data-testid="late-person-flow-summary" aria-controls="late-person-flow-content" className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 rounded-lg py-2 text-blue-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-700 focus-visible:ring-offset-2">
-                      <span className="font-extrabold">{bi('漏咗帳單？點樣補加', 'Missing a bill? How to add it')}</span>
+                      <span className="font-extrabold">{bi('漏咗朋友？點樣補加', 'Missing someone? Add them')}</span>
                       <span aria-hidden="true" className="text-lg transition-transform duration-200 group-open:rotate-180">▼</span>
                     </summary>
                     <div id="late-person-flow-content" data-testid="late-person-flow-content" className="mt-3 space-y-3">
+                      {claimSession?.link ? (
+                        <React.Fragment>
+                          <ol data-testid="missing-person-steps" className="list-decimal space-y-1 pl-5 text-sm leading-relaxed text-blue-900">
+                            <li>{bi('複製同一連結給朋友；請他按「新增一位」。', 'Share the same link; ask them to tap “Add person”.')}</li>
+                            <li>{bi('提交後，按「接收新認帳」。', 'After submission, tap “Receive claims”.')}</li>
+                            <li>{bi('核對後到第三步重算。', 'Review the reply, then recalculate in Step 3.')}</li>
+                          </ol>
+                          <div className="grid gap-2 sm:grid-cols-2">
+                            <Button data-testid="copy-late-person-link" variant="secondary" className="!w-full !border-blue-500 !bg-white !text-blue-900" disabled={!getDetailedTableShareUrl()} onClick={() => copyToClipboard(getDetailedTableShareUrl(), bi('朋友連結', 'Friend link'), bi('已複製，傳畀漏咗的朋友。', 'Copied; send it to the missing friend.'))}>{bi('複製連結', 'Copy link')}</Button>
+                            <Button data-testid="receive-late-person-claims" variant="primary" className="!w-full" onClick={() => openLatePersonStep('inbox', true)}>{bi('接收新認帳', 'Receive claims')}</Button>
+                          </div>
+                          <p data-testid="late-person-flow-note" className="text-xs leading-relaxed text-blue-900">{bi('收到後去第三步；否則留在第二步。', 'Opens Step 3 when received; otherwise stay in Step 2.')}</p>
+                          <Button data-testid="manual-late-person-replies" variant="outline" className="!w-full !border-blue-500 !bg-white !text-blue-900" onClick={() => openLatePersonStep('replies')}>{bi('手動貼上認帳', 'Paste claims manually')}</Button>
+                        </React.Fragment>
+                      ) : (
+                        <React.Fragment>
+                          <p className="text-sm leading-relaxed text-blue-900">{bi('第二步貼上朋友回覆，第三步重算。', 'Paste the reply in Step 2, then recalculate in Step 3.')}</p>
+                          <Button data-testid="manual-late-person-replies" variant="secondary" className="!w-full !border-blue-500 !bg-white !text-blue-900" onClick={() => openLatePersonStep('replies')}>{bi('手動貼上認帳', 'Paste claims manually')}</Button>
+                        </React.Fragment>
+                      )}
+                    </div>
+                  </details>
+                </Card>
+
+                <Card data-testid="missing-bill-guide" className="border-blue-300 bg-blue-50 !shadow-none">
+                  <details data-testid="missing-bill-flow-details" className="group">
+                    <summary data-testid="missing-bill-flow-summary" aria-controls="missing-bill-flow-content" className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 rounded-lg py-2 text-blue-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-700 focus-visible:ring-offset-2">
+                      <span className="font-extrabold">{bi('漏咗帳單？點樣補加', 'Missing a bill? How to add it')}</span>
+                      <span aria-hidden="true" className="text-lg transition-transform duration-200 group-open:rotate-180">▼</span>
+                    </summary>
+                    <div id="missing-bill-flow-content" data-testid="missing-bill-flow-content" className="mt-3 space-y-3">
                       <section data-testid="missing-person-claim-direction" className="space-y-2">
                         <h3 className="text-sm font-extrabold text-blue-950">{bi('1. 認帳單補加', '1. Add a claim')}</h3>
                         {claimSession?.link ? (
                           <React.Fragment>
-                            <ol data-testid="missing-person-steps" className="list-decimal space-y-1 pl-5 text-sm leading-relaxed text-blue-900">
+                            <ol data-testid="bill-claim-steps" className="list-decimal space-y-1 pl-5 text-sm leading-relaxed text-blue-900">
                               <li>{bi('複製同一連結畀朋友；請佢按「新增一位」。', 'Share the same link; ask them to tap “Add person”.')}</li>
                               <li>{bi('提交後，按「接收新認帳」。', 'After submission, tap “Receive claims”.')}</li>
                               <li>{bi('核對後到第三步重算。', 'Review, then recalculate in Step 3.')}</li>
                             </ol>
                             <div className="grid gap-2 sm:grid-cols-2">
-                              <Button data-testid="copy-late-person-link" variant="secondary" className="!w-full !border-blue-500 !bg-white !text-blue-900" disabled={!getDetailedTableShareUrl()} onClick={() => copyToClipboard(getDetailedTableShareUrl(), bi('朋友連結', 'Friend link'), bi('已複製，傳畀漏咗的朋友。', 'Copied; send it to the missing friend.'))}>{bi('複製連結', 'Copy link')}</Button>
-                              <Button data-testid="receive-late-person-claims" variant="primary" className="!w-full" onClick={() => openLatePersonStep('inbox', true)}>{bi('接收新認帳', 'Receive claims')}</Button>
+                              <Button data-testid="copy-bill-claim-link" variant="secondary" className="!w-full !border-blue-500 !bg-white !text-blue-900" disabled={!getDetailedTableShareUrl()} onClick={() => copyToClipboard(getDetailedTableShareUrl(), bi('朋友連結', 'Friend link'), bi('已複製，傳畀漏咗的朋友。', 'Copied; send it to the missing friend.'))}>{bi('複製連結', 'Copy link')}</Button>
+                              <Button data-testid="receive-bill-claims" variant="primary" className="!w-full" onClick={() => openLatePersonStep('inbox', true)}>{bi('接收新認帳', 'Receive claims')}</Button>
                             </div>
-                            <Button data-testid="manual-late-person-replies" variant="outline" className="!w-full !border-blue-500 !bg-white !text-blue-900" onClick={() => openLatePersonStep('replies')}>{bi('手動貼上認帳', 'Paste claims manually')}</Button>
+                            <Button data-testid="manual-bill-claim-replies" variant="outline" className="!w-full !border-blue-500 !bg-white !text-blue-900" onClick={() => openLatePersonStep('replies')}>{bi('手動貼上認帳', 'Paste claims manually')}</Button>
                           </React.Fragment>
                         ) : (
                           <React.Fragment>
                             <p className="text-sm leading-relaxed text-blue-900">{bi('第二步貼上朋友回覆，第三步重算。', 'Paste the reply in Step 2, then recalculate in Step 3.')}</p>
-                            <Button data-testid="manual-late-person-replies" variant="secondary" className="!w-full !border-blue-500 !bg-white !text-blue-900" onClick={() => openLatePersonStep('replies')}>{bi('手動貼上認帳', 'Paste claims manually')}</Button>
+                            <Button data-testid="manual-bill-claim-replies" variant="secondary" className="!w-full !border-blue-500 !bg-white !text-blue-900" onClick={() => openLatePersonStep('replies')}>{bi('手動貼上認帳', 'Paste claims manually')}</Button>
                           </React.Fragment>
                         )}
                       </section>

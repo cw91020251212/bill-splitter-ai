@@ -208,8 +208,9 @@ const success = payload => ({
     await page.getByTestId('calculate-split').click();
     await page.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '4', null, { timeout: 15000 });
     const receiptImageButton = page.getByTestId('share-receipt-images');
-    assert.equal(await page.getByTestId('late-person-flow-details').evaluate(node => node.open), false, 'bill directions start collapsed');
-    await page.getByTestId('late-person-flow-summary').click();
+    assert.match(await page.getByTestId('late-person-flow-summary').innerText(), /漏咗朋友？點樣補加/);
+    assert.equal(await page.getByTestId('missing-bill-flow-details').evaluate(node => node.open), false, 'the guide replacing the circled share button starts collapsed');
+    await page.getByTestId('missing-bill-flow-summary').click();
     await receiptImageButton.waitFor({ state: 'visible' });
     const receiptButtonStyle = await receiptImageButton.evaluate(button => ({ background: getComputedStyle(button).backgroundColor, height: Math.round(button.getBoundingClientRect().height) }));
     assert.deepEqual(receiptButtonStyle, { background: 'rgb(255, 255, 255)', height: 44 }, 'the share-bill action is a compact white 44px button');
