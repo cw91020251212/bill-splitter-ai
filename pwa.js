@@ -40,7 +40,7 @@
     window.navigator.standalone === true;
 
   /* ---------------------------------------------------------- service worker */
-  var RELEASE_VERSION = 'v124-ui-clarity-20261110';
+  var RELEASE_VERSION = 'v125-manual-claim-mode-20261110';
   var waitingWorker = null;
   var registrationPromise = null;
   var reloadRequested = false;

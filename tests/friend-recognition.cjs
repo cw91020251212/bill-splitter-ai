@@ -397,7 +397,64 @@ async function hostSettle(fixture, qty, initial = false, names = [A, B], claimsA
   assert.equal(await host.getByTestId('detail-report-actions').getByRole('button', { name: '分享' }).count(), 1);
   assert.doesNotMatch(await backups.innerText(), /網頁版是首選|後備方案（簡單版／詳細版）/);
 }
+async function manualClaimEntry() {
+  stage = 'optional local manual claim entry without creating a link';
+  const host = await pageFor('manual claim host', true);
+  await host.goto(new URL('index.html', site).href, { waitUntil: 'domcontentloaded', timeout: 30000 });
+  await host.getByTestId('scan-start').waitFor({ state: 'visible' });
+  await host.getByTestId('toggle-receipt-text-import').click();
+  await host.getByTestId('receipt-text-draft').fill(JSON.stringify({ items: [{ name: 'QA茶', nameEn: 'QA tea', original: 'QA茶', ja: '', price: 100, qty: 1, totalQty: null, unit: '', total: 100 }], adjustments: [], taxTotal: 0, taxNote: '', currency: 'HKD', date: null, receiptTotal: 100 }));
+  await host.getByTestId('submit-receipt-text').click();
+  await host.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '2', null, { timeout: 30000 });
+  const followup = host.getByTestId('claim-followup');
+  assert.equal(await followup.getAttribute('inert'), '', 'manual replies remain locked by default before selecting the optional mode');
+  assert.equal(await host.getByTestId('manual-claim-entry-option').isVisible(), true, 'optional local mode is available without a claim link');
+  assert.equal(await host.getByTestId('claim-inbox-refresh').count(), 1, 'the original online refresh control is retained');
+  assert.equal(await host.getByTestId('claim-inbox-refresh').isDisabled(), true, 'the online refresh is disabled until a link exists');
+  const beforeManual = harness.requests.length;
+  const localReply = '姓名：QA本機手動\n01 = 1';
+  await host.getByTestId('enable-manual-claim-entry').click();
+  await host.waitForFunction(() => document.querySelector('[data-testid="claim-followup"]')?.dataset.claimReturned === 'true');
+  const replyField = host.getByTestId('claim-replies');
+  await until(async () => await replyField.getAttribute('placeholder') === '貼上朋友回覆；只保存在本機。', 'manual-only reply placeholder');
+  await replyField.fill(localReply);
+  await host.waitForFunction(() => {
+    const draft = JSON.parse(localStorage.getItem('billSplitterActiveDraftV1') || 'null');
+    return draft?.data?.manualClaimsEnabled === true && draft.data.friendsReplies?.includes('QA本機手動');
+  });
+  await host.waitForTimeout(120);
+  assert.equal(harness.requests.length, beforeManual, 'manual mode and text entry make no network request');
+  await host.reload({ waitUntil: 'domcontentloaded' });
+  await host.getByTestId('claim-replies').waitFor({ state: 'visible' });
+  await until(async () => await host.getByTestId('claim-replies').inputValue() === localReply, 'manual reply draft restores after reload');
+  assert.equal(await host.getByTestId('manual-claim-entry-option').count(), 0, 'the selected mode persists and does not show the opt-in card again');
+  assert.equal(await host.getByTestId('claim-inbox-refresh').count(), 0, 'reload still does not enable the online inbox without a link');
+  assert.equal(harness.requests.length, beforeManual, 'restoring local manual text makes no network request');
+
+  const beforeLink = harness.requests.length;
+  await host.getByTestId('copy-friend-claim-link').click();
+  await host.waitForFunction(() => Boolean(document.querySelector('[data-testid="claim-link-actions"]')?.dataset.claimLink));
+  const sessionRecord = harness.requests.slice(beforeLink).find(request => request.path === '/api/shares/sessions' && request.status === 201);
+  assert(sessionRecord, 'the existing create-link action still works after opting into manual entry');
+  const c = remember(sessionRecord.output);
+  await until(() => harness.requests.slice(beforeLink).some(request => request.id === c.id && request.path.endsWith('/claims/setup') && request.status === 200 && Array.isArray(request.input?.members)), 'empty protected-link setup for manual mode');
+  const setup = harness.requests.slice(beforeLink).find(request => request.id === c.id && request.path.endsWith('/claims/setup') && request.status === 200);
+  assert.deepEqual(setup.input.members, [], 'locally pasted replies are not prefilled to the online link');
+  assert(!JSON.stringify(harness.requests.slice(beforeLink)).includes('QA本機手動'), 'manual reply text never enters a link-creation request');
+
+  await until(async () => await host.getByTestId('claim-inbox-refresh').isEnabled(), 'existing online inbox becomes available after link creation');
+  status(await post(c.id, 'submit', payload('QA連結朋友', 1, { recognitionCode: '' })), 200, 'friend can submit through the later-created link');
+  await host.getByTestId('claim-inbox-refresh').click();
+  await until(async () => {
+    const value = await host.getByTestId('claim-replies').inputValue();
+    return value.includes('姓名：QA本機手動') && value.includes('姓名：QA連結朋友');
+  }, 'manual text is preserved while normal link replies still sync');
+  assert.equal((await host.getByTestId('manual-claim-local-status').innerText()).trim(), '建立連結不會預先上傳手動回覆；朋友經連結交回的回覆仍會正常接收。');
+  pass('manual claim entry is opt-in and local by default, persists on reload, is not seeded to a later link, and does not disrupt normal online replies');
+}
+
 async function ui() {
+  await manualClaimEntry();
   stage = 'actual host and compact optional initial form';
   const fixture = process.argv.includes('--friends-only') ? await (async () => { const c = await create(); return { c, link: linkFor(c), host: null }; })() : await hostFixture();
   const { c, link } = fixture, a = await pageFor('blank friend'), b = await pageFor('PIN friend');

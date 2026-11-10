@@ -173,3 +173,6 @@ R119 漏人指引：`friend-recognition.cjs` 驗證結果卡預設收起、向�
 
 ## R124：文案與附件狀態
 `friend-recognition.cjs` 核對上方按鈕為「前往結算區」，底部實際轉步驟按鈕仍為「下一步」；並驗證分享文案、無附件時只分享連結，以及選取附件後顯示數量。`tutorial-ui.cjs` 核對金額提示 14px、稅費／折扣標籤與輸入框關聯、`inputmode="decimal"`。保持原有 A−／A／A+、配色和白色 44px 分享／加圖按鈕；另檢查 320px 和 390px 畫面。
+
+## R125：可選本機手動認帳
+`friend-recognition.cjs` 驗證手動入口預設關閉／鎖定、主動開啟後只存本機草稿、重新載入可恢復、啟用前後無認帳 API 呼叫；稍後建連結時 seed members 為空、不含手動文字，而朋友仍可經該連結提交並由主辦人正常接收。預設線上模式的完整朋友流程同樣回歸。公開測試使用 `PUBLIC_STATIC_QA=1`，所有 API 攔截到本機 Worker harness，對外寫入 0。

@@ -285,3 +285,11 @@
 - [x] 本機回歸通過：`friend-recognition.cjs` 12/12、`tutorial-ui.cjs` 19 個 viewport／互動案例、`text-import.cjs`、`settings-free-models.cjs`；涵蓋雙語、附件空／已選、label 關聯、decimal input mode、14px 提示及 320／390px 版面。
 - [x] Commit `9676ea4` 已推送至 `main`；[Pages workflow 42773053984](https://github.com/cw91020251212/bill-splitter-ai/actions/runs/42773053984) 成功。公開首頁、theme、PWA、Service Worker、tutorial.css／js、結果頁及認帳頁均 HTTP 200，R124 token 與繁中核心文案已確認。
 - [x] 公開網址 `PUBLIC_STATIC_QA=1` 的 `friend-recognition.cjs` 12/12 通過；所有帳單 API 攔截至本機 harness，對外寫入 0。
+
+## R125：可選本機手動認帳
+- [x] 第二步認帳輸入預設仍鎖定；只新增收起的手動入口，須用家主動選擇才啟用。
+- [x] 手動回覆寫入本機活動草稿；啟用、編輯及重新載入不呼叫帳單 API。
+- [x] 後建分享連結時不預填／上傳本機手動回覆；連結建立後朋友回覆仍能正常接收，舊線上流程保留。
+- [x] index／PWA／Service Worker cache token 升至 `v125-manual-claim-mode-20261110`。
+- [x] 本機 `friend-recognition.cjs` 13/13、`text-import.cjs`、`card-redaction-ui.cjs`、`calculation-regressions.cjs` 3/3 通過；`node --check` 和 `git diff --check` 通過，所有 API 使用 Worker harness，外部寫入 0。
+- [ ] 推送後監察 Pages，並以公開 `PUBLIC_STATIC_QA=1` 回歸確認功能和零外部寫入。

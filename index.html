@@ -85,11 +85,11 @@
   ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
   ::-webkit-scrollbar-thumb:hover { background: #64748b; }
   </style>
-  <link rel="stylesheet" href="./theme.css?v=v124-ui-clarity-20261110">
+  <link rel="stylesheet" href="./theme.css?v=v125-manual-claim-mode-20261110">
   <link rel="stylesheet" href="./tutorial.css?v=v86-free-models-only">
   <!-- R114: current interactive guide; original video lessons retained. -->
-  <meta name="bill-app-release" content="v124-ui-clarity-20261110">
-  <script defer src="./pwa.js?v=v124-ui-clarity-20261110"></script>
+  <meta name="bill-app-release" content="v125-manual-claim-mode-20261110">
+  <script defer src="./pwa.js?v=v125-manual-claim-mode-20261110"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
@@ -104,7 +104,7 @@
   <script src="./card-redaction.js?v=v97-card-number-redaction"></script>
   <script src="./card-share-review.js?v=v97-card-number-redaction"></script>
   <script src="./exchange-rates.js?v=v90-cross-currency-settlement"></script>
-    <script src="./tutorial.js?v=v124-ui-clarity-20261110"></script>
+    <script src="./tutorial.js?v=v125-manual-claim-mode-20261110"></script>
   <script type="text/babel">
     const { useState, useRef, useEffect, useLayoutEffect, useMemo } = React;
     const tr = value => window.BillI18n.t(value);
@@ -1034,6 +1034,7 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
       const [taxNote, setTaxNote] = useState('');
       const [receiptAdjustmentDetails, setReceiptAdjustmentDetails] = useState(null);
       const [friendsReplies, setFriendsReplies] = useState('');
+      const [manualClaimsEnabled, setManualClaimsEnabled] = useState(false);
       const friendsRepliesRef = useRef(friendsReplies);
       friendsRepliesRef.current = friendsReplies;
 
@@ -1296,12 +1297,12 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
           - ReceiptMath.roundMoney(toNum(discountAmount), detectedCurrency),
         detectedCurrency
       );
-      const hasDraftWork = Boolean(items.length || friendsReplies.trim() || results || lastImageData.length || claimAttachments.length || draftAssets.unavailable);
+      const hasDraftWork = Boolean(items.length || friendsReplies.trim() || manualClaimsEnabled || results || lastImageData.length || claimAttachments.length || draftAssets.unavailable);
       const hasDraftAssets = Boolean(lastImageData.length || claimAttachments.length);
       draftSnapshotRef.current = {
         ready: draftReady, hasWork: hasDraftWork, schema: 1,
         assetRevision: draftAssets.revision, hasAssets: hasDraftAssets || draftAssets.unavailable,
-        data: { step, items, taxAmount, discountAmount, taxNote, receiptAdjustmentDetails, friendsReplies, payer, detectedCurrency, currency,
+        data: { step, items, taxAmount, discountAmount, taxNote, receiptAdjustmentDetails, friendsReplies, manualClaimsEnabled, payer, detectedCurrency, currency,
           taxSplitMethod, paymentMethods, results, reconciliation, isSaved,
           claimRoom, claimActivityName, claimExpiryDays, claimLinkMeta, claimSession, claimInboxSeen, claimSecureCursor, readReceipt, lastRecognitionModel, claimLinkShared: claimLinkSharedRef.current }
       };
@@ -1360,6 +1361,7 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
             setOpenItemEdits({});
             [[setTaxAmount, 'taxAmount'], [setDiscountAmount, 'discountAmount'], [setTaxNote, 'taxNote'], [setFriendsReplies, 'friendsReplies'], [setPayer, 'payer']]
               .forEach(([setter, key]) => setter(typeof data[key] === 'string' || typeof data[key] === 'number' ? String(data[key]) : ''));
+            setManualClaimsEnabled(data.manualClaimsEnabled === true);
             setReceiptAdjustmentDetails(data.receiptAdjustmentDetails && Array.isArray(data.receiptAdjustmentDetails.rows)
               ? data.receiptAdjustmentDetails : null);
             setCurrency(typeof data.currency === 'string' ? data.currency : 'HKD');
@@ -1441,7 +1443,7 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
       useEffect(() => {
         if (tutorialDemo || !draftReady) return;
         persistActiveDraft();
-      }, [draftReady, step, items, readReceipt, taxAmount, discountAmount, taxNote, receiptAdjustmentDetails, friendsReplies, payer, detectedCurrency, currency,
+      }, [draftReady, step, items, readReceipt, taxAmount, discountAmount, taxNote, receiptAdjustmentDetails, friendsReplies, manualClaimsEnabled, payer, detectedCurrency, currency,
         taxSplitMethod, paymentMethods, results, reconciliation, isSaved, draftAssets, claimRoom, claimActivityName, claimExpiryDays, claimLinkMeta, claimSession, claimInboxSeen, claimSecureCursor, claimLinkShared, lastRecognitionModel]);
 
       useEffect(() => {
@@ -1469,6 +1471,7 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
 
       const seedProtectedClaimMembers = () => {
         const data = draftSnapshotRef.current?.data;
+        if (manualClaimsEnabled || data?.manualClaimsEnabled === true) return [];
         const seedItems = itemsRef.current.length ? itemsRef.current : (data?.items || []);
         const seedReplies = friendsRepliesRef.current || data?.friendsReplies || '';
         const parsed = parseClaims(seedReplies, seedItems);
@@ -1784,7 +1787,7 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
       }, [friendsReplies]);
       const hasInboundClaim = inboxPeople.length >= 1;
       // In the demo, keep the guided share step; normally allow a pasted WhatsApp reply after link copy.
-      const claimFollowupOpen = tutorialDemo ? claimLinkShared : (claimLinkShared || hasInboundClaim || Boolean(claimRoom && !claimSession));
+      const claimFollowupOpen = tutorialDemo ? claimLinkShared : (claimLinkShared || manualClaimsEnabled || hasInboundClaim || Boolean(claimRoom && !claimSession));
 
       useEffect(() => {
         const node = claimFollowupRef.current;
@@ -2460,7 +2463,7 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
         const storageKey = 'billSplitterDetailTablePreviewV1';
         try {
           localStorage.setItem(storageKey, JSON.stringify(previewData));
-          const previewWindow = window.open('./detailed-view.html?v=v124-ui-clarity-20261110', '_blank');
+          const previewWindow = window.open('./detailed-view.html?v=v125-manual-claim-mode-20261110', '_blank');
           if (!previewWindow) {
             localStorage.removeItem(storageKey);
             toast(bi('允許彈窗', 'Allow pop-ups'), 'error');
@@ -2526,7 +2529,7 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
         catch (_) { setDraftSaveError(bi('未能清除本機草稿，請檢查網站儲存權限。', 'Could not clear the local draft. Check site storage permissions.')); }
         restoredDraftAssetsRef.current = null;
         persistedDraftAssetRevisionRef.current = null;
-        setStepError(''); setUploadError(''); setItems([]); setFriendsReplies(''); setResults(null);
+        setStepError(''); setUploadError(''); setItems([]); setFriendsReplies(''); setManualClaimsEnabled(false); setResults(null);
         setIsAnalyzing(false); setProgress(0); setProgressText('');
         setIsSaved(false); setLastImageData([]); setLastRecognitionModel(''); setTaxAmount(''); setDiscountAmount(''); setTaxNote(''); setReceiptAdjustmentDetails(null);
         setClaimAttachments([]); setClaimInfo(null); setShowClaimShareDialog(false);
@@ -3551,7 +3554,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
         const metadata = getClaimLinkMetadata();
         const link = new URL('./claim.html', window.location.href);
         link.searchParams.set('lang', lang === 'en' ? 'en' : 'zh-HK');
-        link.searchParams.set('v', 'v124-ui-clarity-20261110');
+        link.searchParams.set('v', 'v125-manual-claim-mode-20261110');
         link.searchParams.set('session', session.id);
         link.hash = window.ClaimRelay
           ? window.ClaimRelay.buildHash(encodeClaimLinkPayload(payload), room, metadata)
@@ -4813,6 +4816,21 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                     </dialog>
                     )}
                   </div>
+                {!tutorialDemo && !manualClaimsEnabled && !claimLinkShared && !claimSession && !claimRoom && !hasInboundClaim && (
+                  <Card data-testid="manual-claim-entry-option" className="!p-4 mb-4 border-slate-400 bg-slate-50 !shadow-none">
+                    <h3 className="text-base font-bold text-slate-800">{bi('不建立連結？可手動輸入認帳', 'No link? Enter claims manually')}</h3>
+                    <p className="mt-2 text-sm leading-relaxed text-slate-700">{bi('手動回覆只保存在本機；建立連結時不會預先上傳。之後仍可照常建立連結。', 'Manual replies stay on this device and are not prefilled to a link. You can still create a link later.')}</p>
+                    <Button data-testid="enable-manual-claim-entry" variant="outline" className="!w-full min-h-11 mt-3" onClick={() => {
+                      setManualClaimsEnabled(true);
+                      setStepError('');
+                      setTimeout(() => {
+                        const repliesField = fieldRefs.current.replies;
+                        repliesField?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        repliesField?.focus({ preventScroll: true });
+                      }, 180);
+                    }}>{bi('手動輸入認帳', 'Enter claims manually')}</Button>
+                  </Card>
+                )}
                 <div
                   ref={claimFollowupRef}
                   data-testid="claim-followup"
@@ -4825,7 +4843,9 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                   <Card data-testid="claim-inbox" className="!p-4 mb-4 border-brand-600">
                     <h3 className="text-lg font-extrabold text-slate-800">{bi('認帳回覆', 'Share replies')}</h3>
                     <p data-testid="claim-inbox-status" className="mt-3 text-base font-bold leading-relaxed text-slate-800" role="status">
-                      {!tutorialDemo && claimRoom && !claimSession
+                      {!tutorialDemo && manualClaimsEnabled && !claimSession
+                        ? bi('手動輸入已開啟；回覆只保存在本機。', 'Manual entry is on; replies stay on this device.')
+                        : !tutorialDemo && claimRoom && !claimSession
                         ? bi('舊公開自動接收已停用。請建立新的受保護連結，或手動貼回覆。', 'Old public receiving is disabled. Create a protected link, or paste replies manually.')
                         : !tutorialDemo && claimSecureError
                           ? claimSecureError
@@ -4839,8 +4859,11 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                                   ? bi('先複製或分享上面的連結。', 'Copy or share the link above first.')
                                   : bi('等候朋友交返認帳。', 'Waiting for friends to send their claims.')}
                     </p>
+                    {manualClaimsEnabled && <p data-testid="manual-claim-local-status" className="mt-2 text-sm leading-relaxed text-slate-700" role="note">{claimSession
+                      ? bi('建立連結不會預先上傳手動回覆；朋友經連結交回的回覆仍會正常接收。', 'Manual replies are not prefilled to the link; replies submitted through the link still sync normally.')
+                      : bi('手動回覆留在本機，不使用線上收件。', 'Manual replies stay on this device; the online inbox is not used.')}</p>}
                     {inboxNote && claimSession && <p className="mt-2 text-base font-semibold text-brand-800">{bi(`最新交到：${inboxNote}`, `Latest: ${inboxNote}`)}</p>}
-                    <Button data-testid="claim-inbox-refresh" variant="outline" className="!w-full mt-3" disabled={!claimSession || inboxPhase === 'receiving' || claimSecurePhase === 'setting-up'} onClick={() => pullClaimsRef.current(true)}>{bi('重新接收', 'Check again')}</Button>
+                    {(!manualClaimsEnabled || claimSession) && <Button data-testid="claim-inbox-refresh" variant="outline" className="!w-full mt-3" disabled={!claimSession || inboxPhase === 'receiving' || claimSecurePhase === 'setting-up'} onClick={() => pullClaimsRef.current(true)}>{bi('重新接收', 'Check again')}</Button>}
                   </Card>
                   <Label className="flex items-center justify-between mb-3">
                     <span>{bi('朋友交返的認帳', 'Friends’ claims')}</span>
@@ -4849,7 +4872,9 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                   <textarea
                     data-testid="claim-replies"
                     ref={el => fieldRefs.current.replies = el} value={friendsReplies} onChange={(e) => {setFriendsReplies(e.target.value); setReconciliation(null); setStepError('');}} onPaste={handlePasteReplies} onFocus={onFocusReplies} onBlur={onBlurReplies}
-                    placeholder={bi('朋友回覆會顯示於此；亦可貼上 WhatsApp 後備。', 'Friend replies appear here. You can also paste a WhatsApp backup.')}
+                    placeholder={manualClaimsEnabled && !claimSession
+                      ? bi('貼上朋友回覆；只保存在本機。', 'Paste replies here; they stay on this device.')
+                      : bi('朋友回覆會顯示於此；亦可貼上 WhatsApp 後備。', 'Friend replies appear here. You can also paste a WhatsApp backup.')}
                     className="w-full h-48 bg-white border border-slate-500 rounded-xl p-4 text-base font-mono text-slate-700 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none resize-y shadow-inner leading-relaxed">
                   </textarea>
                 </div>
