@@ -2,6 +2,10 @@
 
 程式仍然是純靜態 GitHub Pages App，無需 build。Playwright 只用於開發驗收，不會載入到公開頁面；測試只可對本機執行。
 
+## R127 複查回歸
+
+`calculation-regressions.cjs` 驗證負／無效商品價與數量會在第二步顯示錯誤、舊草稿認領需要逐項核對、未提交的收據文字可在本機還原且新單確認後清除。`text-import.cjs` 覆蓋有效但有負稅／折扣／商品錯誤的 JSON 不會外送 AI。`recognition-retry-ui.cjs` 用 mock OCR 測試同名不同規格的順序變更會沿用正確認領編號；完全重複而無法唯一配對時，會改發新編號並停用舊認帳。它仍只使用 localhost／mock，不寫入正式或公開帳單 API。
+
 ## R116 四字元英數符號選填認證碼
 
 `node tests/friend-recognition.cjs` 使用本機記憶體 Worker／DO 驗證空白碼可認帳、姓名找回、數字／大小寫英文字母／符號碼、大小寫敏感、錯碼拒絕、小型修改入口、同一連結重算及舊密碼相容。認證碼不能出現在 URL、草稿或公開結果。`PUBLIC_STATIC_QA=1 BASE_URL=https://cw91020251212.github.io/bill-splitter-ai/` 只讀正式靜態頁面，所有認帳／结果 API 仍攔截到本機，不能讀寫真實帳單。後端仍用 `node --test worker/claim-auth.test.mjs worker/worker-core.test.mjs`。

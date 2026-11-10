@@ -266,6 +266,13 @@ const initStorage = async (page, config) => {
     await noKeyPage.getByTestId('receipt-text-import-error').waitFor({ state: 'visible' });
     assert.match(await noKeyPage.getByTestId('receipt-text-import-error').innerText(), /OpenRouter.*JSON|JSON.*OpenRouter/);
     assert.equal(noKeyRequests, 0, 'non-JSON text without a key is not sent anywhere');
+    await noKeyPage.waitForFunction(text => JSON.parse(localStorage.getItem('billSplitterActiveDraftV1') || 'null')?.data?.receiptTextDraft === text,
+      '拉麵 1 碗 100 元；消費税 8 元；應付 108 元', { timeout: 15000 });
+    await noKeyPage.reload();
+    await noKeyPage.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '1', null, { timeout: 30000 });
+    assert.equal(await noKeyPage.getByTestId('receipt-text-draft').inputValue(), '拉麵 1 碗 100 元；消費税 8 元；應付 108 元', 'unsent text is restored locally after reload');
+    assert.equal(await noKeyPage.getByTestId('toggle-receipt-text-import').getAttribute('aria-expanded'), 'true', 'the text-import panel remains expanded after reload');
+    assert.equal(noKeyRequests, 0, 'restoring unsent text does not call an API');
     await noKeyContext.close();
 
     const modelContext = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' });
@@ -292,6 +299,14 @@ const initStorage = async (page, config) => {
       allowPaidModels: false, ocrModelPreferenceVersion: 5
     });
     await modelPage.getByTestId('toggle-receipt-text-import').click();
+    await modelPage.getByTestId('receipt-text-draft').fill(JSON.stringify({ items: [{ name: '負稅測試', price: 10, qty: 1, total: 10 }], taxTotal: -2, currency: 'HKD' }));
+    await modelPage.getByTestId('submit-receipt-text').click();
+    await modelPage.getByTestId('receipt-text-import-error').waitFor({ state: 'visible' });
+    assert.equal(modelRequests, 0, 'semantically invalid JSON is rejected locally and never sent to OpenRouter');
+    await modelPage.getByTestId('receipt-text-draft').fill(JSON.stringify({ items: [{ name: '負數量', price: 10, qty: -1, total: 10 }], currency: 'HKD' }));
+    await modelPage.getByTestId('submit-receipt-text').click();
+    await modelPage.getByTestId('receipt-text-import-error').waitFor({ state: 'visible' });
+    assert.equal(modelRequests, 0, 'negative item quantities are rejected locally before any model request');
     const pastedText = '芒果糯米飯 1 份 65 泰銖\n收據總額 65 泰銖';
     await modelPage.getByTestId('receipt-text-draft').fill(pastedText);
     await modelPage.getByTestId('submit-receipt-text').click();
@@ -308,7 +323,7 @@ const initStorage = async (page, config) => {
     assert.deepEqual(failures, [], failures.join('\n'));
     await modelContext.close();
 
-    console.log('PASS: copied photo-reading JSON prompt; pasted and .txt JSON imported locally; missing-bill reminder tested in zh-HK/English; attached synthetic receipts through local redaction only; no-photo reminder hides after attach and survives reload; AI text import also prompts for the original photo.');
+    console.log('PASS: copied photo-reading JSON prompt; pasted/.txt JSON import, invalid JSON isolation, private unsent-text restore, negative item rejection; missing-bill reminder bilingual; attachment remains local.');
   } finally {
     await browser.close();
   }

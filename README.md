@@ -1,3 +1,11 @@
+## R127：复查問題與草稿安全修正
+
+拒絕負數／無效商品金額和數量，並在第二步清楚顯示錯誤；有效 JSON 的稅費、折扣或商品資料錯誤時不會改送 AI。未提交的單據文字會留在本機草稿，取消新單可保留，確認新單則一併清除。舊草稿會先要求核對認領編號；OCR 重認可按唯一商品規格沿用編號，無法安全配對時改用新編號並阻止舊認帳錯套。設定／歷史頁不再顯示過期的結算狀態，字級選項及頂部功能選單均有至少 44px 觸控範圍。PWA cache epoch：`v127-recheck-audit-20261110`。
+
+## R127: Recheck and draft-safety fixes
+
+Invalid or negative item amounts and quantities are rejected, with a visible Step 2 error. Semantically invalid JSON is never downgraded to an AI request. Unsubmitted receipt text stays in the local draft; cancelling a new bill preserves it, while confirming a new bill clears it. Older drafts require explicit claim-ID review. OCR retries preserve IDs only when a duplicate-name item has a unique matching specification; ambiguous items get new IDs and old claims cannot silently attach elsewhere. Settings and History no longer show a stale result status, and the text-size controls and top action menu have at least 44px touch targets. PWA cache epoch: `v127-recheck-audit-20261110`.
+
 ## R126：審計後續修正
 
 修正審計發現的認領錯位、漏算金額和草稿清除風險：商品認領編號在刪除及重新識別後保持穩定；仍有未認領金額時禁止產生報告，只有姓名而沒有有效認領的人不參與稅費分攤。稅費分幣與最終換匯舍入會分配並明示，結果頁先顯示全單總額及各人應付。匯入負稅會被拒絕；開新單前先保存本機草稿並要求確認，取消可保留原資料。另修正手動認帳提示、狀態欄可存取操作、表單標籤及小字體觸控尺寸。PWA cache epoch：`v126-followup-audit-20261110`。

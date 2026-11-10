@@ -20,6 +20,8 @@ const draft = {
   hasAssets: true,
   data: {
     step: 3,
+    claimItemIdVersion: 2,
+    legacyClaimReviewRequired: false,
     items: [{ id: '01', name: '午餐', nameEn: 'Lunch', original: 'Lunch set', price: 123, qty: 1, total: 123, totalQty: null, unit: '' }],
     readReceipt: true,
     taxAmount: '0', discountAmount: '0', taxNote: '', receiptAdjustmentDetails: null,

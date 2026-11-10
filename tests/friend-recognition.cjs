@@ -420,6 +420,9 @@ async function manualClaimEntry() {
   assert.doesNotMatch(await compactStatus.innerText(), /先分享連結/, 'manual mode does not tell the user that an online link is required');
   const replyField = host.getByTestId('claim-replies');
   await until(async () => await replyField.getAttribute('placeholder') === '貼上朋友回覆；只保存在本機。', 'manual-only reply placeholder');
+  assert.equal(await replyField.getAttribute('id'), 'friend-claim-replies', 'the claims textarea has a stable accessible ID');
+  assert.equal(await host.locator('label[for="friend-claim-replies"]').count(), 1, 'the visible heading is programmatically associated with the textarea');
+  assert.equal(await replyField.getAttribute('aria-describedby'), 'manual-claim-guidance', 'format help is associated with the textarea for assistive technology');
   assert.equal((await host.getByTestId('manual-claim-example').innerText()).trim(), '姓名：阿明\n01 = 1', 'manual claims show the supported bilingual name/item format');
   await replyField.fill(localReply);
   await host.waitForFunction(() => {

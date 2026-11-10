@@ -22,6 +22,11 @@ const payloadForItems = names => ({
   items: names.map(name => ({ name, nameEn: name, original: 'Receipt item', price: 100, qty: 1, total: 100 })),
   adjustments: [], taxTotal: 0, taxNote: '', currency: 'HKD', date: null, receiptTotal: 100
 });
+const duplicateItemsPayload = items => ({
+  items: items.map(item => ({ name: '同名菜式', nameEn: 'Same dish', original: 'Receipt item', ...item })),
+  adjustments: [], taxTotal: 0, taxNote: '', currency: 'HKD', date: null,
+  receiptTotal: items.reduce((sum, item) => sum + item.total, 0)
+});
 const itemPayload = name => payloadForItems([name]);
 const success = payload => ({
   choices: [{ message: { content: JSON.stringify(payload) } }]
@@ -89,6 +94,20 @@ const success = payload => ({
       if (requestCount === 4) {
         assert.equal(body.model, DEFAULT_MODEL, 're-recognition uses the current saved model order');
         await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(success(payloadForItems(['湯', '重新識別結果']))) });
+        return;
+      }
+      if (requestCount === 5) {
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(success(duplicateItemsPayload([
+          { price: 30, qty: 1, totalQty: 2, unit: '份', total: 30 },
+          { price: 50, qty: 1, totalQty: 1, unit: '碗', total: 50 }
+        ]))) });
+        return;
+      }
+      if (requestCount === 6) {
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(success(duplicateItemsPayload([
+          { price: 50, qty: 1, totalQty: 1, unit: '碗', total: 50 },
+          { price: 50, qty: 1, totalQty: 1, unit: '碗', total: 50 }
+        ]))) });
         return;
       }
       await route.fulfill({ status: 429, contentType: 'application/json', body: JSON.stringify({ error: { message: 'rate limit exceeded' } }) });
@@ -180,17 +199,69 @@ const success = payload => ({
     assert.equal(observedImageCounts[3], 2, 're-recognition resends the entire stored two-image batch');
     assert.match(await page.getByTestId('verify-summary').innerText(), /\d+項/);
 
+    const installDuplicateDraft = async (items, replies) => page.evaluate(({ items, replies }) => {
+      const key = 'billSplitterActiveDraftV1';
+      const record = JSON.parse(localStorage.getItem(key));
+      record.data.step = 2;
+      record.data.items = items;
+      record.data.friendsReplies = replies;
+      record.data.payer = '阿明';
+      record.data.claimItemIdVersion = 2;
+      record.data.legacyClaimReviewRequired = false;
+      record.data.nextClaimItemId = 5;
+      const nativeSetItem = Storage.prototype.setItem;
+      nativeSetItem.call(localStorage, key, JSON.stringify(record));
+      Storage.prototype.setItem = function(name, value) {
+        if (name === key) return;
+        return nativeSetItem.call(this, name, value);
+      };
+    }, { items, replies });
+
+    await installDuplicateDraft([
+      { id: '03', name: '同名菜式', price: 50, qty: 1, totalQty: 1, unit: '碗', total: 50 },
+      { id: '04', name: '同名菜式', price: 30, qty: 1, totalQty: 2, unit: '份', total: 30 }
+    ], '姓名：阿明\n03 = 1碗\n姓名：小美\n04 = 2份');
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '2', null, { timeout: 30000 });
+    await page.locator('.step-nav button').first().click();
+    await page.getByTestId('receipt-upload').click();
+    await page.getByTestId('reuse-last-receipt-photos').click();
+    await page.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '2', null, { timeout: 30000 });
+    const reorderedDuplicates = await page.evaluate(() => JSON.parse(localStorage.getItem('billSplitterActiveDraftV1')).data);
+    assert.deepEqual(reorderedDuplicates.items.map(item => ({ id: String(item.id), price: item.price, unit: item.unit })), [
+      { id: '04', price: 30, unit: '份' },
+      { id: '03', price: 50, unit: '碗' }
+    ], 'same-name items with unique matching specifications keep the correct claim IDs when OCR order changes');
+    assert.match(reorderedDuplicates.friendsReplies, /03 = 1碗[\s\S]*04 = 2份/, 'the existing replies continue to target the same specifications');
+
+    await installDuplicateDraft([
+      { id: '03', name: '同名菜式', price: 50, qty: 1, totalQty: 1, unit: '碗', total: 50 },
+      { id: '04', name: '同名菜式', price: 50, qty: 1, totalQty: 1, unit: '碗', total: 50 }
+    ], '姓名：阿明\n03 = 1碗\n姓名：小美\n04 = 1碗');
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '2', null, { timeout: 30000 });
+    await page.locator('.step-nav button').first().click();
+    await page.getByTestId('receipt-upload').click();
+    await page.getByTestId('reuse-last-receipt-photos').click();
+    await page.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '2', null, { timeout: 30000 });
+    const ambiguousDuplicates = await page.evaluate(() => JSON.parse(localStorage.getItem('billSplitterActiveDraftV1')).data);
+    assert.deepEqual(ambiguousDuplicates.items.map(item => String(item.id)), ['05', '06'], 'ambiguous identical items get fresh IDs rather than inheriting FIFO IDs');
+    assert.match(ambiguousDuplicates.friendsReplies, /03 = 1碗[\s\S]*04 = 1碗/, 'old replies remain visible for explicit repair');
+    await page.getByTestId('go-to-payer').click();
+    assert.equal(await page.getByTestId('calculate-split').isDisabled(), true, 'stale IDs block calculation instead of silently assigning claims');
+
     await page.locator('.step-nav button').first().click();
     await page.getByTestId('receipt-upload').click();
     await page.getByTestId('reuse-last-receipt-photos').click();
     await page.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '2', null, { timeout: 30000 });
     await page.getByTestId('recognition-retry-error').waitFor({ state: 'visible' });
     assert.match(await page.getByTestId('recognition-retry-error').innerText(), /仍顯示舊結果/);
-    await page.getByText('重新識別結果', { exact: false }).waitFor({ state: 'visible' });
-    assert.equal(requestCount, 6, 'final retry cascades through the two retained free models before returning the prior result');
+    assert.equal(await page.getByTestId('verify-item').count(), 2, 'a failed re-recognition retains the two prior duplicate items');
+    assert.match((await page.getByTestId('verify-item').allInnerTexts()).join('\n'), /同名菜式/);
+    assert.equal(requestCount, 8, 'final retry cascades through the two retained free models after duplicate-item checks');
     assert.equal(observedModels[0], DEFAULT_MODEL);
     assert.equal(observedModels[1], FALLBACK_MODEL);
-    assert.equal(observedModels[5], 'nvidia/nemotron-3.5-super-vl:free', 'the user-reported unreliable Nemotron 3.5 is attempted last');
+    assert.equal(observedModels[7], 'nvidia/nemotron-3.5-super-vl:free', 'the user-reported unreliable Nemotron 3.5 is attempted last');
     assert.deepEqual(failures, [], failures.join('\n'));
     console.log(`PASS 390px local UI: reuse is disabled before success, add-new batch of two photos, whole-batch re-recognition without reopening the picker, successful replacement, and failed retry preserving results (${requestCount} mocked OCR requests).`);
 
@@ -201,6 +272,7 @@ const success = payload => ({
     await page.evaluate(() => {
       const draft = JSON.parse(localStorage.getItem('billSplitterActiveDraftV1'));
       draft.data.step = 3;
+      draft.data.items = draft.data.items.map(item => ({ ...item, price: 100, qty: 1, totalQty: null, unit: '', total: 100 }));
       const claimLines = draft.data.items.map(item => `${item.id} = 0.166666666`).join('\n');
       draft.data.friendsReplies = ['阿明', '小美', '阿強', '阿欣', '家豪', '嘉嘉']
         .map(name => `姓名：${name}\n${claimLines}`).join('\n');

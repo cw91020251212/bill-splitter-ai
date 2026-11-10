@@ -85,11 +85,11 @@
   ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
   ::-webkit-scrollbar-thumb:hover { background: #64748b; }
   </style>
-  <link rel="stylesheet" href="./theme.css?v=v126-followup-audit-20261110">
+  <link rel="stylesheet" href="./theme.css?v=v127-recheck-audit-20261110">
   <link rel="stylesheet" href="./tutorial.css?v=v86-free-models-only">
-  <!-- R126: current interactive guide; original video lessons retained. -->
-  <meta name="bill-app-release" content="v126-followup-audit-20261110">
-  <script defer src="./pwa.js?v=v126-followup-audit-20261110"></script>
+  <!-- R127: current interactive guide; original video lessons retained. -->
+  <meta name="bill-app-release" content="v127-recheck-audit-20261110">
+  <script defer src="./pwa.js?v=v127-recheck-audit-20261110"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
@@ -104,7 +104,7 @@
   <script src="./card-redaction.js?v=v97-card-number-redaction"></script>
   <script src="./card-share-review.js?v=v97-card-number-redaction"></script>
   <script src="./exchange-rates.js?v=v90-cross-currency-settlement"></script>
-    <script src="./tutorial.js?v=v126-followup-audit-20261110"></script>
+    <script src="./tutorial.js?v=v127-recheck-audit-20261110"></script>
   <script type="text/babel">
     const { useState, useRef, useEffect, useLayoutEffect, useMemo } = React;
     const tr = value => window.BillI18n.t(value);
@@ -800,6 +800,32 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
         const qty = toNum(item?.qty) || toNum(item?.totalQty) || 1;
         return toNum(item?.price) * qty;
       };
+    const validateBillItem = (item, curr = 'HKD') => {
+      const present = value => value !== null && value !== undefined && String(value).trim() !== '';
+      const rawTotal = item?.total ?? item?.amount;
+      const price = present(item?.price) ? ReceiptMath.parseMoney(item.price, curr) : null;
+      const total = present(rawTotal) ? ReceiptMath.parseMoney(rawTotal, curr) : null;
+      if (present(item?.price) && (price === null || price < 0)) return { field: 'price', reason: price === null ? 'invalid' : 'negative' };
+      if (present(rawTotal) && (total === null || total < 0)) return { field: 'total', reason: total === null ? 'invalid' : 'negative' };
+      if (!present(rawTotal) && !present(item?.price)) return { field: 'price', reason: 'missing' };
+      for (const field of ['qty', 'totalQty']) {
+        if (!present(item?.[field])) continue;
+        const value = ReceiptMath.parseMoney(item[field], curr);
+        if (value === null || value <= 0) return { field, reason: value === null ? 'invalid' : 'nonpositive' };
+      }
+      return null;
+    };
+    const invalidQtyForCorrection = (item, curr = 'HKD') => {
+      const raw = item?.qty;
+      if (raw === null || raw === undefined || String(raw).trim() === '') return null;
+      const value = ReceiptMath.parseMoney(raw, curr);
+      return value === null || value <= 0 ? raw : null;
+    };
+    const billItemValidationMessage = (item, problem) => {
+      const label = String(item?.name || item?.nameEn || '').trim() || bi('此項目', 'This item');
+      const field = problem?.field === 'price' || problem?.field === 'total' ? bi('金額', 'amount') : bi('數量', 'quantity');
+      return bi(`項目「${label}」的${field}無效或為負數；請修正後再繼續。`, `The ${field} for “${label}” is invalid or negative. Correct it to continue.`);
+    };
     const getResultsBillTotal = (result) => {
         const explicit = Number(result?.billTotal);
       if (Number.isFinite(explicit)) return explicit;
@@ -1068,6 +1094,7 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
       const [receiptAdjustmentDetails, setReceiptAdjustmentDetails] = useState(null);
       const [friendsReplies, setFriendsReplies] = useState('');
       const [manualClaimsEnabled, setManualClaimsEnabled] = useState(false);
+      const [legacyClaimReviewRequired, setLegacyClaimReviewRequired] = useState(false);
       const friendsRepliesRef = useRef(friendsReplies);
       friendsRepliesRef.current = friendsReplies;
 
@@ -1330,7 +1357,7 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
           - ReceiptMath.roundMoney(toNum(discountAmount), detectedCurrency),
         detectedCurrency
       );
-      const hasDraftWork = Boolean(items.length || friendsReplies.trim() || manualClaimsEnabled || results || lastImageData.length || claimAttachments.length || draftAssets.unavailable
+      const hasDraftWork = Boolean(items.length || friendsReplies.trim() || String(receiptTextDraft || '').trim() || manualClaimsEnabled || results || lastImageData.length || claimAttachments.length || draftAssets.unavailable
         || String(taxAmount ?? '').trim() || String(discountAmount ?? '').trim() || String(taxNote ?? '').trim() || String(payer ?? '').trim()
         || reconciliation || readReceipt || claimRoom || claimSession || claimLinkMeta || String(claimActivityName ?? '').trim()
         || (detectedCurrency && detectedCurrency !== 'HKD') || (currency && currency !== 'HKD'));
@@ -1338,7 +1365,8 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
       draftSnapshotRef.current = {
         ready: draftReady, hasWork: hasDraftWork, schema: 1,
         assetRevision: draftAssets.revision, hasAssets: hasDraftAssets || draftAssets.unavailable,
-        data: { step, items, nextClaimItemId, taxAmount, discountAmount, taxNote, receiptAdjustmentDetails, friendsReplies, manualClaimsEnabled, payer, detectedCurrency, currency,
+        data: { step, items, nextClaimItemId, claimItemIdVersion: legacyClaimReviewRequired ? 1 : 2, legacyClaimReviewRequired,
+          taxAmount, discountAmount, taxNote, receiptAdjustmentDetails, friendsReplies, manualClaimsEnabled, receiptTextDraft, showReceiptTextImport, payer, detectedCurrency, currency,
           taxSplitMethod, paymentMethods, results, reconciliation, isSaved,
           claimRoom, claimActivityName, claimExpiryDays, claimLinkMeta, claimSession, claimInboxSeen, claimSecureCursor, readReceipt, lastRecognitionModel, claimLinkShared: claimLinkSharedRef.current }
       };
@@ -1370,6 +1398,10 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
             if (record.schema !== 1 || !record.data || !Array.isArray(record.data.items)) throw new Error('不支援的草稿格式');
             const data = record.data;
             const restoredItems = data.items.filter(item => item && typeof item.id === 'string' && typeof item.name === 'string');
+            const needsLegacyClaimReview = (data.legacyClaimReviewRequired === true || Number(data.claimItemIdVersion) !== 2)
+              && restoredItems.length > 0 && String(data.friendsReplies || '').trim().length > 0;
+            const invalidRestoredItem = restoredItems.map((item, index) => ({ item, index, problem: validateBillItem(item, data.detectedCurrency || 'HKD') }))
+              .find(entry => entry.problem);
             const maxRestoredClaimId = restoredItems.reduce((max, item) => Math.max(max, Number.parseInt(item.id, 10) || 0), 0);
             const savedNextClaimId = Number.isSafeInteger(Number(data.nextClaimItemId)) ? Number(data.nextClaimItemId) : 1;
             const restoredNextClaimId = Math.min(100, Math.max(1, maxRestoredClaimId + 1, savedNextClaimId));
@@ -1395,6 +1427,9 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
             }
             if (cancelled) return;
             setItems(restoredItems);
+            setReceiptTextDraft(typeof data.receiptTextDraft === 'string' ? data.receiptTextDraft.slice(0, 200000) : '');
+            setShowReceiptTextImport(data.showReceiptTextImport === true || Boolean(String(data.receiptTextDraft || '').trim()));
+            setLegacyClaimReviewRequired(needsLegacyClaimReview);
             nextClaimItemIdRef.current = restoredNextClaimId;
             setNextClaimItemId(restoredNextClaimId);
             setReadReceipt(Boolean(data.readReceipt) || restoredItems.some(item => String(item.original || item.ja || '').trim()));
@@ -1410,10 +1445,10 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
             setTaxSplitMethod(['equal', 'proportional'].includes(data.taxSplitMethod) ? data.taxSplitMethod : 'proportional');
             setPaymentMethods(Array.isArray(data.paymentMethods) ? data.paymentMethods.filter(method => ['轉數快 (FPS)', 'PayMe', '現金', '銀行轉帳', 'Alipay'].includes(method)) : ['轉數快 (FPS)']);
             const hasPreviousResults = Boolean(data.results && typeof data.results.personTotals === 'object' && data.results.personTotals);
-            const restoredResults = hasPreviousResults && data.results.calculationVersion === 3 ? data.results : null;
+            const restoredResults = !needsLegacyClaimReview && !invalidRestoredItem && hasPreviousResults && data.results.calculationVersion === 3 ? data.results : null;
             const needsCurrencyRecalculation = hasPreviousResults && !restoredResults;
             setResults(restoredResults);
-            setReconciliation(data.reconciliation && Array.isArray(data.reconciliation.issues) ? data.reconciliation : null);
+            setReconciliation(invalidRestoredItem ? null : data.reconciliation && Array.isArray(data.reconciliation.issues) ? data.reconciliation : null);
             setIsSaved(needsCurrencyRecalculation ? false : Boolean(data.isSaved));
             setLastImageData(images); setClaimAttachments(attachments);
             setLastRecognitionModel(typeof data.lastRecognitionModel === 'string' ? data.lastRecognitionModel : '');
@@ -1451,6 +1486,11 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
             claimInboxSeenRef.current = restoredSeen;
             setClaimInboxSeen(restoredSeen);
             let restoredStep = [1, 2, 3, 4].includes(data.step) ? data.step : 2;
+            if (needsLegacyClaimReview) restoredStep = 2;
+            if (invalidRestoredItem) {
+              restoredStep = 2;
+              setStepError(billItemValidationMessage(invalidRestoredItem.item, invalidRestoredItem.problem));
+            }
             if (!restoredItems.length && restoredStep > 1) restoredStep = 1;
             if (restoredStep === 4 && !restoredResults) restoredStep = 3;
             if (restoredStep >= 3 && !String(data.friendsReplies || '').trim()) restoredStep = 2;
@@ -1484,7 +1524,7 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
       useEffect(() => {
         if (tutorialDemo || !draftReady) return;
         persistActiveDraft();
-      }, [draftReady, step, items, readReceipt, taxAmount, discountAmount, taxNote, receiptAdjustmentDetails, friendsReplies, manualClaimsEnabled, payer, detectedCurrency, currency,
+      }, [draftReady, step, items, readReceipt, taxAmount, discountAmount, taxNote, receiptAdjustmentDetails, friendsReplies, manualClaimsEnabled, receiptTextDraft, showReceiptTextImport, legacyClaimReviewRequired, payer, detectedCurrency, currency,
         taxSplitMethod, paymentMethods, results, reconciliation, isSaved, draftAssets, claimRoom, claimActivityName, claimExpiryDays, claimLinkMeta, claimSession, claimInboxSeen, claimSecureCursor, claimLinkShared, lastRecognitionModel]);
 
       useEffect(() => {
@@ -2504,7 +2544,7 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
         const storageKey = 'billSplitterDetailTablePreviewV1';
         try {
           localStorage.setItem(storageKey, JSON.stringify(previewData));
-          const previewWindow = window.open('./detailed-view.html?v=v126-followup-audit-20261110', '_blank');
+          const previewWindow = window.open('./detailed-view.html?v=v127-recheck-audit-20261110', '_blank');
           if (!previewWindow) {
             localStorage.removeItem(storageKey);
             toast(bi('允許彈窗', 'Allow pop-ups'), 'error');
@@ -2580,6 +2620,7 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
         restoredDraftAssetsRef.current = null;
         persistedDraftAssetRevisionRef.current = null;
         setStepError(''); setUploadError(''); setItems([]); nextClaimItemIdRef.current = 1; setNextClaimItemId(1); setFriendsReplies(''); setManualClaimsEnabled(false); setResults(null);
+        setReceiptTextDraft(''); setShowReceiptTextImport(false); setLegacyClaimReviewRequired(false);
         setIsAnalyzing(false); setProgress(0); setProgressText('');
         setIsSaved(false); setLastImageData([]); setLastRecognitionModel(''); setTaxAmount(''); setDiscountAmount(''); setTaxNote(''); setReceiptAdjustmentDetails(null);
         setClaimAttachments([]); setClaimInfo(null); setShowClaimShareDialog(false);
@@ -2626,6 +2667,21 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
         return true;
       };
 
+      const validateBillItems = (focusInvalid = false) => {
+        for (let index = 0; index < items.length; index += 1) {
+          const problem = validateBillItem(items[index], detectedCurrency);
+          if (!problem) continue;
+          setStepError(billItemValidationMessage(items[index], problem));
+          if (focusInvalid) {
+            setStep(2);
+            const field = problem.field === 'qty' || problem.field === 'totalQty' ? 'qty' : 'price';
+            window.setTimeout(() => focusField(`item-${field}-${index}`), 120);
+          }
+          return false;
+        }
+        return true;
+      };
+
       const handleGoToStep3 = () => {
         setStepError('');
         if (items.length === 0) { setStepError("⚠️ 請至少新增一個項目！"); return false; }
@@ -2633,6 +2689,12 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
         for (let i = 0; i < items.length; i++) {
             if (!items[i].name.trim()) { setStepError(`⚠️ 項目 ${items[i].id} 未填寫名稱！`); focusField(`item-name-${i}`); return false; }
         }
+        if (legacyClaimReviewRequired) {
+          setStepError(bi('舊草稿的項目編號可能曾改動；請先逐項核對認領。', 'Item IDs in this older draft may have changed. Review the claims before continuing.'));
+          window.setTimeout(() => document.querySelector('[data-testid="legacy-claim-review"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 80);
+          return false;
+        }
+        if (!validateBillItems(true)) return false;
         setStep(3);
         return true;
       };
@@ -3058,6 +3120,7 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
           if (isTextInput) {
             setLastImageData([]);
             setIsSaved(false);
+            const looksLikeJson = /^\s*(?:```(?:json)?\s*)?[\[{]/i.test(textContent);
             try {
               const candidate = extractPayload(textContent);
               const validItems = Array.isArray(candidate?.items)
@@ -3067,7 +3130,10 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
                   && String(item.name || item.nameEn || item.original || item.item || '').trim()
                   && (item.price !== undefined || item.total !== undefined || item.amount !== undefined));
               if (validItems) { directJsonPayload = candidate; directJsonImport = true; }
-            } catch (parseError) {}
+              else if (looksLikeJson) throw new Error(bi('JSON 格式或項目資料無效，請檢查 items、金額及數量。', 'The JSON structure or item data is invalid. Check items, amounts and quantities.'));
+            } catch (parseError) {
+              if (parseError?.code || looksLikeJson) throw parseError;
+            }
             if (!directJsonImport && !apiKey.trim()) {
               throw new Error(bi('未設定免費 OpenRouter 鎖匙。一般文字需要免費模型整理；想免鎖匙匯入，請複製下方讀圖提示詞，讓另一個 AI 輸出 JSON，再貼上或上載。', 'No free OpenRouter key is set. Free-form text needs a model; for no-key import, copy the image-reading prompt below and paste or upload the JSON it returns.'));
             }
@@ -3287,14 +3353,52 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
           parsedItems = shaped.items; parsedTax = shaped.taxTotal; parsedCurrency = shaped.currency?.toUpperCase() || 'HKD';
           let candidateNextClaimId = nextClaimItemIdRef.current;
           const preserveIdsForRetry = keepPreviousResultsOnFailure && receiptWasRead && itemsRef.current.length > 0;
-          const retryIdsByName = new Map();
+          const retryIdByParsedIndex = new Map();
+          let ambiguousRetryNames = false;
           const claimItemNameKey = value => String(value || '').normalize('NFKC').trim().replace(/\s+/g, ' ').toLowerCase();
-          if (preserveIdsForRetry) itemsRef.current.forEach(existing => {
-            const key = claimItemNameKey(normalizeReceiptItemNames(existing).name);
-            if (!key) return;
-            if (!retryIdsByName.has(key)) retryIdsByName.set(key, []);
-            retryIdsByName.get(key).push(String(existing.id));
-          });
+          if (preserveIdsForRetry) {
+            const oldByName = new Map();
+            const newByName = new Map();
+            const addToGroup = (map, key, value) => {
+              if (!key) return;
+              if (!map.has(key)) map.set(key, []);
+              map.get(key).push(value);
+            };
+            itemsRef.current.forEach(existing => addToGroup(oldByName, claimItemNameKey(normalizeReceiptItemNames(existing).name), existing));
+            parsedItems.forEach((incoming, index) => addToGroup(newByName, claimItemNameKey(normalizeReceiptItemNames(incoming).name), { item: incoming, index }));
+            const comparable = (value, currency) => value === null || value === undefined || value === ''
+              ? null : ReceiptMath.parseMoney(value, currency);
+            const signature = item => JSON.stringify([
+              String(item?.unit || '').normalize('NFKC').trim().replace(/\s+/g, ' ').toLowerCase(),
+              comparable(item?.qty, parsedCurrency), comparable(item?.totalQty, parsedCurrency),
+              comparable(item?.price, parsedCurrency), comparable(item?.total ?? item?.amount, parsedCurrency)
+            ]);
+            for (const [key, oldItems] of oldByName) {
+              const newItems = newByName.get(key) || [];
+              if (!newItems.length) continue;
+              if (oldItems.length === 1 && newItems.length === 1) {
+                retryIdByParsedIndex.set(newItems[0].index, String(oldItems[0].id));
+                continue;
+              }
+              const oldBySignature = new Map();
+              const newBySignature = new Map();
+              oldItems.forEach(item => {
+                const sig = signature(item);
+                if (!oldBySignature.has(sig)) oldBySignature.set(sig, []);
+                oldBySignature.get(sig).push(item);
+              });
+              newItems.forEach(entry => {
+                const sig = signature(entry.item);
+                if (!newBySignature.has(sig)) newBySignature.set(sig, []);
+                newBySignature.get(sig).push(entry);
+              });
+              const exactUniqueMatch = oldItems.length === newItems.length
+                && [...newBySignature].every(([sig, entries]) => entries.length === 1 && oldBySignature.get(sig)?.length === 1);
+              if (exactUniqueMatch) {
+                for (const [sig, entries] of newBySignature) retryIdByParsedIndex.set(entries[0].index, String(oldBySignature.get(sig)[0].id));
+              } else ambiguousRetryNames = true;
+            }
+          }
           const reservedClaimIds = new Set(itemsRef.current.map(item => String(item.id)));
           const allocateImportedClaimId = () => {
             while (candidateNextClaimId <= 99 && reservedClaimIds.has(formatClaimItemId(candidateNextClaimId))) candidateNextClaimId += 1;
@@ -3307,16 +3411,26 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
             reservedClaimIds.add(id);
             return id;
           };
-          const formattedItems = parsedItems.map(item => {
+          const formattedItems = parsedItems.map((item, itemIndex) => {
+            const itemProblem = validateBillItem(item, parsedCurrency);
+            if (itemProblem) {
+              const error = new Error('Imported item data is invalid.');
+              error.code = 'invalid_item_data';
+              error.itemIndex = itemIndex;
+              error.itemName = String(item?.name || item?.nameEn || '').trim();
+              error.field = itemProblem.field;
+              error.reason = itemProblem.reason;
+              throw error;
+            }
             const names = normalizeReceiptItemNames(item);
-            const matchedIds = retryIdsByName.get(claimItemNameKey(names.name));
-            const preservedId = matchedIds?.shift();
-            const parsedPrice = ReceiptMath.parseMoney(item.price, parsedCurrency) ?? 0;
-            const parsedTotal = ReceiptMath.parseMoney(item.total, parsedCurrency);
-            const parsedQty = toNum(item.qty) || 1;
+            const preservedId = retryIdByParsedIndex.get(itemIndex);
+            const parsedPrice = item.price === null || item.price === undefined || item.price === '' ? 0 : ReceiptMath.parseMoney(item.price, parsedCurrency);
+            const rawTotal = item.total ?? item.amount;
+            const parsedTotal = rawTotal === null || rawTotal === undefined || rawTotal === '' ? null : ReceiptMath.parseMoney(rawTotal, parsedCurrency);
+            const parsedQty = item.qty === null || item.qty === undefined || item.qty === '' ? 1 : ReceiptMath.parseMoney(item.qty, parsedCurrency);
             return {
               id: preservedId || allocateImportedClaimId(), name: names.name || '項目', nameEn: names.nameEn, original: names.original, ja: names.ja,
-              price: parsedPrice, qty: parsedQty, totalQty: item.totalQty === null ? null : (toNum(item.totalQty) || toNum(item.qty) || null), unit: String(item.unit || '').trim(), total: parsedTotal === null ? parsedPrice * parsedQty : parsedTotal
+              price: parsedPrice, qty: parsedQty, totalQty: item.totalQty === null || item.totalQty === undefined || item.totalQty === '' ? null : ReceiptMath.parseMoney(item.totalQty, parsedCurrency), unit: String(item.unit || '').trim(), total: parsedTotal === null ? parsedPrice * parsedQty : parsedTotal
             };
           });
           const resolvedAdjustments = ReceiptMath.resolveReceiptAdjustments({
@@ -3366,6 +3480,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
             if (resolvedAdjustments.discountAmount > 0) appliedToastParts.push(`${bi('折扣', 'discount')} −${formatMoney(resolvedAdjustments.discountAmount, parsedCurrency)}`);
             if (appliedToastParts.length) toast(`✅ ${bi('已自動換算：', 'Calculated automatically: ')}${appliedToastParts.join(' · ')}`);
             else if (resolvedAdjustments.doubleApplicationPrevented) toast(bi('✅ 已核對收據總額，沒有重複套用稅費／折扣。', '✅ Checked the receipt total; no tax/discount was applied twice.'));
+            if (ambiguousRetryNames) toast(bi('有同名項目未能安全配對；舊認帳會標示為無效，請按新編號核對並更新。', 'Some duplicate-name items could not be matched safely. Old claims will be flagged; review the new IDs and update the replies.'), 'error');
 
             pendingStep2EntryRef.current = true;
             setStep(2);
@@ -3380,6 +3495,10 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
           setProgressText('');
           const importError = error?.code === 'negative_tax_amount'
             ? bi('匯入稅費不可為負數，請核對單據。', 'Imported tax/fee is negative. Check the receipt.')
+            : error?.code === 'invalid_discount_amount'
+              ? bi('匯入折扣金額無效，請核對單據。', 'Imported discount amount is invalid. Check the receipt.')
+              : error?.code === 'invalid_item_data'
+                ? bi(`項目「${error.itemName || `#${Number(error.itemIndex) + 1}`}」的${error.field === 'price' || error.field === 'total' ? '金額' : '數量'}無效或為負數；已停止匯入。`, `The ${error.field === 'price' || error.field === 'total' ? 'amount' : 'quantity'} for “${error.itemName || `#${Number(error.itemIndex) + 1}`}” is invalid or negative; import was stopped.`)
             : error?.code?.includes('tax')
               ? bi('匯入稅費格式無效，請核對數字。', 'Imported tax/fee is invalid. Check the amount.')
               : error?.code === 'item_id_limit'
@@ -3472,6 +3591,14 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
         setReceiptAdjustmentDetails(null);
         const newItems = [...items]; newItems[index] = { ...newItems[index], [field]: value };
         if (field === 'nameEn') newItems[index].nameEnEdited = true;
+        if (field === 'totalQty') {
+          const rawQty = newItems[index].qty;
+          const parsedQty = rawQty === null || rawQty === undefined || String(rawQty).trim() === '' ? null : ReceiptMath.parseMoney(rawQty, detectedCurrency);
+          if (rawQty !== null && rawQty !== undefined && String(rawQty).trim() !== '' && (parsedQty === null || parsedQty <= 0)) {
+            const correctedQty = value === null || value === '' ? null : ReceiptMath.parseMoney(value, detectedCurrency);
+            if (correctedQty !== null && correctedQty > 0) newItems[index].qty = correctedQty;
+          }
+        }
         if (field === 'price' || field === 'qty') {
           const price = parseFloat(newItems[index].price) || 0; const qty = parseFloat(newItems[index].qty) || 0;
           if (field === 'qty') newItems[index].totalQty = qty || 1;
@@ -3667,7 +3794,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
         const metadata = getClaimLinkMetadata();
         const link = new URL('./claim.html', window.location.href);
         link.searchParams.set('lang', lang === 'en' ? 'en' : 'zh-HK');
-        link.searchParams.set('v', 'v126-followup-audit-20261110');
+        link.searchParams.set('v', 'v127-recheck-audit-20261110');
         link.searchParams.set('session', session.id);
         link.hash = window.ClaimRelay
           ? window.ClaimRelay.buildHash(encodeClaimLinkPayload(payload), room, metadata)
@@ -3810,7 +3937,14 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
 
       const calculateSplit = () => {
         setStepError('');
+        if (legacyClaimReviewRequired) {
+          setStepError(bi('舊草稿的項目編號未核對；請返回第二步逐項確認認領。', 'Item IDs in this older draft are not verified. Review the claims in Step 2 first.'));
+          setStep(2);
+          window.setTimeout(() => document.querySelector('[data-testid="legacy-claim-review"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 120);
+          return false;
+        }
         if (!payer.trim()) { setStepError("⚠️ 請填寫墊支人姓名！"); focusField('payer'); return; }
+        if (!validateBillItems(true)) return false;
         if (!validateTaxAmount(true)) return false;
         const parsedTaxAmount = String(taxAmount ?? '').trim() === '' ? 0 : Number(taxAmount);
         const taxNum = ReceiptMath.roundMoney(parsedTaxAmount, detectedCurrency);
@@ -4271,7 +4405,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
             else if (unclaimedItems.length) push(3, 'C2', bi('仍有金額未認領', 'Some amounts remain unclaimed'), bi('補認或刪除後才能結算。', 'Add claims or remove the items to settle.'), { label: bi('查看認帳', 'View claims'), run: () => { setStep(2); window.setTimeout(() => focusField('replies'), 120); } });
             else push(5, 'G3', bi('可以產生分帳報告', 'Ready to generate the report'), bi('確認墊支人同收款方式', 'Confirm the payer and payment method.'), { label: bi('產生分帳報告', 'Generate report'), run: calculateSplit });
         }
-        if (step === 4) push(5, 'G4', bi('就緒', 'Ready'), bi('分享／儲存', 'Share / save'), { label: bi('查看', 'View'), run: () => document.getElementById('report-share-step')?.scrollIntoView({ behavior: 'smooth', block: 'center' }) });
+        if (step === 4 && !showHistory && !showSettings && !showTutorial) push(5, 'G4', bi('就緒', 'Ready'), bi('分享／儲存', 'Share / save'), { label: bi('查看', 'View'), run: () => document.getElementById('report-share-step')?.scrollIntoView({ behavior: 'smooth', block: 'center' }) });
 
         return list.sort((a, b) => a.level - b.level);
       }, [isOnline, uploadError, lastImageData, apiKey, step, showSettings, showTutorial, showHistory, payer, items, friendsReplies, manualClaimsEnabled, claimInfo, reconciliation, isAnalyzing, progressText, currency, detectedCurrency, uiLang]);
@@ -4422,7 +4556,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                 <div className="flex items-center gap-2 sm:gap-3 shrink-0">
                   <img src="./icons/icon.svg" alt="" width="48" height="48" className="app-brand-icon shrink-0" />
                   <div>
-                  <h1 className="text-xl font-extrabold text-slate-800 tracking-tight"><span className="app-brand-name block sm:inline whitespace-nowrap">{tr("分帳管家")}</span><span className="inline-flex items-baseline gap-1 sm:ml-1 whitespace-nowrap"><span data-testid="app-pro-label" className="text-brand-600 font-black">Pro</span><span data-testid="app-version-label" className="text-[10px] leading-3 font-semibold tracking-normal text-brand-700">R126</span></span></h1>
+                  <h1 className="text-xl font-extrabold text-slate-800 tracking-tight"><span className="app-brand-name block sm:inline whitespace-nowrap">{tr("分帳管家")}</span><span className="inline-flex items-baseline gap-1 sm:ml-1 whitespace-nowrap"><span data-testid="app-pro-label" className="text-brand-600 font-black">Pro</span><span data-testid="app-version-label" className="text-[10px] leading-3 font-semibold tracking-normal text-brand-700">R127</span></span></h1>
                   </div>
               </div>
               <div className="header-actions relative flex items-center gap-1.5 sm:gap-2">
@@ -4438,7 +4572,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                     <Icon path={icons.arrowLeft} size={16}/>{tr(" 返回")}</button>
                 ) : (
                   <div ref={headerActionRootRef} className="relative">
-                    <button type="button" id="header-action-menu-toggle" data-testid="header-action-menu-toggle" ref={headerActionMenuTriggerRef} aria-controls="header-action-menu" aria-expanded={showHeaderMenu} aria-label={bi('開啟功能選單', 'Open actions menu')} onClick={() => setShowHeaderMenu(open => !open)} className="header-action-menu-trigger green-action green-action-dark flex min-h-[38px] items-center justify-center rounded-lg border border-emerald-900 bg-brand-600 px-2.5 py-1.5 text-sm font-semibold text-white transition-all active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-emerald-900">
+                    <button type="button" id="header-action-menu-toggle" data-testid="header-action-menu-toggle" ref={headerActionMenuTriggerRef} aria-controls="header-action-menu" aria-expanded={showHeaderMenu} aria-label={bi('開啟功能選單', 'Open actions menu')} onClick={() => setShowHeaderMenu(open => !open)} style={{ minWidth: '44px', minHeight: '44px' }} className="header-action-menu-trigger green-action green-action-dark flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg border border-emerald-900 bg-brand-600 px-2.5 py-1.5 text-sm font-semibold text-white transition-all active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-emerald-900">
                       {tr("選單")}
                     </button>
                     <div ref={headerActionPanelRef} id="header-action-menu" role="group" aria-label={bi('首頁操作', 'Home actions')} hidden={!showHeaderMenu} className={`${showHeaderMenu ? 'absolute' : 'hidden'} right-0 top-full z-[70] mt-1 flex w-52 max-w-[calc(100vw-1rem)] flex-col gap-2 rounded-xl border border-slate-400 bg-white p-[3px] shadow-lg`}>
@@ -4449,9 +4583,9 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                       <div data-testid="app-text-size-control" role="group" aria-label={bi('字體大小', 'Text size')} className="w-full rounded-lg border border-slate-400 bg-slate-50 p-2">
                         <span className="mb-1 block px-1 text-sm font-semibold text-slate-700">{bi('字體大小', 'Text size')}</span>
                         <div className="grid grid-cols-3 gap-1">
-                          <button type="button" data-testid="app-text-size-small" aria-label={bi('小字體', 'Small text')} aria-pressed={appTextSize === 'small'} onClick={() => chooseAppTextSize('small')} className="min-h-[44px] rounded-lg border border-slate-500 bg-white text-base font-bold text-slate-800 hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500">A−</button>
-                          <button type="button" data-testid="app-text-size-normal" aria-label={bi('標準字體', 'Standard text')} aria-pressed={appTextSize === 'normal'} onClick={() => chooseAppTextSize('normal')} className="min-h-[44px] rounded-lg border border-slate-500 bg-white text-base font-bold text-slate-800 hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500">A</button>
-                          <button type="button" data-testid="app-text-size-large" aria-label={bi('大字體', 'Large text')} aria-pressed={appTextSize === 'large'} onClick={() => chooseAppTextSize('large')} className="min-h-[44px] rounded-lg border border-slate-500 bg-white text-base font-bold text-slate-800 hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500">A+</button>
+                          <button type="button" data-testid="app-text-size-small" aria-label={bi('小字體', 'Small text')} aria-pressed={appTextSize === 'small'} onClick={() => chooseAppTextSize('small')} style={{ minWidth: '44px', minHeight: '44px' }} className="min-h-[44px] min-w-[44px] rounded-lg border border-slate-500 bg-white text-base font-bold text-slate-800 hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500">A−</button>
+                          <button type="button" data-testid="app-text-size-normal" aria-label={bi('標準字體', 'Standard text')} aria-pressed={appTextSize === 'normal'} onClick={() => chooseAppTextSize('normal')} style={{ minWidth: '44px', minHeight: '44px' }} className="min-h-[44px] min-w-[44px] rounded-lg border border-slate-500 bg-white text-base font-bold text-slate-800 hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500">A</button>
+                          <button type="button" data-testid="app-text-size-large" aria-label={bi('大字體', 'Large text')} aria-pressed={appTextSize === 'large'} onClick={() => chooseAppTextSize('large')} style={{ minWidth: '44px', minHeight: '44px' }} className="min-h-[44px] min-w-[44px] rounded-lg border border-slate-500 bg-white text-base font-bold text-slate-800 hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500">A+</button>
                         </div>
                       </div>
                       <button type="button" data-testid="start-tutorial" disabled={!draftReady || isAnalyzing || isSavingRecord} onClick={() => {
@@ -4502,7 +4636,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
             )}
           </header>
 
-          <StatusBar statuses={statuses} expanded={statusExpanded} setExpanded={setStatusExpanded} kbOpen={kbOpen} />
+          {!showHistory && !showSettings && !showTutorial && <StatusBar statuses={statuses} expanded={statusExpanded} setExpanded={setStatusExpanded} kbOpen={kbOpen} />}
 
           {/* Main Content Area */}
           <main data-current-step={step} className="w-full px-4 py-6 md:py-8 max-w-2xl mx-auto pb-24">
@@ -4852,7 +4986,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                             <p className="mt-1 text-base font-semibold text-slate-800">{formatMoney(itemAmount(item), detectedCurrency)}{qtyLabel ? ` · ${qtyLabel}` : ''}</p>
                             {item.receiptDiscountAmount > 0 && <p className="mt-1 text-sm font-medium text-emerald-800">{bi(`已自動扣除單品折扣 ${formatMoney(item.receiptDiscountAmount, detectedCurrency)}`, `Item discount applied: ${formatMoney(item.receiptDiscountAmount, detectedCurrency)}`)}</p>}
                           </div>
-                          <button type="button" data-testid="edit-item" onClick={() => openItemEdit(idx)} className="shrink-0 min-h-[40px] px-3.5 py-1.5 rounded-lg border border-slate-400 bg-white text-sm font-bold text-slate-800">{tr("改")}</button>
+                          <button type="button" data-testid="edit-item" onClick={() => openItemEdit(idx)} style={{ minWidth: '44px', minHeight: '44px' }} className="shrink-0 min-w-[44px] min-h-[44px] px-3.5 py-1.5 rounded-lg border border-slate-400 bg-white text-sm font-bold text-slate-800">{tr("改")}</button>
                         </div>
                       ) : (
                       <div className="grid gap-4">
@@ -4866,12 +5000,12 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                             <label htmlFor={itemFieldId('price')} className="text-base font-bold text-slate-700 uppercase tracking-wider mb-1.5 block">{tr("單價")}</label>
                             <div className="field-round flex items-center">
                               <span className="pl-3 text-slate-600 font-bold">{getCurrencySymbol(detectedCurrency)}</span>
-                              <input id={itemFieldId('price')} type="number" inputMode="decimal" data-testid="item-price" ref={el => fieldRefs.current[`item-price-${idx}`] = el} value={item.price} onChange={(e) => updateItem(idx, 'price', e.target.value)} onKeyDown={(e) => handleItemKeyDown(e, 'price', idx)} className="w-full text-base font-semibold text-slate-800 bg-transparent outline-none shadow-none focus:ring-0" placeholder="0" />
+                              <input id={itemFieldId('price')} type="number" inputMode="decimal" min="0" step="any" data-testid="item-price" ref={el => fieldRefs.current[`item-price-${idx}`] = el} value={item.price} onChange={(e) => updateItem(idx, 'price', e.target.value)} onKeyDown={(e) => handleItemKeyDown(e, 'price', idx)} className="w-full text-base font-semibold text-slate-800 bg-transparent outline-none shadow-none focus:ring-0" placeholder="0" />
                             </div>
                           </div>
                           <div className="w-40 shrink-0">
                             <label htmlFor={itemFieldId('qty')} className="text-base font-bold text-slate-700 uppercase tracking-wider mb-1.5 block">{tr("單據總量")}</label>
-                            <input id={itemFieldId('qty')} type="number" inputMode="decimal" data-testid="item-qty" ref={el => fieldRefs.current[`item-qty-${idx}`] = el} value={item.totalQty ?? ''} onChange={(e) => updateItem(idx, 'totalQty', e.target.value === '' ? null : e.target.value)} onKeyDown={(e) => handleItemKeyDown(e, 'qty', idx)} className="field-round w-full text-base font-semibold text-slate-800 outline-none text-center" placeholder={tr("未知可留空")} />
+                            <input id={itemFieldId('qty')} type="number" inputMode="decimal" min="0" step="any" data-testid="item-qty" ref={el => fieldRefs.current[`item-qty-${idx}`] = el} value={invalidQtyForCorrection(item, detectedCurrency) ?? item.totalQty ?? ''} onChange={(e) => updateItem(idx, 'totalQty', e.target.value === '' ? null : e.target.value)} onKeyDown={(e) => handleItemKeyDown(e, 'qty', idx)} className="field-round w-full text-base font-semibold text-slate-800 outline-none text-center" placeholder={tr("未知可留空")} />
                           </div>
                         </div>
                         <div>
@@ -5035,19 +5169,28 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                     {inboxNote && claimSession && <p className="mt-2 text-base font-semibold text-brand-800">{bi(`最新交到：${inboxNote}`, `Latest: ${inboxNote}`)}</p>}
                     {(!manualClaimsEnabled || claimSession) && <Button data-testid="claim-inbox-refresh" variant="outline" className="!w-full mt-3" disabled={!claimSession || inboxPhase === 'receiving' || claimSecurePhase === 'setting-up'} onClick={() => pullClaimsRef.current(true)}>{bi('重新接收', 'Check again')}</Button>}
                   </Card>
-                  <Label className="flex items-center justify-between mb-3">
+                  {legacyClaimReviewRequired && <Card data-testid="legacy-claim-review" role="alert" className="!p-4 space-y-3 border-amber-600 bg-amber-50">
+                    <h3 className="text-base font-extrabold text-amber-950">{bi('舊草稿：先核對認領項目', 'Older draft: review item claims')}</h3>
+                    <p className="text-sm leading-relaxed text-amber-950">{bi('舊版本可能曾在刪除項目後改動編號。請逐項對照下方編號、名稱及朋友回覆；核對前不會重新結算。', 'An older version may have changed item IDs after deletion. Compare the IDs and names below with each friend reply. Recalculation is blocked until you confirm.')}</p>
+                    <ul className="list-disc pl-5 text-sm font-semibold leading-relaxed text-amber-950">{items.map(item => <li key={item.id}>{item.id} — {displayItemName(item)}</li>)}</ul>
+                    <button type="button" data-testid="confirm-legacy-claim-review" onClick={() => { setLegacyClaimReviewRequired(false); setStepError(''); }} className="min-h-[44px] w-full rounded-lg border border-amber-800 bg-white px-4 py-2 text-sm font-bold text-amber-950">{bi('已逐項核對，可以繼續', 'I checked each item; continue')}</button>
+                  </Card>}
+                  {stepError && <div role="alert" data-testid="step-error" className="rounded-xl border border-amber-600 bg-amber-50 p-3 text-sm font-semibold leading-relaxed text-amber-950">{stepError}</div>}
+                  <Label htmlFor="friend-claim-replies" className="flex items-center justify-between mb-3">
                     <span>{bi('朋友交返的認帳', 'Friends’ claims')}</span>
                     <span className="text-sm font-normal text-slate-600">{bi('可稍後填', 'Optional')}</span>
                   </Label>
                   <textarea
+                    id="friend-claim-replies"
                     data-testid="claim-replies"
+                    aria-describedby={manualClaimsEnabled ? 'manual-claim-guidance' : undefined}
                     ref={el => fieldRefs.current.replies = el} value={friendsReplies} onChange={(e) => {setFriendsReplies(e.target.value); setReconciliation(null); setStepError('');}} onPaste={handlePasteReplies} onFocus={onFocusReplies} onBlur={onBlurReplies}
                     placeholder={manualClaimsEnabled && !claimSession
                       ? bi('貼上朋友回覆；只保存在本機。', 'Paste replies here; they stay on this device.')
                       : bi('朋友回覆會顯示於此；亦可貼上 WhatsApp 後備。', 'Friend replies appear here. You can also paste a WhatsApp backup.')}
                     className="w-full h-48 bg-white border border-slate-500 rounded-xl p-4 text-base font-mono text-slate-700 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none resize-y shadow-inner leading-relaxed">
                   </textarea>
-                  {manualClaimsEnabled && <div data-testid="manual-claim-guidance" className="mt-2 rounded-lg border border-slate-300 bg-slate-50 p-3 text-sm leading-relaxed text-slate-800" role="note">
+                  {manualClaimsEnabled && <div id="manual-claim-guidance" data-testid="manual-claim-guidance" className="mt-2 rounded-lg border border-slate-300 bg-slate-50 p-3 text-sm leading-relaxed text-slate-800" role="note">
                     <p>{bi('每人至少認領一項；只填姓名不會分帳。格式：', 'Each person must claim an item; a name alone is not counted. Format:')}</p>
                     <pre data-testid="manual-claim-example" className="mt-1 whitespace-pre-wrap font-mono text-sm">{bi(`姓名：阿明\n${items[0]?.id || '01'} = 1`, `Name: Alex\n${items[0]?.id || '01'} = 1`)}</pre>
                   </div>}

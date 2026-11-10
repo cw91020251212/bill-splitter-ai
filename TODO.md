@@ -305,3 +305,13 @@
 - [x] 本機測試通過：`receipt-adjustments.test.cjs` 24/24、離線匯率單元測試 5/5、`calculation-regressions.cjs` 10/10、`friend-recognition.cjs` 13/13（外部寫入 0）、`recognition-retry-ui.cjs`、`text-import.cjs`（含背景點按不刪除）、`settings-free-models.cjs`、`tutorial-ui.cjs` 19 項、`tutorial-safety.cjs`、`cross-currency-ui.cjs`、`card-redaction-ui.cjs`；語法與 `git diff --check` 通過。
 - [x] Commit [`131ff8f`](https://github.com/cw91020251212/bill-splitter-ai/commit/131ff8f8139f2c00ea1db6189baf2e8ddbad7cfe) 已推送到 `main`；[GitHub Pages workflow 42802936889](https://github.com/cw91020251212/bill-splitter-ai/actions/runs/42802936889) 成功，Pages 状態為 `built`。
 - [x] 公開首頁、`pwa.js`、`sw.js`、`theme.css`、`tutorial.js`、`detailed-view.html` 全部 HTTP 200；已確認 R126／`v126-followup-audit-20261110` 與繁中／英文手動認帳文案。公開 `PUBLIC_STATIC_QA=1` 的 `friend-recognition.cjs` 13/13 通過，所有帳單 API 走本機 mock，外部寫入 0。
+
+## R127：複查問題與草稿安全修正
+- [x] 商品匯入、手動編輯及舊草稿恢復共用非負／有效金額與正數數量檢查；有效 JSON 的商品／稅費／折扣錯誤不會降級成外部 AI 請求，明確零元仍受支援。
+- [x] 一致化頂層折扣與明細折扣的負號規則；未提交收據文字納入本機草稿、取消保留與新單確認後清除。
+- [x] 舊認領草稿在重新結算前要求逐項核對；OCR 重認按唯一商品規格配對同名項目，歧義時發新編號，並阻止舊認帳錯套。
+- [x] 第二步顯示商品欄位錯誤；設定／歷史畫面隱藏不適用的舊結算狀態；功能選單、A−／A／A+ 及認帳輸入提供 44px 或欄位輔助說明。
+- [x] index／PWA／Service Worker cache epoch 升至 `v127-recheck-audit-20261110`；可見版本升至 R127。
+- [x] 本機測試：`receipt-adjustments.test.cjs` 25/25、離線 `exchange-rates.test.cjs` 5/5、`calculation-regressions.cjs` 14/14（帳單 API 呼叫 0，含負數量顯示與修正）、`friend-recognition.cjs` 13/13（外部寫入 0）、`text-import.cjs`、`recognition-retry-ui.cjs`（同名不同規格／歧義案例、8 次 mock OCR）、`cross-currency-ui.cjs`、`friend-whatsapp-details.cjs`、`settings-free-models.cjs`、`tutorial-ui.cjs` 19 項、`tutorial-safety.cjs`、`card-redaction-ui.cjs` 均通過。
+- [x] 升級 R127 後再次通過設定 UI 測試；所有 JavaScript 檔 `node --check` 與 `git diff --check` 通過。
+- [ ] 推送前確認 main 無新增遠端提交；部署後檢查 GitHub Pages workflow、公開 R127 靜態資源及安全的 live smoke。

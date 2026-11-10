@@ -14,6 +14,8 @@ function draft({ sourceCurrency, currency, items, taxAmount = '0', discountAmoun
     hasAssets: false,
     data: {
       step: 3,
+      claimItemIdVersion: 2,
+      legacyClaimReviewRequired: false,
       items,
       readReceipt: true,
       taxAmount,

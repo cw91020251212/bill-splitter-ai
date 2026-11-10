@@ -29,7 +29,7 @@ async function stubTailwind(page) {
 function draft(step) {
   const item = { id: '01', name: '原有帳單項目', original: 'Original item', price: '99', total: 99, totalQty: null, unit: '' };
   return { schema: 1, assetRevision: 'test-assets-preserved', hasAssets: true, data: {
-    step, items: [item], readReceipt: true, taxAmount: '9.9', taxNote: '原有備註',
+    step, claimItemIdVersion: 2, legacyClaimReviewRequired: false, items: [item], readReceipt: true, taxAmount: '9.9', taxNote: '原有備註',
     friendsReplies: '姓名：原有朋友\n01 = 1', payer: '原有墊支人', detectedCurrency: 'HKD', currency: 'HKD',
     taxSplitMethod: 'equal', paymentMethods: ['PayMe', '現金'], reconciliation: null, isSaved: false,
     includeReceiptImages: false, detailLang: 'full', pendingReceiptShare: false, claimRoom: null, claimInboxSeen: [], claimLinkShared: true,

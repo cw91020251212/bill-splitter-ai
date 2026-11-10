@@ -17,6 +17,8 @@ function draft(data) {
   return { schema: 1, assetRevision: 'r123-calculation-regression', hasAssets: true, data: {
     step: 3,
     readReceipt: true,
+    claimItemIdVersion: 2,
+    legacyClaimReviewRequired: false,
     items: [],
     taxAmount: '0',
     discountAmount: '0',
@@ -298,7 +300,8 @@ async function readSavedResults(page) {
 
     const newBill = await openCalculator(browser, {
       items: [{ id: '01', name: '待保留項目', price: 15, total: 15, totalQty: null, unit: '' }],
-      friendsReplies: '姓名：阿明\n01 = 1', payer: '主辦人', taxAmount: '0', discountAmount: '0', reconciliation: null
+      friendsReplies: '姓名：阿明\n01 = 1', payer: '主辦人', taxAmount: '0', discountAmount: '0', reconciliation: null,
+      receiptTextDraft: '尚未匯入的私人翻譯文字', showReceiptTextImport: true
     });
     await newBill.page.getByTestId('calculate-split').click();
     await newBill.page.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '4', null, { timeout: 20000 });
@@ -309,13 +312,93 @@ async function readSavedResults(page) {
     assert(newBillPrompt.length > 0, 'starting a new bill asks before clearing the current one');
     const preservedDraft = await newBill.page.evaluate(() => JSON.parse(localStorage.getItem('billSplitterActiveDraftV1') || 'null')?.data);
     assert.equal(preservedDraft.items[0].name, '待保留項目', 'cancelling keeps the existing bill in the page and local draft');
+    assert.equal(preservedDraft.receiptTextDraft, '尚未匯入的私人翻譯文字', 'cancelling preserves unsent local receipt text');
     assert.equal(preservedDraft.results.calculationVersion, 3, 'the previous calculation remains available after cancellation');
     console.log('PASS cancelling New bill preserves the current results and local draft');
+
+    const menuToggle = newBill.page.getByTestId('header-action-menu-toggle');
+    const menuTarget = await menuToggle.boundingBox();
+    assert(menuTarget.width >= 44 && menuTarget.height >= 44, 'the header menu toggle has a 44px touch target');
+    await menuToggle.click();
+    for (const id of ['app-text-size-small', 'app-text-size-normal', 'app-text-size-large']) {
+      const box = await newBill.page.getByTestId(id).boundingBox();
+      assert(box.width >= 44 && box.height >= 44, `${id} has a 44px touch target`);
+    }
+    await newBill.page.getByTestId('header-settings-button').click();
+    assert.equal(await newBill.page.getByTestId('status-bar-toggle').count(), 0, 'the global result status is hidden on Settings');
+    await newBill.page.getByTestId('header-back-button').click();
+    await menuToggle.click();
+    await newBill.page.getByTestId('header-history-button').click();
+    assert.equal(await newBill.page.getByTestId('status-bar-toggle').count(), 0, 'the global result status is hidden on History');
+    await newBill.page.getByTestId('header-back-button').click();
+    const acceptNewBill = newBill.page.waitForEvent('dialog').then(async dialog => { await dialog.accept(); });
+    await newBill.page.getByTestId('new-bill').click();
+    await acceptNewBill;
+    await newBill.page.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '1', null, { timeout: 20000 });
+    await newBill.page.waitForFunction(() => {
+      const data = JSON.parse(localStorage.getItem('billSplitterActiveDraftV1') || 'null')?.data;
+      return !data || (data.receiptTextDraft === '' && data.showReceiptTextImport === false);
+    });
+    assert.equal(await newBill.page.getByTestId('receipt-text-draft').inputValue().catch(() => ''), '', 'confirming New bill clears unsent receipt text');
     await newBill.context.close();
+
+    const negativeItems = await openCalculator(browser, {
+      step: 2,
+      items: [{ id: '01', name: '負單價商品', price: -5, qty: -1, total: 5, totalQty: null, unit: '' }],
+      friendsReplies: '姓名：阿明\n01 = 1', payer: '主辦人'
+    });
+    await negativeItems.page.getByTestId('go-to-payer').click();
+    await negativeItems.page.getByTestId('step-error').waitFor({ state: 'visible' });
+    assert.match(await negativeItems.page.getByTestId('step-error').innerText(), /負單價商品/);
+    assert.equal(await negativeItems.page.evaluate(() => document.querySelector('[data-live-app] main')?.dataset.currentStep), '2', 'negative price and quantity cannot pass Step 2');
+    await negativeItems.context.close();
+
+    const negativeQty = await openCalculator(browser, {
+      step: 2,
+      items: [{ id: '01', name: '負數量商品', price: 20, qty: -1, total: 20, totalQty: null, unit: '' }],
+      friendsReplies: '姓名：阿明\n01 = 1', payer: '主辦人'
+    });
+    await negativeQty.page.getByTestId('go-to-payer').click();
+    await negativeQty.page.getByTestId('step-error').waitFor({ state: 'visible' });
+    const qtyCorrection = negativeQty.page.getByTestId('item-qty');
+    await qtyCorrection.waitFor({ state: 'visible' });
+    assert.equal(await qtyCorrection.inputValue(), '-1', 'the invalid source quantity is shown in the editable quantity field');
+    await qtyCorrection.fill('2');
+    await negativeQty.page.getByTestId('go-to-payer').click();
+    assert.equal(await negativeQty.page.evaluate(() => document.querySelector('[data-live-app] main')?.dataset.currentStep), '3', 'correcting the quantity updates the invalid source field and allows progress');
+    console.log('PASS negative quantity is surfaced in the editable field and can be corrected');
+    await negativeQty.context.close();
+
+    const oldDraft = await openCalculator(browser, {
+      step: 2,
+      items: [{ id: '01', name: '舊草稿商品', price: 10, total: 10, totalQty: null, unit: '' }],
+      friendsReplies: '姓名：阿明\n01 = 1', payer: '阿明'
+    });
+    await oldDraft.page.evaluate(() => {
+      const key = 'billSplitterActiveDraftV1';
+      const record = JSON.parse(localStorage.getItem(key));
+      delete record.data.claimItemIdVersion;
+      delete record.data.legacyClaimReviewRequired;
+      const nativeSetItem = Storage.prototype.setItem;
+      nativeSetItem.call(localStorage, key, JSON.stringify(record));
+      Storage.prototype.setItem = function(name, value) {
+        if (name === key) return;
+        return nativeSetItem.call(this, name, value);
+      };
+    });
+    await oldDraft.page.reload({ waitUntil: 'domcontentloaded' });
+    await oldDraft.page.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '2', null, { timeout: 30000 });
+    await oldDraft.page.getByTestId('legacy-claim-review').waitFor({ state: 'visible' });
+    await oldDraft.page.getByTestId('go-to-payer').click();
+    assert.equal(await oldDraft.page.evaluate(() => document.querySelector('[data-live-app] main')?.dataset.currentStep), '2', 'old claim IDs require explicit review');
+    await oldDraft.page.getByTestId('confirm-legacy-claim-review').click();
+    await oldDraft.page.getByTestId('go-to-payer').click();
+    assert.equal(await oldDraft.page.evaluate(() => document.querySelector('[data-live-app] main')?.dataset.currentStep), '3', 'the reviewed legacy draft can proceed');
+    await oldDraft.context.close();
 
     assert.equal(interceptedBusinessRequests, 0, 'all business APIs remain untouched');
     assert.deepEqual(failures, [], 'no browser exceptions occur');
-    console.log(JSON.stringify({ tests: 10, passed: 10, interceptedBusinessRequests, browserErrors: failures.length }));
+    console.log(JSON.stringify({ tests: 14, passed: 14, interceptedBusinessRequests, browserErrors: failures.length }));
   } finally {
     await browser.close();
   }

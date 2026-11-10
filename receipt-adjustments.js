@@ -112,6 +112,16 @@
     }
     const rawDiscount = data.discountTotal ?? data.discount ?? null;
     let discountTotal = rawDiscount === '' || hasPercentMarker(rawDiscount) ? null : parseMoney(rawDiscount, currency);
+    if (rawDiscount !== null && rawDiscount !== undefined && rawDiscount !== '' && !hasPercentMarker(rawDiscount)) {
+      if (discountTotal === null) {
+        const error = new Error('Discount amount must be a valid number.');
+        error.code = 'invalid_discount_amount';
+        throw error;
+      }
+      // Legacy payloads sometimes encode a deduction with a minus sign. The
+      // canonical adjustment format uses a positive amount plus kind=discount.
+      discountTotal = Math.abs(discountTotal);
+    }
     const adjustmentsRaw = data.adjustments ?? data.percentageAdjustments ?? data.taxDiscounts ?? [];
     const adjustments = Array.isArray(adjustmentsRaw) ? adjustmentsRaw.slice() : [];
 
@@ -276,7 +286,13 @@
       const rateOnlyTax = taxAdjustments[0];
       candidates = candidates.map(item => item === rateOnlyTax ? { ...item, amount: Math.abs(fixedTaxTotal) } : item);
     }
-    const fixedDiscountTotal = discountTotal === null || discountTotal === undefined ? null : parseMoney(discountTotal, currency);
+    const parsedFixedDiscountTotal = discountTotal === null || discountTotal === undefined || discountTotal === '' ? null : parseMoney(discountTotal, currency);
+    if (discountTotal !== null && discountTotal !== undefined && discountTotal !== '' && parsedFixedDiscountTotal === null) {
+      const error = new Error('Discount amount must be a valid number.');
+      error.code = 'invalid_discount_amount';
+      throw error;
+    }
+    const fixedDiscountTotal = parsedFixedDiscountTotal === null ? null : Math.abs(parsedFixedDiscountTotal);
     const discountAdjustments = normalized.filter(item => item.kind === 'discount');
     if (fixedDiscountTotal !== null && fixedDiscountTotal > 0 && discountAdjustments.length === 0) {
       candidates.push({ label: 'Discount', kind: 'discount', ratePercent: null, amount: Math.abs(fixedDiscountTotal), baseAmount: null, application: 'separate', scope: 'receipt', itemIndex: null, order: candidates.length });

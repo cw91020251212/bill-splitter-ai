@@ -23,7 +23,7 @@ const correctedItemPayload = Buffer.from(JSON.stringify([
 ])).toString('base64url');
 const claimUrl = new URL('./claim.html', base);
 claimUrl.searchParams.set('lang', 'zh-HK');
-claimUrl.searchParams.set('v', 'v114-ocr-random-router-option');
+claimUrl.searchParams.set('v', 'v127-recheck-audit-20261110');
 claimUrl.searchParams.set('session', sessionId);
 const claimMetadata = {
   title: '週末聚餐', createdAt, expiresAt, customName: '週末聚餐', expiryDays: '7'
@@ -41,6 +41,8 @@ function draft() {
     hasAssets: false,
     data: {
       step: 3,
+      claimItemIdVersion: 2,
+      legacyClaimReviewRequired: false,
       items: [
         { id: '01', name: '重新翻譯的壽司飯糰', price: 130, total: 130, totalQty: 3, unit: '件' },
         { id: '02', name: '共享刺身盤', price: 140, total: 140, totalQty: null, unit: '份' }

@@ -259,6 +259,25 @@ test('keeps the printed fixed discount when the payload also includes a rate', (
   assert.equal(result.applied[0].ratePercent, 10);
 });
 
+test('normalizes negative legacy discountTotal and negative adjustment amounts consistently', () => {
+  const legacy = receipt.resolveReceiptAdjustments({
+    ...receipt.extractPayload(JSON.stringify({ items: [{ name: 'Tea', total: 20 }], discountTotal: -5, receiptTotal: 15, currency: 'HKD' }))
+  });
+  const adjustment = receipt.resolveReceiptAdjustments({
+    items: [{ name: 'Tea', total: 20 }],
+    adjustments: [{ kind: 'discount', amount: -5, application: 'separate' }],
+    receiptTotal: 15,
+    currency: 'HKD'
+  });
+  for (const result of [legacy, adjustment]) {
+    assert.equal(result.billDiscountAmount, 5);
+    assert.equal(result.expectedTotal, 15);
+    assert.equal(result.receiptTotalMatches, true);
+  }
+  assert.equal(receipt.resolveReceiptAdjustments({ items: [{ total: 20 }], discountTotal: 0 }).billDiscountAmount, 0);
+  assert.throws(() => receipt.extractPayload('{"items":[{"total":20}],"discountTotal":"bad"}'), error => error.code === 'invalid_discount_amount');
+});
+
 test('formats zero-, two-, and three-decimal currencies without losing precision', () => {
   assert.equal(receipt.currencyDecimals('CLP'), 0);
   assert.equal(receipt.currencyDecimals('HKD'), 2);
