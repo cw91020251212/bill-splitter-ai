@@ -18,10 +18,11 @@ const detailedViewInitialScreenshotPath = path.join(outputDir, 'detailed-view-be
 const PNG = fs.readFileSync(path.join(__dirname, 'fixtures', 'receipt-preview.png')).toString('base64');
 const DEFAULT_MODEL = 'dots-studio/dots-3-note-preview:free';
 const FALLBACK_MODEL = 'nvidia/nemotron-3.5-super-vl:free';
-const itemPayload = name => ({
-  items: [{ name, nameEn: name, original: 'Receipt item', price: 100, qty: 1, total: 100 }],
+const payloadForItems = names => ({
+  items: names.map(name => ({ name, nameEn: name, original: 'Receipt item', price: 100, qty: 1, total: 100 })),
   adjustments: [], taxTotal: 0, taxNote: '', currency: 'HKD', date: null, receiptTotal: 100
 });
+const itemPayload = name => payloadForItems([name]);
 const success = payload => ({
   choices: [{ message: { content: JSON.stringify(payload) } }]
 });
@@ -82,12 +83,12 @@ const success = payload => ({
       }
       if (requestCount === 3) {
         assert.equal(body.model, DEFAULT_MODEL, 'new photos use the selected default model');
-        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(success(itemPayload('新增相片結果'))) });
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(success(payloadForItems(['新增相片結果', '湯']))) });
         return;
       }
       if (requestCount === 4) {
         assert.equal(body.model, DEFAULT_MODEL, 're-recognition uses the current saved model order');
-        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(success(itemPayload('重新識別結果'))) });
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(success(payloadForItems(['湯', '重新識別結果']))) });
         return;
       }
       await route.fulfill({ status: 429, contentType: 'application/json', body: JSON.stringify({ error: { message: 'rate limit exceeded' } }) });
@@ -165,6 +166,14 @@ const success = payload => ({
     await page.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '2', null, { timeout: 30000 });
     await page.getByText('重新識別結果', { exact: false }).waitFor({ state: 'visible' });
     assert.equal(await page.getByText('新增相片結果', { exact: false }).count(), 0, 'a successful re-recognition replaces the previous items');
+    await page.waitForFunction(() => {
+      const items = JSON.parse(localStorage.getItem('billSplitterActiveDraftV1') || 'null')?.data?.items || [];
+      return items.length === 2 && items[0].name === '湯' && items[1].name === '重新識別結果';
+    });
+    assert.deepEqual(await page.evaluate(() => JSON.parse(localStorage.getItem('billSplitterActiveDraftV1')).data.items.map(item => ({ name: item.name, id: String(item.id) }))), [
+      { name: '湯', id: '03' },
+      { name: '重新識別結果', id: '04' }
+    ], 'a matching item keeps its stable claim ID across reordered OCR output; a renamed/new item receives a fresh ID');
     assert.equal(await page.evaluate(() => window.__showOpenFilePickerCalls), 2, 'only explicit add-new-photo actions open the Downloads picker; re-recognition does not');
     assert.equal(observedImageCounts[0], 1, 'the first scan contains its selected image');
     assert.equal(observedImageCounts[2], 2, 'the added-photo scan contains both selected images');
@@ -192,7 +201,9 @@ const success = payload => ({
     await page.evaluate(() => {
       const draft = JSON.parse(localStorage.getItem('billSplitterActiveDraftV1'));
       draft.data.step = 3;
-      draft.data.friendsReplies = '姓名：阿明\n01 = 0.166666666\n姓名：小美\n01 = 0.166666666\n姓名：阿強\n01 = 0.166666666\n姓名：阿欣\n01 = 0.166666666\n姓名：家豪\n01 = 0.166666666\n姓名：嘉嘉\n01 = 0.166666666';
+      const claimLines = draft.data.items.map(item => `${item.id} = 0.166666666`).join('\n');
+      draft.data.friendsReplies = ['阿明', '小美', '阿強', '阿欣', '家豪', '嘉嘉']
+        .map(name => `姓名：${name}\n${claimLines}`).join('\n');
       draft.data.payer = '阿明';
       draft.data.claimLinkShared = true;
       localStorage.setItem('billSplitterActiveDraftV1', JSON.stringify(draft));
@@ -279,7 +290,7 @@ const success = payload => ({
     assert.equal(await previewPage.locator('#member-gate h1').innerText(), '切換成員', 'the selected state labels the member switcher');
     assert.equal(await memberSelect.inputValue(), '阿明', 'the selected member remains visible in the selector');
     assert.match(await previewPage.locator('#total-label').innerText(), /^你要埋單幾多（HKD）$/, 'the payable total label includes the settlement currency');
-    assert.match(await previewPage.getByTestId('preview-grand-total').innerText(), /16\.66/, 'the selected member sees the cent-adjusted payable amount');
+    assert.match(await previewPage.getByTestId('preview-grand-total').innerText(), /33\.3[34]/, 'the selected member sees the cent-adjusted payable amount for the two-item $200 bill');
     assert.equal(await previewPage.locator('#items-title').innerText(), '項目明細', 'the selected view labels the item details');
     assert.ok(await previewPage.locator('[data-testid="personal-item-row"]').count() > 0, 'the table shows this member’s allocated items');
     assert.match(await previewPage.locator('[data-testid="personal-item-row"]').first().innerText(), /16\.666667/, 'the item row preserves source-share precision rather than showing the rounded settlement total');
@@ -292,7 +303,7 @@ const success = payload => ({
     await previewPage.screenshot({ path: detailedViewScreenshotPath, fullPage: true });
     console.log(`TABLE_SCREENSHOT ${detailedViewScreenshotPath}`);
     await memberSelect.selectOption({ label: '小美' });
-    assert.match(await previewPage.getByTestId('preview-grand-total').innerText(), /16\.66/, 'the second member receives the other cent-adjusted share');
+    assert.match(await previewPage.getByTestId('preview-grand-total').innerText(), /33\.3[34]/, 'the second member receives the cent-adjusted share for the two-item $200 bill');
     assert.equal(await previewPage.locator('#page-title').innerText(), '小美嘅賬單', 'switching the name updates the bill heading');
     await previewPage.locator('.item-details summary').first().click();
     assert.match(await previewPage.locator('.item-details').first().innerText(), /單據原文/, 'the optional item source can be opened when needed');

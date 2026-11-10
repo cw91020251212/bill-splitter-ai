@@ -294,3 +294,12 @@
 - [x] 本機 `friend-recognition.cjs` 13/13、`text-import.cjs`、`card-redaction-ui.cjs`、`calculation-regressions.cjs` 3/3 通過；`node --check` 和 `git diff --check` 通過，所有 API 使用 Worker harness，外部寫入 0。
 - [x] Commit `84d7865` 已推送至 `main`；[GitHub Pages workflow 42779205241](https://github.com/cw91020251212/bill-splitter-ai/actions/runs/42779205241) 成功。公開首頁、`pwa.js`、`sw.js` 均 HTTP 200；live HTML 確認 R125 token 及繁中／英文入口文案。
 - [x] 公開網址 `PUBLIC_STATIC_QA=1` 的 `friend-recognition.cjs` 13/13 通過：本機模式不建立／呼叫線上收件、不把回覆帶入後建連結；原線上朋友認帳仍正常，外部寫入 0。
+
+## R126：後續審計修正
+- [x] 商品認領編號在刪除／OCR 重認後保持穩定；刪除已認領項目會警告，舊回覆不會重映射到其他商品。
+- [x] 有價格的商品未認領時禁止產生結果，並在第二／三步保留提示；只有姓名、無有效認領的人不加入稅費分母。
+- [x] 稅費分幣按有效分攤者分配；換匯後逐人應付及總額守恆，舍入差額在主報告和朋友明細清楚列出，總額／個人應付移至第四步頂部。
+- [x] 匯入負稅與無效稅額會拒絕，手動稅費於失焦／下一步驗證；開新單前先保存本機草稿並確認，取消或儲存失敗均不清除原資料。
+- [x] 更新手動認帳格式提示及模式狀態、表單 label、狀態列語義與教學焦點控管；小字體下的狀態按鈕、收合卡和刪除目標維持 44／40px。
+- [x] index／PWA／Service Worker、教程與分享頁 cache token 升至 `v126-followup-audit-20261110`；可見產品標籤為 R126。
+- [x] 本機測試通過：`receipt-adjustments.test.cjs` 24/24、離線匯率單元測試 5/5、`calculation-regressions.cjs` 10/10、`friend-recognition.cjs` 13/13（外部寫入 0）、`recognition-retry-ui.cjs`、`text-import.cjs`（含背景點按不刪除）、`settings-free-models.cjs`、`tutorial-ui.cjs` 19 項、`tutorial-safety.cjs`、`cross-currency-ui.cjs`、`card-redaction-ui.cjs`；語法與 `git diff --check` 通過。

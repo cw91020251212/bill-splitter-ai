@@ -112,7 +112,7 @@ async function calculate(page) {
       await seed(page, staleDraft);
       assert.equal(await page.locator('[data-live-app] main').getAttribute('data-current-step'), '3');
       assert.equal(await page.getByTestId('final-summary-preview').count(), 0);
-      assert.equal(await page.getByText('貨幣分帳方式已更新，請按「產生分帳報告」重新計算。').isVisible(), true);
+      assert.equal(await page.getByText('分帳計算已更新，請重新產生結果。').isVisible(), true);
       console.log('PASS stale active draft: old cross-currency results are not mislabelled; calculation is requested again.');
       await context.close();
     }

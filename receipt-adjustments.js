@@ -57,6 +57,11 @@
   const parseMoney = (value, currency = 'HKD') => parseLocalizedNumber(value, { currency });
   const parseRatePercent = value => parseLocalizedNumber(value, { percent: true });
   const hasPercentMarker = value => typeof value === 'string' && /[%％]|percent/i.test(value);
+  const taxValidationError = code => {
+    const error = new Error('Tax and service-fee amounts must be valid and non-negative.');
+    error.code = code;
+    return error;
+  };
   const isDiscountWithinSubtotal = (discount, subtotal, currency = 'HKD') => {
     const amount = parseMoney(discount, currency);
     const available = parseMoney(subtotal, currency);
@@ -101,6 +106,10 @@
     const currency = data.currency || data.Currency || 'HKD';
     const rawTax = data.taxTotal ?? data.tax ?? null;
     let taxTotal = rawTax === '' || hasPercentMarker(rawTax) ? null : parseMoney(rawTax, currency);
+    if (rawTax !== null && rawTax !== undefined && rawTax !== '' && !hasPercentMarker(rawTax)) {
+      if (taxTotal === null) throw taxValidationError('invalid_tax_amount');
+      if (taxTotal < 0) throw taxValidationError('negative_tax_amount');
+    }
     const rawDiscount = data.discountTotal ?? data.discount ?? null;
     let discountTotal = rawDiscount === '' || hasPercentMarker(rawDiscount) ? null : parseMoney(rawDiscount, currency);
     const adjustmentsRaw = data.adjustments ?? data.percentageAdjustments ?? data.taxDiscounts ?? [];
@@ -158,6 +167,10 @@
     const ratePercent = rawRate === null || rawRate === '' ? null : parseRatePercent(rawRate);
     const rawAmount = raw.amount ?? raw.amountValue ?? raw.value ?? null;
     const amount = rawAmount === null || rawAmount === '' ? null : parseMoney(rawAmount, currency);
+    if (kind === 'tax') {
+      if (rawRate !== null && rawRate !== '' && (!Number.isFinite(ratePercent) || ratePercent < 0)) throw taxValidationError('invalid_tax_rate');
+      if (rawAmount !== null && rawAmount !== '' && (!Number.isFinite(amount) || amount < 0)) throw taxValidationError(amount < 0 ? 'negative_tax_amount' : 'invalid_tax_amount');
+    }
     const rawBase = raw.baseAmount ?? raw.base ?? raw.taxableBase ?? null;
     const baseAmount = rawBase === null || rawBase === '' ? null : parseMoney(rawBase, currency);
     const rawIndex = Number(raw.itemIndex ?? raw.item_index);
@@ -252,6 +265,8 @@
     let candidates = normalized.slice();
 
     const fixedTaxTotal = taxTotal === null || taxTotal === undefined ? null : parseMoney(taxTotal, currency);
+    if (taxTotal !== null && taxTotal !== undefined && taxTotal !== '' && fixedTaxTotal === null) throw taxValidationError('invalid_tax_amount');
+    if (fixedTaxTotal !== null && fixedTaxTotal < 0) throw taxValidationError('negative_tax_amount');
     const taxAdjustments = normalized.filter(item => item.kind === 'tax');
     if (fixedTaxTotal !== null && fixedTaxTotal > 0 && taxAdjustments.length === 0) {
       candidates.push({ label: 'Tax / service charge', kind: 'tax', ratePercent: null, amount: Math.abs(fixedTaxTotal), baseAmount: null, application: 'separate', scope: 'receipt', itemIndex: null, order: candidates.length });

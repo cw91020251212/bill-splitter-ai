@@ -415,8 +415,12 @@ async function manualClaimEntry() {
   const localReply = '姓名：QA本機手動\n01 = 1';
   await host.getByTestId('enable-manual-claim-entry').click();
   await host.waitForFunction(() => document.querySelector('[data-testid="claim-followup"]')?.dataset.claimReturned === 'true');
+  const compactStatus = host.getByTestId('status-compact-region');
+  await until(async () => (await compactStatus.innerText()).includes('手動認帳模式已開啟'), 'manual-mode status replaces the share-first prompt');
+  assert.doesNotMatch(await compactStatus.innerText(), /先分享連結/, 'manual mode does not tell the user that an online link is required');
   const replyField = host.getByTestId('claim-replies');
   await until(async () => await replyField.getAttribute('placeholder') === '貼上朋友回覆；只保存在本機。', 'manual-only reply placeholder');
+  assert.equal((await host.getByTestId('manual-claim-example').innerText()).trim(), '姓名：阿明\n01 = 1', 'manual claims show the supported bilingual name/item format');
   await replyField.fill(localReply);
   await host.waitForFunction(() => {
     const draft = JSON.parse(localStorage.getItem('billSplitterActiveDraftV1') || 'null');

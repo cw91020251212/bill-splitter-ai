@@ -33,7 +33,7 @@ function draft(step) {
     friendsReplies: '姓名：原有朋友\n01 = 1', payer: '原有墊支人', detectedCurrency: 'HKD', currency: 'HKD',
     taxSplitMethod: 'equal', paymentMethods: ['PayMe', '現金'], reconciliation: null, isSaved: false,
     includeReceiptImages: false, detailLang: 'full', pendingReceiptShare: false, claimRoom: null, claimInboxSeen: [], claimLinkShared: true,
-    results: step === 4 ? { calculationVersion: 2, personTotals: { '原有朋友': { items: [{ ...item, amount: 99, qty: 1, totalClaimed: 1 }], adjustments: [], subtotal: 99, discount: 0, tax: 9.9, sourceTotal: 108.9, total: 108.9 } }, totalItemsCost: 99, itemsSubtotal: 99, discountAmount: 0, taxAmount: 9.9, sourceBillTotal: 108.9, billTotal: 108.9, sourceCurrency: 'HKD', sourceTotal: 108.9, exchangeRate: { rate: 1, date: '2026-10-28' }, exchangeRateDate: '2026-10-28', exchangeProvider: 'test', settlementRoundingAdjustmentUnits: 0, reconciliationAllocations: [], date: '2026-10-28', currency: 'HKD' } : null
+    results: step === 4 ? { calculationVersion: 3, personTotals: { '原有朋友': { items: [{ ...item, amount: 99, qty: 1, totalClaimed: 1 }], adjustments: [], subtotal: 99, discount: 0, tax: 9.9, sourceTotal: 108.9, total: 108.9 } }, totalItemsCost: 99, itemsSubtotal: 99, discountAmount: 0, taxAmount: 9.9, sourceBillTotal: 108.9, billTotal: 108.9, sourceCurrency: 'HKD', sourceTotal: 108.9, exchangeRate: { rate: 1, date: '2026-10-28' }, exchangeRateDate: '2026-10-28', exchangeProvider: 'test', settlementRoundingAdjustmentUnits: 0, reconciliationAllocations: [], date: '2026-10-28', currency: 'HKD' } : null
   }};
 }
 async function seed(page, step, language) {

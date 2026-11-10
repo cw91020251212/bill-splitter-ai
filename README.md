@@ -1,3 +1,11 @@
+## R126：審計後續修正
+
+修正審計發現的認領錯位、漏算金額和草稿清除風險：商品認領編號在刪除及重新識別後保持穩定；仍有未認領金額時禁止產生報告，只有姓名而沒有有效認領的人不參與稅費分攤。稅費分幣與最終換匯舍入會分配並明示，結果頁先顯示全單總額及各人應付。匯入負稅會被拒絕；開新單前先保存本機草稿並要求確認，取消可保留原資料。另修正手動認帳提示、狀態欄可存取操作、表單標籤及小字體觸控尺寸。PWA cache epoch：`v126-followup-audit-20261110`。
+
+## R126: Follow-up audit fixes
+
+Fixes claim mis-mapping, omitted bill amounts and accidental draft loss: item claim IDs stay stable through deletion and re-recognition; reports are blocked while a priced item remains unclaimed, and name-only replies do not enter the tax split. Tax cents and final currency-conversion rounding are allocated and disclosed; the result page puts the bill total and each person’s payable amount first. Imported negative tax is rejected. Starting a new bill saves the local draft first and asks for confirmation; cancelling preserves the existing data. Manual-mode guidance, status-button accessibility, form labels and small-text touch targets are also improved. PWA cache epoch: `v126-followup-audit-20261110`.
+
 ## R125：可選本機手動認帳
 
 第二步認帳輸入仍預設鎖定；新增一張預設收起的「本機手動輸入」卡，只有用家主動選擇才解鎖。手動回覆保存在本機活動草稿，不建立分享連結、不呼叫認帳 API，也不會在稍後建立連結時預填到線上成員。其後朋友仍可照常經原連結提交、主辦人接收並重算；未選手動模式的舊流程不變。PWA cache epoch：`v125-manual-claim-mode-20261110`。

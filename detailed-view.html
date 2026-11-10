@@ -516,10 +516,12 @@
         $('#amount-heading').textContent = isSourceBreakdown ? `分攤金額（${sourceCurrency}）` : '分攤金額';
         const preDiscount = number(selected.subtotal) + number(selected.discount);
         const personalEntries = [];
-        if (isSourceBreakdown || number(selected.discount) || number(selected.tax)) {
+        const settlementRoundingAdjustment = number(selected.settlementRoundingAdjustment);
+        if (isSourceBreakdown || number(selected.discount) || number(selected.tax) || settlementRoundingAdjustment) {
           personalEntries.push([isSourceBreakdown ? `項目及額外分攤小計（${breakdownCurrency}）` : '項目及額外分攤小計', formatBreakdownMoney(preDiscount)]);
           if (number(selected.discount)) personalEntries.push([isSourceBreakdown ? `折扣（${breakdownCurrency}）` : '折扣', `−${formatBreakdownMoney(selected.discount)}`]);
           if (number(selected.tax)) personalEntries.push([isSourceBreakdown ? `稅項／服務費（${breakdownCurrency}）` : '稅項／服務費', formatBreakdownMoney(selected.tax)]);
+          if (settlementRoundingAdjustment) personalEntries.push([`換算分位調整（${currency}）`, formatMoney(settlementRoundingAdjustment, currency)]);
           personalEntries.push([isSourceBreakdown ? `你要埋單（${currency}）` : '你要埋單', formatMoney(selected.total, currency)]);
           $('#personal-breakdown').hidden = false;
           $('#personal-title').textContent = '金額明細';

@@ -10,6 +10,15 @@ test('parses percent spellings and localized receipt amounts', () => {
   assert.equal(receipt.parseMoney('$1,234.56'), 1234.56);
 });
 
+test('rejects invalid or negative imported tax without changing discount sign handling', () => {
+  assert.throws(() => receipt.extractPayload('{"items":[{"total":20}],"taxTotal":-2,"currency":"HKD"}'), error => error.code === 'negative_tax_amount');
+  assert.throws(() => receipt.extractPayload('{"items":[{"total":20}],"taxTotal":"not a number","currency":"HKD"}'), error => error.code === 'invalid_tax_amount');
+  assert.throws(() => receipt.resolveReceiptAdjustments({ items: [{ total: 20 }], adjustments: [{ kind: 'tax', amount: -2, application: 'separate' }] }), error => error.code === 'negative_tax_amount');
+  assert.throws(() => receipt.resolveReceiptAdjustments({ items: [{ total: 20 }], taxTotal: -2 }), error => error.code === 'negative_tax_amount');
+  assert.throws(() => receipt.resolveReceiptAdjustments({ items: [{ total: 20 }], adjustments: [{ kind: 'tax', ratePercent: -5, application: 'separate' }] }), error => error.code === 'invalid_tax_rate');
+  assert.equal(receipt.normalizeAdjustment({ kind: 'discount', amount: -2 }, 0).amount, 2);
+});
+
 test('extracts legacy payloads and normalized adjustment metadata', () => {
   const parsed = receipt.extractPayload('```json\n{"items":[{"name":"Tea","total":100}],"taxRatePercent":"10％","taxApplication":"separate","receiptTotal":110,"currency":"HKD"}\n```');
   assert.equal(parsed.items.length, 1);

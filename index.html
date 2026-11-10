@@ -85,11 +85,11 @@
   ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
   ::-webkit-scrollbar-thumb:hover { background: #64748b; }
   </style>
-  <link rel="stylesheet" href="./theme.css?v=v125-manual-claim-mode-20261110">
+  <link rel="stylesheet" href="./theme.css?v=v126-followup-audit-20261110">
   <link rel="stylesheet" href="./tutorial.css?v=v86-free-models-only">
-  <!-- R114: current interactive guide; original video lessons retained. -->
-  <meta name="bill-app-release" content="v125-manual-claim-mode-20261110">
-  <script defer src="./pwa.js?v=v125-manual-claim-mode-20261110"></script>
+  <!-- R126: current interactive guide; original video lessons retained. -->
+  <meta name="bill-app-release" content="v126-followup-audit-20261110">
+  <script defer src="./pwa.js?v=v126-followup-audit-20261110"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
@@ -104,7 +104,7 @@
   <script src="./card-redaction.js?v=v97-card-number-redaction"></script>
   <script src="./card-share-review.js?v=v97-card-number-redaction"></script>
   <script src="./exchange-rates.js?v=v90-cross-currency-settlement"></script>
-    <script src="./tutorial.js?v=v125-manual-claim-mode-20261110"></script>
+    <script src="./tutorial.js?v=v126-followup-audit-20261110"></script>
   <script type="text/babel">
     const { useState, useRef, useEffect, useLayoutEffect, useMemo } = React;
     const tr = value => window.BillI18n.t(value);
@@ -196,7 +196,7 @@
       };
       return (
         <div className={`rounded-xl border overflow-hidden ${tones[tone]} shadow-sm`}>
-          <button data-testid={testId} aria-expanded={open} onClick={() => { const nextOpen = !open; setOpen(nextOpen); onToggle?.(nextOpen); }} className="w-full flex items-center justify-between gap-3 p-4 text-left outline-none hover:bg-slate-50 transition-colors">
+          <button data-testid={testId} aria-expanded={open} onClick={() => { const nextOpen = !open; setOpen(nextOpen); onToggle?.(nextOpen); }} style={{ minHeight: '44px' }} className="w-full min-h-[44px] flex items-center justify-between gap-3 p-4 text-left outline-none hover:bg-slate-50 transition-colors">
             <span className="flex items-center gap-2.5 font-bold text-slate-800 text-base">
               {icon && <Icon path={icon} size={20} className="text-slate-600 shrink-0"/>}
               {title}
@@ -805,6 +805,37 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
       if (Number.isFinite(explicit)) return explicit;
       return Object.values(result?.personTotals || {}).reduce((sum, person) => sum + toNum(person?.total), 0);
     };
+    const formatClaimItemId = value => String(value).padStart(2, '0');
+    const roundAllocationAmount = (amount, currency = 'HKD') => {
+      const value = Number(amount);
+      if (!Number.isFinite(value)) return NaN;
+      const scale = 10 ** Math.max(6, ReceiptMath.currencyDecimals(currency));
+      const epsilon = Number.EPSILON * Math.max(1, Math.abs(value));
+      return Math.round((value + (value < 0 ? -epsilon : epsilon)) * scale) / scale;
+    };
+    const allocateCurrencyAmount = (amount, weights, currency = 'HKD', precision = 0) => {
+      const value = Number(amount);
+      const decimals = Math.max(2, ReceiptMath.currencyDecimals(currency), Number(precision) || 0);
+      const scale = 10 ** decimals;
+      const epsilon = Number.EPSILON * Math.max(1, Math.abs(value));
+      const units = Number.isFinite(value) ? Math.round((value + (value < 0 ? -epsilon : epsilon)) * scale) : NaN;
+      if (!Number.isSafeInteger(units) || units < 0) throw new Error('Invalid amount for currency allocation.');
+      const entries = Object.entries(weights || {}).map(([name, rawWeight], index) => ({ name, weight: Number(rawWeight), index, units: 0, fraction: 0 }))
+        .filter(entry => Number.isFinite(entry.weight) && entry.weight > 0);
+      const weightTotal = entries.reduce((sum, entry) => sum + entry.weight, 0);
+      if (!entries.length || weightTotal <= 0) return {};
+      let allocatedUnits = 0;
+      entries.forEach(entry => {
+        const exact = units * entry.weight / weightTotal;
+        entry.units = Math.floor(exact);
+        entry.fraction = exact - entry.units;
+        allocatedUnits += entry.units;
+      });
+      const remainder = units - allocatedUnits;
+      const byRemainder = [...entries].sort((a, b) => b.fraction - a.fraction || a.index - b.index);
+      for (let index = 0; index < remainder; index++) byRemainder[index % byRemainder.length].units += 1;
+      return Object.fromEntries(entries.map(entry => [entry.name, entry.units / scale]));
+    };
 
     const RECEIPT_DB_NAME = 'billSplitterLocalData';
     const RECEIPT_STORE_NAME = 'receipts';
@@ -1018,6 +1049,8 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
       const ocrCompleteRef = useRef(null);
       const [step, setStep] = useState(1);
       const [items, setItems] = useState(() => tutorialDemo ? TUTORIAL_ITEMS.map(item => ({ ...item })) : []);
+      const [nextClaimItemId, setNextClaimItemId] = useState(() => tutorialDemo ? Math.max(...TUTORIAL_ITEMS.map(item => Number(item.id) || 0)) + 1 : 1);
+      const nextClaimItemIdRef = useRef(nextClaimItemId);
       const [readReceipt, setReadReceipt] = useState(tutorialDemo);
       const [openItemEdits, setOpenItemEdits] = useState({});
       const openItemEditsRef = useRef({});
@@ -1297,12 +1330,15 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
           - ReceiptMath.roundMoney(toNum(discountAmount), detectedCurrency),
         detectedCurrency
       );
-      const hasDraftWork = Boolean(items.length || friendsReplies.trim() || manualClaimsEnabled || results || lastImageData.length || claimAttachments.length || draftAssets.unavailable);
+      const hasDraftWork = Boolean(items.length || friendsReplies.trim() || manualClaimsEnabled || results || lastImageData.length || claimAttachments.length || draftAssets.unavailable
+        || String(taxAmount ?? '').trim() || String(discountAmount ?? '').trim() || String(taxNote ?? '').trim() || String(payer ?? '').trim()
+        || reconciliation || readReceipt || claimRoom || claimSession || claimLinkMeta || String(claimActivityName ?? '').trim()
+        || (detectedCurrency && detectedCurrency !== 'HKD') || (currency && currency !== 'HKD'));
       const hasDraftAssets = Boolean(lastImageData.length || claimAttachments.length);
       draftSnapshotRef.current = {
         ready: draftReady, hasWork: hasDraftWork, schema: 1,
         assetRevision: draftAssets.revision, hasAssets: hasDraftAssets || draftAssets.unavailable,
-        data: { step, items, taxAmount, discountAmount, taxNote, receiptAdjustmentDetails, friendsReplies, manualClaimsEnabled, payer, detectedCurrency, currency,
+        data: { step, items, nextClaimItemId, taxAmount, discountAmount, taxNote, receiptAdjustmentDetails, friendsReplies, manualClaimsEnabled, payer, detectedCurrency, currency,
           taxSplitMethod, paymentMethods, results, reconciliation, isSaved,
           claimRoom, claimActivityName, claimExpiryDays, claimLinkMeta, claimSession, claimInboxSeen, claimSecureCursor, readReceipt, lastRecognitionModel, claimLinkShared: claimLinkSharedRef.current }
       };
@@ -1334,6 +1370,9 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
             if (record.schema !== 1 || !record.data || !Array.isArray(record.data.items)) throw new Error('不支援的草稿格式');
             const data = record.data;
             const restoredItems = data.items.filter(item => item && typeof item.id === 'string' && typeof item.name === 'string');
+            const maxRestoredClaimId = restoredItems.reduce((max, item) => Math.max(max, Number.parseInt(item.id, 10) || 0), 0);
+            const savedNextClaimId = Number.isSafeInteger(Number(data.nextClaimItemId)) ? Number(data.nextClaimItemId) : 1;
+            const restoredNextClaimId = Math.min(100, Math.max(1, maxRestoredClaimId + 1, savedNextClaimId));
             let images = [], attachments = [], assetsMissing = false;
             if (record.hasAssets) {
               let timer;
@@ -1356,6 +1395,8 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
             }
             if (cancelled) return;
             setItems(restoredItems);
+            nextClaimItemIdRef.current = restoredNextClaimId;
+            setNextClaimItemId(restoredNextClaimId);
             setReadReceipt(Boolean(data.readReceipt) || restoredItems.some(item => String(item.original || item.ja || '').trim()));
             openItemEditsRef.current = {};
             setOpenItemEdits({});
@@ -1369,11 +1410,11 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
             setTaxSplitMethod(['equal', 'proportional'].includes(data.taxSplitMethod) ? data.taxSplitMethod : 'proportional');
             setPaymentMethods(Array.isArray(data.paymentMethods) ? data.paymentMethods.filter(method => ['轉數快 (FPS)', 'PayMe', '現金', '銀行轉帳', 'Alipay'].includes(method)) : ['轉數快 (FPS)']);
             const hasPreviousResults = Boolean(data.results && typeof data.results.personTotals === 'object' && data.results.personTotals);
-            const restoredResults = hasPreviousResults && data.results.calculationVersion === 2 ? data.results : null;
+            const restoredResults = hasPreviousResults && data.results.calculationVersion === 3 ? data.results : null;
             const needsCurrencyRecalculation = hasPreviousResults && !restoredResults;
             setResults(restoredResults);
             setReconciliation(data.reconciliation && Array.isArray(data.reconciliation.issues) ? data.reconciliation : null);
-            setIsSaved(Boolean(data.isSaved));
+            setIsSaved(needsCurrencyRecalculation ? false : Boolean(data.isSaved));
             setLastImageData(images); setClaimAttachments(attachments);
             setLastRecognitionModel(typeof data.lastRecognitionModel === 'string' ? data.lastRecognitionModel : '');
             const restoredRoom = data.claimRoom && window.ClaimRelay?.isRoom(data.claimRoom) ? data.claimRoom : null;
@@ -1413,7 +1454,7 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
             if (!restoredItems.length && restoredStep > 1) restoredStep = 1;
             if (restoredStep === 4 && !restoredResults) restoredStep = 3;
             if (restoredStep >= 3 && !String(data.friendsReplies || '').trim()) restoredStep = 2;
-            if (needsCurrencyRecalculation && restoredStep === 3) setStepError('貨幣分帳方式已更新，請按「產生分帳報告」重新計算。');
+            if (needsCurrencyRecalculation && restoredStep === 3) setStepError(bi('分帳計算已更新，請重新產生結果。', 'Settlement calculation was updated. Recalculate the result.'));
             setStep(restoredStep);
             if (restoredStep === 1 && images.length) setUploadError('圖片已恢復；按重試。');
             setDraftNotice(assetsMissing
@@ -2463,7 +2504,7 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
         const storageKey = 'billSplitterDetailTablePreviewV1';
         try {
           localStorage.setItem(storageKey, JSON.stringify(previewData));
-          const previewWindow = window.open('./detailed-view.html?v=v125-manual-claim-mode-20261110', '_blank');
+          const previewWindow = window.open('./detailed-view.html?v=v126-followup-audit-20261110', '_blank');
           if (!previewWindow) {
             localStorage.removeItem(storageKey);
             toast(bi('允許彈窗', 'Allow pop-ups'), 'error');
@@ -2518,6 +2559,17 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
       const handleGoToStep1 = () => {
         if (tutorialDemo) return;
         if (!draftReady) return;
+        if (hasDraftAssets && draftAssetStatus === 'saving') {
+          toast(bi('附件仍在本機儲存，請稍候再開新單。', 'Attachments are still saving locally. Wait before starting a new bill.'), 'error');
+          return;
+        }
+        if (!persistActiveDraft()) return;
+        if (draftSnapshotRef.current?.hasWork && !window.confirm(bi('目前賬單、認帳和未儲存結果會清除；取消可保留本機草稿，已儲存歷史不受影響。確定開新單？', 'Starting a new bill clears the current bill, claims and unsaved result. Cancel to keep the local draft; saved history is unchanged. Continue?'))) return;
+        try { localStorage.removeItem(ACTIVE_DRAFT_KEY); }
+        catch (_) {
+          setDraftSaveError(bi('未能清除本機草稿，資料未有更改。請檢查網站儲存權限。', 'Could not clear the local draft; nothing was changed. Check site storage permissions.'));
+          return;
+        }
         billGenerationRef.current += 1;
         ocrAbortRef.current?.abort(); ocrAbortRef.current = null;
         clearInterval(ocrProgressRef.current); ocrProgressRef.current = null;
@@ -2525,11 +2577,9 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
         // Clear the live persistence snapshot immediately, before React's next render.
         // Never clear the whole origin: history, saved receipts and settings are separate.
         draftSnapshotRef.current = { ...draftSnapshotRef.current, hasWork: false, hasAssets: false };
-        try { localStorage.removeItem(ACTIVE_DRAFT_KEY); }
-        catch (_) { setDraftSaveError(bi('未能清除本機草稿，請檢查網站儲存權限。', 'Could not clear the local draft. Check site storage permissions.')); }
         restoredDraftAssetsRef.current = null;
         persistedDraftAssetRevisionRef.current = null;
-        setStepError(''); setUploadError(''); setItems([]); setFriendsReplies(''); setManualClaimsEnabled(false); setResults(null);
+        setStepError(''); setUploadError(''); setItems([]); nextClaimItemIdRef.current = 1; setNextClaimItemId(1); setFriendsReplies(''); setManualClaimsEnabled(false); setResults(null);
         setIsAnalyzing(false); setProgress(0); setProgressText('');
         setIsSaved(false); setLastImageData([]); setLastRecognitionModel(''); setTaxAmount(''); setDiscountAmount(''); setTaxNote(''); setReceiptAdjustmentDetails(null);
         setClaimAttachments([]); setClaimInfo(null); setShowClaimShareDialog(false);
@@ -2560,9 +2610,26 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
 
       const handleGoToStep2 = () => { setStepError(''); setStep(2); };
 
+      const validateTaxAmount = (focusInvalid = false) => {
+        const rawTaxAmount = String(taxAmount ?? '').trim();
+        const parsedTaxAmount = rawTaxAmount === '' ? 0 : Number(rawTaxAmount);
+        const valid = Number.isFinite(parsedTaxAmount) && parsedTaxAmount >= 0;
+        setTaxInputError(!valid);
+        if (!valid) {
+          setStepError(bi('稅費／服務費不可為負數，並須為有效數字。', 'Tax/service fee cannot be negative and must be a valid number.'));
+          if (focusInvalid) {
+            setStep(2);
+            window.setTimeout(() => focusField('tax-amount'), 120);
+          }
+          return false;
+        }
+        return true;
+      };
+
       const handleGoToStep3 = () => {
         setStepError('');
         if (items.length === 0) { setStepError("⚠️ 請至少新增一個項目！"); return false; }
+        if (!validateTaxAmount(true)) return false;
         for (let i = 0; i < items.length; i++) {
             if (!items[i].name.trim()) { setStepError(`⚠️ 項目 ${items[i].id} 未填寫名稱！`); focusField(`item-name-${i}`); return false; }
         }
@@ -3218,13 +3285,37 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
           if (generation !== billGenerationRef.current || !shaped) return;
           setProgressText(directJsonImport ? bi('正在整理匯入資料…', 'Structuring imported data…') : '正在整理識別結果...');
           parsedItems = shaped.items; parsedTax = shaped.taxTotal; parsedCurrency = shaped.currency?.toUpperCase() || 'HKD';
-          const formattedItems = parsedItems.map((item, idx) => {
+          let candidateNextClaimId = nextClaimItemIdRef.current;
+          const preserveIdsForRetry = keepPreviousResultsOnFailure && receiptWasRead && itemsRef.current.length > 0;
+          const retryIdsByName = new Map();
+          const claimItemNameKey = value => String(value || '').normalize('NFKC').trim().replace(/\s+/g, ' ').toLowerCase();
+          if (preserveIdsForRetry) itemsRef.current.forEach(existing => {
+            const key = claimItemNameKey(normalizeReceiptItemNames(existing).name);
+            if (!key) return;
+            if (!retryIdsByName.has(key)) retryIdsByName.set(key, []);
+            retryIdsByName.get(key).push(String(existing.id));
+          });
+          const reservedClaimIds = new Set(itemsRef.current.map(item => String(item.id)));
+          const allocateImportedClaimId = () => {
+            while (candidateNextClaimId <= 99 && reservedClaimIds.has(formatClaimItemId(candidateNextClaimId))) candidateNextClaimId += 1;
+            if (candidateNextClaimId > 99) {
+              const error = new Error(bi('項目編號已用盡，請開新帳單。', 'All 99 item numbers have been used. Start a new bill.'));
+              error.code = 'item_id_limit';
+              throw error;
+            }
+            const id = formatClaimItemId(candidateNextClaimId++);
+            reservedClaimIds.add(id);
+            return id;
+          };
+          const formattedItems = parsedItems.map(item => {
             const names = normalizeReceiptItemNames(item);
+            const matchedIds = retryIdsByName.get(claimItemNameKey(names.name));
+            const preservedId = matchedIds?.shift();
             const parsedPrice = ReceiptMath.parseMoney(item.price, parsedCurrency) ?? 0;
             const parsedTotal = ReceiptMath.parseMoney(item.total, parsedCurrency);
             const parsedQty = toNum(item.qty) || 1;
             return {
-              id: String(idx + 1).padStart(2, '0'), name: names.name || '項目', nameEn: names.nameEn, original: names.original, ja: names.ja,
+              id: preservedId || allocateImportedClaimId(), name: names.name || '項目', nameEn: names.nameEn, original: names.original, ja: names.ja,
               price: parsedPrice, qty: parsedQty, totalQty: item.totalQty === null ? null : (toNum(item.totalQty) || toNum(item.qty) || null), unit: String(item.unit || '').trim(), total: parsedTotal === null ? parsedPrice * parsedQty : parsedTotal
             };
           });
@@ -3254,6 +3345,8 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
           ocrCompleteRef.current = setTimeout(() => {
             if (generation !== billGenerationRef.current) return;
             setItems(finalizedItems);
+            nextClaimItemIdRef.current = Math.min(100, Math.max(nextClaimItemIdRef.current, candidateNextClaimId));
+            setNextClaimItemId(nextClaimItemIdRef.current);
             setReadReceipt(true);
             setLastRecognitionModel(isTextInput
               ? (directJsonImport ? 'local-json-import' : `text-input|${recognizedModelId}`)
@@ -3285,7 +3378,14 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
           if (generation !== billGenerationRef.current || error?.name === 'AbortError') return;
           setIsAnalyzing(false);
           setProgressText('');
-          setUploadError({ main: '讀取失敗', sub: error?.message || '未知錯誤', detail: error?.detail || '', action: null });
+          const importError = error?.code === 'negative_tax_amount'
+            ? bi('匯入稅費不可為負數，請核對單據。', 'Imported tax/fee is negative. Check the receipt.')
+            : error?.code?.includes('tax')
+              ? bi('匯入稅費格式無效，請核對數字。', 'Imported tax/fee is invalid. Check the amount.')
+              : error?.code === 'item_id_limit'
+                ? error.message
+                : error?.message || '未知錯誤';
+          setUploadError({ main: '讀取失敗', sub: importError, detail: error?.detail || '', action: null });
           if (keepPreviousResultsOnFailure && receiptWasRead && items.length) {
             pendingStep2EntryRef.current = true;
             setStep(2);
@@ -3350,11 +3450,22 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
 
       const addItem = () => {
         setReceiptAdjustmentDetails(null);
-        setItems([...items, { id: String(items.length + 1).padStart(2, '0'), name: '', original: '', ja: '', price: '', qty: 1, totalQty: null, unit: '', total: 0 }]);
+        const reservedIds = new Set(itemsRef.current.map(item => String(item.id)));
+        let candidate = nextClaimItemIdRef.current;
+        while (candidate <= 99 && reservedIds.has(formatClaimItemId(candidate))) candidate += 1;
+        if (candidate > 99) {
+          toast(bi('項目編號已用盡，請開新帳單。', 'All 99 item numbers have been used. Start a new bill.'), 'error');
+          return false;
+        }
+        const id = formatClaimItemId(candidate);
+        nextClaimItemIdRef.current = candidate + 1;
+        setNextClaimItemId(candidate + 1);
+        setItems([...items, { id, name: '', original: '', ja: '', price: '', qty: 1, totalQty: null, unit: '', total: 0 }]);
+        return true;
       };
       const addItemAndFocus = () => {
         const index = items.length;
-        addItem();
+        if (!addItem()) return;
         setTimeout(() => focusField(`item-name-${index}`), 80);
       };
       const updateItem = (index, field, value) => {
@@ -3372,7 +3483,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
       const removeItem = (index) => {
         setReceiptAdjustmentDetails(null);
         const newItems = items.filter((_, i) => i !== index);
-        setItems(newItems.map((item, i) => ({ ...item, id: String(i + 1).padStart(2, '0') })));
+        setItems(newItems);
         const next = {};
         Object.keys(openItemEditsRef.current).forEach(key => {
           const current = Number(key);
@@ -3385,7 +3496,9 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
       const requestRemoveItem = (index) => {
         const item = items[index];
         if (!item) return;
-        setPendingItemRemoval({ index, name: displayItemName(item).trim() || bi('此項目', 'this item') });
+        const parsed = parseClaims(friendsReplies, items);
+        const hasClaims = Object.values(parsed.claims || {}).some(personClaims => Number(personClaims[item.id]) > 0);
+        setPendingItemRemoval({ index, id: item.id, hasClaims, name: displayItemName(item).trim() || bi('此項目', 'this item') });
       };
       const confirmRemoveItem = () => {
         if (!pendingItemRemoval) return;
@@ -3412,7 +3525,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
             if (idx < items.length - 1) {
               focusField(`item-name-${idx + 1}`);
             } else {
-              addItem();
+              if (!addItem()) return;
               setTimeout(() => focusField(`item-name-${idx + 1}`), 100);
             }
           }
@@ -3554,7 +3667,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
         const metadata = getClaimLinkMetadata();
         const link = new URL('./claim.html', window.location.href);
         link.searchParams.set('lang', lang === 'en' ? 'en' : 'zh-HK');
-        link.searchParams.set('v', 'v125-manual-claim-mode-20261110');
+        link.searchParams.set('v', 'v126-followup-audit-20261110');
         link.searchParams.set('session', session.id);
         link.hash = window.ClaimRelay
           ? window.ClaimRelay.buildHash(encodeClaimLinkPayload(payload), room, metadata)
@@ -3698,20 +3811,18 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
       const calculateSplit = () => {
         setStepError('');
         if (!payer.trim()) { setStepError("⚠️ 請填寫墊支人姓名！"); focusField('payer'); return; }
-        const rawTaxAmount = String(taxAmount ?? '').trim();
-        const parsedTaxAmount = rawTaxAmount === '' ? 0 : Number(rawTaxAmount);
-        if (!Number.isFinite(parsedTaxAmount) || parsedTaxAmount < 0) {
-          setTaxInputError(true);
-          focusField('tax-amount');
-          return false;
-        }
+        if (!validateTaxAmount(true)) return false;
+        const parsedTaxAmount = String(taxAmount ?? '').trim() === '' ? 0 : Number(taxAmount);
         const taxNum = ReceiptMath.roundMoney(parsedTaxAmount, detectedCurrency);
 
         const parsed = parseClaims(friendsReplies, items);
         const personClaims = parsed.claims;
         const claimUnits = parsed.claimUnits || {};
 
-        if (parsed.people.length === 0) { setStepError("⚠️ 未能解析！請確保已正確貼上朋友回覆並填寫數量。"); focusField('replies'); return; }
+        if (parsed.people.length === 0) {
+          setStepError(bi('未有可用認帳；請貼上朋友認領項目和數量。', 'No usable claims yet. Paste a friend’s item and quantity.'));
+          setStep(2); window.setTimeout(() => focusField('replies'), 120); return false;
+        }
 
         let conversionRate;
         try { conversionRate = ExchangeRates.requireRate(exchangeRate, detectedCurrency, currency); }
@@ -3730,19 +3841,38 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
         );
         const calculationItems = items.map(item => ({ ...item, total: itemAmount(item) }));
 
+        const removedItemClaims = (parsed.issues || []).filter(issue => issue.type === 'unknown_id');
+        if (removedItemClaims.length) {
+          setStepError(bi(`認帳引用已刪除或不存在的項目編號 ${removedItemClaims[0].id}；請更新朋友回覆後再結算。`, `A reply references removed or unknown item ${removedItemClaims[0].id}. Update the replies before settling.`));
+          setStep(2); window.setTimeout(() => focusField('replies'), 120); return false;
+        }
+        const claimants = Object.keys(personClaims).filter(person => calculationItems.some(item => Number(personClaims[person]?.[item.id]) > 0));
+        if (!claimants.length) {
+          setStepError(bi('尚未有人認領任何項目；請先補上認帳。', 'No one has claimed an item yet. Add claims before settling.'));
+          setStep(2); window.setTimeout(() => focusField('replies'), 120); return false;
+        }
+
         const itemClaimTotals = {};
-        calculationItems.forEach(item => { itemClaimTotals[item.id] = 0; Object.keys(personClaims).forEach(person => { itemClaimTotals[item.id] += (personClaims[person][item.id] || 0); }); });
+        calculationItems.forEach(item => { itemClaimTotals[item.id] = claimants.reduce((sum, person) => sum + (Number(personClaims[person]?.[item.id]) || 0), 0); });
+        const unclaimedItems = calculationItems.filter(item => toNum(item.total) > 0 && itemClaimTotals[item.id] <= 0);
+        if (unclaimedItems.length) {
+          const missingNames = unclaimedItems.slice(0, 3).map(item => `${item.id} ${displayItemName(item).trim() || bi('未命名項目', 'unnamed item')}`).join('、');
+          const remaining = unclaimedItems.length > 3 ? bi(`，另有 ${unclaimedItems.length - 3} 項`, `, and ${unclaimedItems.length - 3} more`) : '';
+          setStepError(bi(`有金額的項目尚未認領：${missingNames}${remaining}。請補認帳或刪除，不能略過。`, `Items with a price have no claim: ${missingNames}${remaining}. Add a claim or remove the item; it cannot be skipped.`));
+          setStep(2); window.setTimeout(() => focusField('replies'), 120); return false;
+        }
 
         const reconciliationIssues = calculationItems.map(item => {
           const totalQty = toNum(item.totalQty);
-          if (totalQty <= 0) return null;
-          const actualPeople = Object.keys(personClaims).filter(person => claimUnits[person]?.[item.id] && (personClaims[person][item.id] || 0) > 0);
-          const sharePeople = Object.keys(personClaims).filter(person => !claimUnits[person]?.[item.id] && (personClaims[person][item.id] || 0) > 0);
+          if (totalQty <= 0 || toNum(item.total) <= 0) return null;
+          const actualPeople = claimants.filter(person => claimUnits[person]?.[item.id] && (personClaims[person][item.id] || 0) > 0);
+          const sharePeople = claimants.filter(person => !claimUnits[person]?.[item.id] && (personClaims[person][item.id] || 0) > 0);
           if (!actualPeople.length || sharePeople.length) return null;
           const claimedQty = actualPeople.reduce((sum, person) => sum + personClaims[person][item.id], 0);
           const difference = totalQty - claimedQty;
           if (Math.abs(difference) < 0.0001) return null;
-          return { itemId: item.id, name: item.name, unit: item.unit || '單位', totalQty, claimedQty, difference, amount: Math.abs(difference) * (toNum(item.total) / totalQty) };
+          const allocation = allocateCurrencyAmount(item.total, { claimed: Math.max(0, claimedQty), remaining: Math.max(0, difference) }, detectedCurrency, 6);
+          return { itemId: item.id, name: item.name, unit: item.unit || '單位', totalQty, claimedQty, difference, amount: allocation.remaining || 0 };
         }).filter(Boolean);
         const hasOverClaim = reconciliationIssues.some(issue => issue.difference < 0);
         if (hasOverClaim) {
@@ -3756,54 +3886,70 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
           return;
         }
 
+        const roundSplitAmount = value => roundAllocationAmount(value, detectedCurrency);
         const personTotals = {}; let totalItemsCost = 0;
-        Object.keys(personClaims).forEach(person => { personTotals[person] = { items: [], adjustments: [], subtotal: 0, discount: 0, tax: 0, sourceTotal: 0, total: 0 }; });
+        claimants.forEach(person => { personTotals[person] = { items: [], adjustments: [], subtotal: 0, discount: 0, tax: 0, sourceTotal: 0, total: 0 }; });
 
         calculationItems.forEach(item => {
           const totalClaimed = itemClaimTotals[item.id];
           if (totalClaimed <= 0) return;
-          const people = Object.keys(personClaims);
           const totalQty = toNum(item.totalQty);
           const canUseActualUnits = totalQty > 0;
-          const actualTotal = people.reduce((sum, person) => sum + (canUseActualUnits && claimUnits[person]?.[item.id] ? (personClaims[person][item.id] || 0) : 0), 0);
-          const shareTotal = people.reduce((sum, person) => sum + (!(canUseActualUnits && claimUnits[person]?.[item.id]) ? (personClaims[person][item.id] || 0) : 0), 0);
-          const unitValue = toNum(item.total) / totalQty;
-          const actualCostTotal = actualTotal > 0 ? actualTotal * unitValue : 0;
-          const remainingCost = Math.max(0, toNum(item.total) - actualCostTotal);
-          people.forEach(person => {
+          const actualPeople = claimants.filter(person => canUseActualUnits && claimUnits[person]?.[item.id] && (personClaims[person][item.id] || 0) > 0);
+          const sharePeople = claimants.filter(person => (personClaims[person][item.id] || 0) > 0 && !actualPeople.includes(person));
+          const actualTotal = actualPeople.reduce((sum, person) => sum + (Number(personClaims[person][item.id]) || 0), 0);
+          const shareTotal = sharePeople.reduce((sum, person) => sum + (Number(personClaims[person][item.id]) || 0), 0);
+          let itemShares = {};
+          if (canUseActualUnits && actualTotal > 0) {
+            const remainingQty = Math.max(0, totalQty - actualTotal);
+            const groupShares = allocateCurrencyAmount(item.total, { actual: actualTotal, shared: remainingQty }, detectedCurrency, 6);
+            Object.assign(itemShares, allocateCurrencyAmount(groupShares.actual || 0,
+              Object.fromEntries(actualPeople.map(person => [person, Number(personClaims[person][item.id]) || 0])), detectedCurrency, 6));
+            if (shareTotal > 0) {
+              Object.assign(itemShares, allocateCurrencyAmount(groupShares.shared || 0,
+                Object.fromEntries(sharePeople.map(person => [person, Number(personClaims[person][item.id]) || 0])), detectedCurrency, 6));
+            }
+          } else {
+            itemShares = allocateCurrencyAmount(item.total,
+              Object.fromEntries(claimants.map(person => [person, Number(personClaims[person][item.id]) || 0])), detectedCurrency, 6);
+          }
+          claimants.forEach(person => {
             const claimedQty = personClaims[person][item.id] || 0;
             if (claimedQty <= 0) return;
             const enteredUnit = claimUnits[person]?.[item.id] || '';
             const isActualUnit = canUseActualUnits && Boolean(enteredUnit);
             const allocationTotal = isActualUnit ? totalQty : (actualTotal > 0 ? shareTotal : totalClaimed);
-            const cost = isActualUnit
-              ? claimedQty * unitValue
-              : (actualTotal > 0 ? (shareTotal > 0 ? claimedQty / shareTotal * remainingCost : 0) : claimedQty / totalClaimed * toNum(item.total));
+            const cost = itemShares[person] || 0;
             personTotals[person].items.push({ name: item.name, nameEn: item.nameEn || '', original: item.original || '', ja: item.ja || '', id: item.id, amount: cost, qty: claimedQty, totalClaimed, unit: enteredUnit, unitName: item.unit || '', allocationTotal, isActualUnit });
-            personTotals[person].subtotal += cost; totalItemsCost += cost;
+            personTotals[person].subtotal = roundSplitAmount(personTotals[person].subtotal + cost);
+            totalItemsCost = roundSplitAmount(totalItemsCost + cost);
           });
         });
 
         reconciliationIssues.forEach(issue => {
           const policy = reconciliation?.policy;
           const item = calculationItems.find(candidate => candidate.id === issue.itemId);
-          const amount = issue.amount;
+          const amount = roundSplitAmount(issue.amount);
           if (policy === 'payer') {
             if (!personTotals[payer]) personTotals[payer] = { items: [], adjustments: [], subtotal: 0, discount: 0, tax: 0, sourceTotal: 0, total: 0 };
             personTotals[payer].adjustments.push({ name: item.name, nameEn: item.nameEn || '', qty: issue.difference, unit: issue.unit, amount, reason: '墊支人承擔未認帳數量' });
-            personTotals[payer].subtotal += amount; totalItemsCost += amount;
+            personTotals[payer].subtotal = roundSplitAmount(personTotals[payer].subtotal + amount);
+            totalItemsCost = roundSplitAmount(totalItemsCost + amount);
           } else if (policy === 'equal') {
-            const claimants = Object.keys(personClaims).filter(person => personClaims[person][item.id] > 0);
-            claimants.forEach(person => {
-              const share = amount / claimants.length;
-              personTotals[person].adjustments.push({ name: item.name, nameEn: item.nameEn || '', qty: issue.difference / claimants.length, unit: issue.unit, amount: share, reason: '已認帳人士平均承擔未認帳數量' });
-              personTotals[person].subtotal += share; totalItemsCost += share;
+            const issueClaimants = claimants.filter(person => personClaims[person][item.id] > 0);
+            const shares = allocateCurrencyAmount(amount, Object.fromEntries(issueClaimants.map(person => [person, 1])), detectedCurrency, 6);
+            issueClaimants.forEach(person => {
+              const share = shares[person] || 0;
+              personTotals[person].adjustments.push({ name: item.name, nameEn: item.nameEn || '', qty: issue.difference / issueClaimants.length, unit: issue.unit, amount: share, reason: '已認帳人士平均承擔未認帳數量' });
+              personTotals[person].subtotal = roundSplitAmount(personTotals[person].subtotal + share);
+              totalItemsCost = roundSplitAmount(totalItemsCost + share);
             });
           } else if (policy && policy.startsWith('person:')) {
             const person = policy.slice(7);
             if (!personTotals[person]) personTotals[person] = { items: [], adjustments: [], subtotal: 0, discount: 0, tax: 0, sourceTotal: 0, total: 0 };
             personTotals[person].adjustments.push({ name: item.name, nameEn: item.nameEn || '', qty: issue.difference, unit: issue.unit, amount, reason: '指定承擔未認帳數量' });
-            personTotals[person].subtotal += amount; totalItemsCost += amount;
+            personTotals[person].subtotal = roundSplitAmount(personTotals[person].subtotal + amount);
+            totalItemsCost = roundSplitAmount(totalItemsCost + amount);
           }
         });
         const reconciliationAllocations = reconciliationIssues.map(issue => ({ ...issue, policy: reconciliation?.policy }));
@@ -3812,20 +3958,26 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
         if (discountNum < 0 || !ReceiptMath.isDiscountWithinSubtotal(discountNum, totalItemsCost, detectedCurrency)) {
           setStepError('⚠️ 整張單折扣不可多於已分攤項目小計，請核對折扣金額。'); focusField('discount-amount'); return;
         }
-        const preDiscountItemsCost = totalItemsCost;
+        const preDiscountItemsCost = ReceiptMath.roundMoney(totalItemsCost, detectedCurrency);
+        const discountShares = allocateCurrencyAmount(discountNum,
+          Object.fromEntries(Object.entries(personTotals).map(([person, summary]) => [person, Math.max(0, summary.subtotal)])), detectedCurrency);
         Object.keys(personTotals).forEach(person => {
-          const share = preDiscountItemsCost > 0 ? discountNum * (personTotals[person].subtotal / preDiscountItemsCost) : 0;
+          const share = discountShares[person] || 0;
           personTotals[person].discount = share;
-          personTotals[person].subtotal = Math.max(0, personTotals[person].subtotal - share);
+          personTotals[person].subtotal = roundSplitAmount(Math.max(0, personTotals[person].subtotal - share));
         });
-        totalItemsCost = Math.max(0, preDiscountItemsCost - discountNum);
-        const numPeople = Object.keys(personTotals).length;
+        totalItemsCost = ReceiptMath.roundMoney(Math.max(0, preDiscountItemsCost - discountNum), detectedCurrency);
+        const taxWeights = Object.fromEntries(Object.entries(personTotals).map(([person, summary]) => [person,
+          taxSplitMethod === 'equal' ? 1 : Math.max(0, summary.subtotal)]));
+        if (taxNum > 0 && taxSplitMethod === 'proportional' && !Object.values(taxWeights).some(weight => weight > 0)) {
+          setStepError(bi('沒有可按比例分攤的消費，請改選平均分攤。', 'No positive spending to split tax proportionally; choose equal split.'));
+          return false;
+        }
+        const taxShares = allocateCurrencyAmount(taxNum, taxWeights, detectedCurrency);
         Object.keys(personTotals).forEach(person => {
-          let taxShare = 0;
-          if (taxSplitMethod === 'equal') taxShare = taxNum / numPeople;
-          else if (taxSplitMethod === 'proportional' && totalItemsCost > 0) taxShare = taxNum * (personTotals[person].subtotal / totalItemsCost);
+          const taxShare = taxShares[person] || 0;
           personTotals[person].tax = taxShare;
-          personTotals[person].sourceTotal = personTotals[person].subtotal + taxShare;
+          personTotals[person].sourceTotal = roundSplitAmount(personTotals[person].subtotal + taxShare);
         });
 
         const sourceBillTotal = ReceiptMath.roundMoney(totalItemsCost + taxNum, detectedCurrency);
@@ -3837,9 +3989,13 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
           setStepError('⚠️ 原幣分帳小計未能與全單總額核對，請檢查認帳數量及折扣／稅費。');
           return false;
         }
-        Object.entries(convertedTotals.amounts).forEach(([person, amount]) => { personTotals[person].total = amount; });
+        Object.entries(convertedTotals.amounts).forEach(([person, amount]) => {
+          personTotals[person].total = amount;
+          const individualRounded = ExchangeRates.convertMoney(personTotals[person].sourceTotal, conversionRate, currency, ReceiptMath);
+          personTotals[person].settlementRoundingAdjustment = ReceiptMath.roundMoney(amount - individualRounded, currency);
+        });
         const billTotal = convertedTotals.total;
-        const calculatedResults = { calculationVersion: 2, personTotals, totalItemsCost, itemsSubtotal: preDiscountItemsCost, discountAmount: discountNum, taxAmount: taxNum, sourceBillTotal, settlementRoundingAdjustmentUnits: convertedTotals.roundingAdjustmentUnits, billTotal, sourceCurrency: detectedCurrency, sourceTotal, exchangeRate: conversionRate, exchangeRateDate: exchangeRate.date || null, exchangeProvider: exchangeRate.provider || 'Frankfurter', reconciliationAllocations, date: new Date().toISOString().split('T')[0], currency };
+        const calculatedResults = { calculationVersion: 3, personTotals, totalItemsCost, itemsSubtotal: preDiscountItemsCost, discountAmount: discountNum, taxAmount: taxNum, sourceBillTotal, settlementRoundingAdjustmentUnits: convertedTotals.roundingAdjustmentUnits, billTotal, sourceCurrency: detectedCurrency, sourceTotal, exchangeRate: conversionRate, exchangeRateDate: exchangeRate.date || null, exchangeProvider: exchangeRate.provider || 'Frankfurter', reconciliationAllocations, date: new Date().toISOString().split('T')[0], currency };
         autoPublishResultRef.current = !tutorialDemo && claimSessionRef.current?.link ? calculatedResults : null;
         setResults(calculatedResults);
         setIsSaved(false); setIsSavingRecord(false); setStep(4);
@@ -3981,7 +4137,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
         const formatSourceAmount = amount => {
           const value = Number(amount) || 0;
           const fractionDigits = Number.isInteger(value) ? sourceCurrencyDigits : Math.max(2, sourceCurrencyDigits);
-          const formatted = new Intl.NumberFormat('zh-HK', { style: 'currency', currency: sourceCurr, minimumFractionDigits: fractionDigits, maximumFractionDigits: Math.max(2, sourceCurrencyDigits) }).format(value);
+          const formatted = new Intl.NumberFormat('zh-HK', { style: 'currency', currency: sourceCurr, minimumFractionDigits: fractionDigits, maximumFractionDigits: Math.max(6, sourceCurrencyDigits) }).format(value);
           return formatted;
         };
         const conversionNote = results.sourceCurrency && results.sourceCurrency !== curr
@@ -4020,6 +4176,9 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
           });
           if (p.discount > 0) lines.push(`${english ? 'Discount' : '折扣'}：−${formatSourceAmount(p.discount)}`);
           if (p.tax > 0) lines.push(`${english ? 'Tax/fee' : '稅費'}：+${formatSourceAmount(p.tax)}`);
+          if (Number(p.settlementRoundingAdjustment)) lines.push(english
+            ? `Currency rounding (${curr}): ${formatMoney(p.settlementRoundingAdjustment, curr)}`
+            : `換算分位調整（${curr}）：${formatMoney(p.settlementRoundingAdjustment, curr)}`);
           if (person === payer) {
             lines.push(`${english ? 'Payer' : '墊支'}：${formatMoney(p.total, curr)}`);
           } else {
@@ -4055,6 +4214,13 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
       const statuses = useMemo(() => {
         const list = [];
         const push = (level, id, main, sub, action) => list.push({ level, id, main, sub, action });
+        const statusClaimInfo = friendsReplies.trim() ? parseClaims(friendsReplies, items) : null;
+        const usableClaimants = statusClaimInfo
+          ? Object.keys(statusClaimInfo.claims || {}).filter(person => items.some(item => Number(statusClaimInfo.claims[person]?.[item.id]) > 0))
+          : [];
+        const unclaimedItems = statusClaimInfo && usableClaimants.length
+          ? items.filter(item => itemAmount(item) > 0 && usableClaimants.reduce((sum, person) => sum + (Number(statusClaimInfo.claims[person]?.[item.id]) || 0), 0) <= 0)
+          : [];
 
         if (!isOnline && (step === 1 || isAnalyzing)) push(4, 'E4', '而家冇網絡，暫時讀唔到單據', '連線後再影相。而家亦可以手動輸入。', { label: '手動輸入', run: () => { setShowSettings(false); startManualEntry(); } });
 
@@ -4064,10 +4230,14 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
             if (emptyNameIdx !== -1) push(2, 'S2', `項目 ${items[emptyNameIdx].id} 未填寫名稱`, '請填寫名稱以便認帳', { label: '填寫', run: () => focusField(`item-name-${emptyNameIdx}`) });
         }
         if (step >= 2 && items.length === 0) push(2, 'S3', '請至少新增一個項目', '', { label: '新增', run: () => { setStep(2); addItemAndFocus(); } });
-        if (step === 2 && !friendsReplies.trim() && items.length > 0) push(2, 'S4', bi('尚未收到朋友的認帳', 'No friend replies yet'), bi('先分享連結，之後在此核對回覆。', 'Share the link first; check replies here later.'), { label: bi('下一步', 'Next'), run: goToPayerStep });
+        if (step === 2 && !friendsReplies.trim() && items.length > 0) push(2, 'S4', manualClaimsEnabled
+          ? bi('手動認帳模式已開啟', 'Manual claims are on')
+          : bi('尚未收到朋友的認帳', 'No friend replies yet'), manualClaimsEnabled
+          ? bi('貼上姓名和項目；不用建立連結，也不會上傳。', 'Paste names and items; no link or upload is needed.')
+          : bi('先分享連結，之後在此核對回覆。', 'Share the link first; check replies here later.'), { label: manualClaimsEnabled ? bi('貼上認帳', 'Paste claims') : bi('下一步', 'Next'), run: manualClaimsEnabled ? () => focusField('replies') : goToPayerStep });
 
-        if (step === 3 && claimInfo && claimInfo.issues.length > 0) {
-            const firstIssue = claimInfo.issues[0];
+        if (step === 3 && statusClaimInfo && statusClaimInfo.issues.length > 0) {
+            const firstIssue = statusClaimInfo.issues[0];
             let msg = ''; const subMsg = bi(`在第 ${firstIssue.line} 行`, `At line ${firstIssue.line}`);
             if (firstIssue.type === 'unknown_id') msg = bi(`有人填了項目「${firstIssue.id}」，單上冇此編號`, `Someone claimed item “${firstIssue.id}”, which is not on the bill.`);
             else if (firstIssue.type === 'qty_negative') msg = bi('數量不可為負數', 'Quantity cannot be negative.');
@@ -4076,39 +4246,35 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
             push(3, 'C1', msg, subMsg, { label: bi('查看', 'View'), run: () => focusReplyLine(firstIssue.line) });
         }
 
-        if (step === 3 && claimInfo && items.length > 0) {
-            let unclaimedCount = 0; let unclaimedCost = 0;
-            const itemClaimTotals = {};
-            items.forEach(item => {
-                itemClaimTotals[item.id] = 0;
-                if(claimInfo.claims) Object.keys(claimInfo.claims).forEach(person => { itemClaimTotals[item.id] += (claimInfo.claims[person][item.id] || 0); });
-            });
-            items.forEach(item => { if (itemClaimTotals[item.id] <= 0) { unclaimedCount++; unclaimedCost += toNum(item.total); } });
-            if (unclaimedCount > 0) push(3, 'C2', bi(`${unclaimedCount} 項冇人認帳（${formatMoney(unclaimedCost, currency)} 未分攤）`, `${unclaimedCount} items have no claims (${formatMoney(unclaimedCost, currency)} unallocated).`), bi('請補回認帳，或刪走冇人食嘅項目', 'Add claims or remove items nobody had.'), { label: bi('查看認帳', 'View replies'), run: () => focusField('replies') });
+        if ((step === 2 || step === 3) && unclaimedItems.length > 0) {
+            const unclaimedCost = unclaimedItems.reduce((sum, item) => sum + itemAmount(item), 0);
+            push(3, 'C2', bi(`${unclaimedItems.length} 項未認帳（${formatMoney(unclaimedCost, detectedCurrency)}）`, `${unclaimedItems.length} unclaimed items (${formatMoney(unclaimedCost, detectedCurrency)})`), bi('補上認領，或刪除項目；未分配金額不能略過。', 'Add claims or remove the items; unallocated amounts cannot be skipped.'), { label: bi('查看認帳', 'View claims'), run: () => { setStep(2); window.setTimeout(() => focusField('replies'), 120); } });
         }
 
         if (isAnalyzing) push(4, 'A1', progressText || '已送到免費模型，等候回覆。', '', null);
-        else if (step === 2 && items.length > 0 && friendsReplies.trim() && (!claimInfo || claimInfo.issues.length === 0)) {
+        else if (step === 2 && items.length > 0 && friendsReplies.trim() && (!statusClaimInfo || statusClaimInfo.issues.length === 0)) {
             push(5, 'G2', bi('認帳已備妥', 'Claims are ready'), bi('先填墊支人，再計算。', 'Next, fill in the payer before calculating.'), { label: bi('下一步', 'Next'), run: goToPayerStep });
         }
 
         if (step === 1 && !isAnalyzing && !showSettings && !showTutorial && !showHistory && list.length === 0) {
             push(5, 'G1', '請上傳單據照片，讓 AI 幫你讀取', '或手動建立項目', { label: '手動輸入', run: () => { setShowSettings(false); startManualEntry(); } });
         }
-        if (step === 3 && items.length > 0 && (!friendsReplies.trim() || !claimInfo?.people?.length)) {
-            push(2, 'S4', bi('尚未收到可計算的朋友認帳', 'Waiting for a usable friend reply'), bi('先填結算設定，再回第 2 步核對認帳。', 'Fill in settlement settings, then check replies in Step 2.'), { label: bi('查看認帳', 'View replies'), run: () => focusField('replies') });
+        if (step === 3 && items.length > 0 && !usableClaimants.length) {
+            push(2, 'S4', bi('未有有效認領', 'No usable claims'), bi('只有姓名不能分帳；至少認領一項，再結算。', 'A name alone cannot be settled. Claim at least one item first.'), { label: bi('查看認帳', 'View claims'), run: () => { setStep(2); window.setTimeout(() => focusField('replies'), 120); } });
         }
 
-        if (step === 3 && payer.trim() && items.length > 0 && friendsReplies.trim() && claimInfo?.people?.length) {
+        if (step === 3 && payer.trim() && items.length > 0 && friendsReplies.trim() && usableClaimants.length) {
             const issues = reconciliation?.issues || [];
             if (issues.some(issue => issue.difference < 0)) push(2, 'C3', '認帳數量超過單據總量', '返回修改後再計算', { label: '上一步', run: () => setStep(2) });
             else if (issues.length && !reconciliation.policy) push(3, 'C3', '實際數量未完全核對', '先揀邊個承擔剩餘數量', null);
+            else if ((statusClaimInfo?.issues || []).some(issue => issue.type === 'unknown_id')) push(3, 'C1', bi('認帳引用已刪除項目', 'A claim refers to a deleted item'), bi('更新朋友回覆後再結算。', 'Update replies before settling.'), { label: bi('查看認帳', 'View claims'), run: () => { setStep(2); window.setTimeout(() => focusField('replies'), 120); } });
+            else if (unclaimedItems.length) push(3, 'C2', bi('仍有金額未認領', 'Some amounts remain unclaimed'), bi('補認或刪除後才能結算。', 'Add claims or remove the items to settle.'), { label: bi('查看認帳', 'View claims'), run: () => { setStep(2); window.setTimeout(() => focusField('replies'), 120); } });
             else push(5, 'G3', bi('可以產生分帳報告', 'Ready to generate the report'), bi('確認墊支人同收款方式', 'Confirm the payer and payment method.'), { label: bi('產生分帳報告', 'Generate report'), run: calculateSplit });
         }
         if (step === 4) push(5, 'G4', bi('就緒', 'Ready'), bi('分享／儲存', 'Share / save'), { label: bi('查看', 'View'), run: () => document.getElementById('report-share-step')?.scrollIntoView({ behavior: 'smooth', block: 'center' }) });
 
         return list.sort((a, b) => a.level - b.level);
-      }, [isOnline, uploadError, lastImageData, apiKey, step, showSettings, showTutorial, showHistory, payer, items, friendsReplies, claimInfo, reconciliation, isAnalyzing, progressText, currency, uiLang]);
+      }, [isOnline, uploadError, lastImageData, apiKey, step, showSettings, showTutorial, showHistory, payer, items, friendsReplies, manualClaimsEnabled, claimInfo, reconciliation, isAnalyzing, progressText, currency, detectedCurrency, uiLang]);
 
       const StatusBar = ({ statuses, expanded, setExpanded, kbOpen }) => {
           if (!statuses.length) return null;
@@ -4127,28 +4293,30 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
           return (
               <React.Fragment>
                   {/* 小巧底欄 (撳一下會彈出視窗) */}
-                  <div role="status" aria-live="polite" onClick={() => setExpanded(true)} className={`fixed bottom-0 left-0 right-0 z-30 border-t ${TONE.bg} ${TONE.border} shadow-[0_-2px_10px_rgba(0,0,0,0.05)] cursor-pointer hover:brightness-95 transition-all`} style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+                  <div data-testid="status-compact-region" aria-live="polite" className={`fixed bottom-0 left-0 right-0 z-30 border-t ${TONE.bg} ${TONE.border} shadow-[0_-2px_10px_rgba(0,0,0,0.05)] transition-all`} style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+                    <button type="button" data-testid="status-bar-toggle" disabled={tutorialDemo} aria-expanded={expanded} aria-controls={expanded ? 'status-detail-dialog' : undefined} aria-label={bi(`展開系統提示：${top.main}`, `Expand status: ${top.main}`)} onClick={() => setExpanded(true)} style={{ minHeight: '44px' }} className="min-h-[44px] w-full text-left hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-700">
                       <div className={`flex items-center gap-2.5 px-3 ${kbOpen ? 'py-1.5' : 'py-2'}`}>
                           <span className="shrink-0 text-sm leading-none">{TONE.dot}</span>
                           <div className="flex-1 min-w-0">
-                              <div className={`font-bold text-xs leading-tight line-clamp-1 ${TONE.text}`}>
+                              <div className={`font-bold text-sm leading-tight line-clamp-1 ${TONE.text}`}>
                                   {tr(top.main)} {statuses.length > 1 && <span className="opacity-70 ml-1">(+{statuses.length - 1})</span>}
                               </div>
-                              {!kbOpen && top.sub && (<div className="text-[10px] text-slate-500 font-medium mt-0.5 leading-tight line-clamp-1">{tr(top.sub)}</div>)}
+                              {!kbOpen && top.sub && (<div className="text-sm text-slate-600 font-medium mt-0.5 leading-tight line-clamp-1">{tr(top.sub)}</div>)}
                           </div>
                           {!kbOpen && (
-                              <div className="shrink-0 text-[10px] font-bold text-slate-500 bg-white/80 px-2 py-1 rounded-md border border-slate-500 shadow-sm">{tr("撳一下展開 ⤴")}</div>
+                              <div className="shrink-0 text-sm font-bold text-slate-600 bg-white/80 px-2 py-1 rounded-md border border-slate-500 shadow-sm">{tr("撳一下展開 ⤴")}</div>
                           )}
                       </div>
+                    </button>
                   </div>
 
                   {/* 彈出視窗 (Modal) - 顯示完整文字，不截斷 */}
                   {expanded && (
                       <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200" onClick={() => setExpanded(false)}>
-                          <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden mb-4 sm:mb-0 animate-in slide-in-from-bottom-4 duration-300 border border-slate-400" onClick={e => e.stopPropagation()}>
+                          <div id="status-detail-dialog" role="dialog" aria-modal="true" aria-labelledby="status-detail-title" data-testid="status-detail-dialog" className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden mb-4 sm:mb-0 animate-in slide-in-from-bottom-4 duration-300 border border-slate-400" onClick={e => e.stopPropagation()}>
                               <div className="p-4 border-b border-slate-400 flex justify-between items-center bg-slate-50">
-                                  <h3 className="font-bold text-slate-800 text-base">{tr("系統提示與建議 (")}{statuses.length})</h3>
-                                  <button onClick={() => setExpanded(false)} className="w-8 h-8 flex items-center justify-center rounded-full bg-white border border-slate-400 text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition-colors">
+                                  <h3 id="status-detail-title" className="font-bold text-slate-800 text-base">{tr("系統提示與建議 (")}{statuses.length})</h3>
+                                  <button type="button" data-testid="close-status-details" aria-label={bi('關閉系統提示', 'Close status details')} onClick={() => setExpanded(false)} style={{ width: '44px', height: '44px', minWidth: '44px', minHeight: '44px' }} className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-full bg-white border border-slate-400 text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700">
                                       <Icon path={icons.x} size={16}/>
                                   </button>
                               </div>
@@ -4161,12 +4329,12 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                                                   <span className="shrink-0 text-base mt-0.5">{ST.dot}</span>
                                                   <div className="flex-1">
                                                       <div className={`font-bold text-sm leading-relaxed ${ST.text}`}>{tr(s.main)}</div>
-                                                      {s.sub && <div className="text-xs text-slate-600 font-medium mt-1 leading-relaxed">{tr(s.sub)}</div>}
+                                                      {s.sub && <div className="text-sm text-slate-600 font-medium mt-1 leading-relaxed">{tr(s.sub)}</div>}
                                                   </div>
                                               </div>
                                               {s.action && (
                                                   <div className="flex justify-end mt-2">
-                                                      <button onClick={() => { s.action.run(); setExpanded(false); }} className="px-4 py-2 bg-white border border-slate-500 rounded-lg text-xs font-bold shadow-sm text-slate-800 hover:bg-slate-50 active:scale-[0.98] transition-all">
+                                                      <button type="button" onClick={() => { s.action.run(); setExpanded(false); }} className="min-h-[44px] px-4 py-2 bg-white border border-slate-500 rounded-lg text-sm font-bold shadow-sm text-slate-800 hover:bg-slate-50 active:scale-[0.98] transition-all">
                                                           {tr(s.action.label)} →
                                                       </button>
                                                   </div>
@@ -4206,7 +4374,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
 
       const claimSecurityManagementCard = !tutorialDemo && claimSession?.link ? (
         <details data-testid="claim-password-management" className="rounded-xl border border-slate-300 bg-white p-4 space-y-3">
-          <summary className="cursor-pointer text-sm font-bold text-slate-700">{bi('認證碼重設（有需要先開）', 'Reset recognition code (if needed)')}</summary>
+          <summary style={{ minHeight: '40px' }} className="min-h-[40px] cursor-pointer text-sm font-bold text-slate-700">{bi('認證碼重設（有需要先開）', 'Reset recognition code (if needed)')}</summary>
           <p className="text-sm leading-relaxed text-slate-700">{bi('朋友填姓名就可以認帳；4 字認證碼可選填。忘記已設嘅碼或舊密碼，可由你提供一次性確認碼重設，原認帳會保留。', 'Friends can claim with a name; the 4-character code is optional. If they forget it or an old password, provide a one-time reset code; existing claims stay.')}</p>
           <p className="text-xs leading-relaxed text-slate-600">{bi('請把確認碼私下交畀本人；唔使每個朋友都設定。', 'Give the reset code privately to the person; not everyone needs to set a code.')}</p>
           <p data-testid="claim-protection-status" role="status" aria-live="polite" className={`text-sm font-semibold leading-relaxed ${claimSecureError ? 'text-red-800' : 'text-emerald-900'}`}>
@@ -4251,11 +4419,11 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
           {/* Header */}
           <header className="app-header bg-white border-b border-slate-400 sticky top-0 z-20 shadow-sm backdrop-blur-md bg-white/90">
             <div className="app-header-row w-full px-3 sm:px-4 py-3.5 flex items-center justify-between max-w-2xl mx-auto">
-              <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-                <img src="./icons/icon.svg" alt="" width="48" height="48" className="app-brand-icon shrink-0" />
-                <div>
-                  <h1 className="text-xl font-extrabold text-slate-800 tracking-tight"><span className="app-brand-name block sm:inline whitespace-nowrap">{tr("分帳管家")}</span><span className="inline-flex items-baseline gap-1 sm:ml-1 whitespace-nowrap"><span data-testid="app-pro-label" className="text-brand-600 font-black">Pro</span><span data-testid="app-version-label" className="text-[10px] leading-3 font-semibold tracking-normal text-brand-700">R114</span></span></h1>
-                </div>
+                <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+                  <img src="./icons/icon.svg" alt="" width="48" height="48" className="app-brand-icon shrink-0" />
+                  <div>
+                  <h1 className="text-xl font-extrabold text-slate-800 tracking-tight"><span className="app-brand-name block sm:inline whitespace-nowrap">{tr("分帳管家")}</span><span className="inline-flex items-baseline gap-1 sm:ml-1 whitespace-nowrap"><span data-testid="app-pro-label" className="text-brand-600 font-black">Pro</span><span data-testid="app-version-label" className="text-[10px] leading-3 font-semibold tracking-normal text-brand-700">R126</span></span></h1>
+                  </div>
               </div>
               <div className="header-actions relative flex items-center gap-1.5 sm:gap-2">
                 {(showHistory || showSettings || showTutorial) ? (
@@ -4667,12 +4835,13 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                     </Card>
                   )}
 
-                  {items.length > 0 && items.map((item, idx) => {
+                    {items.length > 0 && items.map((item, idx) => {
+                    const itemFieldId = field => `bill-item-${String(item.id).replace(/[^A-Za-z0-9_-]/g, '-')}-${field}`;
                     const showVerifyRow = receiptWasRead && String(item.name || '').trim() && !openItemEdits[idx];
                     const qtyLabel = item.totalQty != null && item.totalQty !== '' ? `${item.totalQty}${item.unit ? ` ${item.unit}` : ''}` : (item.unit || '');
                     return (
-                    <Card key={idx} data-tutorial-target={idx === 0 ? "item-editor" : undefined} className="relative overflow-visible !p-4 group">
-                      <button type="button" data-testid="remove-item" aria-label={bi(`刪除項目：${displayItemName(item).trim() || '此項目'}`, `Delete item: ${displayItemName(item).trim() || 'this item'}`)} title={bi(`刪除項目：${displayItemName(item).trim() || '此項目'}`, `Delete item: ${displayItemName(item).trim() || 'this item'}`)} onClick={() => requestRemoveItem(idx)} className="absolute -top-3 -right-3 w-11 h-11 min-w-11 min-h-11 bg-white border border-slate-400 text-slate-600 hover:text-red-800 hover:border-red-700 hover:bg-red-50 rounded-full flex items-center justify-center shadow-sm transition-colors z-10 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 md:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700">
+                    <Card key={item.id} data-tutorial-target={idx === 0 ? "item-editor" : undefined} className="relative overflow-visible !p-4 group">
+                      <button type="button" data-testid="remove-item" aria-label={bi(`刪除項目：${displayItemName(item).trim() || '此項目'}`, `Delete item: ${displayItemName(item).trim() || 'this item'}`)} title={bi(`刪除項目：${displayItemName(item).trim() || '此項目'}`, `Delete item: ${displayItemName(item).trim() || 'this item'}`)} onClick={() => requestRemoveItem(idx)} style={{ width: '44px', height: '44px', minWidth: '44px', minHeight: '44px' }} className="absolute -top-3 -right-3 w-11 h-11 min-w-[44px] min-h-[44px] bg-white border border-slate-400 text-slate-600 hover:text-red-800 hover:border-red-700 hover:bg-red-50 rounded-full flex items-center justify-center shadow-sm transition-colors z-10 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 md:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700">
                         <Icon path={icons.trash} size={18} />
                       </button>
                       {showVerifyRow ? (
@@ -4688,45 +4857,46 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                       ) : (
                       <div className="grid gap-4">
                         <div>
-                          <label className="text-base font-bold text-slate-700 uppercase tracking-wider mb-1.5 block">{tr("編號 ")}{item.id}{tr(" - 名稱")}</label>
-                          <input type="text" data-testid="item-name" ref={el => fieldRefs.current[`item-name-${idx}`] = el} value={displayItemName(item)} onChange={(e) => updateItem(idx, uiLang === 'en' && (item.nameEn || item.nameEnEdited) ? 'nameEn' : 'name', e.target.value)} onKeyDown={(e) => handleItemKeyDown(e, 'name', idx)} className="field-round w-full text-base font-semibold text-slate-800 outline-none" placeholder={tr("輸入項目名稱...")} />
+                          <label htmlFor={itemFieldId('name')} className="text-base font-bold text-slate-700 uppercase tracking-wider mb-1.5 block">{tr("編號 ")}{item.id}{tr(" - 名稱")}</label>
+                          <input id={itemFieldId('name')} type="text" data-testid="item-name" ref={el => fieldRefs.current[`item-name-${idx}`] = el} value={displayItemName(item)} onChange={(e) => updateItem(idx, uiLang === 'en' && (item.nameEn || item.nameEnEdited) ? 'nameEn' : 'name', e.target.value)} onKeyDown={(e) => handleItemKeyDown(e, 'name', idx)} className="field-round w-full text-base font-semibold text-slate-800 outline-none" placeholder={tr("輸入項目名稱...")} />
                           {(item.original || item.ja) && <div className="mt-1 text-xs font-normal text-slate-500 italic truncate" title={item.original || item.ja}>{tr("原文：")}{item.original || item.ja}</div>}
                         </div>
                         <div data-tutorial-target={idx === 0 ? "item-fields" : undefined} className="item-price-quantity-row flex gap-4">
                           <div className="min-w-0 flex-1">
-                            <label className="text-base font-bold text-slate-700 uppercase tracking-wider mb-1.5 block">{tr("單價")}</label>
+                            <label htmlFor={itemFieldId('price')} className="text-base font-bold text-slate-700 uppercase tracking-wider mb-1.5 block">{tr("單價")}</label>
                             <div className="field-round flex items-center">
                               <span className="pl-3 text-slate-600 font-bold">{getCurrencySymbol(detectedCurrency)}</span>
-                              <input type="number" ref={el => fieldRefs.current[`item-price-${idx}`] = el} value={item.price} onChange={(e) => updateItem(idx, 'price', e.target.value)} onKeyDown={(e) => handleItemKeyDown(e, 'price', idx)} className="w-full text-base font-semibold text-slate-800 bg-transparent outline-none shadow-none focus:ring-0" placeholder="0" />
+                              <input id={itemFieldId('price')} type="number" inputMode="decimal" data-testid="item-price" ref={el => fieldRefs.current[`item-price-${idx}`] = el} value={item.price} onChange={(e) => updateItem(idx, 'price', e.target.value)} onKeyDown={(e) => handleItemKeyDown(e, 'price', idx)} className="w-full text-base font-semibold text-slate-800 bg-transparent outline-none shadow-none focus:ring-0" placeholder="0" />
                             </div>
                           </div>
                           <div className="w-40 shrink-0">
-                            <label className="text-base font-bold text-slate-700 uppercase tracking-wider mb-1.5 block">{tr("單據總量")}</label>
-                            <input type="number" ref={el => fieldRefs.current[`item-qty-${idx}`] = el} value={item.totalQty ?? ''} onChange={(e) => updateItem(idx, 'totalQty', e.target.value === '' ? null : e.target.value)} onKeyDown={(e) => handleItemKeyDown(e, 'qty', idx)} className="field-round w-full text-base font-semibold text-slate-800 outline-none text-center" placeholder={tr("未知可留空")} />
+                            <label htmlFor={itemFieldId('qty')} className="text-base font-bold text-slate-700 uppercase tracking-wider mb-1.5 block">{tr("單據總量")}</label>
+                            <input id={itemFieldId('qty')} type="number" inputMode="decimal" data-testid="item-qty" ref={el => fieldRefs.current[`item-qty-${idx}`] = el} value={item.totalQty ?? ''} onChange={(e) => updateItem(idx, 'totalQty', e.target.value === '' ? null : e.target.value)} onKeyDown={(e) => handleItemKeyDown(e, 'qty', idx)} className="field-round w-full text-base font-semibold text-slate-800 outline-none text-center" placeholder={tr("未知可留空")} />
                           </div>
                         </div>
                         <div>
-                          <label className="text-base font-bold text-slate-700 uppercase tracking-wider mb-1.5 block">{bi('單位（留空按份數比例）', 'Unit (leave blank to split by shares)')}</label>
-                          <input type="text" value={item.unit || ''} onChange={(e) => updateItem(idx, 'unit', e.target.value)} className="field-round w-full text-base font-semibold text-slate-800 outline-none" placeholder={bi('件、杯、碟', 'e.g. item, cup, plate')} />
+                          <label htmlFor={itemFieldId('unit')} className="text-base font-bold text-slate-700 uppercase tracking-wider mb-1.5 block">{bi('單位（留空按份數比例）', 'Unit (leave blank to split by shares)')}</label>
+                          <input id={itemFieldId('unit')} type="text" value={item.unit || ''} onChange={(e) => updateItem(idx, 'unit', e.target.value)} className="field-round w-full text-base font-semibold text-slate-800 outline-none" placeholder={bi('件、杯、碟', 'e.g. item, cup, plate')} />
                         </div>
                       </div>
                       )}
                     </Card>
                     );
                   })}
-                  <dialog ref={itemRemovalDialogRef} data-testid="remove-item-dialog" aria-labelledby="remove-item-dialog-title" aria-describedby="remove-item-dialog-description" aria-modal="true" onCancel={event => { event.preventDefault(); setPendingItemRemoval(null); }} className="m-auto w-[min(92vw,28rem)] max-w-[calc(100vw-2rem)] rounded-2xl border border-slate-400 bg-white p-5 text-slate-900 shadow-2xl backdrop:bg-slate-950/50">
+                  <dialog ref={itemRemovalDialogRef} data-testid="remove-item-dialog" aria-labelledby="remove-item-dialog-title" aria-describedby={`remove-item-dialog-description${pendingItemRemoval?.hasClaims ? ' remove-item-claim-warning' : ''}`} aria-modal="true" onCancel={event => { event.preventDefault(); setPendingItemRemoval(null); }} className="m-auto w-[min(92vw,28rem)] max-w-[calc(100vw-2rem)] rounded-2xl border border-slate-400 bg-white p-5 text-slate-900 shadow-2xl backdrop:bg-slate-950/50">
                     {pendingItemRemoval && <div className="space-y-4">
                       <h2 id="remove-item-dialog-title" className="text-lg font-extrabold">{bi('確定刪除項目？', 'Delete this item?')}</h2>
                       <p id="remove-item-dialog-description" className="text-base leading-relaxed">{bi(`確定從帳單刪除「${pendingItemRemoval.name}」？`, `Remove “${pendingItemRemoval.name}” from this bill?`)}</p>
+                      {pendingItemRemoval.hasClaims && <p id="remove-item-claim-warning" data-testid="remove-item-claim-warning" className="rounded-lg border border-amber-500 bg-amber-50 p-3 text-sm font-semibold leading-relaxed text-amber-950">{bi(`已有認帳引用編號 ${pendingItemRemoval.id}。刪除後舊回覆會被標示，不能套到其他項目；請通知朋友重新核對。`, `Existing replies reference item ${pendingItemRemoval.id}. After deletion they will be flagged, never mapped to another item; ask friends to review again.`)}</p>}
                       <div className="grid grid-cols-2 gap-3">
-                        <button type="button" ref={keepItemButtonRef} data-testid="keep-remove-item" onClick={() => setPendingItemRemoval(null)} className="min-h-11 rounded-lg border border-slate-500 bg-white px-4 py-2 font-bold text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700">{bi('保留項目', 'Keep item')}</button>
-                        <button type="button" data-testid="confirm-remove-item" onClick={confirmRemoveItem} className="min-h-11 rounded-lg border border-red-800 bg-red-800 px-4 py-2 font-bold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-800">{bi('刪除項目', 'Delete item')}</button>
+                        <button type="button" ref={keepItemButtonRef} data-testid="keep-remove-item" onClick={() => setPendingItemRemoval(null)} className="min-h-[44px] rounded-lg border border-slate-500 bg-white px-4 py-2 font-bold text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700">{bi('保留項目', 'Keep item')}</button>
+                        <button type="button" data-testid="confirm-remove-item" onClick={confirmRemoveItem} className="min-h-[44px] rounded-lg border border-red-800 bg-red-800 px-4 py-2 font-bold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-800">{bi('刪除項目', 'Delete item')}</button>
                       </div>
                     </div>}
                   </dialog>
                   {items.length > 0 && (
                     <React.Fragment>
-                      <Button variant="outline" onClick={addItem} className="w-full border-dashed border-brand-500 bg-white/50 hover:bg-brand-50 text-brand-700"><Icon path={icons.plus} size={18}/>{tr(" 新增一筆項目")}</Button>
+                      <Button data-testid="add-item" variant="outline" onClick={addItem} className="w-full border-dashed border-brand-500 bg-white/50 hover:bg-brand-50 text-brand-700"><Icon path={icons.plus} size={18}/>{tr(" 新增一筆項目")}</Button>
                       <button type="button" data-testid="scan-another" onClick={openAiScan} className="w-full text-base font-semibold text-slate-700 underline py-2">{bi('再影一張單據', 'Scan another receipt')}</button>
                     </React.Fragment>
                   )}
@@ -4743,7 +4913,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                       </div>
                       <div className="field-round flex items-center w-36 shrink-0 overflow-hidden shadow-sm">
                         <span className="pl-3 pr-1 text-slate-600 font-bold border-r border-slate-500 py-2">{getCurrencySymbol(detectedCurrency)}</span>
-                        <input id={taxAmountInputId} type="number" inputMode="decimal" min="0" step={Math.pow(10, -ReceiptMath.currencyDecimals(detectedCurrency))} placeholder="0" value={taxAmount} data-testid="tax-amount" aria-invalid={taxInputError ? 'true' : undefined} aria-describedby={`${taxAmountHintId}${taxInputError ? ` ${taxAmountErrorId}` : ''}`} ref={el => fieldRefs.current['tax-amount'] = el} onChange={(e) => { setTaxAmount(e.target.value); setTaxInputError(false); setStepError(''); setReceiptAdjustmentDetails(null); }} className="w-full text-base font-bold text-slate-800 text-right outline-none shadow-none" />
+                        <input id={taxAmountInputId} type="number" inputMode="decimal" min="0" step={Math.pow(10, -ReceiptMath.currencyDecimals(detectedCurrency))} placeholder="0" value={taxAmount} data-testid="tax-amount" aria-invalid={taxInputError ? 'true' : undefined} aria-describedby={`${taxAmountHintId}${taxInputError ? ` ${taxAmountErrorId}` : ''}`} ref={el => fieldRefs.current['tax-amount'] = el} onChange={(e) => { setTaxAmount(e.target.value); setTaxInputError(false); setStepError(''); setReceiptAdjustmentDetails(null); }} onBlur={() => { if (String(taxAmount ?? '').trim() !== '') validateTaxAmount(false); }} className="w-full text-base font-bold text-slate-800 text-right outline-none shadow-none" />
                       </div>
                     </div>
                     {taxInputError && <p id={taxAmountErrorId} data-testid="tax-input-error" role="alert" className="-mt-2 text-sm font-semibold text-red-800">{bi('⚠️ 稅費／服務費不可為負數，請輸入 0 或以上。', '⚠️ Tax / service fee cannot be negative. Enter 0 or more.')}</p>}
@@ -4877,6 +5047,10 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                       : bi('朋友回覆會顯示於此；亦可貼上 WhatsApp 後備。', 'Friend replies appear here. You can also paste a WhatsApp backup.')}
                     className="w-full h-48 bg-white border border-slate-500 rounded-xl p-4 text-base font-mono text-slate-700 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none resize-y shadow-inner leading-relaxed">
                   </textarea>
+                  {manualClaimsEnabled && <div data-testid="manual-claim-guidance" className="mt-2 rounded-lg border border-slate-300 bg-slate-50 p-3 text-sm leading-relaxed text-slate-800" role="note">
+                    <p>{bi('每人至少認領一項；只填姓名不會分帳。格式：', 'Each person must claim an item; a name alone is not counted. Format:')}</p>
+                    <pre data-testid="manual-claim-example" className="mt-1 whitespace-pre-wrap font-mono text-sm">{bi(`姓名：阿明\n${items[0]?.id || '01'} = 1`, `Name: Alex\n${items[0]?.id || '01'} = 1`)}</pre>
+                  </div>}
                 </div>
 
                     <div className="flex gap-3 pt-2">
@@ -4908,7 +5082,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                       {reconciliation.issues.map(issue => (
                         <div key={issue.itemId} className="bg-white border border-amber-300 rounded-lg p-3 text-sm text-slate-700">
                           <strong>{issue.itemId} {displayItemName(items.find(item => item.id === issue.itemId) || issue)}</strong>{tr("：單據 ")}{issue.totalQty} {unitDisplay(issue.unit)}{tr("，已認帳 ")}{issue.claimedQty} {unitDisplay(issue.unit)}{' '}
-                          {issue.difference > 0 ? <span className="font-bold text-amber-700">{tr("（尚欠 ")}{issue.difference} {unitDisplay(issue.unit)}{tr("，約 ")}{formatMoney(issue.amount, currency)}）</span> : <span className="font-bold text-red-700">{tr("（超出 ")}{-issue.difference} {unitDisplay(issue.unit)}）</span>}
+                          {issue.difference > 0 ? <span className="font-bold text-amber-700">{tr("（尚欠 ")}{issue.difference} {unitDisplay(issue.unit)}{tr("，約 ")}{formatSourceMoney(issue.amount, detectedCurrency)}）</span> : <span className="font-bold text-red-700">{tr("（超出 ")}{-issue.difference} {unitDisplay(issue.unit)}）</span>}
                         </div>
                       ))}
                     </div>
@@ -4933,13 +5107,13 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
 
                 <Card className="space-y-8">
                   <div data-tutorial-target="calculation-settings">
-                    <Label required={!payer} className="text-lg">{bi('墊支人', 'Payer')}</Label>
-                    <input type="text" ref={el => fieldRefs.current.payer = el} value={payer} onChange={(e) => {setPayer(e.target.value); setStepError('');}} placeholder={tr("輸入姓名")} className="w-full rounded-xl p-3.5 text-base font-semibold text-slate-800 outline-none transition-all bg-slate-50 focus:bg-white" />
+                    <Label htmlFor="payer-name" required={!payer} className="text-lg">{bi('墊支人', 'Payer')}</Label>
+                    <input id="payer-name" type="text" ref={el => fieldRefs.current.payer = el} value={payer} onChange={(e) => {setPayer(e.target.value); setStepError('');}} placeholder={tr("輸入姓名")} className="w-full rounded-xl p-3.5 text-base font-semibold text-slate-800 outline-none transition-all bg-slate-50 focus:bg-white" />
                   </div>
 
                   <div data-testid="receipt-currency-control" className="space-y-2">
-                    <Label className="text-lg">{bi('單據原幣', 'Receipt currency')}</Label>
-                    <select data-testid="source-currency" value={detectedCurrency} onChange={event => { setDetectedCurrency(event.target.value); setReceiptAdjustmentDetails(null); setReconciliation(null); setStepError(''); setResults(null); setIsSaved(false); }} className="w-full rounded-xl border border-slate-400 bg-white p-3.5 text-base font-semibold text-slate-800">
+                    <Label htmlFor="source-currency-select" className="text-lg">{bi('單據原幣', 'Receipt currency')}</Label>
+                    <select id="source-currency-select" data-testid="source-currency" value={detectedCurrency} onChange={event => { setDetectedCurrency(event.target.value); setReceiptAdjustmentDetails(null); setReconciliation(null); setStepError(''); setResults(null); setIsSaved(false); }} className="w-full rounded-xl border border-slate-400 bg-white p-3.5 text-base font-semibold text-slate-800">
                       {sourceCurrencyOptions.map(code => <option key={code} value={code}>{getCurrencyName(code)}</option>)}
                     </select>
                     <p className="text-xs text-slate-600">{bi('項目、稅費和折扣均以此貨幣輸入。', 'Items, tax and discounts use this currency.')}</p>
@@ -4947,7 +5121,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
 
                   <div data-tutorial-target="currency">
                     <Label className="text-lg mb-3">{bi('結算貨幣', 'Settlement currency')}</Label>
-                    <div className="flex flex-wrap gap-2.5">
+                    <div role="group" aria-label={bi('結算貨幣', 'Settlement currency')} className="flex flex-wrap gap-2.5">
                       {displayCurrencies.map(c => (
                           <button
                               key={c} onClick={() => { if (c !== currency) { setCurrency(c); setReconciliation(null); setStepError(''); setResults(null); setIsSaved(false); } }} aria-pressed={currency === c}
@@ -4998,7 +5172,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
 
                   <div className="border-t border-slate-400 pt-6">
                     <Label className="text-lg mb-3">{bi('附加費用分攤', 'Tax / fee split')}</Label>
-                    <div data-tutorial-target="tax-method" className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div data-tutorial-target="tax-method" role="group" aria-label={bi('附加費用分攤方式', 'Tax / fee split method')} className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {[{ id: 'proportional', label: tr("按消費比例分攤") }, { id: 'equal', label: tr("所有人平均分攤") }].map(opt => (
                         <label key={opt.id} className={`flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-all ${taxSplitMethod === opt.id ? 'bg-brand-50 border-brand-500 shadow-sm' : 'bg-white border-slate-500 hover:bg-slate-50'}`}>
                           <input type="radio" name="taxSplit" checked={taxSplitMethod === opt.id} onChange={() => setTaxSplitMethod(opt.id)} className="w-5 h-5 mt-0.5 text-brand-600 focus:ring-brand-500" />
@@ -5013,7 +5187,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
 
                 <div className="flex gap-3 pt-2">
                   <Button variant="secondary" className="w-1/3 !px-2 border-slate-500" onClick={() => setStep(2)}>{tr("上一步")}</Button>
-                  <Button data-testid="calculate-split" variant="primary" className="w-2/3 flex-col gap-1 text-center leading-tight" disabled={!friendsReplies.trim() || !claimInfo?.people?.length} onClick={() => { const calculated = calculateSplit(); if (tutorialDemo) onTutorialAction?.(calculated ? 'calculated' : 'calculation-error', !payer.trim() ? 'payer' : 'replies'); }}>
+                  <Button data-testid="calculate-split" variant="primary" className="w-2/3 flex-col gap-1 text-center leading-tight" disabled={!friendsReplies.trim() || !Object.keys(claimInfo?.claims || {}).some(person => items.some(item => Number(claimInfo.claims[person]?.[item.id]) > 0))} onClick={() => { const calculated = calculateSplit(); if (tutorialDemo) onTutorialAction?.(calculated ? 'calculated' : 'calculation-error', !payer.trim() ? 'payer' : 'replies'); }}>
                     <span className="inline-flex items-center justify-center gap-2">{tr("產生分帳報告 ")}<Icon path={icons.check} size={18}/></span>
                     <span data-testid="calculate-split-hint" className="w-full text-[11px] font-medium leading-snug text-white/95" style={{ textShadow: 'none', filter: 'none' }}>{claimSession?.link ? bi('按下後會計算，朋友可在原本連結查看結果。', 'Calculate; friends can view the result on their original link.') : bi('按下後會計算並產生分帳報告。', 'Calculate and create the bill-splitting report.')}</span>
                   </Button>
@@ -5029,6 +5203,26 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                   <h2 className="text-2xl font-bold text-slate-800 tracking-tight">{bi('結果', 'Results')}</h2>
                 </div>
 
+                <Card data-testid="settlement-summary" role="region" aria-label={bi('分帳總額及各人應付', 'Bill total and amounts per person')} className="!p-4 border-brand-500 bg-white">
+                  <h3 className="font-extrabold text-slate-900 text-base">{bi('本次分帳', 'This bill')}</h3>
+                  <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
+                    <span className="text-slate-700">{bi('商品小計', 'Items')}</span><span data-testid="summary-items-subtotal" className="text-right font-semibold text-slate-900">{formatMoney(results.itemsSubtotal, results.sourceCurrency || detectedCurrency)}</span>
+                    {Number(results.discountAmount) > 0 && <><span className="text-slate-700">{bi('折扣', 'Discount')}</span><span className="text-right font-semibold text-slate-900">−{formatMoney(results.discountAmount, results.sourceCurrency || detectedCurrency)}</span></>}
+                    {Number(results.taxAmount) > 0 && <><span className="text-slate-700">{bi('稅費', 'Tax / fee')}</span><span className="text-right font-semibold text-slate-900">+{formatMoney(results.taxAmount, results.sourceCurrency || detectedCurrency)}</span></>}
+                    <span className="font-bold text-slate-900">{bi('原幣總額', 'Bill total')}</span><span data-testid="summary-source-total" className="text-right font-extrabold text-slate-900">{formatMoney(results.sourceBillTotal, results.sourceCurrency || detectedCurrency)}</span>
+                    {(results.sourceCurrency || detectedCurrency) !== (results.currency || currency) && <><span className="font-bold text-slate-900">{bi('結算總額', 'Settlement total')}</span><span data-testid="summary-settlement-total" className="text-right font-extrabold text-slate-900">{formatMoney(results.billTotal, results.currency || currency)}</span></>}
+                  </div>
+                  <h4 className="mt-4 border-t border-slate-300 pt-3 font-bold text-slate-900 text-sm">{bi('各人最終應付', 'Final amount per person')}</h4>
+                  <ul data-testid="summary-person-totals" className="mt-2 space-y-2">
+                    {Object.entries(results.personTotals || {}).map(([person, summary]) => (
+                      <li key={person} data-testid="result-person-payable" className="rounded-lg border border-slate-300 bg-slate-50 px-3 py-2">
+                        <div className="flex items-center justify-between gap-3 text-sm"><span className="font-semibold text-slate-800">{person} · {person === payer ? bi('墊支', 'Payer') : bi('應付', 'Due')}</span><span className="font-extrabold text-slate-900">{formatMoney(summary.total, results.currency || currency)}</span></div>
+                        {Number(summary.settlementRoundingAdjustment) !== 0 && <p data-testid="settlement-rounding-adjustment" className="mt-1 text-xs text-slate-700">{bi('換算分位調整', 'Conversion rounding')}: {formatMoney(summary.settlementRoundingAdjustment, results.currency || currency)}</p>}
+                      </li>
+                    ))}
+                  </ul>
+                </Card>
+
                 {claimSession?.link && <div data-testid="same-link-sync-status" role="status" className={`rounded-xl border p-3 text-sm font-semibold leading-relaxed ${friendShareStatus === 'error' ? 'border-red-400 bg-red-50 text-red-800' : 'border-emerald-400 bg-emerald-50 text-emerald-900'}`}>
                   {friendShareStatus === 'uploading' ? bi('同步中…', 'Syncing…')
                     : receiptImageSharePending ? bi('加圖中…', 'Adding photo…')
@@ -5040,7 +5234,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
 
                 <Card data-testid="add-missing-person-guide" className="!px-3 !py-2 border-blue-300 bg-blue-50 !shadow-none">
                   <details data-testid="late-person-flow-details" className="group">
-                    <summary data-testid="late-person-flow-summary" aria-controls="late-person-flow-content" className="flex min-h-10 cursor-pointer list-none items-center justify-between gap-3 rounded-lg py-1 text-blue-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-700 focus-visible:ring-offset-2">
+                    <summary data-testid="late-person-flow-summary" aria-controls="late-person-flow-content" style={{ minHeight: '40px' }} className="flex min-h-[40px] cursor-pointer list-none items-center justify-between gap-3 rounded-lg py-1 text-blue-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-700 focus-visible:ring-offset-2">
                       <span className="font-extrabold">{bi('漏咗朋友？點樣補加', 'Missing someone? Add them')}</span>
                       <span aria-hidden="true" className="text-lg transition-transform duration-200 group-open:rotate-180">▼</span>
                     </summary>
@@ -5071,7 +5265,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
 
                 <Card data-testid="missing-bill-guide" className="!px-3 !py-2 border-blue-300 bg-blue-50 !shadow-none">
                   <details data-testid="missing-bill-flow-details" className="group">
-                    <summary data-testid="missing-bill-flow-summary" aria-controls="missing-bill-flow-content" className="flex min-h-10 cursor-pointer list-none items-center justify-between gap-3 rounded-lg py-1 text-blue-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-700 focus-visible:ring-offset-2">
+                    <summary data-testid="missing-bill-flow-summary" aria-controls="missing-bill-flow-content" style={{ minHeight: '40px' }} className="flex min-h-[40px] cursor-pointer list-none items-center justify-between gap-3 rounded-lg py-1 text-blue-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-700 focus-visible:ring-offset-2">
                       <span className="font-extrabold">{bi('漏貼帳單？點樣補加', 'Forgot the bill photo?')}</span>
                       <span aria-hidden="true" className="text-lg transition-transform duration-200 group-open:rotate-180">▼</span>
                     </summary>
@@ -5205,7 +5399,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
 
                 <div className="flex gap-3 pt-2">
                   <Button variant="secondary" className="w-1/3 !px-2 border-slate-500" onClick={() => { setStepError(''); setStep(3); }}><Icon path={icons.arrowLeft} size={16}/>{bi(' 修改', ' Edit')}</Button>
-                  <Button onClick={handleGoToStep1} className="w-2/3 bg-slate-800 hover:bg-slate-900 text-white shadow-lg border border-slate-900">{bi('新單', 'New bill')}</Button>
+                  <Button data-testid="new-bill" onClick={handleGoToStep1} className="w-2/3 bg-slate-800 hover:bg-slate-900 text-white shadow-lg border border-slate-900">{bi('新單', 'New bill')}</Button>
                 </div>
               </div>
             )}
@@ -5302,7 +5496,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                         <div className="p-4 bg-white flex flex-wrap gap-2.5">
                           <Button variant="outline" className="flex-1 !py-2 !text-sm !px-2 bg-white hover:bg-brand-50 border-slate-400 text-slate-700 hover:text-brand-700 hover:border-brand-500" onClick={() => copyToClipboard(getSavedReportText(record, 'simplified'), bi('追數版', 'Summary'))}><Icon path={icons.copy} size={16}/> {bi('追數版', 'Summary')}</Button>
                           <Button variant="secondary" className="flex-1 !py-2 !text-sm !px-2 bg-white border-slate-500" onClick={() => copyToClipboard(getSavedReportText(record, 'detailed'), bi('詳細版', 'Detailed'))}><Icon path={icons.copy} size={16}/> {bi('詳細版', 'Detailed')}</Button>
-                          <button onClick={() => deleteRecord(record.id)} className="px-3 py-2 bg-white border border-slate-500 text-slate-500 rounded-xl hover:bg-red-50 hover:text-red-700 hover:border-red-500 shrink-0 transition-colors"><Icon path={icons.trash} size={18}/></button>
+                          <button type="button" aria-label={bi(`刪除紀錄：${record.date || ''} ${record.payer || ''}`, `Delete record: ${record.date || ''} ${record.payer || ''}`)} title={bi(`刪除紀錄：${record.date || ''} ${record.payer || ''}`, `Delete record: ${record.date || ''} ${record.payer || ''}`)} onClick={() => deleteRecord(record.id)} style={{ minWidth: '44px', minHeight: '44px' }} className="min-h-[44px] min-w-[44px] px-3 py-2 bg-white border border-slate-500 text-slate-700 rounded-xl hover:bg-red-50 hover:text-red-800 hover:border-red-700 shrink-0 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700"><Icon path={icons.trash} size={18}/></button>
                         </div>
                         {Number(record.receiptImageCount) > 0 && (
                           <div className="px-4 pb-4">
