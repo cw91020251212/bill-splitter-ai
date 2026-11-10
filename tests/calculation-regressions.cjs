@@ -143,7 +143,9 @@ async function readSavedResults(page) {
     await negativeTax.page.waitForFunction(() => document.activeElement?.dataset?.testid === 'tax-amount', null, { timeout: 5000 });
     assert.equal(await negativeTax.page.getByTestId('tax-amount').getAttribute('min'), '0');
     assert.equal(await negativeTax.page.getByTestId('tax-amount').getAttribute('aria-invalid'), 'true');
-    assert.equal(await negativeTax.page.getByTestId('tax-amount').getAttribute('aria-describedby'), 'tax-input-error');
+    const taxDescriptionIds = await negativeTax.page.getByTestId('tax-amount').getAttribute('aria-describedby');
+    assert.match(taxDescriptionIds, /\bbill-tax-r0-hint\b/);
+    assert.match(taxDescriptionIds, /\bbill-tax-r0-error\b/);
     await negativeTax.page.getByTestId('header-action-menu-toggle').click();
     await negativeTax.page.getByTestId('header-language-toggle').click();
     assert.match(await negativeTax.page.getByTestId('tax-input-error').innerText(), /cannot be negative/i, 'tax error follows the selected English language');
