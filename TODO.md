@@ -247,4 +247,5 @@
 - [x] 保留中／英文、預設收起和精簡說明；無現有圖片時仍提供安全的後加圖片操作。
 - [x] 本機 E2E 覆蓋兩方向、按鈕白色／44px、預設自動遮蓋、手動補圖與原有認帳重算；`friend-recognition.cjs` 12/12、`card-redaction-ui.cjs`、`recognition-retry-ui.cjs` 通過。雙語切換驗證標題、方向、遮蓋說明及追加圖片文案；所有 API 留在本機／mock，對外寫入 0。
 - [x] 更新 R120 cache token；`node --check` 及 `git diff --check` 通過。
-- [ ] 推送 Pages、監察部署 workflow，並在公開網址執行 mock API smoke。
+- [x] Commit `fb0a60e` 已推送至 `main`；[GitHub Pages workflow 42733068421](https://github.com/cw91020251212/bill-splitter-ai/actions/runs/42733068421) 成功，公開首頁 HTTP 200，已確認 R120 cache token 及中英標題。
+- [x] 公開網址 `PUBLIC_STATIC_QA=1` 的 `friend-recognition.cjs` 12/12 通過，覆蓋雙方向、語言切換、同一連結及本機遮蓋後加圖；所有認帳 API 路由至本機 harness，正式資料對外寫入 0。
