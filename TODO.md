@@ -314,4 +314,4 @@
 - [x] index／PWA／Service Worker cache epoch 升至 `v127-recheck-audit-20261110`；可見版本升至 R127。
 - [x] 本機測試：`receipt-adjustments.test.cjs` 25/25、離線 `exchange-rates.test.cjs` 5/5、`calculation-regressions.cjs` 14/14（帳單 API 呼叫 0，含負數量顯示與修正）、`friend-recognition.cjs` 13/13（外部寫入 0）、`text-import.cjs`、`recognition-retry-ui.cjs`（同名不同規格／歧義案例、8 次 mock OCR）、`cross-currency-ui.cjs`、`friend-whatsapp-details.cjs`、`settings-free-models.cjs`、`tutorial-ui.cjs` 19 項、`tutorial-safety.cjs`、`card-redaction-ui.cjs` 均通過。
 - [x] 升級 R127 後再次通過設定 UI 測試；所有 JavaScript 檔 `node --check` 與 `git diff --check` 通過。
-- [ ] 推送前確認 main 無新增遠端提交；部署後檢查 GitHub Pages workflow、公開 R127 靜態資源及安全的 live smoke。
+- [x] 推送前確認遠端 `main` 與本機一致；Commit [`10beb68`](https://github.com/cw91020251212/bill-splitter-ai/commit/10beb6897562309adeebab6b3a9ced07e57ced67) 已推送。Pages workflow [42833333248](https://github.com/cw91020251212/bill-splitter-ai/actions/runs/42833333248) 成功；公開首頁、PWA、Service Worker、樣式、教程及詳細結果頁全部 HTTP 200，R127 token 正確；公開朋友認帳 live smoke 13/13 通過，所有業務 API 使用本機 mock，外部寫入 0。
