@@ -170,3 +170,6 @@ R119 漏人指引：`friend-recognition.cjs` 驗證結果卡預設收起、向�
 
 ## R123 審計修正
 `calculation-regressions.cjs`（本機限定）驗證：實物數量差額由墊支人承擔時，平均稅費也按墊支人及認帳人分攤；明確 `total: 0` 保持零、缺少 `total` 才以單價×數量回算；負稅費阻止產生結果並將焦點移回稅費欄。`text-import.cjs` 驗證具名刪除確認、預設聚焦「保留」、Escape／取消不刪及明確確認才刪。`tutorial-ui.cjs` 在 390px 繁中／英文畫面核對垃圾桶按鈕 accessible name 及 44×44px。API 使用本機 mock，對外寫入 0。
+
+## R124：文案與附件狀態
+`friend-recognition.cjs` 核對上方按鈕為「前往結算區」，底部實際轉步驟按鈕仍為「下一步」；並驗證分享文案、無附件時只分享連結，以及選取附件後顯示數量。`tutorial-ui.cjs` 核對金額提示 14px、稅費／折扣標籤與輸入框關聯、`inputmode="decimal"`。保持原有 A−／A／A+、配色和白色 44px 分享／加圖按鈕；另檢查 320px 和 390px 畫面。

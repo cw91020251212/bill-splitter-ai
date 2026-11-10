@@ -224,7 +224,15 @@ async function hostFixture() {
   assert.equal(await host.getByTestId('claim-expiry-days').inputValue(), '14', 'new activities default claim links to 14 days');
   await host.getByTestId('claim-activity-name').fill('QA識別碼驗收');
   const nextSettings = host.getByTestId('activity-settings-next');
-  assert.equal(await nextSettings.innerText(), '下一步', 'activity settings button is labeled next step');
+  assert.equal(await nextSettings.innerText(), '前往結算區', 'activity settings button clearly says it only scrolls to settlement');
+  await host.getByTestId('header-action-menu-toggle').click();
+  await host.getByTestId('header-language-toggle').click();
+  await host.waitForFunction(() => document.querySelector('[data-testid="activity-settings-next"]')?.textContent.includes('Go to settlement'));
+  assert.equal((await nextSettings.innerText()).trim(), 'Go to settlement');
+  assert.equal((await host.getByTestId('go-to-payer').innerText()).trim().startsWith('Next'), true, 'the actual stage-changing action remains Next');
+  await host.getByTestId('header-language-toggle').click();
+  await host.waitForFunction(() => document.querySelector('[data-testid="activity-settings-next"]')?.textContent.includes('前往結算區'));
+  await host.getByTestId('header-action-menu-toggle').click();
   await nextSettings.scrollIntoViewIfNeeded();
   await host.evaluate(() => {
     window.__stepNextScrollFrames = [];
@@ -289,10 +297,40 @@ async function hostFixture() {
   assert.equal(await host.getByTestId('claim-replies').count(), 1, 'reply field is available once on Step 2');
   await host.getByTestId('claim-activity-name').fill('QA識別碼驗收'); await host.getByTestId('claim-expiry-days').selectOption('1'); const before = harness.requests.length;
   assert.equal((await host.getByTestId('copy-friend-claim-link').innerText()).trim(), '複製連結給朋友');
-  assert.equal((await host.getByTestId('open-claim-share-button').innerText()).trim(), '分享連結及附件給朋友');
+  assert.equal((await host.getByTestId('open-claim-share-button').innerText()).trim(), '分享認帳連結（可加附件）');
   await host.getByTestId('copy-friend-claim-link').click(); await host.waitForFunction(() => Boolean(document.querySelector('[data-testid="claim-link-actions"]')?.dataset.claimLink));
   const link = await host.getByTestId('claim-link-actions').evaluate(n => n.dataset.claimLink), c = remember(harness.requests.slice(before).find(r => r.path === '/api/shares/sessions' && r.status === 201)?.output);
-  assert(c, 'actual host creates real session'); assert.equal(c.claimSecurity, 'password'); assert.equal(new URL(link).searchParams.get('session'), c.id); secretFree(link); return { host, c, link };
+  assert(c, 'actual host creates real session'); assert.equal(c.claimSecurity, 'password'); assert.equal(new URL(link).searchParams.get('session'), c.id); secretFree(link);
+  await host.getByTestId('open-claim-share-button').click();
+  const shareDialog = host.locator('dialog[aria-labelledby="claim-share-title"]');
+  await shareDialog.waitFor({ state: 'visible' });
+  assert.equal((await host.locator('#claim-share-title').innerText()).trim(), '分享認帳連結（附件可選）');
+  assert.equal((await host.getByTestId('claim-attachments-empty-state').innerText()).trim(), '未選附件，只會分享認帳連結。');
+  await host.locator('#claim-share-files').setInputFiles({ name: 'qa-note.txt', mimeType: 'text/plain', buffer: Buffer.from('Attachment UI test only') });
+  await host.getByTestId('claim-attachments-count').waitFor({ state: 'visible' });
+  assert.match(await host.getByTestId('claim-attachments-count').innerText(), /已選\s*1\s*個附件/);
+  assert.equal(await host.getByTestId('claim-attachments-empty-state').count(), 0, 'selected attachments replace the link-only empty state');
+  await host.getByTestId('clear-claim-attachments').click();
+  await host.getByTestId('claim-attachments-empty-state').waitFor({ state: 'visible' });
+  await host.getByTestId('close-claim-share-dialog').click();
+  await host.getByTestId('header-action-menu-toggle').click();
+  await host.getByTestId('header-language-toggle').click();
+  await host.waitForFunction(() => document.querySelector('[data-testid="open-claim-share-button"]')?.textContent.includes('Share claim link'));
+  assert.equal((await host.getByTestId('open-claim-share-button').innerText()).trim(), 'Share claim link (attachments optional)');
+  await host.getByTestId('open-claim-share-button').click();
+  await shareDialog.waitFor({ state: 'visible' });
+  assert.equal((await host.locator('#claim-share-title').innerText()).trim(), 'Share claim link (attachments optional)');
+  assert.equal((await host.getByTestId('claim-attachments-empty-state').innerText()).trim(), 'No attachments selected; only the claim link will be shared.');
+  await host.getByTestId('close-claim-share-dialog').click();
+  const languageToggle = host.getByTestId('header-language-toggle');
+  if (!(await languageToggle.isVisible())) {
+    await host.getByTestId('header-action-menu-toggle').click();
+    await languageToggle.waitFor({ state: 'visible' });
+  }
+  await languageToggle.click();
+  await host.waitForFunction(() => document.querySelector('[data-testid="open-claim-share-button"]')?.textContent.includes('分享認帳連結'));
+  if (await languageToggle.isVisible()) await host.getByTestId('header-action-menu-toggle').click();
+  return { host, c, link };
 }
 async function hostSettle(fixture, qty, initial = false, names = [A, B], claimsAlreadyReceived = false) {
   const { host, c, link } = fixture;

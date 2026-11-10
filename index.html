@@ -85,11 +85,11 @@
   ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
   ::-webkit-scrollbar-thumb:hover { background: #64748b; }
   </style>
-  <link rel="stylesheet" href="./theme.css?v=v123-issue-audit-fixes-20261110">
+  <link rel="stylesheet" href="./theme.css?v=v124-ui-clarity-20261110">
   <link rel="stylesheet" href="./tutorial.css?v=v86-free-models-only">
   <!-- R114: current interactive guide; original video lessons retained. -->
-  <meta name="bill-app-release" content="v123-issue-audit-fixes-20261110">
-  <script defer src="./pwa.js?v=v123-issue-audit-fixes-20261110"></script>
+  <meta name="bill-app-release" content="v124-ui-clarity-20261110">
+  <script defer src="./pwa.js?v=v124-ui-clarity-20261110"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
@@ -104,7 +104,7 @@
   <script src="./card-redaction.js?v=v97-card-number-redaction"></script>
   <script src="./card-share-review.js?v=v97-card-number-redaction"></script>
   <script src="./exchange-rates.js?v=v90-cross-currency-settlement"></script>
-    <script src="./tutorial.js?v=v123-issue-audit-fixes-20261110"></script>
+    <script src="./tutorial.js?v=v124-ui-clarity-20261110"></script>
   <script type="text/babel">
     const { useState, useRef, useEffect, useLayoutEffect, useMemo } = React;
     const tr = value => window.BillI18n.t(value);
@@ -179,8 +179,8 @@
       <div className={`app-card bg-white rounded-2xl shadow-card border border-slate-400 p-5 md:p-6 ${className}`} {...rest}>{children}</div>
     );
 
-    const Label = ({ children, required, className = '' }) => (
-      <label className={`font-bold text-slate-800 block mb-1.5 ${className}`}>
+    const Label = ({ children, required, className = '', htmlFor }) => (
+      <label htmlFor={htmlFor} className={`font-bold text-slate-800 block mb-1.5 ${className}`}>
         {children}
         {required && <span className="ml-2 inline-block px-2 py-0.5 rounded bg-red-50 text-red-700 text-xs tracking-wide border border-red-500">{tr("必填")}</span>}
       </label>
@@ -1024,6 +1024,11 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
       const verifyModeRef = useRef(false);
       const displayItemName = item => uiLang === 'en' && (item?.nameEn || item?.nameEnEdited) ? item.nameEn : item?.name || '';
       const [taxAmount, setTaxAmount] = useState(tutorialDemo ? '12' : '');
+      const taxAmountInputId = `bill-tax-${React.useId().replace(/:/g, '')}`;
+      const taxAmountHintId = `${taxAmountInputId}-hint`;
+      const taxAmountErrorId = `${taxAmountInputId}-error`;
+      const discountAmountInputId = `bill-discount-${React.useId().replace(/:/g, '')}`;
+      const discountAmountHintId = `${discountAmountInputId}-hint`;
       const [taxInputError, setTaxInputError] = useState(false);
       const [discountAmount, setDiscountAmount] = useState('');
       const [taxNote, setTaxNote] = useState('');
@@ -2455,7 +2460,7 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
         const storageKey = 'billSplitterDetailTablePreviewV1';
         try {
           localStorage.setItem(storageKey, JSON.stringify(previewData));
-          const previewWindow = window.open('./detailed-view.html?v=v123-issue-audit-fixes-20261110', '_blank');
+          const previewWindow = window.open('./detailed-view.html?v=v124-ui-clarity-20261110', '_blank');
           if (!previewWindow) {
             localStorage.removeItem(storageKey);
             toast(bi('允許彈窗', 'Allow pop-ups'), 'error');
@@ -3546,7 +3551,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
         const metadata = getClaimLinkMetadata();
         const link = new URL('./claim.html', window.location.href);
         link.searchParams.set('lang', lang === 'en' ? 'en' : 'zh-HK');
-        link.searchParams.set('v', 'v123-issue-audit-fixes-20261110');
+        link.searchParams.set('v', 'v124-ui-clarity-20261110');
         link.searchParams.set('session', session.id);
         link.hash = window.ClaimRelay
           ? window.ClaimRelay.buildHash(encodeClaimLinkPayload(payload), room, metadata)
@@ -4635,7 +4640,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                   </div>
                   {claimSession?.link && <p className="text-xs font-semibold text-emerald-800">{bi('連結已建立；名稱和期限不能改。', 'Link created; name and expiry cannot be changed.')}</p>}
                   {items.length > 0 && <div className="flex justify-end pt-1">
-                    <Button data-testid="activity-settings-next" variant="primary" className="!w-auto min-w-24 text-sm" onClick={scrollToStep2Next}>{bi('下一步', 'Next')}</Button>
+                    <Button data-testid="activity-settings-next" variant="primary" className="!w-auto min-w-24 text-sm" onClick={scrollToStep2Next}>{bi('前往結算區', 'Go to settlement')}</Button>
                   </div>}
                 </Card>
 
@@ -4673,7 +4678,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                             <p className="text-base font-semibold text-slate-800">{item.id} {displayItemName(item)}</p>
                             {(item.original || item.ja) && <div className="mt-1 text-xs font-normal text-slate-500 italic truncate" title={item.original || item.ja}>{tr("原文：")}{item.original || item.ja}</div>}
                             <p className="mt-1 text-base font-semibold text-slate-800">{formatMoney(itemAmount(item), detectedCurrency)}{qtyLabel ? ` · ${qtyLabel}` : ''}</p>
-                            {item.receiptDiscountAmount > 0 && <p className="mt-1 text-xs font-medium text-emerald-800">{bi(`已自動扣除單品折扣 ${formatMoney(item.receiptDiscountAmount, detectedCurrency)}`, `Item discount applied: ${formatMoney(item.receiptDiscountAmount, detectedCurrency)}`)}</p>}
+                            {item.receiptDiscountAmount > 0 && <p className="mt-1 text-sm font-medium text-emerald-800">{bi(`已自動扣除單品折扣 ${formatMoney(item.receiptDiscountAmount, detectedCurrency)}`, `Item discount applied: ${formatMoney(item.receiptDiscountAmount, detectedCurrency)}`)}</p>}
                           </div>
                           <button type="button" data-testid="edit-item" onClick={() => openItemEdit(idx)} className="shrink-0 min-h-[40px] px-3.5 py-1.5 rounded-lg border border-slate-400 bg-white text-sm font-bold text-slate-800">{tr("改")}</button>
                         </div>
@@ -4730,27 +4735,27 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                   <div className="grid gap-4">
                     <div data-tutorial-target="fee" className="flex justify-between items-center gap-4">
                       <div className="flex-1">
-                        <Label className="!mb-0.5">{bi('稅費／服務費', 'Tax / service fee')}</Label>
-                        <p className="text-xs text-slate-500 font-medium">{bi('填金額，非百分比。', 'Enter an amount, not a percentage.')}</p>
+                        <Label htmlFor={taxAmountInputId} className="!mb-0.5">{bi('稅費／服務費', 'Tax / service fee')}</Label>
+                        <p id={taxAmountHintId} data-testid="tax-amount-hint" className="text-sm text-slate-600 font-medium">{bi('填金額，非百分比。', 'Enter an amount, not a percentage.')}</p>
                       </div>
                       <div className="field-round flex items-center w-36 shrink-0 overflow-hidden shadow-sm">
                         <span className="pl-3 pr-1 text-slate-600 font-bold border-r border-slate-500 py-2">{getCurrencySymbol(detectedCurrency)}</span>
-                        <input type="number" min="0" step={Math.pow(10, -ReceiptMath.currencyDecimals(detectedCurrency))} placeholder="0" value={taxAmount} data-testid="tax-amount" aria-invalid={taxInputError ? 'true' : undefined} aria-describedby={taxInputError ? 'tax-input-error' : undefined} ref={el => fieldRefs.current['tax-amount'] = el} onChange={(e) => { setTaxAmount(e.target.value); setTaxInputError(false); setStepError(''); setReceiptAdjustmentDetails(null); }} className="w-full text-base font-bold text-slate-800 text-right outline-none shadow-none" />
+                        <input id={taxAmountInputId} type="number" inputMode="decimal" min="0" step={Math.pow(10, -ReceiptMath.currencyDecimals(detectedCurrency))} placeholder="0" value={taxAmount} data-testid="tax-amount" aria-invalid={taxInputError ? 'true' : undefined} aria-describedby={`${taxAmountHintId}${taxInputError ? ` ${taxAmountErrorId}` : ''}`} ref={el => fieldRefs.current['tax-amount'] = el} onChange={(e) => { setTaxAmount(e.target.value); setTaxInputError(false); setStepError(''); setReceiptAdjustmentDetails(null); }} className="w-full text-base font-bold text-slate-800 text-right outline-none shadow-none" />
                       </div>
                     </div>
-                    {taxInputError && <p id="tax-input-error" data-testid="tax-input-error" role="alert" className="-mt-2 text-sm font-semibold text-red-800">{bi('⚠️ 稅費／服務費不可為負數，請輸入 0 或以上。', '⚠️ Tax / service fee cannot be negative. Enter 0 or more.')}</p>}
+                    {taxInputError && <p id={taxAmountErrorId} data-testid="tax-input-error" role="alert" className="-mt-2 text-sm font-semibold text-red-800">{bi('⚠️ 稅費／服務費不可為負數，請輸入 0 或以上。', '⚠️ Tax / service fee cannot be negative. Enter 0 or more.')}</p>}
                     <div className="flex justify-between items-center gap-4 border-t border-slate-300 pt-3">
                       <div className="flex-1">
-                        <Label className="!mb-0.5">{bi('整單折扣', 'Bill-wide discount')}</Label>
-                        <p className="text-xs text-slate-500 font-medium">{bi('整單按消費比例分攤；單項已計入。', 'Bill-wide discount is split by spending; item discounts are included.')}</p>
+                        <Label htmlFor={discountAmountInputId} className="!mb-0.5">{bi('整單折扣', 'Bill-wide discount')}</Label>
+                        <p id={discountAmountHintId} data-testid="discount-amount-hint" className="text-sm text-slate-600 font-medium">{bi('整單按消費比例分攤；單項已計入。', 'Bill-wide discount is split by spending; item discounts are included.')}</p>
                       </div>
                       <div className="field-round flex items-center w-36 shrink-0 overflow-hidden shadow-sm">
                         <span className="pl-3 pr-1 text-slate-600 font-bold border-r border-slate-500 py-2">{getCurrencySymbol(detectedCurrency)}</span>
-                        <input type="number" min="0" step={Math.pow(10, -ReceiptMath.currencyDecimals(detectedCurrency))} placeholder="0" value={discountAmount} data-testid="discount-amount" ref={el => fieldRefs.current['discount-amount'] = el} onChange={(e) => { setDiscountAmount(e.target.value); setReceiptAdjustmentDetails(null); }} className="w-full text-base font-bold text-slate-800 text-right outline-none shadow-none" />
+                        <input id={discountAmountInputId} type="number" inputMode="decimal" min="0" step={Math.pow(10, -ReceiptMath.currencyDecimals(detectedCurrency))} placeholder="0" value={discountAmount} data-testid="discount-amount" aria-describedby={discountAmountHintId} ref={el => fieldRefs.current['discount-amount'] = el} onChange={(e) => { setDiscountAmount(e.target.value); setReceiptAdjustmentDetails(null); }} className="w-full text-base font-bold text-slate-800 text-right outline-none shadow-none" />
                       </div>
                     </div>
                   </div>
-                  {getReceiptAdjustmentNote() && <div data-testid="receipt-adjustment-note" className="mt-3 whitespace-pre-line rounded-lg border border-amber-500 bg-amber-50 p-3 text-xs leading-relaxed text-amber-950">{getReceiptAdjustmentNote()}</div>}
+                  {getReceiptAdjustmentNote() && <div data-testid="receipt-adjustment-note" className="mt-3 whitespace-pre-line border-l-4 border-amber-700 bg-amber-50 px-3 py-2 text-sm leading-relaxed text-amber-950">{getReceiptAdjustmentNote()}</div>}
                 </Card>
 
                 <div className="border-t border-slate-400 my-6 pt-6 space-y-6">
@@ -4763,15 +4768,16 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                         <Icon path={icons.copy} size={18} className="text-slate-600"/>{tr(" 複製連結給朋友")}</Button>
                       <ChoiceDivider />
                         <Button data-testid="open-claim-share-button" data-tutorial-target="open-claim-share" variant="primary" onClick={openClaimShareDialog} className="!w-full text-sm">
-                        <Icon path={icons.share} size={18}/>{bi('分享連結及附件給朋友', 'Share link and files with friends')}</Button>
+                        <Icon path={icons.share} size={18}/>{bi('分享認帳連結（可加附件）', 'Share claim link (attachments optional)')}</Button>
                     </div>
                     {showClaimShareDialog && (
                     <dialog open={tutorialDemo ? true : undefined} ref={claimShareDialogRef} onCancel={() => setShowClaimShareDialog(false)} aria-labelledby="claim-share-title" className="m-auto max-w-lg rounded-2xl border border-slate-400 bg-white p-4 text-slate-800 shadow-xl overflow-y-auto backdrop:bg-slate-950/60" style={{ width: 'calc(100% - 2rem)', maxHeight: '85dvh' }}>
                       <div className="flex items-center justify-between gap-2 mb-3">
-                        <h2 id="claim-share-title" className="font-bold text-base">{tr("分享認帳連結及附件")}</h2>
-                        <button type="button" aria-label={tr("關閉分享視窗")} onClick={() => setShowClaimShareDialog(false)} className="shrink-0 rounded-lg p-2 hover:bg-slate-100"><Icon path={icons.x} size={20}/></button>
+                        <h2 id="claim-share-title" className="font-bold text-base">{bi('分享認帳連結（附件可選）', 'Share claim link (attachments optional)')}</h2>
+                        <button type="button" data-testid="close-claim-share-dialog" aria-label={tr("關閉分享視窗")} onClick={() => setShowClaimShareDialog(false)} className="shrink-0 rounded-lg p-2 hover:bg-slate-100"><Icon path={icons.x} size={20}/></button>
                       </div>
                       <label htmlFor="claim-share-files" className="block text-sm font-semibold mb-2">{tr("單據圖片／其他附件（可選）")}</label>
+                      {claimAttachments.length === 0 && <p data-testid="claim-attachments-empty-state" role="status" className="mb-3 border-l-4 border-brand-700 bg-brand-50 px-3 py-2 text-sm leading-relaxed text-slate-800">{bi('未選附件，只會分享認帳連結。', 'No attachments selected; only the claim link will be shared.')}</p>}
                       <input
                         id="claim-share-files"
                         type="file"
@@ -4785,8 +4791,8 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                       {claimAttachments.length > 0 && (
                         <div className="mt-3 border-t border-slate-300 pt-3">
                           <div className="flex items-center justify-between gap-2 mb-2">
-                            <p className="text-xs font-bold text-slate-700">{tr("已選 ")}{claimAttachments.length}{tr(" 個附件（")}{(claimAttachments.reduce((sum, file) => sum + file.size, 0) / (1024 * 1024)).toFixed(1)} MB）</p>
-                            <button type="button" onClick={() => { setClaimAttachments([]); if (claimAttachmentInputRef.current) claimAttachmentInputRef.current.value = ''; }} className="text-xs font-semibold text-red-700 hover:underline shrink-0">{tr("清除全部")}</button>
+                            <p data-testid="claim-attachments-count" className="text-sm font-bold text-slate-700">{tr("已選 ")}{claimAttachments.length}{tr(" 個附件（")}{(claimAttachments.reduce((sum, file) => sum + file.size, 0) / (1024 * 1024)).toFixed(1)} MB）</p>
+                            <button type="button" data-testid="clear-claim-attachments" onClick={() => { setClaimAttachments([]); if (claimAttachmentInputRef.current) claimAttachmentInputRef.current.value = ''; }} className="text-xs font-semibold text-red-700 hover:underline shrink-0">{tr("清除全部")}</button>
                           </div>
                           <ul className="space-y-1.5">
                             {claimAttachments.map((file, index) => (

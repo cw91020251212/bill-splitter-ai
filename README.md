@@ -340,3 +340,12 @@ MIT — 見 `LICENSE`。
 第二步「活動名稱／連結有效期」卡右下角新增「確定」按鈕；按下會平滑捲動至「分享認帳連結及附件」，不會建立連結或鎖定名稱，分享前仍可返回修改。主程式按鈕提示字移除投影，黑色文字維持無文字陰影。主程式 `R113`，PWA 快取 `v113-activity-confirm-scroll`。
 
 ## v112：網頁版結果分享設為首選
+## R124：文案、附件状态和金额输入清晰度
+
+上方按钮只负责滚到结算区，故改名「前往結算區」；真正进入下一阶段的底部按钮仍为「下一步」。分享文案明确认帐连结是主项、附件可选；未选附件时明示只分享连结，选取后显示数量。税费／折扣使用正式关联标签和小数输入模式；金额提示调至 14px，单据调整说明改用轻量强调条。保留原配色、白色 44px 分享／加图按钮，以及 A−／A／A+ 设置。PWA cache epoch：`v124-ui-clarity-20261110`。
+
+## R124: Clearer copy, attachment state and amount inputs
+
+The upper button only scrolls to settlement, so it now says “Go to settlement”; the bottom action that actually advances remains “Next.” Sharing copy makes the claim link primary and attachments optional. The dialog says when only the link will be shared and shows the attachment count after selection. Tax/discount controls gain associated labels and decimal input mode; amount guidance is 14px, and the receipt-adjustment note uses a lighter accent strip. Existing colors, white 44px share/photo buttons, and A−/A/A+ controls remain. PWA cache epoch: `v124-ui-clarity-20261110`.
+
+## R123：分帳計算與刪除確認修正
