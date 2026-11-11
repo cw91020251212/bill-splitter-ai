@@ -597,12 +597,7 @@ body.bg-slate-50 { background: var(--page-grey); color: var(--ink); }
   justify-content: space-between;
   gap: 0;
 }
-#root main [data-testid="external-ai-provider-examples"] {
-  min-width: 0;
-  overflow: hidden;
-  text-align: right;
-  text-overflow: ellipsis;
-}
+#root main [data-testid="external-ai-provider-examples"] { text-align: right; }
 @media (max-width: 359px) {
   #root main [data-testid="receipt-text-import-title"] { font-size: calc(15px * var(--app-font-scale, 1)); }
   #root main [data-testid="external-ai-provider-examples"] { font-size: calc(10.5px * var(--app-font-scale, 1)); }
