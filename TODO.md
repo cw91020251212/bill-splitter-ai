@@ -342,4 +342,4 @@
 - [x] 未設定 Key 時，在第一步清楚顯示相片及一般文字辨識需要 Key、JSON／手動輸入可免 Key；提供直接打開申請教學的入口，辨識設定保持收起，且不遮住其他輸入方式。
 - [x] 在 320×844、390×844、320×700 和大字體下，步驟名稱不換行、沒有橫向溢位，觸控區至少 44×44px；相機／選圖仍在首屏靠前，文字／手動入口仍清晰可見。
 - [x] 驗收：`mobile-layout.cjs` 通過三種手機尺寸、大字體及桌面幾何；`tutorial-ui.cjs` 19/19、`friend-navigation.cjs`、`settings-free-models.cjs`、`friend-whatsapp-details.cjs`、`friend-recognition.cjs` 16/16，Worker/DO 36/36，所有改動檔語法與 `git diff --check` 通過。
-- [ ] Cache epoch `v130-mobile-onboarding-20261111`、可見版號 R130；本機驗收完成後推送 GitHub Pages 並驗證公開網址。
+- [x] Cache epoch `v130-mobile-onboarding-20261111`、可見版號 R130；已推送 main（`d48910f`），Pages workflow `42943712688` 成功。公開首頁、PWA、Service Worker 與 CSS 均為 R130；公開 390px 手機實測四階段、Key 教學直達、相機 y=204px 且無橫向溢位。
