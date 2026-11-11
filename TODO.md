@@ -375,3 +375,9 @@
 - [x] 手機 320px／390px、短畫面及桌面回歸，提示完整、按鈕同列、沒有橫向溢位且空白圖片區不超過 180px。320px 測得卡片 131px、按鈕各 72px（文字自然換行，沒有縮字）。
 - [x] 驗收：`mobile-layout.cjs`、`settings-free-models.cjs`、`paddle-local-ocr-ui.cjs`、`text-import.cjs`、`card-redaction-ui.cjs`、`recognition-retry-ui.cjs` 均通過；桌面圖示與提示保留，照片遮蓋、批次重試及失敗保留舊結果通過；JavaScript syntax 及 `git diff --check` 通過。
 - [x] 推送 R135（`b51c99a`）；Pages workflow `42984921789` 成功。公開手機頁 320px 高 131px、390px 高 115px；兩尺寸皆為同列 52px 以上按鈕，桌面原圖示與分隔保留，零水平溢位及頁面錯誤。
+
+## R136：首頁圖片和 AI 文案精簡
+- [x] 圖片選擇提示標明「收據／帳單圖片」，並保留最多 5 張的限制；桌面原圖示和説明不變。
+- [x] 在「搵其他 AI 幫手翻譯」標題右側平排小字 Gemini、豆包及省略號；不表示為程式內置或保證可用的模型。
+- [x] 把第一步長說明改為小字單行「以下三種方法處理單據：」，手機 320px／390px 不換行或橫向溢出；翻譯功能、圖片辨識和三個輸入入口正常。
+- [x] 驗收：`mobile-layout.cjs` 於 320×844、390×844、320×700、1280×900 通過；AI 範例與標題同列且省略號收尾（320px 字級 13.5／10px、390px 15／11px），不橫向溢出。`text-import.cjs` 與 `settings-free-models.cjs` 通過，JavaScript syntax 及 `git diff --check` 通過。

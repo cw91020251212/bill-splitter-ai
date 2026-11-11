@@ -86,6 +86,7 @@ const ensureAIImportOpen = async page => {
     const zhImportHeading = await noKeyPage.getByTestId('toggle-receipt-text-import').innerText();
     assert.match(zhImportHeading, /搵其他 AI 幫手翻譯/);
     assert.match(zhImportHeading, /提示詞＋賬單＝專用翻譯檔（\.json）/);
+    assert.match(await noKeyPage.getByTestId('external-ai-provider-examples').innerText(), /Gemini.*豆包…$/);
     assert.equal(await noKeyPage.getByTestId('receipt-text-import').evaluate(node => node.previousElementSibling?.getAttribute('data-testid') === 'choice-divider'), true, 'the receipt OCR and external AI import paths are separated by “or”');
     await noKeyPage.getByTestId('start-manual').click();
     await noKeyPage.getByTestId('item-name').first().fill('測試項目');
@@ -131,7 +132,7 @@ const ensureAIImportOpen = async page => {
     await noKeyPage.getByTestId('toggle-receipt-text-import').waitFor({ state: 'visible', timeout: 30000 });
     await ensureAIImportOpen(noKeyPage);
     const enImportHelp = await noKeyPage.getByTestId('receipt-text-import').innerText();
-    assert.match(enImportHelp, /Ask another AI to translate/);
+    assert.match(enImportHelp, /AI translation/);
     assert.match(enImportHelp, /Prompt \+ bill = ready-to-import \.json file/);
     await noKeyPage.getByTestId('copy-receipt-json-prompt').click();
     const copiedEnglishPrompt = await noKeyPage.evaluate(() => window.__copiedPrompt || '');

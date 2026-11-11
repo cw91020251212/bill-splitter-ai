@@ -65,7 +65,7 @@ async function assertOriginalFirstStep(page, width, height) {
   assert.equal(await progress.isVisible(), true, `${label}: progress bar is visible above the step buttons`);
   assert.equal(await progress.getAttribute('aria-valuenow'), '1', `${label}: progress bar reports Step 1`);
   assert.equal(await progress.getAttribute('aria-valuemax'), '4', `${label}: progress bar reports four total stages`);
-  assert.equal(await page.getByTestId('app-version-label').innerText(), 'R135', `${label}: R135 is loaded`);
+  assert.equal(await page.getByTestId('app-version-label').innerText(), 'R136', `${label}: R136 is loaded`);
 
   const keyCard = page.locator('.api-settings-card');
   assert.equal(await keyCard.isVisible(), true, `${label}: original Key status/action card is visible`);
@@ -91,6 +91,7 @@ async function assertOriginalFirstStep(page, width, height) {
   assert(uploadLayout.cameraHeight >= 48 && uploadLayout.uploadHeight >= 48 && uploadLayout.rowDelta <= 2, `${label}: camera and image controls stay side by side with accessible targets (${JSON.stringify(uploadLayout)})`);
   if (width < 640) {
     assert.match(await page.getByTestId('receipt-upload-prompt').innerText(), /最多選 5 張圖片/, `${label}: compact prompt states the five-image limit`);
+    assert.match(await page.getByTestId('receipt-upload-prompt').innerText(), /收據／帳單圖片/, `${label}: compact prompt identifies receipt and bill images`);
     assert.equal(await page.locator('.upload-dropzone-compact .w-20.h-20').isVisible().catch(() => false), false, `${label}: the large decorative receipt circle is hidden on mobile`);
     assert.equal(await page.getByTestId('receipt-image-choice-or').innerText(), '或', `${label}: the two image actions remain clear alternatives`);
     assert(uploadLayout.zoneHeight <= 180, `${label}: empty receipt picker stays compact (${JSON.stringify(uploadLayout)})`);
@@ -99,11 +100,27 @@ async function assertOriginalFirstStep(page, width, height) {
     assert.match(await page.locator('.upload-dropzone-compact').innerText(), /選擇單據圖片/, `${label}: desktop retains the original prompt`);
   }
   assert.equal(await page.getByTestId('start-manual').isVisible(), true, `${label}: manual-entry action remains`);
+  const methodsIntro = page.getByTestId('step-one-methods-intro');
+  assert.equal((await methodsIntro.innerText()).trim(), '以下三種方法處理單據：', `${label}: the Step 1 instructions are concise`);
+  const introMetrics = await methodsIntro.evaluate(node => ({ height: node.getBoundingClientRect().height, fontSize: parseFloat(getComputedStyle(node).fontSize), width: node.clientWidth, scrollWidth: node.scrollWidth }));
+  assert(introMetrics.height <= introMetrics.fontSize * 1.6 && introMetrics.fontSize >= 14 && introMetrics.scrollWidth <= introMetrics.width, `${label}: the methods prompt fits on one readable line (${JSON.stringify(introMetrics)})`);
   const aiHeading = page.getByTestId('toggle-receipt-text-import');
   assert.equal(await aiHeading.isVisible(), true, `${label}: other-AI translation option is discoverable`);
   assert.equal(await aiHeading.getAttribute('aria-expanded'), 'true', `${label}: first-time AI translation guide is open`);
   assert.match(await aiHeading.innerText(), /搵其他 AI 幫手翻譯/);
   assert.match(await aiHeading.innerText(), /提示詞＋賬單＝專用翻譯檔（\.json）/);
+  const inlineAIExamples = await page.evaluate(() => {
+    const title = document.querySelector('[data-testid="receipt-text-import-title"]');
+    const examples = document.querySelector('[data-testid="external-ai-provider-examples"]');
+    const row = document.querySelector('[data-testid="receipt-text-import-title-row"]');
+    const titleRect = title.getBoundingClientRect();
+    const examplesRect = examples.getBoundingClientRect();
+    const rowRect = row.getBoundingClientRect();
+    return { text: examples.innerText, titleTop: titleRect.top, examplesTop: examplesRect.top, titleRight: titleRect.right, examplesLeft: examplesRect.left, examplesRight: examplesRect.right, rowRight: rowRect.right, titleFont: parseFloat(getComputedStyle(title).fontSize), examplesFont: parseFloat(getComputedStyle(examples).fontSize), rowHeight: rowRect.height };
+  });
+  assert.match(inlineAIExamples.text, /Gemini.*豆包…$/, `${label}: AI provider examples end in an ellipsis`);
+  assert(Math.abs(inlineAIExamples.titleTop - inlineAIExamples.examplesTop) <= 6 && inlineAIExamples.examplesLeft >= inlineAIExamples.titleRight - 1, `${label}: small provider examples sit beside the title on the right (${JSON.stringify(inlineAIExamples)})`);
+  assert(inlineAIExamples.examplesRight <= inlineAIExamples.rowRight + 1 && inlineAIExamples.examplesFont < inlineAIExamples.titleFont && inlineAIExamples.rowHeight <= 24, `${label}: the right-side examples fit in one compact row (${JSON.stringify(inlineAIExamples)})`);
   assert.equal(await page.getByTestId('external-ai-steps').isVisible(), true, `${label}: AI translation steps are visible`);
   assert((await aiHeading.boundingBox()).height >= 44, `${label}: AI guide toggle is at least 44px high`);
   await assertNoOverflow(page, width, `${label} first step`);

@@ -85,11 +85,11 @@
   ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
   ::-webkit-scrollbar-thumb:hover { background: #64748b; }
   </style>
-  <link rel="stylesheet" href="./theme.css?v=v135-compact-receipt-upload-20261111">
+  <link rel="stylesheet" href="./theme.css?v=v136-concise-step1-copy-20261111">
   <link rel="stylesheet" href="./tutorial.css?v=v86-free-models-only">
-  <!-- R135: compact receipt-image selection panel for mobile. -->
-  <meta name="bill-app-release" content="v135-compact-receipt-upload-20261111">
-  <script defer src="./pwa.js?v=v135-compact-receipt-upload-20261111"></script>
+  <!-- R136: clarify receipt imagery, AI examples, and three Step 1 methods. -->
+  <meta name="bill-app-release" content="v136-concise-step1-copy-20261111">
+  <script defer src="./pwa.js?v=v136-concise-step1-copy-20261111"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
@@ -104,7 +104,7 @@
   <script src="./card-redaction.js?v=v97-card-number-redaction"></script>
   <script src="./card-share-review.js?v=v97-card-number-redaction"></script>
   <script src="./exchange-rates.js?v=v90-cross-currency-settlement"></script>
-    <script src="./tutorial.js?v=v135-compact-receipt-upload-20261111"></script>
+    <script src="./tutorial.js?v=v136-concise-step1-copy-20261111"></script>
   <script type="text/babel">
     const { useState, useRef, useEffect, useLayoutEffect, useMemo } = React;
     const tr = value => window.BillI18n.t(value);
@@ -2586,7 +2586,7 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
         const storageKey = 'billSplitterDetailTablePreviewV1';
         try {
           localStorage.setItem(storageKey, JSON.stringify(previewData));
-          const previewWindow = window.open('./detailed-view.html?v=v135-compact-receipt-upload-20261111', '_blank');
+          const previewWindow = window.open('./detailed-view.html?v=v136-concise-step1-copy-20261111', '_blank');
           if (!previewWindow) {
             localStorage.removeItem(storageKey);
             toast(bi('允許彈窗', 'Allow pop-ups'), 'error');
@@ -3836,7 +3836,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
         const metadata = getClaimLinkMetadata();
         const link = new URL('./claim.html', window.location.href);
         link.searchParams.set('lang', lang === 'en' ? 'en' : 'zh-HK');
-        link.searchParams.set('v', 'v135-compact-receipt-upload-20261111');
+        link.searchParams.set('v', 'v136-concise-step1-copy-20261111');
         link.searchParams.set('session', session.id);
         link.hash = window.ClaimRelay
           ? window.ClaimRelay.buildHash(encodeClaimLinkPayload(payload), room, metadata)
@@ -4598,7 +4598,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                 <div className="flex items-center gap-2 sm:gap-3 shrink-0">
                   <img src="./icons/icon.svg" alt="" width="48" height="48" className="app-brand-icon shrink-0" />
                   <div>
-                  <h1 className="text-xl font-extrabold text-slate-800 tracking-tight"><span className="app-brand-name block sm:inline whitespace-nowrap">{tr("分帳管家")}</span><span className="inline-flex items-baseline gap-1 sm:ml-1 whitespace-nowrap"><span data-testid="app-pro-label" className="text-brand-600 font-black">Pro</span><span data-testid="app-version-label" className="text-[10px] leading-3 font-semibold tracking-normal text-brand-700">R135</span></span></h1>
+                  <h1 className="text-xl font-extrabold text-slate-800 tracking-tight"><span className="app-brand-name block sm:inline whitespace-nowrap">{tr("分帳管家")}</span><span className="inline-flex items-baseline gap-1 sm:ml-1 whitespace-nowrap"><span data-testid="app-pro-label" className="text-brand-600 font-black">Pro</span><span data-testid="app-version-label" className="text-[10px] leading-3 font-semibold tracking-normal text-brand-700">R136</span></span></h1>
                   </div>
               </div>
               <div className="header-actions relative flex items-center gap-1.5 sm:gap-2">
@@ -4783,7 +4783,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                   <span className="w-8 h-8 rounded-full bg-brand-100 border border-brand-500 text-brand-700 flex items-center justify-center font-bold">1</span>
                   <h2 className="text-2xl font-bold text-slate-800 tracking-tight">{tr("上載並分析單據")}</h2>
                 </div>
-                <p className="text-base text-slate-700 leading-relaxed">{bi('可以影相讀單；如已由其他 AI 翻譯，也可在下方貼上文字或上載文字檔。', 'Scan a receipt, or paste/upload text already translated by another AI.')}</p>
+                <p data-testid="step-one-methods-intro" className="text-sm text-slate-700 leading-5 whitespace-nowrap">{bi('以下三種方法處理單據：', 'Three ways to handle a bill:')}</p>
 
                 <Card className="api-settings-card bg-gradient-to-br from-brand-50 to-white border-brand-500">
                   <div className="flex items-stretch gap-2">
@@ -4875,11 +4875,11 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                     <div className="flex flex-col items-center w-full">
                       <div data-testid="receipt-upload-prompt" className="flex w-full items-center justify-center gap-2 sm:hidden">
                         {uploadError && <Icon path={icons.alert} size={18} className="shrink-0 text-amber-700"/>}
-                        <h3 className="m-0 text-base font-bold text-slate-800">{uploadError ? tr("讀取失敗") : lastImageData.length ? bi('已保留上次單據圖片', 'Previous receipt image is ready') : bi('最多選 5 張圖片', 'Up to 5 images')}</h3>
+                        <h3 className="m-0 text-base font-bold text-slate-800">{uploadError ? tr("讀取失敗") : lastImageData.length ? bi('已保留上次單據圖片', 'Previous receipt image is ready') : bi('收據／帳單圖片；最多選 5 張圖片', 'Receipt / bill images (up to 5)')}</h3>
                       </div>
                       <div className="hidden w-full flex-col items-center sm:flex">
                         <div className={`w-20 h-20 ${uploadError ? 'bg-amber-50 text-amber-600 border-amber-300' : 'bg-slate-100 text-slate-500 border-slate-400'} rounded-full flex items-center justify-center mb-4 shadow-sm border`}><Icon path={uploadError ? icons.alert : icons.fileImage} size={36} /></div>
-                        <h3 className="text-lg font-bold text-slate-800">{uploadError ? tr("讀取失敗") : lastImageData.length ? bi('已保留上次單據圖片', 'Previous receipt image is ready') : tr("選擇單據圖片")}</h3>
+                        <h3 className="text-lg font-bold text-slate-800">{uploadError ? tr("讀取失敗") : lastImageData.length ? bi('已保留上次單據圖片', 'Previous receipt image is ready') : bi('選擇單據圖片（收據／帳單）', 'Select receipt / bill images')}</h3>
                         {!uploadError && <p className="text-base font-medium text-slate-600 mt-2">{lastImageData.length ? bi('可重試或拍新單。', 'Retry or take a new receipt.') : bi('最多選 5 張圖片。', 'Up to 5 images.')}</p>}
                       </div>
                       {uploadError ? (
@@ -4927,9 +4927,12 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
 
                 <Card data-testid="receipt-text-import" className="border-slate-400 bg-white">
                   <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
-                    <button type="button" data-testid="toggle-receipt-text-import" aria-controls="receipt-text-import-content" aria-expanded={showReceiptTextImport} onClick={() => { const nextOpen = !showReceiptTextImport; setShowReceiptTextImport(nextOpen); if (!tutorialDemo) writeUiDisclosure('receipt-ai-import-r133', nextOpen); }} className="w-full min-h-[44px] flex items-center justify-between gap-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700">
+                    <button type="button" data-testid="toggle-receipt-text-import" aria-controls="receipt-text-import-content" aria-expanded={showReceiptTextImport} onClick={() => { const nextOpen = !showReceiptTextImport; setShowReceiptTextImport(nextOpen); if (!tutorialDemo) writeUiDisclosure('receipt-ai-import-r133', nextOpen); }} className="w-full min-h-[44px] flex items-center justify-between gap-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700">
                       <span className="min-w-0">
-                        <span className="block text-base font-bold text-slate-800">{bi('搵其他 AI 幫手翻譯', 'Ask another AI to translate')}</span>
+                        <span data-testid="receipt-text-import-title-row" className="flex min-w-0 items-baseline gap-0.5 whitespace-nowrap">
+                          <span data-testid="receipt-text-import-title" className="shrink-0 font-bold text-slate-800" style={{ fontSize: '15px', lineHeight: 1.25 }}>{bi('搵其他 AI 幫手翻譯', 'AI translation')}</span>
+                          <span data-testid="external-ai-provider-examples" aria-label={bi('例：Gemini、豆包及其他', 'Examples: Gemini, Doubao, and more')} className="shrink-0 whitespace-nowrap font-normal leading-tight text-slate-500" style={{ fontSize: '11px' }}>{bi('Gemini、豆包…', 'Gemini, Doubao...')}</span>
+                        </span>
                         <span className="block mt-1 text-sm leading-relaxed text-slate-600">{bi('提示詞＋賬單＝專用翻譯檔（.json）', 'Prompt + bill = ready-to-import .json file')}</span>
                       </span>
                       <span aria-hidden="true" data-testid="receipt-text-import-toggle-icon" data-direction={showReceiptTextImport ? 'up' : 'down'} className="shrink-0"><Icon path={showReceiptTextImport ? icons.chevronUp : icons.chevronDown} size={20} className="text-slate-600"/></span>
