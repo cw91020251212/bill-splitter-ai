@@ -842,7 +842,8 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
       const total = present(rawTotal) ? ReceiptMath.parseMoney(rawTotal, curr) : null;
       if (present(item?.price) && (price === null || price < 0)) return { field: 'price', reason: price === null ? 'invalid' : 'negative' };
       if (present(rawTotal) && (total === null || total < 0)) return { field: 'total', reason: total === null ? 'invalid' : 'negative' };
-      if (!present(rawTotal) && !present(item?.price)) return { field: 'price', reason: 'missing' };
+      if (item?.needsAmountReview === true) return { field: 'total', reason: 'review' };
+      if (!present(rawTotal) && !present(item?.price) && item?.amountUncertain !== true) return { field: 'price', reason: 'missing' };
       for (const field of ['qty', 'totalQty']) {
         if (!present(item?.[field])) continue;
         const value = ReceiptMath.parseMoney(item[field], curr);
@@ -858,6 +859,7 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
     };
     const billItemValidationMessage = (item, problem) => {
       const label = String(item?.name || item?.nameEn || '').trim() || bi('此項目', 'This item');
+      if (problem?.reason === 'review') return bi(`項目「${label}」的行總額未核對；請核對收據並填寫「行總額」後再繼續。`, `The line total for “${label}” has not been checked. Verify the receipt and enter its line total to continue.`);
       const field = problem?.field === 'price' || problem?.field === 'total' ? bi('金額', 'amount') : bi('數量', 'quantity');
       return bi(`項目「${label}」的${field}無效或為負數；請修正後再繼續。`, `The ${field} for “${label}” is invalid or negative. Correct it to continue.`);
     };
@@ -2716,7 +2718,7 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
           setStepError(billItemValidationMessage(items[index], problem));
           if (focusInvalid) {
             setStep(2);
-            const field = problem.field === 'qty' || problem.field === 'totalQty' ? 'qty' : 'price';
+            const field = problem.field === 'qty' || problem.field === 'totalQty' ? 'qty' : problem.field === 'total' ? 'total' : 'price';
             window.setTimeout(() => focusField(`item-${field}-${index}`), 120);
           }
           return false;
@@ -3170,7 +3172,7 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
                 && candidate.items.length <= 100
                 && candidate.items.every(item => item && typeof item === 'object' && !Array.isArray(item)
                   && String(item.name || item.nameEn || item.original || item.item || '').trim()
-                  && (item.price !== undefined || item.total !== undefined || item.amount !== undefined));
+                  && (item.price !== undefined || item.total !== undefined || item.amount !== undefined || item.amountUncertain === true));
               if (validItems) { directJsonPayload = candidate; directJsonImport = true; }
               else if (looksLikeJson) throw new Error(bi('JSON 格式或項目資料無效，請檢查 items、金額及數量。', 'The JSON structure or item data is invalid. Check items, amounts and quantities.'));
             } catch (parseError) {
@@ -3250,6 +3252,7 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
 頂層：adjustments（即使沒有調整也輸出 []）, taxTotal（只供舊格式兼容，正常請用 adjustments；已內含則 0 或 null）, taxNote, currency（ISO 三位，不明用 HKD）, date（YYYY-MM-DD 或 null，唔好用今天）, receiptTotal（收據最終應付總額或 null）。不要把已反映在項目金額／總額的調整再次輸出為 separate。
 
 額外核對規則（仍只輸出指定 JSON）：
+- amountUncertain（選填）：若同一行數字可能代表不同意思（例如數量、單價或商品名稱／規格的一部分），無法確認 price、qty 或 total 時設 true；不要猜 qty，也不要用 price × qty 製造 total。英文同義規則：If the meaning of a number on the same row is ambiguous, set amountUncertain to true; do not guess qty or derive total from price × qty.
 - items 只可有實際商品。商品名換行或單價／數量排在下一行時，合併成同一 item；但每個新的商品名稱若有自己的右欄金額，就是另一項，必須分開，不能與上一項合併。
 - 單價×數量括號行併回該商品：price 填單價、qty 填數量、total 填行總額；括號／續行不可另開 item。
 - 若收據印有「小計 22點」等件數，最後核對商品 qty 合計等於該件數；不要把 22 點當成 22 個不同商品，也不要為湊件數捏造、刪除或合併有獨立價格的商品。
@@ -3470,9 +3473,14 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
             const rawTotal = item.total ?? item.amount;
             const parsedTotal = rawTotal === null || rawTotal === undefined || rawTotal === '' ? null : ReceiptMath.parseMoney(rawTotal, parsedCurrency);
             const parsedQty = item.qty === null || item.qty === undefined || item.qty === '' ? 1 : ReceiptMath.parseMoney(item.qty, parsedCurrency);
+            const amountReviewRequired = item.amountUncertain === true || (parsedQty > 1 && parsedPrice > 0
+              && (parsedTotal === null || !ReceiptMath.moneyEquals(parsedTotal, parsedPrice * parsedQty, parsedCurrency)));
             return {
               id: preservedId || allocateImportedClaimId(), name: names.name || '項目', nameEn: names.nameEn, original: names.original, ja: names.ja,
-              price: parsedPrice, qty: parsedQty, totalQty: item.totalQty === null || item.totalQty === undefined || item.totalQty === '' ? null : ReceiptMath.parseMoney(item.totalQty, parsedCurrency), unit: String(item.unit || '').trim(), total: parsedTotal === null ? parsedPrice * parsedQty : parsedTotal
+              price: parsedPrice, qty: parsedQty, totalQty: item.totalQty === null || item.totalQty === undefined || item.totalQty === '' ? null : ReceiptMath.parseMoney(item.totalQty, parsedCurrency), unit: String(item.unit || '').trim(), total: parsedTotal === null ? parsedPrice * parsedQty : parsedTotal,
+              amountUncertain: item.amountUncertain === true, amountReviewRequired, needsAmountReview: amountReviewRequired,
+              amountPreviewAvailable: parsedTotal !== null || parsedPrice > 0,
+              amountReviewReason: amountReviewRequired ? (item.amountUncertain === true ? 'ai-uncertain' : parsedTotal === null ? 'missing-total' : 'mismatch') : ''
             };
           });
           const resolvedAdjustments = ReceiptMath.resolveReceiptAdjustments({
@@ -3633,6 +3641,10 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
         setReceiptAdjustmentDetails(null);
         const newItems = [...items]; newItems[index] = { ...newItems[index], [field]: value };
         if (field === 'nameEn') newItems[index].nameEnEdited = true;
+        if (field === 'total' && newItems[index].amountReviewRequired === true) {
+          const enteredTotal = value === null || value === '' ? null : ReceiptMath.parseMoney(value, detectedCurrency);
+          newItems[index].needsAmountReview = enteredTotal === null || enteredTotal < 0;
+        }
         if (field === 'totalQty') {
           const rawQty = newItems[index].qty;
           const parsedQty = rawQty === null || rawQty === undefined || String(rawQty).trim() === '' ? null : ReceiptMath.parseMoney(rawQty, detectedCurrency);
@@ -3646,6 +3658,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
           if (field === 'qty') newItems[index].totalQty = qty || 1;
           newItems[index].total = price * qty;
           newItems[index].receiptDiscountAmount = 0;
+          if (newItems[index].amountReviewRequired === true) newItems[index].needsAmountReview = true;
         }
         setItems(newItems);
       };
@@ -3956,7 +3969,9 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
       };
 
       const copyReceiptJsonImportPrompt = () => copyToClipboard(
-        uiLang === 'en' ? RECEIPT_JSON_IMPORT_PROMPT_EN : RECEIPT_JSON_IMPORT_PROMPT_ZH,
+        `${uiLang === 'en' ? RECEIPT_JSON_IMPORT_PROMPT_EN : RECEIPT_JSON_IMPORT_PROMPT_ZH}\n\n${uiLang === 'en'
+          ? 'If a number on one receipt row could mean more than one thing (for example quantity, unit price, or part of a product name), do not guess. Set amountUncertain: true and leave total null unless the printed line total is clear.'
+          : '如果同一行的數字可能有多種意思（例如數量、單價或商品名稱的一部分），不要猜。請設 amountUncertain: true；除非收據清楚印出行總額，否則 total 留 null。'}`,
         bi('讀圖提示詞', 'image-reading prompt'),
         bi('✅ 提示詞已複製；要求 bill.json，不能附檔就複製整段回覆。', '✅ Prompt copied; it requests bill.json, or a full reply to copy if attachments are unavailable.')
       );
@@ -5043,10 +5058,18 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                     </Card>
                   )}
 
-                    {items.length > 0 && items.map((item, idx) => {
+                  {items.length > 0 && items.map((item, idx) => {
                     const itemFieldId = field => `bill-item-${String(item.id).replace(/[^A-Za-z0-9_-]/g, '-')}-${field}`;
                     const showVerifyRow = receiptWasRead && String(item.name || '').trim() && !openItemEdits[idx];
                     const qtyLabel = item.totalQty != null && item.totalQty !== '' ? `${item.totalQty}${item.unit ? ` ${item.unit}` : ''}` : (item.unit || '');
+                    const pricingQty = toNum(item.qty);
+                    const pricingQtyLabel = pricingQty > 1
+                      ? bi(`單價 ${formatMoney(item.price, detectedCurrency)} × 計價數量 ${new Intl.NumberFormat('zh-HK', { maximumFractionDigits: 3 }).format(pricingQty)}`, `Unit price ${formatMoney(item.price, detectedCurrency)} × priced quantity ${new Intl.NumberFormat('en-HK', { maximumFractionDigits: 3 }).format(pricingQty)}`)
+                      : '';
+                    const billQtyLabel = item.totalQty != null && item.totalQty !== ''
+                      ? `${bi('單據總量', 'Bill quantity')} ${qtyLabel}`
+                      : (pricingQty > 1 ? bi('單據總量未知', 'Bill quantity unknown') : qtyLabel);
+                    const expectedLineTotal = formatMoney(toNum(item.price) * pricingQty, detectedCurrency);
                     return (
                     <Card key={item.id} data-tutorial-target={idx === 0 ? "item-editor" : undefined} className="relative overflow-visible !p-4 group">
                       <button type="button" data-testid="remove-item" aria-label={bi(`刪除項目：${displayItemName(item).trim() || '此項目'}`, `Delete item: ${displayItemName(item).trim() || 'this item'}`)} title={bi(`刪除項目：${displayItemName(item).trim() || '此項目'}`, `Delete item: ${displayItemName(item).trim() || 'this item'}`)} onClick={() => requestRemoveItem(idx)} style={{ width: '44px', height: '44px', minWidth: '44px', minHeight: '44px' }} className="absolute -top-3 -right-3 w-11 h-11 min-w-[44px] min-h-[44px] bg-white border border-slate-400 text-slate-600 hover:text-red-800 hover:border-red-700 hover:bg-red-50 rounded-full flex items-center justify-center shadow-sm transition-colors z-10 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 md:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700">
@@ -5057,7 +5080,16 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                           <div className="min-w-0">
                             <p className="text-base font-semibold text-slate-800">{item.id} {displayItemName(item)}</p>
                             {(item.original || item.ja) && <div className="mt-1 text-xs font-normal text-slate-500 italic truncate" title={item.original || item.ja}>{tr("原文：")}{item.original || item.ja}</div>}
-                            <p className="mt-1 text-base font-semibold text-slate-800">{formatMoney(itemAmount(item), detectedCurrency)}{qtyLabel ? ` · ${qtyLabel}` : ''}</p>
+                            <p className="mt-1 text-base font-semibold text-slate-800">{item.needsAmountReview === true && item.amountPreviewAvailable === false ? bi('金額待核對', 'Amount to verify') : formatMoney(itemAmount(item), detectedCurrency)}{pricingQtyLabel ? ` · ${pricingQtyLabel}` : ''}{billQtyLabel ? ` · ${billQtyLabel}` : ''}</p>
+                            {item.needsAmountReview === true && <p data-testid="item-amount-review" role="alert" className="mt-2 rounded-lg border border-amber-500 bg-amber-50 p-2 text-sm font-semibold leading-relaxed text-amber-950">{item.amountReviewReason === 'ai-uncertain'
+                              ? bi('AI 標示此行金額用途不確定；核對收據並填寫行總額後才可結算。', 'AI marked this row amount as uncertain. Verify the receipt and enter its line total before settling.')
+                              : item.amountReviewReason === 'missing-total'
+                                ? bi(`未提供行總額；暫按 ${formatMoney(item.price, detectedCurrency)} × ${new Intl.NumberFormat('zh-HK', { maximumFractionDigits: 3 }).format(pricingQty)} 暫算 ${formatMoney(itemAmount(item), detectedCurrency)}。請核對並填寫行總額。`, `No line total was provided; ${formatMoney(item.price, detectedCurrency)} × ${new Intl.NumberFormat('en-HK', { maximumFractionDigits: 3 }).format(pricingQty)} is a provisional ${formatMoney(itemAmount(item), detectedCurrency)}. Verify and enter the printed line total.`)
+                                : bi(`行總額 ${formatMoney(item.total, detectedCurrency)} 與 ${formatMoney(item.price, detectedCurrency)} × ${new Intl.NumberFormat('zh-HK', { maximumFractionDigits: 3 }).format(pricingQty)} = ${expectedLineTotal} 不符；請核對並填寫行總額。`, `Line total ${formatMoney(item.total, detectedCurrency)} differs from ${formatMoney(item.price, detectedCurrency)} × ${new Intl.NumberFormat('en-HK', { maximumFractionDigits: 3 }).format(pricingQty)} = ${expectedLineTotal}. Verify and enter the printed line total.`)}</p>}
+                            {item.amountReviewRequired === true && <div className="mt-2">
+                              <label htmlFor={itemFieldId('total')} className="text-sm font-bold text-slate-700 mb-1 block">{bi('核對後行總額', 'Verified line total')}</label>
+                              <input id={itemFieldId('total')} type="number" inputMode="decimal" min="0" step="any" data-testid="item-line-total" ref={el => fieldRefs.current[`item-total-${idx}`] = el} value={item.needsAmountReview === true ? '' : (item.total ?? '')} onChange={(e) => updateItem(idx, 'total', e.target.value)} className="field-round w-full text-base font-semibold text-slate-800 outline-none" placeholder={bi('按收據填寫', 'Enter from receipt')} />
+                            </div>}
                             {item.receiptDiscountAmount > 0 && <p className="mt-1 text-sm font-medium text-emerald-800">{bi(`已自動扣除單品折扣 ${formatMoney(item.receiptDiscountAmount, detectedCurrency)}`, `Item discount applied: ${formatMoney(item.receiptDiscountAmount, detectedCurrency)}`)}</p>}
                           </div>
                           <button type="button" data-testid="edit-item" onClick={() => openItemEdit(idx)} style={{ minWidth: '44px', minHeight: '44px' }} className="shrink-0 min-w-[44px] min-h-[44px] px-3.5 py-1.5 rounded-lg border border-slate-400 bg-white text-sm font-bold text-slate-800">{tr("改")}</button>
@@ -5069,6 +5101,8 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                           <input id={itemFieldId('name')} type="text" data-testid="item-name" ref={el => fieldRefs.current[`item-name-${idx}`] = el} value={displayItemName(item)} onChange={(e) => updateItem(idx, uiLang === 'en' && (item.nameEn || item.nameEnEdited) ? 'nameEn' : 'name', e.target.value)} onKeyDown={(e) => handleItemKeyDown(e, 'name', idx)} className="field-round w-full text-base font-semibold text-slate-800 outline-none" placeholder={tr("輸入項目名稱...")} />
                           {(item.original || item.ja) && <div className="mt-1 text-xs font-normal text-slate-500 italic truncate" title={item.original || item.ja}>{tr("原文：")}{item.original || item.ja}</div>}
                         </div>
+                        {pricingQty > 1 && <p data-testid="item-pricing-quantity" className="text-sm font-semibold leading-relaxed text-slate-700">{pricingQtyLabel}{billQtyLabel ? ` · ${billQtyLabel}` : ''}{item.amountReviewReason === 'missing-total' ? ` · ${bi('暫算', 'Provisional')} ${formatMoney(itemAmount(item), detectedCurrency)}` : ''}</p>}
+                        {item.needsAmountReview === true && <p data-testid="item-amount-review-editor" role="alert" className="rounded-lg border border-amber-500 bg-amber-50 p-2 text-sm font-semibold leading-relaxed text-amber-950">{bi('這項行總額仍未核對；請按收據填寫行總額後才可結算。', 'This line total is still unverified. Enter the amount printed on the receipt before settling.')}</p>}
                         <div data-tutorial-target={idx === 0 ? "item-fields" : undefined} className="item-price-quantity-row flex gap-4">
                           <div className="min-w-0 flex-1">
                             <label htmlFor={itemFieldId('price')} className="text-base font-bold text-slate-700 uppercase tracking-wider mb-1.5 block">{tr("單價")}</label>
@@ -5086,6 +5120,11 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                           <label htmlFor={itemFieldId('unit')} className="text-base font-bold text-slate-700 uppercase tracking-wider mb-1.5 block">{bi('單位（留空按份數比例）', 'Unit (leave blank to split by shares)')}</label>
                           <input id={itemFieldId('unit')} type="text" value={item.unit || ''} onChange={(e) => updateItem(idx, 'unit', e.target.value)} className="field-round w-full text-base font-semibold text-slate-800 outline-none" placeholder={bi('件、杯、碟', 'e.g. item, cup, plate')} />
                         </div>
+                        {item.amountReviewRequired === true && <div>
+                          <label htmlFor={itemFieldId('total')} className="text-base font-bold text-slate-700 mb-1.5 block">{bi('核對後行總額', 'Verified line total')}</label>
+                          <input id={itemFieldId('total')} type="number" inputMode="decimal" min="0" step="any" data-testid="item-line-total" ref={el => fieldRefs.current[`item-total-${idx}`] = el} value={item.needsAmountReview === true ? '' : (item.total ?? '')} onChange={(e) => updateItem(idx, 'total', e.target.value)} className="field-round w-full text-base font-semibold text-slate-800 outline-none" placeholder={bi('按收據填寫', 'Enter from receipt')} />
+                          <p className="mt-1 text-sm text-slate-600">{bi('填這一項在收據上印出的總額；不會改寫單價或猜測數量。', 'Enter the amount printed for this item; this does not change the unit price or guess its quantity.')}</p>
+                        </div>}
                       </div>
                       )}
                     </Card>

@@ -25,6 +25,16 @@ const filePayload = {
   items: [{ name: '冰咖啡', nameEn: 'Iced coffee', original: '冰咖啡', ja: '', price: 32, qty: 1, totalQty: 1, unit: '杯', total: 32 }],
   adjustments: [], taxTotal: 0, taxNote: '', currency: 'HKD', date: null, receiptTotal: 32
 };
+const ambiguousJsonPayload = {
+  items: [
+    { name: '羊肉餃8S55', price: 55, qty: 1, total: 55, totalQty: null, unit: '' },
+    { name: '牛肉餃8S55', price: 55, qty: 8, totalQty: null, unit: '' },
+    { name: '牛肉餃8S55（列總額）', price: 55, qty: 8, total: 55, totalQty: null, unit: '' },
+    { name: '八件明確總額', price: 55, qty: 8, total: 440, totalQty: null, unit: '' },
+    { name: '用途不確定商品', qty: 1, amountUncertain: true, totalQty: null, unit: '' }
+  ],
+  adjustments: [], taxTotal: 0, taxNote: '', currency: 'HKD', date: null, receiptTotal: null
+};
 const textModelPayload = {
   items: [{ name: '芒果糯米飯', nameEn: 'Mango sticky rice', original: 'ข้าวเหนียวมะม่วง', ja: '', price: 65, qty: 1, totalQty: 1, unit: '份', total: 65 }],
   adjustments: [], taxTotal: 0, taxNote: '', currency: 'THB', date: null, receiptTotal: 65
@@ -125,6 +135,7 @@ const ensureAIImportOpen = async page => {
     assert.match(copiedPrompt, /可下載的 UTF-8 JSON 檔，檔名 bill\.json/);
     assert.match(copiedPrompt, /不能建立可下載附件/);
     assert.match(copiedPrompt, /一次輸出完整 JSON/);
+    assert.match(copiedPrompt, /amountUncertain: true/);
 
     await noKeyPage.evaluate(() => localStorage.setItem('billSplitterLanguage', 'en'));
     await noKeyPage.reload();
@@ -140,6 +151,7 @@ const ensureAIImportOpen = async page => {
     assert.match(copiedEnglishPrompt, /one downloadable UTF-8 JSON file named bill\.json/);
     assert.match(copiedEnglishPrompt, /cannot create downloadable attachments/);
     assert.match(copiedEnglishPrompt, /complete JSON once in one contiguous, copyable reply/);
+    assert.match(copiedEnglishPrompt, /amountUncertain: true/);
 
     await noKeyPage.evaluate(() => localStorage.setItem('billSplitterLanguage', 'zh-HK'));
     await noKeyPage.reload();
@@ -268,6 +280,44 @@ const ensureAIImportOpen = async page => {
 
     await noKeyPage.locator('.step-nav button').first().click();
     await ensureAIImportOpen(noKeyPage);
+    await noKeyPage.getByTestId('receipt-text-draft').fill(JSON.stringify(ambiguousJsonPayload));
+    await noKeyPage.getByTestId('submit-receipt-text').click();
+    await noKeyPage.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '2', null, { timeout: 30000 });
+    assert.equal(await noKeyPage.getByTestId('verify-item').count(), 5, 'synthetic ambiguous-amount JSON reaches the normal review step');
+    assert.equal(await noKeyPage.getByTestId('item-amount-review').count(), 3, 'missing total, explicit mismatch, and AI uncertainty are all blocked for review');
+    const amountRows = await noKeyPage.getByTestId('verify-item').allInnerTexts();
+    assert.match(amountRows[1], /(?:單價 .*55\.00 × 計價數量 8|Unit price .*55\.00 × priced quantity 8)/);
+    assert.match(amountRows[1], /(?:單據總量未知|Bill quantity unknown)/);
+    assert.match(amountRows[1], /(?:暫算 .*440\.00|provisional .*440\.00)/);
+    assert.match(amountRows[2], /(?:行總額 .*55\.00.*不符|Line total .*55\.00 differs .*440\.00)/);
+    assert.equal(await noKeyPage.getByTestId('verify-item').nth(3).getByTestId('item-amount-review').count(), 0, 'a clearly supplied 55 × 8 = 440 total remains accepted');
+    assert.match(amountRows[4], /(?:金額待核對|Amount to verify)/, 'an AI-marked row with no readable amount is not presented as $0');
+    await noKeyPage.getByTestId('go-to-payer').click();
+    assert.equal(await noKeyPage.locator('[data-live-app] main').getAttribute('data-current-step'), '2', 'unresolved amounts cannot pass to payer or settlement');
+    assert.match(await noKeyPage.getByTestId('step-error').innerText(), /(?:行總額未核對|line total .*has not been checked)/i);
+    await noKeyPage.getByTestId('edit-item').nth(1).click();
+    assert.match(await noKeyPage.getByTestId('item-pricing-quantity').innerText(), /(?:計價數量 8|priced quantity 8)/);
+    assert.equal(await noKeyPage.getByTestId('item-amount-review-editor').count(), 1, 'the expanded editor repeats the review warning');
+    const verifiedTotals = noKeyPage.getByTestId('item-line-total');
+    assert.equal(await verifiedTotals.count(), 3, 'each flagged row offers a direct line-total field');
+    await verifiedTotals.nth(0).fill('55');
+    await verifiedTotals.nth(1).fill('55');
+    await verifiedTotals.nth(2).fill('12');
+    assert.equal(await noKeyPage.getByTestId('item-amount-review').count(), 0, 'entering reviewed row totals clears the warning');
+    await noKeyPage.getByTestId('go-to-payer').click();
+    await noKeyPage.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '3', null, { timeout: 15000 });
+    await noKeyPage.waitForFunction(() => {
+      const draft = JSON.parse(localStorage.getItem('billSplitterActiveDraftV1') || 'null');
+      const items = draft?.data?.items;
+      return Array.isArray(items) && items.length === 5
+        && Number(items[1].total) === 55 && items[1].needsAmountReview === false
+        && Number(items[2].total) === 55 && Number(items[3].total) === 440
+        && Number(items[4].total) === 12;
+    }, null, { timeout: 15000 });
+    assert.equal(noKeyRequests, 0, 'the amount-review flow is entirely local for JSON imports');
+
+    await noKeyPage.locator('.step-nav button').first().click();
+    await ensureAIImportOpen(noKeyPage);
     await noKeyPage.getByTestId('receipt-text-draft').fill('拉麵 1 碗 100 元；消費税 8 元；應付 108 元');
     await noKeyPage.getByTestId('submit-receipt-text').click();
     await noKeyPage.getByTestId('receipt-text-import-error').waitFor({ state: 'visible' });
@@ -322,6 +372,7 @@ const ensureAIImportOpen = async page => {
     assert.equal(capturedModel, DOTS);
     assert.match(capturedText, /芒果糯米飯 1 份 65 泰銖/);
     assert.equal(capturedImageCount, 0, 'text-only requests contain no image payload');
+    assert.match(capturedText, /amountUncertain/);
     assert.match(await modelPage.getByTestId('verify-item').first().innerText(), /芒果糯米飯/);
     assert.match(await modelPage.getByTestId('verify-summary').innerText(), /^1項/);
     assert.equal(await modelPage.getByTestId('ai-import-bill-photo-reminder').isVisible(), true, 'AI-structured text without a photo also asks for the original bill');
