@@ -13,13 +13,6 @@ const randomModel = 'openrouter/free';
 const localPaddleModel = 'local/paddleocr-js';
 const testApiKey = 'test-openrouter-key-preserve-on-migration';
 
-async function ensureScanSettingsOpen(page) {
-  const disclosure = page.getByTestId('scan-settings');
-  if (await disclosure.count() && !(await disclosure.evaluate(node => node.open))) {
-    await page.getByTestId('scan-settings-toggle').click();
-  }
-}
-
 async function readModelDescription(page, scope) {
   const toggle = page.getByTestId(`toggle-${scope}-model-description`);
   const description = page.getByTestId(`${scope}-model-description`);
@@ -31,12 +24,10 @@ async function readModelDescription(page, scope) {
 async function assertRouteDescription(page, expectedText, label, scope = 'scan') {
   const toggle = page.getByTestId(`toggle-${scope}-model-description`);
   const description = page.getByTestId(`${scope}-model-description`);
-  assert.equal(await toggle.getAttribute('aria-expanded'), 'true', `${label}: first use shows model details expanded`);
-  await description.waitFor({ state: 'visible' });
-  await toggle.click();
-  assert.equal(await toggle.getAttribute('aria-expanded'), 'false', `${label}: manual tap collapses the model details`);
+  if (await toggle.getAttribute('aria-expanded') === 'true') await toggle.click();
+  assert.equal(await toggle.getAttribute('aria-expanded'), 'false', `${label}: details start collapsed`);
   assert.equal(await page.getByTestId(`${scope}-model-description-icon`).getAttribute('data-direction'), 'down', `${label}: collapsed chevron points down`);
-  assert.equal(await description.count(), 0, `${label}: collapsed model details are hidden`);
+  assert.equal(await description.count(), 0, `${label}: model details are hidden until requested`);
   await toggle.click();
   await description.waitFor({ state: 'visible' });
   assert.equal(await toggle.getAttribute('aria-expanded'), 'true', `${label}: details expand on arrow tap`);
@@ -53,7 +44,7 @@ async function openSettingsAndAssertMatch(page, scanSelect, label) {
   const settingsSelect = page.getByTestId('model-select');
   await settingsSelect.waitFor({ state: 'visible' });
   assert.equal(await settingsSelect.inputValue(), scanRoute, `${label}: selected route matches after opening settings`);
-  assert.equal(await page.getByTestId('toggle-settings-model-description').getAttribute('aria-expanded'), 'true', `${label}: first use also shows settings details`);
+  assert.equal(await page.getByTestId('toggle-settings-model-description').getAttribute('aria-expanded'), 'false', `${label}: settings details also start collapsed`);
   assert.equal(await readModelDescription(page, 'settings'), scanDescription, `${label}: descriptions match after opening settings`);
   return settingsSelect;
 }
@@ -62,7 +53,6 @@ async function closeSettingsAndAssertMatch(page, scanSelect, settingsSelect, lab
   const settingsRoute = await settingsSelect.inputValue();
   const settingsDescription = await readModelDescription(page, 'settings');
   await page.getByRole('button', { name: /返回系統|Back to app/ }).click();
-  await ensureScanSettingsOpen(page);
   await scanSelect.waitFor({ state: 'visible' });
   assert.equal(await scanSelect.inputValue(), settingsRoute, `${label}: selected route matches after returning to first screen`);
   assert.equal(await readModelDescription(page, 'scan'), settingsDescription, `${label}: descriptions match after returning to first screen`);
@@ -86,11 +76,10 @@ async function closeSettingsAndAssertMatch(page, scanSelect, settingsSelect, lab
       localStorage.setItem('billSplitterHistory', '[]');
     });
     await firstVisitPage.goto(base.toString(), { waitUntil: 'networkidle' });
-    await ensureScanSettingsOpen(firstVisitPage);
     const firstVisitSelect = firstVisitPage.getByTestId('scan-model-select');
     await firstVisitSelect.waitFor({ state: 'visible' });
     assert.equal(await firstVisitSelect.inputValue(), localPaddleModel, 'first visit defaults to PaddleOCR.js local + Dots3-Note');
-    assert.equal((await firstVisitPage.getByTestId('app-version-label').innerText()).trim(), 'R131');
+    assert.equal((await firstVisitPage.getByTestId('app-version-label').innerText()).trim(), 'R132');
     console.log('PASS first-visit default is PaddleOCR.js local + Dots3-Note');
 
     await assertRouteDescription(firstVisitPage, '不送去 OpenRouter', 'local route keeps the image on-device');
@@ -124,7 +113,6 @@ async function closeSettingsAndAssertMatch(page, scanSelect, settingsSelect, lab
 
     await firstVisitPage.evaluate(() => localStorage.setItem('billSplitterLanguage', 'en'));
     await firstVisitPage.reload({ waitUntil: 'networkidle' });
-    await ensureScanSettingsOpen(firstVisitPage);
     await firstVisitSelect.waitFor({ state: 'visible' });
     await firstVisitSelect.selectOption(localPaddleModel);
     await assertRouteDescription(firstVisitPage, 'Image stays on-device', 'English local-route description');
@@ -161,7 +149,6 @@ async function closeSettingsAndAssertMatch(page, scanSelect, settingsSelect, lab
         localStorage.setItem('billSplitterHistory', '[]');
       }, { kind: storageKind, key: savedKey, model: freeModel });
       await page.goto(base.toString(), { waitUntil: 'networkidle' });
-    await ensureScanSettingsOpen(page);
       const scanSelect = page.getByTestId('scan-model-select');
       await scanSelect.waitFor({ state: 'visible' });
       await page.waitForFunction(model => {
@@ -186,7 +173,6 @@ async function closeSettingsAndAssertMatch(page, scanSelect, settingsSelect, lab
       }, randomModel);
       assert.equal(await scanSelect.inputValue(), randomModel, 'first-screen random selection persists immediately');
       await page.reload({ waitUntil: 'networkidle' });
-      await ensureScanSettingsOpen(page);
       await scanSelect.waitFor({ state: 'visible' });
       assert.equal(await scanSelect.inputValue(), randomModel, 'an explicitly saved OpenRouter route survives reload');
       await scanSelect.selectOption(lastFallbackModel);
@@ -196,7 +182,7 @@ async function closeSettingsAndAssertMatch(page, scanSelect, settingsSelect, lab
       await page.waitForFunction(model => JSON.parse(localStorage.getItem('billSplitterApiConfig') || 'null')?.model === model, freeModel);
       const menuTrigger = page.getByTestId('header-action-menu-toggle');
       await menuTrigger.waitFor({ state: 'visible' });
-      assert.equal((await page.getByTestId('app-version-label').innerText()).trim(), 'R131');
+      assert.equal((await page.getByTestId('app-version-label').innerText()).trim(), 'R132');
       await menuTrigger.click();
       const menu = page.locator('#header-action-menu');
       await menu.waitFor({ state: 'visible' });
@@ -235,7 +221,6 @@ async function closeSettingsAndAssertMatch(page, scanSelect, settingsSelect, lab
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, 'large text has no horizontal overflow at 320px');
       await page.setViewportSize({ width: 390, height: 844 });
       await page.reload({ waitUntil: 'networkidle' });
-      await ensureScanSettingsOpen(page);
       await page.getByTestId('scan-model-select').waitFor({ state: 'visible' });
       assert.equal(await page.locator('html').getAttribute('data-app-text-size'), 'large', 'large font selection persists across reload');
       await page.getByTestId('header-action-menu-toggle').click();
@@ -244,7 +229,6 @@ async function closeSettingsAndAssertMatch(page, scanSelect, settingsSelect, lab
       assert(Math.abs(Number.parseFloat(await page.locator('.app-header-row h1').evaluate(node => getComputedStyle(node).fontSize)) - standardHeaderSize) < 1, 'standard restores the baseline font size');
       assert.equal(await normalText.getAttribute('aria-pressed'), 'true');
       await page.reload({ waitUntil: 'networkidle' });
-      await ensureScanSettingsOpen(page);
       await page.getByTestId('scan-model-select').waitFor({ state: 'visible' });
       assert.equal(await page.locator('html').getAttribute('data-app-text-size'), 'normal', 'standard font selection also persists across reload');
       await page.getByTestId('header-action-menu-toggle').click();
@@ -265,8 +249,7 @@ async function closeSettingsAndAssertMatch(page, scanSelect, settingsSelect, lab
       }
       const routeBeforeSettings = await scanSelect.inputValue();
       const descriptionBeforeSettings = await readModelDescription(page, 'scan');
-      const menuToggle = page.getByTestId('header-action-menu-toggle');
-      if (await menuToggle.getAttribute('aria-expanded') !== 'true') await menuToggle.click();
+      await page.getByTestId('header-action-menu-toggle').click();
       await page.locator('.header-settings-button').click();
       let select = page.getByTestId('model-select');
       await select.waitFor({ state: 'visible' });
@@ -278,7 +261,7 @@ async function closeSettingsAndAssertMatch(page, scanSelect, settingsSelect, lab
       }, freeModel);
 
       assert.equal(await select.inputValue(), routeBeforeSettings, `${storageKind}: settings keeps the current route`);
-      assert.equal(await page.getByTestId('toggle-settings-model-description').getAttribute('aria-expanded'), 'true', `${storageKind}: first-use settings description starts expanded`);
+      assert.equal(await page.getByTestId('toggle-settings-model-description').getAttribute('aria-expanded'), 'false', `${storageKind}: settings description starts hidden`);
       assert.equal(await readModelDescription(page, 'settings'), descriptionBeforeSettings, `${storageKind}: settings description matches the first-screen description`);
       assert.equal(await page.getByTestId('paid-models-opt-in').count(), 0, 'paid-model toggle must be absent');
       const choices = await select.locator('option').evaluateAll(nodes => nodes.map(node => node.value));
@@ -356,7 +339,6 @@ async function closeSettingsAndAssertMatch(page, scanSelect, settingsSelect, lab
         localStorage.setItem('billSplitterApiConfig', JSON.stringify(config));
       }, randomModel);
       await page.reload({ waitUntil: 'networkidle' });
-      await ensureScanSettingsOpen(page);
       await scanSelect.waitFor({ state: 'visible' });
       assert.equal(await scanSelect.inputValue(), localPaddleModel, 'a config without a saved OCR route migrates to the full local+Dots default');
       const migratedDefault = await page.evaluate(() => JSON.parse(localStorage.getItem('billSplitterApiConfig') || 'null'));

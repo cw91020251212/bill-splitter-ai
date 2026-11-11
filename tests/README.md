@@ -2,25 +2,6 @@
 
 程式仍然是純靜態 GitHub Pages App，無需 build。Playwright 只用於開發驗收，不會載入到公開頁面；測試只可對本機執行。
 
-## R131 首訪引導與收合偏好
-
-`mobile-layout.cjs` 驗收 320／390px 手機、短屏、大字、44px 觸控、首屏明示其他 AI 翻譯，以及免費 Key／AI 操作內容初次展開；同時保護桌面標題、步驟列和項目卡尺寸。`text-import.cjs` 驗證手動收起 Key／AI 指引後 reload 仍記住，並驗收 AI JSON／文字匯入及補貼原帳單。`friend-recognition.cjs`、`recognition-retry-ui.cjs`、`card-redaction-ui.cjs` 驗證補人、補帳和後備報告預設可見、按箭嘴收合／重開後其他結算及分享流程仍正常。
-
-## R130 新手手機導航與 Key 引導回歸
-
-`mobile-layout.cjs` 僅連線 localhost，驗證 320×844、390×844、320×700 首頁四種輸入入口、窄屏留白、48px 頂欄、四個可返回的命名步驟按鈕、Key 狀態與教學入口、拍照位置及 44×44px 以上觸控尺寸；另驗證 320px 大字模式無橫向溢出、第二步總額及第一件商品的位置、手動認帳緊接清單，以及 1280px 桌面版基準幾何不變。`tutorial-ui.cjs` 驗證 Key 申請入口直達教學影片，並回歸 19 個教程流程。測試不呼叫帳單或模型 API。
-
-```sh
-PLAYWRIGHT_MODULE=/path/to/playwright \
-CHROMIUM_EXECUTABLE=/usr/bin/chromium \
-BASE_URL=http://127.0.0.1:4178/ \
-node tests/mobile-layout.cjs
-```
-
-## R129 同链接重算同步
-
-`friend-recognition.cjs` 使用本机 Worker／Durable Object 验证主办人改税费并重新计算后，已打开的朋友结果页会在原 URL 自动更新总额。`worker/worker-core.test.mjs` 模拟边缘 KV 仍返回旧值，确认 GET 和 `?meta=1` 仍从 Durable Object 取得最新版本；不访问正式帐单 API。
-
 ## R127 複查回歸
 
 `calculation-regressions.cjs` 驗證負／無效商品價與數量會在第二步顯示錯誤、舊草稿認領需要逐項核對、未提交的收據文字可在本機還原且新單確認後清除。`text-import.cjs` 覆蓋有效但有負稅／折扣／商品錯誤的 JSON 不會外送 AI。`recognition-retry-ui.cjs` 用 mock OCR 測試同名不同規格的順序變更會沿用正確認領編號；完全重複而無法唯一配對時，會改發新編號並停用舊認帳。它仍只使用 localhost／mock，不寫入正式或公開帳單 API。
@@ -199,3 +180,6 @@ R119 漏人指引：`friend-recognition.cjs` 驗證結果卡預設收起、向�
 
 ## R125：可選本機手動認帳
 `friend-recognition.cjs` 驗證手動入口預設關閉／鎖定、主動開啟後只存本機草稿、重新載入可恢復、啟用前後無認帳 API 呼叫；稍後建連結時 seed members 為空、不含手動文字，而朋友仍可經該連結提交並由主辦人正常接收。預設線上模式的完整朋友流程同樣回歸。公開測試使用 `PUBLIC_STATIC_QA=1`，所有 API 攔截到本機 Worker harness，對外寫入 0。
+
+## R132：原介面恢復驗收
+`mobile-layout.cjs` 現在以 R127（Git commit `82b7f89`）作畫面基準，檢查四個完整步驟名稱及進度條、原本的 Key 狀態卡／設定教學路徑、其他 AI 翻譯標題、原 Step 2 排序，以及 320×844、390×844、320×700 和桌面無橫向溢位；面板初始狀態沿用 R127，沒有加入 R131 的本機偏好記憶。`friend-recognition.cjs` 保留 R129 同一連結重算即時更新與未送出認帳保護；Worker／DO 測試保留強一致結果更新驗收。

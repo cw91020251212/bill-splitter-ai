@@ -350,3 +350,9 @@
 - [x] 保留 320×844、390×844、320×700 及大字體手機版的相機優先、44px 觸控與無橫向溢位；桌面四步導覽、原色系和卡片尺寸保持，加入緊湊的 44px disclosure 標題；固定底部狀態欄不遮擋第二步最後操作。
 - [x] 驗收：`mobile-layout.cjs` 三種手機尺寸／大字體／桌面 geometry 通過；`text-import.cjs`、`settings-free-models.cjs`、`tutorial-ui.cjs` 19/19、`card-redaction-ui.cjs`、`recognition-retry-ui.cjs`、`friend-navigation.cjs`、`friend-whatsapp-details.cjs`、`friend-recognition.cjs` 16/16 均通過；Worker/DO 36/36、JavaScript syntax、`git diff --check` 均通過。
 - [x] 推送 R131 至 GitHub main（`a660424`）；Pages workflow `42955156385` 成功。公開 390×844 驗證教學中心返回後可見首次展開的 Key／其他 AI 指引，手動收合後重新載入會沿用偏好。
+
+## R132：精確恢復 R128 前的原有介面
+- [x] 以 R128 commit `99569af` 的直接父提交 `82b7f89`（R127 原始介面）作基準，還原完整四步進度、原本第一步和第二步順序及桌面／手機樣式；與該基準相比只保留 R129 同步狀態提示和必要版本更新，沒有重新設計版面。
+- [x] 只移除 R128–R131 的介面變更；保留同一認帳連結重算同步、朋友頁 revision 更新、未送出認帳保護及 Worker／DO 強一致結果功能。R127 本來存在的面板狀態原封保留，不加 R131 新偏好記憶。
+- [x] 本機 E2E：`mobile-layout.cjs`（320×844、390×844、320×700、桌面及舊版第二步順序）、`friend-recognition.cjs` 16/16、Worker／DO 36/36、`tutorial-ui.cjs` 19/19、`calculation-regressions.cjs` 14/14、設定、文字匯入、卡號遮蓋、OCR 重試、朋友導航及 WhatsApp 分享均通過。
+- [ ] 推送 R132 至 GitHub Pages，確認公開頁載入 R132 且重現 R127 介面；日後再另行討論如何加入收合功能。

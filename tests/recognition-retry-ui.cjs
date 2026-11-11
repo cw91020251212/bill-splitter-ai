@@ -150,14 +150,13 @@ const success = payload => ({
     const step2Entry = await page.evaluate(() => {
       const section = document.querySelector('[data-testid="items-step"]');
       const headerBottom = document.querySelector('header')?.getBoundingClientRect().bottom || 0;
-      const stepperBottom = document.querySelector('.stepper-panel')?.getBoundingClientRect().bottom || headerBottom;
-      return { scrollY: window.scrollY, sectionTop: section?.getBoundingClientRect().top, headerBottom, stepperBottom };
+      return { scrollY: window.scrollY, sectionTop: section?.getBoundingClientRect().top, headerBottom };
     });
     await page.waitForTimeout(1900);
-    assert(step2Entry.sectionTop >= step2Entry.stepperBottom && step2Entry.sectionTop - step2Entry.stepperBottom <= 20, `successful OCR enters step 2 just below the compact step row (${JSON.stringify(step2Entry)})`);
+    assert(Math.abs(step2Entry.sectionTop - step2Entry.headerBottom - 12) < 4, 'successful OCR enters step 2 at the top of the review section');
     assert(Math.abs(await page.evaluate(() => window.scrollY) - step2Entry.scrollY) < 4, 'successful OCR does not automatically scroll down to the sharing controls');
 
-    await page.getByTestId('back-to-step1').click();
+    await page.locator('.step-nav button').first().click();
     await page.getByTestId('receipt-upload').click();
     const reuseFirstBatch = page.getByTestId('reuse-last-receipt-photos');
     await reuseFirstBatch.waitFor({ state: 'visible' });
@@ -174,7 +173,7 @@ const success = payload => ({
     await page.getByText('新增相片結果', { exact: false }).waitFor({ state: 'visible' });
     assert.equal(await page.getByText('首次成功結果', { exact: false }).count(), 0, 'the newly selected batch replaces the earlier recognized items on success');
 
-    await page.getByTestId('back-to-step1').click();
+    await page.locator('.step-nav button').first().click();
     await page.getByTestId('receipt-upload').click();
     await page.getByTestId('reuse-last-receipt-photos').waitFor({ state: 'visible' });
     assert.equal(await page.getByTestId('reuse-last-receipt-photos').isDisabled(), false);
@@ -224,7 +223,7 @@ const success = payload => ({
     ], '姓名：阿明\n03 = 1碗\n姓名：小美\n04 = 2份');
     await page.reload({ waitUntil: 'domcontentloaded' });
     await page.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '2', null, { timeout: 30000 });
-    await page.getByTestId('back-to-step1').click();
+    await page.locator('.step-nav button').first().click();
     await page.getByTestId('receipt-upload').click();
     await page.getByTestId('reuse-last-receipt-photos').click();
     await page.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '2', null, { timeout: 30000 });
@@ -241,7 +240,7 @@ const success = payload => ({
     ], '姓名：阿明\n03 = 1碗\n姓名：小美\n04 = 1碗');
     await page.reload({ waitUntil: 'domcontentloaded' });
     await page.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '2', null, { timeout: 30000 });
-    await page.getByTestId('back-to-step1').click();
+    await page.locator('.step-nav button').first().click();
     await page.getByTestId('receipt-upload').click();
     await page.getByTestId('reuse-last-receipt-photos').click();
     await page.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '2', null, { timeout: 30000 });
@@ -251,8 +250,7 @@ const success = payload => ({
     await page.getByTestId('go-to-payer').click();
     assert.equal(await page.getByTestId('calculate-split').isDisabled(), true, 'stale IDs block calculation instead of silently assigning claims');
 
-    await page.getByTestId('back-to-step2').click();
-    await page.getByTestId('back-to-step1').click();
+    await page.locator('.step-nav button').first().click();
     await page.getByTestId('receipt-upload').click();
     await page.getByTestId('reuse-last-receipt-photos').click();
     await page.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '2', null, { timeout: 30000 });
@@ -294,9 +292,7 @@ const success = payload => ({
     await page.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '4', null, { timeout: 15000 });
     const receiptImageButton = page.getByTestId('share-receipt-images');
     assert.match(await page.getByTestId('late-person-flow-summary').innerText(), /漏咗朋友？點樣補加/);
-    assert.equal(await page.getByTestId('missing-bill-flow-details').evaluate(node => node.open), true, 'the bill guide is visible for first-time users');
-    await page.getByTestId('missing-bill-flow-summary').click();
-    assert.equal(await page.getByTestId('share-receipt-images').isVisible(), false, 'closing the bill guide hides its optional image actions');
+    assert.equal(await page.getByTestId('missing-bill-flow-details').evaluate(node => node.open), false, 'the guide replacing the circled share button starts collapsed');
     await page.getByTestId('missing-bill-flow-summary').click();
     await receiptImageButton.waitFor({ state: 'visible' });
     const receiptButtonStyle = await receiptImageButton.evaluate(button => ({ background: getComputedStyle(button).backgroundColor, height: Math.round(button.getBoundingClientRect().height) }));
@@ -330,9 +326,6 @@ const success = payload => ({
     assert.ok(receiptShare.fileTypes.every(type => type.startsWith('image/')), 'every shared file remains an image after receipt processing');
     assert.equal(receiptShare.text, '', 'receipt images are shared without attaching the report text');
     await page.evaluate(() => { window.__lastMockShare = null; });
-    assert.equal(await page.getByTestId('report-fallback-toggle').getAttribute('aria-expanded'), 'true', 'first-time report backup options are expanded');
-    await page.getByTestId('report-fallback-toggle').click();
-    assert.equal(await page.getByTestId('report-fallback-toggle').getAttribute('aria-expanded'), 'false', 'report backup options can be collapsed');
     await page.getByTestId('report-fallback-toggle').click();
     const reportShareButton = page.getByTestId('summary-report-actions').getByRole('button', { name: '分享' });
     await reportShareButton.waitFor({ state: 'visible' });

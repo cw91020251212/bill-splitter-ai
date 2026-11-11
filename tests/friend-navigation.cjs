@@ -24,7 +24,7 @@ const sample = {
 };
 const detailUrl = share => {
   const url = new URL('detailed-view.html', base);
-  url.searchParams.set('v', 'v131-first-run-disclosures-20261111');
+  url.searchParams.set('v', 'v132-restore-r127-ui-20261111');
   if (share !== undefined) url.searchParams.set('share', share);
   return url.href;
 };
@@ -165,7 +165,7 @@ async function assertBlueLinkContrast(page) {
     const claim = new URL('claim.html', base);
     claim.searchParams.set('session', id);
     claim.searchParams.set('lang', 'zh-HK');
-    claim.searchParams.set('v', 'v131-first-run-disclosures-20261111');
+    claim.searchParams.set('v', 'v132-restore-r127-ui-20261111');
     claim.hash = relay.buildHash(Buffer.from(JSON.stringify([{ id: '01', name: '茶', totalQty: null, unit: '' }])).toString('base64url'), relay.createRoom(), { title: '聚餐', createdAt: now, expiresAt: Date.parse(expiry) });
     await page.goto(claim.href, { waitUntil: 'domcontentloaded' });
     await page.locator('iframe.same-link-result').waitFor({ state: 'visible' });
@@ -174,7 +174,7 @@ async function assertBlueLinkContrast(page) {
     const frame = await element.contentFrame();
     await frame.locator('#preview-content').waitFor({ state: 'visible' });
     await assertFriendOnly(frame);
-    assert.equal(new URL(frame.url()).searchParams.get('v'), 'v131-first-run-disclosures-20261111');
+    assert.equal(new URL(frame.url()).searchParams.get('v'), 'v132-restore-r127-ui-20261111');
     await frame.locator('#friend-page-heading').click();
     await frame.locator('#member-select').selectOption({ label: '測試朋友' });
     await assertBlueLinkContrast(frame);
