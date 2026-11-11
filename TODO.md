@@ -374,3 +374,4 @@
 - [x] 保留圖片選擇、拍照、既有 5 張限制、上次圖片重用及讀取錯誤說明；不改 OCR、分析、計算、認帳、分享流程。
 - [x] 手機 320px／390px、短畫面及桌面回歸，提示完整、按鈕同列、沒有橫向溢位且空白圖片區不超過 180px。320px 測得卡片 131px、按鈕各 72px（文字自然換行，沒有縮字）。
 - [x] 驗收：`mobile-layout.cjs`、`settings-free-models.cjs`、`paddle-local-ocr-ui.cjs`、`text-import.cjs`、`card-redaction-ui.cjs`、`recognition-retry-ui.cjs` 均通過；桌面圖示與提示保留，照片遮蓋、批次重試及失敗保留舊結果通過；JavaScript syntax 及 `git diff --check` 通過。
+- [x] 推送 R135（`b51c99a`）；Pages workflow `42984921789` 成功。公開手機頁 320px 高 131px、390px 高 115px；兩尺寸皆為同列 52px 以上按鈕，桌面原圖示與分隔保留，零水平溢位及頁面錯誤。
