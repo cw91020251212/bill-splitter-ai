@@ -349,4 +349,4 @@
 - [x] 第二步補貼收據、分享／認帳設定及結果頁補人、補帳、簡易／詳細後備，首次可見並可用箭嘴手動收合／重開；手動選擇存在本機，下次沿用；不改計算、OCR、認帳資料或分享內容。
 - [x] 保留 320×844、390×844、320×700 及大字體手機版的相機優先、44px 觸控與無橫向溢位；桌面四步導覽、原色系和卡片尺寸保持，加入緊湊的 44px disclosure 標題；固定底部狀態欄不遮擋第二步最後操作。
 - [x] 驗收：`mobile-layout.cjs` 三種手機尺寸／大字體／桌面 geometry 通過；`text-import.cjs`、`settings-free-models.cjs`、`tutorial-ui.cjs` 19/19、`card-redaction-ui.cjs`、`recognition-retry-ui.cjs`、`friend-navigation.cjs`、`friend-whatsapp-details.cjs`、`friend-recognition.cjs` 16/16 均通過；Worker/DO 36/36、JavaScript syntax、`git diff --check` 均通過。
-- [ ] 推送 R131 至 GitHub main，確認 Pages workflow 成功並以公開網址驗證新訪客、舊訪客偏好和手機版。
+- [x] 推送 R131 至 GitHub main（`a660424`）；Pages workflow `42955156385` 成功。公開 390×844 驗證教學中心返回後可見首次展開的 Key／其他 AI 指引，手動收合後重新載入會沿用偏好。
