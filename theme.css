@@ -592,6 +592,21 @@ body.bg-slate-50 { background: var(--page-grey); color: var(--ink); }
 /* Point accents. Brand green stays on the logo, primary buttons, the scan
    frame and focus. These rules sit last so they beat the slate remap when a
    control also carries a semantic color class. */
+#root main [data-testid="receipt-text-import-title-row"] {
+  flex-wrap: nowrap;
+  justify-content: space-between;
+  gap: 0;
+}
+#root main [data-testid="external-ai-provider-examples"] {
+  min-width: 0;
+  overflow: hidden;
+  text-align: right;
+  text-overflow: ellipsis;
+}
+@media (max-width: 359px) {
+  #root main [data-testid="receipt-text-import-title"] { font-size: calc(15px * var(--app-font-scale, 1)); }
+  #root main [data-testid="external-ai-provider-examples"] { font-size: calc(10.5px * var(--app-font-scale, 1)); }
+}
 #root .language-switch-control { background: #e4eaf3; border-color: #7d93b3; }
 #root .app-header-row .header-actions > div > #header-action-menu-toggle {
   min-height: 38px; border-width: 1px; border-color: #064b35; background-color: #047857;

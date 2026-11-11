@@ -4927,17 +4927,17 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
 
                 <Card data-testid="receipt-text-import" className="border-slate-400 bg-white">
                   <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
-                    <button type="button" data-testid="toggle-receipt-text-import" aria-controls="receipt-text-import-content" aria-expanded={showReceiptTextImport} onClick={() => { const nextOpen = !showReceiptTextImport; setShowReceiptTextImport(nextOpen); if (!tutorialDemo) writeUiDisclosure('receipt-ai-import-r133', nextOpen); }} className="w-full min-h-[44px] flex items-center justify-between gap-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700">
-                      <span className="min-w-0">
-                        <span data-testid="receipt-text-import-title-row" className="flex min-w-0 flex-wrap items-baseline gap-0.5">
+                    <button type="button" data-testid="toggle-receipt-text-import" aria-controls="receipt-text-import-content" aria-expanded={showReceiptTextImport} onClick={() => { const nextOpen = !showReceiptTextImport; setShowReceiptTextImport(nextOpen); if (!tutorialDemo) writeUiDisclosure('receipt-ai-import-r133', nextOpen); }} className="relative -mx-5 w-[calc(100%+1.25rem)] sm:mx-0 sm:w-full min-h-[44px] flex items-center justify-between gap-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700">
+                      <span className="min-w-0 flex-1 pl-3 sm:pl-0">
+                        <span data-testid="receipt-text-import-title-row" className="flex min-w-0 flex-nowrap items-baseline justify-between gap-0">
                           <span data-testid="receipt-text-import-title" aria-label={bi('其他 AI 翻譯', 'Other AI translation')} className="shrink-0 whitespace-nowrap text-base font-bold leading-tight text-slate-800">
                             {bi('其他 AI 翻譯', 'Other AI translation')}
                           </span>
-                          <span data-testid="external-ai-provider-examples" aria-label={bi('Google AI 模式、豆包及其他', 'Google AI mode, Doubao, and more')} className="shrink-0 whitespace-nowrap font-normal leading-tight text-slate-500">{bi('（Google AI 模式，豆包…）', '(Google AI mode, Doubao...)')}</span>
+                          <span data-testid="external-ai-provider-examples" aria-label={bi('Google AI 模式、豆包及其他', 'Google AI mode, Doubao, and more')} className="min-w-0 shrink truncate whitespace-nowrap text-right font-normal leading-tight text-slate-500">{bi('（Google AI 模式，豆包…）', '(Google AI mode, Doubao...)')}</span>
                         </span>
                         <span className="block mt-1 text-sm leading-relaxed text-slate-600">{bi('提示詞＋賬單＝專用翻譯檔（.json）', 'Prompt + bill = ready-to-import .json file')}</span>
                       </span>
-                      <span aria-hidden="true" data-testid="receipt-text-import-toggle-icon" data-direction={showReceiptTextImport ? 'up' : 'down'} className="shrink-0"><Icon path={showReceiptTextImport ? icons.chevronUp : icons.chevronDown} size={20} className="text-slate-600"/></span>
+                      <span aria-hidden="true" data-testid="receipt-text-import-toggle-icon" data-direction={showReceiptTextImport ? 'up' : 'down'} className="absolute -top-5 right-0 z-10 sm:-right-4"><Icon path={showReceiptTextImport ? icons.chevronUp : icons.chevronDown} size={20} className="text-slate-600"/></span>
                     </button>
                     <Button data-testid="copy-receipt-json-prompt" variant="outline" className="w-full border-slate-400 bg-white sm:w-auto" disabled={tutorialDemo || isAnalyzing} onClick={copyReceiptJsonImportPrompt}><Icon path={icons.copy} size={18}/>{bi('複製讀圖提示詞', 'Copy photo-reading prompt')}</Button>
                   </div>
@@ -4948,7 +4948,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                         <li>{bi('在下方輸入欄貼上其他 AI 產生的 JSON 或純文字。', 'Paste the AI JSON; the selected model processes plain text.')}</li>
                         <li>{bi('第二步可加入原圖；朋友打開分享連結後，會在同一頁看到原圖。', 'Add the original photo in Step 2; it appears on the same shared link.')}</li>
                       </ol>
-                      <label htmlFor="receipt-text-draft" className="block text-sm font-bold text-slate-700">{bi('貼上 AI 的 JSON 或翻譯文字', 'Paste AI JSON or translated text')}</label>
+                      <label htmlFor="receipt-text-draft" className="block text-sm font-bold text-slate-700">{bi('貼上其他 AI 的 JSON 或翻譯文字', 'Paste JSON or translated text from another AI')}</label>
                       <textarea id="receipt-text-draft" data-testid="receipt-text-draft" rows={5} maxLength={200000} value={receiptTextDraft} onChange={event => setReceiptTextDraft(event.target.value)} disabled={tutorialDemo || isAnalyzing} placeholder={bi('貼上 JSON、收據文字或 AI 結果。', 'Paste JSON, receipt text, or AI output.')} className="field-round w-full text-base text-slate-800 leading-relaxed shadow-none" />
                       <input ref={receiptTextFileInputRef} data-testid="receipt-text-file" type="file" accept=".txt,.md,.csv,.json,text/plain,text/csv,application/json" className="hidden" onChange={handleReceiptTextFileUpload} />
                       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">

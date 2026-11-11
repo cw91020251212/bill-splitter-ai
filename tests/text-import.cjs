@@ -116,7 +116,7 @@ const ensureAIImportOpen = async page => {
     await ensureAIImportOpen(noKeyPage);
     assert.equal(await noKeyPage.getByTestId('receipt-text-import-toggle-icon').getAttribute('data-direction'), 'up', 'an expanded import panel uses the up chevron');
     const zhImportHelp = await noKeyPage.getByTestId('receipt-text-import').innerText();
-    assert.match(zhImportHelp, /貼上 AI 的 JSON/);
+    assert.match(zhImportHelp, /貼上其他 AI 的 JSON 或翻譯文字/);
     await noKeyPage.getByTestId('copy-receipt-json-prompt').click();
     const copiedPrompt = await noKeyPage.evaluate(() => window.__copiedPrompt || '');
     assert.match(copiedPrompt, /附上的收據相片/);

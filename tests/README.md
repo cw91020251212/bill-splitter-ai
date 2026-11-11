@@ -204,3 +204,6 @@ R119 漏人指引：`friend-recognition.cjs` 驗證結果卡預設收起、向�
 
 ## R139：AI 翻譯例子文字
 `mobile-layout.cjs` 驗證例子文案為「（Google AI 模式，豆包…）」；標題維持既有字級與粗度，長例子會在卡片寬度不足時自然換行，不遮住箭嘴或造成橫向溢出。`text-import.cjs` 確認提示詞與 JSON 匯入正常。
+
+## R140：AI 翻譯標題同列與輸入標籤
+`mobile-layout.cjs` 在 320px、390px 及桌面檢查「其他 AI 翻譯」與右側例子維持同一行，右對齊、不裁切、不遮住箭嘴且沒有水平溢位；320px 使用較緊湊的標題與例子字級。`text-import.cjs` 確認輸入標籤改為「貼上其他 AI 的 JSON 或翻譯文字」，提示詞與 JSON 匯入保持正常。
