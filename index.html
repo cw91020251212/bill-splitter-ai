@@ -4945,8 +4945,8 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                     <div id="receipt-text-import-content" data-testid="receipt-text-import-content" className="mt-4 space-y-3">
                       <ol data-testid="external-ai-steps" className="list-decimal space-y-1 rounded-lg border border-slate-300 bg-slate-50 p-3 pl-8 text-sm leading-relaxed text-slate-700">
                         <li>{bi('複製提示詞，連同賬單交給其他 AI。', 'Copy the prompt and send it with the bill to another AI.')}</li>
-                        <li>{bi('貼上 AI 的 JSON；純文字由所選模型整理。', 'Paste the AI JSON; the selected model processes plain text.')}</li>
-                        <li>{bi('第二步可加原圖；分享時同一連結會顯示。', 'Add the original photo in Step 2; it appears on the same shared link.')}</li>
+                        <li>{bi('在下方輸入欄貼上其他 AI 產生的 JSON 或純文字。', 'Paste the AI JSON; the selected model processes plain text.')}</li>
+                        <li>{bi('第二步可加入原圖；朋友打開分享連結後，會在同一頁看到原圖。', 'Add the original photo in Step 2; it appears on the same shared link.')}</li>
                       </ol>
                       <label htmlFor="receipt-text-draft" className="block text-sm font-bold text-slate-700">{bi('貼上 AI 的 JSON 或翻譯文字', 'Paste AI JSON or translated text')}</label>
                       <textarea id="receipt-text-draft" data-testid="receipt-text-draft" rows={5} maxLength={200000} value={receiptTextDraft} onChange={event => setReceiptTextDraft(event.target.value)} disabled={tutorialDemo || isAnalyzing} placeholder={bi('貼上 JSON、收據文字或 AI 結果。', 'Paste JSON, receipt text, or AI output.')} className="field-round w-full text-base text-slate-800 leading-relaxed shadow-none" />
