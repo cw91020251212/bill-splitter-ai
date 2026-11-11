@@ -2,6 +2,10 @@
 
 程式仍然是純靜態 GitHub Pages App，無需 build。Playwright 只用於開發驗收，不會載入到公開頁面；測試只可對本機執行。
 
+## R131 首訪引導與收合偏好
+
+`mobile-layout.cjs` 驗收 320／390px 手機、短屏、大字、44px 觸控、首屏明示其他 AI 翻譯，以及免費 Key／AI 操作內容初次展開；同時保護桌面標題、步驟列和項目卡尺寸。`text-import.cjs` 驗證手動收起 Key／AI 指引後 reload 仍記住，並驗收 AI JSON／文字匯入及補貼原帳單。`friend-recognition.cjs`、`recognition-retry-ui.cjs`、`card-redaction-ui.cjs` 驗證補人、補帳和後備報告預設可見、按箭嘴收合／重開後其他結算及分享流程仍正常。
+
 ## R130 新手手機導航與 Key 引導回歸
 
 `mobile-layout.cjs` 僅連線 localhost，驗證 320×844、390×844、320×700 首頁四種輸入入口、窄屏留白、48px 頂欄、四個可返回的命名步驟按鈕、Key 狀態與教學入口、拍照位置及 44×44px 以上觸控尺寸；另驗證 320px 大字模式無橫向溢出、第二步總額及第一件商品的位置、手動認帳緊接清單，以及 1280px 桌面版基準幾何不變。`tutorial-ui.cjs` 驗證 Key 申請入口直達教學影片，並回歸 19 個教程流程。測試不呼叫帳單或模型 API。

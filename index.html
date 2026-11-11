@@ -85,11 +85,11 @@
   ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
   ::-webkit-scrollbar-thumb:hover { background: #64748b; }
   </style>
-  <link rel="stylesheet" href="./theme.css?v=v130-mobile-onboarding-20261111">
+  <link rel="stylesheet" href="./theme.css?v=v131-first-run-disclosures-20261111">
   <link rel="stylesheet" href="./tutorial.css?v=v86-free-models-only">
-  <!-- R130: beginner-friendly mobile steps and first-time Key guidance. -->
-  <meta name="bill-app-release" content="v130-mobile-onboarding-20261111">
-  <script defer src="./pwa.js?v=v130-mobile-onboarding-20261111"></script>
+  <!-- R131: first-use guidance is visible; users can collapse and keep their preference. -->
+  <meta name="bill-app-release" content="v131-first-run-disclosures-20261111">
+  <script defer src="./pwa.js?v=v131-first-run-disclosures-20261111"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
@@ -104,13 +104,29 @@
   <script src="./card-redaction.js?v=v97-card-number-redaction"></script>
   <script src="./card-share-review.js?v=v97-card-number-redaction"></script>
   <script src="./exchange-rates.js?v=v90-cross-currency-settlement"></script>
-    <script src="./tutorial.js?v=v130-mobile-onboarding-20261111"></script>
+    <script src="./tutorial.js?v=v131-first-run-disclosures-20261111"></script>
   <script type="text/babel">
     const { useState, useRef, useEffect, useLayoutEffect, useMemo } = React;
     const tr = value => window.BillI18n.t(value);
     const ReceiptMath = window.ReceiptAdjustments;
     const tf = (key, values) => window.BillI18n.format(key, values);
     const bi = (zh, en) => window.BillI18n.language === 'en' ? en : zh;
+    const UI_DISCLOSURE_PREF_PREFIX = 'billSplitterDisclosureV1:';
+    const getUiDisclosureOpen = (key, defaultOpen = true) => {
+      try {
+        const saved = localStorage.getItem(`${UI_DISCLOSURE_PREF_PREFIX}${key}`);
+        if (saved === 'open') return true;
+        if (saved === 'closed') return false;
+      } catch (error) {}
+      return defaultOpen;
+    };
+    const saveUiDisclosureOpen = (key, isOpen) => {
+      try { localStorage.setItem(`${UI_DISCLOSURE_PREF_PREFIX}${key}`, isOpen ? 'open' : 'closed'); } catch (error) {}
+    };
+    const saveUiDisclosureAfterClick = (event, key, enabled = true) => {
+      const details = event.currentTarget.parentElement;
+      window.setTimeout(() => { if (enabled && details instanceof HTMLDetailsElement) saveUiDisclosureOpen(key, details.open); }, 0);
+    };
     // Alternative actions, not sequential workflow steps.
     const ChoiceDivider = ({ inline = false }) => (
       <span data-testid="choice-divider" className={`choice-divider${inline ? ' choice-divider-inline' : ''}`}>{tr("或")}</span>
@@ -1113,7 +1129,7 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
       const friendShareImageBatchesRef = useRef(new WeakMap());
       const friendShareImageBatchSequenceRef = useRef(0);
       const [showImageActionMenu, setShowImageActionMenu] = useState(false);
-      const [showReceiptTextImport, setShowReceiptTextImport] = useState(false);
+      const [showReceiptTextImport, setShowReceiptTextImport] = useState(() => getUiDisclosureOpen('external-ai-import', true));
       const [lastRecognitionModel, setLastRecognitionModel] = useState('');
       const isTextImportResult = lastRecognitionModel === 'local-json-import' || String(lastRecognitionModel || '').startsWith('text-input|');
       const [showRedaction, setShowRedaction] = useState(false);
@@ -1240,8 +1256,8 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
 
       const [apiModel, setApiModel] = useState(DEFAULT_FREE_MODEL);
       const [ocrEngine, setOcrEngine] = useState('paddlejs');
-      const [showScanModelDescription, setShowScanModelDescription] = useState(false);
-      const [showSettingsModelDescription, setShowSettingsModelDescription] = useState(false);
+      const [showScanModelDescription, setShowScanModelDescription] = useState(() => getUiDisclosureOpen('scan-model-description', true));
+      const [showSettingsModelDescription, setShowSettingsModelDescription] = useState(() => getUiDisclosureOpen('settings-model-description', true));
       const allowPaidModels = false;
       // API keys are user settings: a normal save must survive closing/reopening
       // the app. Keep sessionStorage only as a same-tab fallback.
@@ -1428,7 +1444,7 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
             if (cancelled) return;
             setItems(restoredItems);
             setReceiptTextDraft(typeof data.receiptTextDraft === 'string' ? data.receiptTextDraft.slice(0, 200000) : '');
-            setShowReceiptTextImport(data.showReceiptTextImport === true || Boolean(String(data.receiptTextDraft || '').trim()));
+            setShowReceiptTextImport(getUiDisclosureOpen('external-ai-import', data.showReceiptTextImport === true || Boolean(String(data.receiptTextDraft || '').trim())));
             setLegacyClaimReviewRequired(needsLegacyClaimReview);
             nextClaimItemIdRef.current = restoredNextClaimId;
             setNextClaimItemId(restoredNextClaimId);
@@ -2040,7 +2056,7 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
 
       useEffect(() => {
         if (tutorialDemo) return;
-        const h = kbOpen ? 44 : 64;
+        const h = kbOpen ? 64 : 96;
         document.body.style.paddingBottom = `calc(${h}px + env(safe-area-inset-bottom))`;
       }, [kbOpen]);
 
@@ -2180,8 +2196,8 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
             data-testid={`toggle-${scope}-model-description`}
             aria-label={isOpen ? bi('收起模型說明', 'Hide model details') : bi('查看模型說明', 'Show model details')}
             aria-expanded={isOpen}
-            onClick={() => setIsOpen(open => !open)}
-            className="ml-auto flex min-h-9 min-w-9 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600"
+            onClick={() => setIsOpen(open => { const nextOpen = !open; if (!tutorialDemo) saveUiDisclosureOpen(`${scope}-model-description`, nextOpen); return nextOpen; })}
+            className="ml-auto flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600"
           >
             <span aria-hidden="true" data-testid={`${scope}-model-description-icon`} data-direction={isOpen ? 'up' : 'down'}><Icon path={isOpen ? icons.chevronUp : icons.chevronDown} size={20} /></span>
           </button>
@@ -2191,8 +2207,6 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
 
       const chooseOcrModel = (model) => {
         if (tutorialDemo) return;
-        setShowScanModelDescription(false);
-        setShowSettingsModelDescription(false);
         const usePaddleLocal = model === LOCAL_PADDLE_MODEL_ID;
         const next = usePaddleLocal ? DEFAULT_FREE_MODEL : resolveBillModel(model, false);
         const nextEngine = usePaddleLocal ? 'paddlejs' : 'openrouter';
@@ -2544,7 +2558,7 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
         const storageKey = 'billSplitterDetailTablePreviewV1';
         try {
           localStorage.setItem(storageKey, JSON.stringify(previewData));
-          const previewWindow = window.open('./detailed-view.html?v=v130-mobile-onboarding-20261111', '_blank');
+          const previewWindow = window.open('./detailed-view.html?v=v131-first-run-disclosures-20261111', '_blank');
           if (!previewWindow) {
             localStorage.removeItem(storageKey);
             toast(bi('允許彈窗', 'Allow pop-ups'), 'error');
@@ -2620,7 +2634,7 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
         restoredDraftAssetsRef.current = null;
         persistedDraftAssetRevisionRef.current = null;
         setStepError(''); setUploadError(''); setItems([]); nextClaimItemIdRef.current = 1; setNextClaimItemId(1); setFriendsReplies(''); setManualClaimsEnabled(false); setResults(null);
-        setReceiptTextDraft(''); setShowReceiptTextImport(false); setLegacyClaimReviewRequired(false);
+        setReceiptTextDraft(''); setShowReceiptTextImport(getUiDisclosureOpen('external-ai-import', true)); setLegacyClaimReviewRequired(false);
         setIsAnalyzing(false); setProgress(0); setProgressText('');
         setIsSaved(false); setLastImageData([]); setLastRecognitionModel(''); setTaxAmount(''); setDiscountAmount(''); setTaxNote(''); setReceiptAdjustmentDetails(null);
         setClaimAttachments([]); setClaimInfo(null); setShowClaimShareDialog(false);
@@ -3802,7 +3816,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
         const metadata = getClaimLinkMetadata();
         const link = new URL('./claim.html', window.location.href);
         link.searchParams.set('lang', lang === 'en' ? 'en' : 'zh-HK');
-        link.searchParams.set('v', 'v130-mobile-onboarding-20261111');
+        link.searchParams.set('v', 'v131-first-run-disclosures-20261111');
         link.searchParams.set('session', session.id);
         link.hash = window.ClaimRelay
           ? window.ClaimRelay.buildHash(encodeClaimLinkPayload(payload), room, metadata)
@@ -4515,8 +4529,8 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
       }, [tutorialDemo, tutorialStage]);
 
       const claimSecurityManagementCard = !tutorialDemo && claimSession?.link ? (
-        <details data-testid="claim-password-management" className="rounded-xl border border-slate-300 bg-white p-4 space-y-3">
-          <summary style={{ minHeight: '40px' }} className="min-h-[40px] cursor-pointer text-sm font-bold text-slate-700">{bi('認證碼重設（有需要先開）', 'Reset recognition code (if needed)')}</summary>
+        <details data-testid="claim-password-management" className="rounded-xl border border-slate-300 bg-white p-4 space-y-3" open={getUiDisclosureOpen('claim-password-management', true)}>
+          <summary onClick={event => saveUiDisclosureAfterClick(event, 'claim-password-management')} style={{ minHeight: '40px' }} className="min-h-[40px] cursor-pointer text-sm font-bold text-slate-700">{bi('認證碼重設（有需要先開）', 'Reset recognition code (if needed)')}</summary>
           <p className="text-sm leading-relaxed text-slate-700">{bi('朋友填姓名就可以認帳；4 字認證碼可選填。忘記已設嘅碼或舊密碼，可由你提供一次性確認碼重設，原認帳會保留。', 'Friends can claim with a name; the 4-character code is optional. If they forget it or an old password, provide a one-time reset code; existing claims stay.')}</p>
           <p className="text-xs leading-relaxed text-slate-600">{bi('請把確認碼私下交畀本人；唔使每個朋友都設定。', 'Give the reset code privately to the person; not everyone needs to set a code.')}</p>
           <p data-testid="claim-protection-status" role="status" aria-live="polite" className={`text-sm font-semibold leading-relaxed ${claimSecureError ? 'text-red-800' : 'text-emerald-900'}`}>
@@ -4564,7 +4578,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                 <div className="flex items-center gap-2 sm:gap-3 shrink-0">
                   <img src="./icons/icon.svg" alt="" width="48" height="48" className="app-brand-icon shrink-0" />
                   <div>
-                  <h1 className="text-xl font-extrabold text-slate-800 tracking-tight"><span className="app-brand-name block sm:inline whitespace-nowrap">{tr("分帳管家")}</span><span className="inline-flex items-baseline gap-1 sm:ml-1 whitespace-nowrap"><span data-testid="app-pro-label" className="text-brand-600 font-black">Pro</span><span data-testid="app-version-label" className="text-[10px] leading-3 font-semibold tracking-normal text-brand-700">R130</span></span></h1>
+                  <h1 className="text-xl font-extrabold text-slate-800 tracking-tight"><span className="app-brand-name block sm:inline whitespace-nowrap">{tr("分帳管家")}</span><span className="inline-flex items-baseline gap-1 sm:ml-1 whitespace-nowrap"><span data-testid="app-pro-label" className="text-brand-600 font-black">Pro</span><span data-testid="app-version-label" className="text-[10px] leading-3 font-semibold tracking-normal text-brand-700">R131</span></span></h1>
                   </div>
               </div>
               <div className="header-actions relative flex items-center gap-1.5 sm:gap-2">
@@ -4768,12 +4782,12 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                   <h2 className="text-2xl font-bold text-slate-800 tracking-tight">{tr("上載並分析單據")}</h2>
                 </div>
                 <p className="scan-subtitle-desktop text-base text-slate-700 leading-relaxed">{bi('可以影相讀單；如已由其他 AI 翻譯，也可在下方貼上文字或上載文字檔。', 'Scan a receipt, or paste/upload text already translated by another AI.')}</p>
-                <p className="scan-subtitle-mobile" data-testid="scan-subtitle-mobile">{bi('影相讀單；或貼上文字／JSON。', 'Scan a bill, or paste text/JSON.')}</p>
+                <p className="scan-subtitle-mobile" data-testid="scan-subtitle-mobile">{bi('影相；或用其他 AI 翻譯後貼上。', 'Scan or ask another AI to translate.')}</p>
 
                 <div className="scan-settings-row" data-testid="scan-settings-row">
-                  <details data-testid="scan-settings" className="scan-settings-disclosure" open={tutorialDemo || window.innerWidth >= 640}>
-                    <summary data-testid="scan-settings-toggle" className="mobile-disclosure-summary">
-                      <span className="scan-settings-summary-title"><span className="scan-settings-title-mobile">{bi('辨識設定', 'AI setup')}</span><span className="scan-settings-title-desktop">{bi('辨識設定', 'Recognition settings')}</span></span>
+                  <details data-testid="scan-settings" className="scan-settings-disclosure" open={tutorialDemo || getUiDisclosureOpen('scan-settings', true)}>
+                    <summary data-testid="scan-settings-toggle" onClick={event => saveUiDisclosureAfterClick(event, 'scan-settings', !tutorialDemo)} className="mobile-disclosure-summary">
+                      <span className="scan-settings-summary-title"><span className="scan-settings-title-mobile">{bi('免費 Key 設定', 'Free key setup')}</span><span className="scan-settings-title-desktop">{bi('辨識設定', 'Recognition settings')}</span></span>
                       <span data-testid="scan-key-status" className={`scan-key-status${apiKey.trim() ? ' is-set' : ' is-missing'}`}>{apiKey.trim() ? bi('已設定', 'Set') : bi('未設定', 'Not set')}</span>
                       <Icon path={icons.chevronDown} size={18} aria-hidden="true" />
                     </summary>
@@ -4808,6 +4822,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                     </div>
                     <Icon path={icons.settings} size={22} className="shrink-0 text-slate-500"/>
                   </button>
+                  {!apiKey.trim() && <Button type="button" data-testid="scan-key-tutorial" variant="outline" onClick={openOpenRouterKeyTutorial} className="!w-full !min-h-[48px] !py-2 mt-2 border-red-500 bg-white text-red-800 hover:bg-red-50"><Icon path={icons.help} size={18}/>{bi('第一次用？看免費 Key 申請教學', 'First time? Free Key setup guide')}</Button>}
                 </Card>
 
                 <Card className="border-slate-400 bg-white">
@@ -4831,11 +4846,6 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                 </Card>
                     </div>
                   </details>
-                  {!apiKey.trim() && (
-                    <button type="button" data-testid="scan-key-tutorial" aria-label={bi('OpenRouter API Key 申請教學', 'OpenRouter API key setup tutorial')} onClick={openOpenRouterKeyTutorial} className="key-tutorial-shortcut hidden">
-                      {bi('申請教學', 'Key guide')}
-                    </button>
-                  )}
                 </div>
 
                 {!apiKey.trim() && <p data-testid="scan-key-short-hint" className="scan-key-short-hint">{bi('相片辨識需 Key。', 'Photo scan needs Key.')}</p>}
@@ -4906,10 +4916,10 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
 
                 <Card data-testid="receipt-text-import" className="border-slate-400 bg-white">
                   <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
-                    <button type="button" data-testid="toggle-receipt-text-import" aria-expanded={showReceiptTextImport} onClick={() => setShowReceiptTextImport(value => !value)} className="w-full flex items-center justify-between gap-3 text-left">
+                    <button type="button" data-testid="toggle-receipt-text-import" aria-expanded={showReceiptTextImport} aria-controls="external-ai-import-content" onClick={() => setShowReceiptTextImport(value => { const nextOpen = !value; if (!tutorialDemo) saveUiDisclosureOpen('external-ai-import', nextOpen); return nextOpen; })} className="w-full flex items-center justify-between gap-3 text-left">
                       <span className="min-w-0">
                         <span className="receipt-import-label-desktop block text-base font-bold text-slate-800">{bi('搵其他 AI 幫手翻譯', 'Ask another AI to translate')}</span>
-                        <span className="receipt-import-mobile-label">{bi('貼上文字／JSON', 'Paste text/JSON')}</span>
+                        <span className="receipt-import-mobile-label">{bi('搵其他 AI 幫手翻譯', 'Ask another AI to translate')}</span>
                         <span className="receipt-import-description block mt-1 text-sm leading-relaxed text-slate-600">{bi('提示詞＋賬單＝專用翻譯檔（.json）', 'Prompt + bill = ready-to-import .json file')}</span>
                       </span>
                       <span aria-hidden="true" data-testid="receipt-text-import-toggle-icon" data-direction={showReceiptTextImport ? 'up' : 'down'} className="shrink-0"><Icon path={showReceiptTextImport ? icons.chevronUp : icons.chevronDown} size={20} className="text-slate-600"/></span>
@@ -4917,7 +4927,8 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                     <Button data-testid="copy-receipt-json-prompt" variant="outline" className="copy-receipt-prompt-desktop w-full border-slate-400 bg-white sm:w-auto" disabled={tutorialDemo || isAnalyzing} onClick={copyReceiptJsonImportPrompt}><Icon path={icons.copy} size={18}/>{bi('複製讀圖提示詞', 'Copy photo-reading prompt')}</Button>
                   </div>
                   {showReceiptTextImport && (
-                    <div className="mt-4 space-y-3">
+                    <div id="external-ai-import-content" data-testid="external-ai-import-content" className="mt-4 space-y-3">
+                      <p data-testid="external-ai-howto" className="text-base leading-relaxed text-slate-800">{bi('1. 複製提示詞，連同帳單交給其他 AI。 2. 把 JSON 貼回來或上載檔案。 3. 整理匯入。', '1. Copy the prompt and send it with the bill to another AI. 2. Paste its JSON reply or upload the file. 3. Import it.')}</p>
                       <Button data-testid="copy-receipt-json-prompt-mobile" variant="outline" className="copy-receipt-prompt-mobile w-full border-slate-400 bg-white" disabled={tutorialDemo || isAnalyzing} onClick={copyReceiptJsonImportPrompt}><Icon path={icons.copy} size={18}/>{bi('複製讀圖提示詞', 'Copy photo-reading prompt')}</Button>
                       <label htmlFor="receipt-text-draft" className="block text-sm font-bold text-slate-700">{bi('貼上 AI 的 JSON 或翻譯文字', 'Paste AI JSON or translated text')}</label>
                       <textarea id="receipt-text-draft" data-testid="receipt-text-draft" rows={5} maxLength={200000} value={receiptTextDraft} onChange={event => setReceiptTextDraft(event.target.value)} disabled={tutorialDemo || isAnalyzing} placeholder={bi('貼上 JSON、收據文字或 AI 結果。', 'Paste JSON, receipt text, or AI output.')} className="field-round w-full text-base text-slate-800 leading-relaxed shadow-none" />
@@ -4965,13 +4976,13 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                   </div>
                 )}
                 {items.length === 0 && <p className="text-base text-slate-700 leading-relaxed">{bi('有項目之後，先會出現認帳連結。', 'The share link appears once there is an item.')}</p>}
-                {isTextImportResult && <details data-testid="receipt-photo-disclosure" className="step2-receipt-photo-disclosure" open={tutorialDemo || window.innerWidth >= 640}>
-                  <summary className="mobile-disclosure-summary">{bi('漏貼帳單？補加相片', 'Missing bill photo? Add it')}<Icon path={icons.chevronDown} size={18} aria-hidden="true" /></summary>
+                {isTextImportResult && <details data-testid="receipt-photo-disclosure" className="step2-receipt-photo-disclosure" open={tutorialDemo || getUiDisclosureOpen('receipt-photo-disclosure', true)}>
+                  <summary className="mobile-disclosure-summary" onClick={event => saveUiDisclosureAfterClick(event, 'receipt-photo-disclosure', !tutorialDemo)}>{bi('漏貼帳單？補加相片', 'Missing bill photo? Add it')}<Icon path={icons.chevronDown} size={18} aria-hidden="true" /></summary>
                   {renderTextImportReceiptAttachmentCard(false, lastImageData.length === 0)}
                 </details>}
 
-                <details data-testid="step2-share-settings" className="step2-share-settings-disclosure" open={tutorialDemo || window.innerWidth >= 640}>
-                  <summary className="mobile-disclosure-summary">{bi('活動及分享設定', 'Activity and sharing settings')}<Icon path={icons.chevronDown} size={18} aria-hidden="true" /></summary>
+                <details data-testid="step2-share-settings" className="step2-share-settings-disclosure" open={tutorialDemo || getUiDisclosureOpen('step2-share-settings', true)}>
+                  <summary className="mobile-disclosure-summary" onClick={event => saveUiDisclosureAfterClick(event, 'step2-share-settings', !tutorialDemo)}>{bi('活動及分享設定', 'Activity and sharing settings')}<Icon path={icons.chevronDown} size={18} aria-hidden="true" /></summary>
                   <div className="step2-share-settings-content">
                 <Card data-testid="activity-settings" className="!p-4 space-y-3">
                   <div>
@@ -5122,8 +5133,8 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                 </Card>
 
                 <div data-testid="claims-and-sharing" className="claims-and-sharing border-t border-slate-400 my-6 pt-6 space-y-6">
-                  <details data-testid="claim-share-disclosure" className="claim-share-disclosure" open={tutorialDemo || window.innerWidth >= 640}>
-                  <summary className="mobile-disclosure-summary">{bi('分享認帳連結', 'Share claim link')}<Icon path={icons.chevronDown} size={18} aria-hidden="true" /></summary>
+                  <details data-testid="claim-share-disclosure" className="claim-share-disclosure" open={tutorialDemo || getUiDisclosureOpen('claim-share-disclosure', true)}>
+                  <summary className="mobile-disclosure-summary" onClick={event => saveUiDisclosureAfterClick(event, 'claim-share-disclosure', !tutorialDemo)}>{bi('分享認帳連結', 'Share claim link')}<Icon path={icons.chevronDown} size={18} aria-hidden="true" /></summary>
                   <div data-testid="claim-share-block" className="claim-share-block">
                     <Label className="flex items-center justify-between mb-3"><span>{tr("1. 分享認帳連結")}</span></Label>
                     <p className="text-base text-slate-700 mb-3 leading-relaxed">{claimRoom && !claimSession && !tutorialDemo ? bi('請建立新的受保護連結；舊連結只可手動交回及核對。', 'Create a protected link; the old link supports manual replies and checking only.') : bi('朋友填姓名和項目；4 字認證碼可選填。', 'Friends enter a name and items; the 4-character code is optional.')}</p>
@@ -5436,8 +5447,8 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                   </div>}
 
                 <Card data-testid="add-missing-person-guide" className="!px-3 !py-2 border-blue-300 bg-blue-50 !shadow-none">
-                  <details data-testid="late-person-flow-details" className="group">
-                    <summary data-testid="late-person-flow-summary" aria-controls="late-person-flow-content" style={{ minHeight: '40px' }} className="flex min-h-[40px] cursor-pointer list-none items-center justify-between gap-3 rounded-lg py-1 text-blue-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-700 focus-visible:ring-offset-2">
+                  <details data-testid="late-person-flow-details" className="group" open={getUiDisclosureOpen('late-person-flow-details', true)}>
+                    <summary data-testid="late-person-flow-summary" onClick={event => saveUiDisclosureAfterClick(event, 'late-person-flow-details', !tutorialDemo)} aria-controls="late-person-flow-content" style={{ minHeight: '40px' }} className="flex min-h-[40px] cursor-pointer list-none items-center justify-between gap-3 rounded-lg py-1 text-blue-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-700 focus-visible:ring-offset-2">
                       <span className="font-extrabold">{bi('漏咗朋友？點樣補加', 'Missing someone? Add them')}</span>
                       <span aria-hidden="true" className="text-lg transition-transform duration-200 group-open:rotate-180">▼</span>
                     </summary>
@@ -5467,8 +5478,8 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                 </Card>
 
                 <Card data-testid="missing-bill-guide" className="!px-3 !py-2 border-blue-300 bg-blue-50 !shadow-none">
-                  <details data-testid="missing-bill-flow-details" className="group">
-                    <summary data-testid="missing-bill-flow-summary" aria-controls="missing-bill-flow-content" style={{ minHeight: '40px' }} className="flex min-h-[40px] cursor-pointer list-none items-center justify-between gap-3 rounded-lg py-1 text-blue-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-700 focus-visible:ring-offset-2">
+                  <details data-testid="missing-bill-flow-details" className="group" open={getUiDisclosureOpen('missing-bill-flow-details', true)}>
+                    <summary data-testid="missing-bill-flow-summary" onClick={event => saveUiDisclosureAfterClick(event, 'missing-bill-flow-details', !tutorialDemo)} aria-controls="missing-bill-flow-content" style={{ minHeight: '40px' }} className="flex min-h-[40px] cursor-pointer list-none items-center justify-between gap-3 rounded-lg py-1 text-blue-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-700 focus-visible:ring-offset-2">
                       <span className="font-extrabold">{bi('漏貼帳單？點樣補加', 'Forgot the bill photo?')}</span>
                       <span aria-hidden="true" className="text-lg transition-transform duration-200 group-open:rotate-180">▼</span>
                     </summary>
@@ -5557,7 +5568,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                     </div>
                   </Card>
                   <div data-testid="report-fallback-options">
-                    <Accordion title={bi('後備：簡易／詳細', 'Backup: Summary / Detail')} testId="report-fallback-toggle" defaultOpen={false} onToggle={(isOpen) => { if (isOpen && tutorialDemo) onTutorialAction?.('fallback-open'); }}>
+                    <Accordion title={bi('後備：簡易／詳細', 'Backup: Summary / Detail')} testId="report-fallback-toggle" defaultOpen={tutorialDemo ? false : getUiDisclosureOpen('report-fallback', true)} onToggle={(isOpen) => { if (!tutorialDemo) saveUiDisclosureOpen('report-fallback', isOpen); if (isOpen && tutorialDemo) onTutorialAction?.('fallback-open'); }}>
                       <div className="space-y-4">
                       <div data-testid="summary-report-fallback">
                         <Card className="!p-0 overflow-hidden border-t-4 border-t-brand-600">

@@ -154,7 +154,7 @@ const success = payload => ({
       return { scrollY: window.scrollY, sectionTop: section?.getBoundingClientRect().top, headerBottom, stepperBottom };
     });
     await page.waitForTimeout(1900);
-    assert(Math.abs(step2Entry.sectionTop - step2Entry.stepperBottom - 12) < 4, 'successful OCR enters step 2 just below the compact step row');
+    assert(step2Entry.sectionTop >= step2Entry.stepperBottom && step2Entry.sectionTop - step2Entry.stepperBottom <= 20, `successful OCR enters step 2 just below the compact step row (${JSON.stringify(step2Entry)})`);
     assert(Math.abs(await page.evaluate(() => window.scrollY) - step2Entry.scrollY) < 4, 'successful OCR does not automatically scroll down to the sharing controls');
 
     await page.getByTestId('back-to-step1').click();
@@ -294,7 +294,9 @@ const success = payload => ({
     await page.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '4', null, { timeout: 15000 });
     const receiptImageButton = page.getByTestId('share-receipt-images');
     assert.match(await page.getByTestId('late-person-flow-summary').innerText(), /漏咗朋友？點樣補加/);
-    assert.equal(await page.getByTestId('missing-bill-flow-details').evaluate(node => node.open), false, 'the guide replacing the circled share button starts collapsed');
+    assert.equal(await page.getByTestId('missing-bill-flow-details').evaluate(node => node.open), true, 'the bill guide is visible for first-time users');
+    await page.getByTestId('missing-bill-flow-summary').click();
+    assert.equal(await page.getByTestId('share-receipt-images').isVisible(), false, 'closing the bill guide hides its optional image actions');
     await page.getByTestId('missing-bill-flow-summary').click();
     await receiptImageButton.waitFor({ state: 'visible' });
     const receiptButtonStyle = await receiptImageButton.evaluate(button => ({ background: getComputedStyle(button).backgroundColor, height: Math.round(button.getBoundingClientRect().height) }));
@@ -328,6 +330,9 @@ const success = payload => ({
     assert.ok(receiptShare.fileTypes.every(type => type.startsWith('image/')), 'every shared file remains an image after receipt processing');
     assert.equal(receiptShare.text, '', 'receipt images are shared without attaching the report text');
     await page.evaluate(() => { window.__lastMockShare = null; });
+    assert.equal(await page.getByTestId('report-fallback-toggle').getAttribute('aria-expanded'), 'true', 'first-time report backup options are expanded');
+    await page.getByTestId('report-fallback-toggle').click();
+    assert.equal(await page.getByTestId('report-fallback-toggle').getAttribute('aria-expanded'), 'false', 'report backup options can be collapsed');
     await page.getByTestId('report-fallback-toggle').click();
     const reportShareButton = page.getByTestId('summary-report-actions').getByRole('button', { name: '分享' });
     await reportShareButton.waitFor({ state: 'visible' });

@@ -991,13 +991,6 @@ body.bg-slate-50 { background: var(--page-grey); color: var(--ink); }
   #root .scan-settings-row > .scan-settings-disclosure {
     order: 0; flex: 1 1 auto; width: auto; min-width: 0;
   }
-  #root .scan-settings-row:has(details[open]) > .key-tutorial-shortcut { display: none !important; }
-  #root .scan-settings-row .key-tutorial-shortcut {
-    box-sizing: border-box; display: inline-flex !important; flex: 0 0 auto; align-items: center; justify-content: center;
-    min-width: 84px; min-height: 44px; padding: 4px 8px; border: 1px solid #52745f; border-radius: 10px;
-    background: #eef7f0; color: #244d32; font-size: calc(14px * var(--app-font-scale, 1));
-    font-weight: 700; line-height: 1.15; white-space: nowrap;
-  }
   #root .scan-settings-summary-title { min-width: 0; white-space: nowrap; }
   #root .scan-settings-title-desktop { display: none; }
   #root .scan-key-status {
@@ -1044,15 +1037,16 @@ body.bg-slate-50 { background: var(--page-grey); color: var(--ink); }
   }
   #root [data-testid="receipt-text-import"] > div:first-child { display: block; }
   #root [data-testid="toggle-receipt-text-import"] {
-    box-sizing: border-box; height: 50px; min-height: 50px; padding: 8px 12px;
+    box-sizing: border-box; height: auto; min-height: 72px; padding: 10px 12px;
     border: 1px solid #64748b; border-radius: 12px; background: #fff;
   }
-  #root .receipt-import-label-desktop, #root .receipt-import-description { display: none; }
-  #root .receipt-import-mobile-label { display: block; color: #283444; font-size: calc(16px * var(--app-font-scale, 1)); font-weight: 700; line-height: 1.25; }
+  #root .receipt-import-label-desktop { display: block; }
+  #root .receipt-import-description { display: block; margin-top: 4px; color: #475569; font-size: calc(14px * var(--app-font-scale, 1)); line-height: 1.35; }
+  #root .receipt-import-mobile-label { display: none !important; }
   #root .copy-receipt-prompt-desktop { display: none !important; }
   #root .copy-receipt-prompt-mobile { display: flex !important; min-height: 48px; }
   #root .entry-method-choice {
-    order: 5; width: 100%; min-width: 0; margin: 0; padding: 0; text-align: left;
+    order: 3; width: 100%; min-width: 0; margin: 0; padding: 0; text-align: left;
   }
   #root .entry-method-choice > .choice-divider, #root .entry-method-choice > p { display: none; }
   #root .entry-method-choice [data-testid="start-manual"] {
@@ -1127,7 +1121,15 @@ body.bg-slate-50 { background: var(--page-grey); color: var(--ink); }
 }
 
 @media (min-width: 640px) {
-  #root .mobile-disclosure-summary { display: none !important; }
+  #root .mobile-disclosure-summary {
+    box-sizing: border-box; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    min-height: 44px; padding: 8px 14px; border: 1px solid #64748b; border-radius: 12px;
+    background: #fff; color: #283444; font-size: 16px; font-weight: 700; line-height: 1.35; list-style: none; cursor: pointer;
+  }
+  #root .mobile-disclosure-summary::-webkit-details-marker { display: none; }
+  #root details[open] > .mobile-disclosure-summary { border-radius: 12px 12px 0 0; }
+  #root details[open] > .mobile-disclosure-summary > svg { transform: rotate(180deg); }
+  #root .mobile-disclosure-summary > svg { flex: 0 0 auto; transition: transform .15s ease; }
   #root .scan-settings-content, #root .step2-share-settings-content {
     display: flex; flex-direction: column; gap: 24px; padding: 0;
   }
@@ -1140,12 +1142,10 @@ body.bg-slate-50 { background: var(--page-grey); color: var(--ink); }
   #root [data-testid="manual-empty-state"] .empty-state-back-step { display: none !important; }
 }
 
-@media (max-width: 639px) {
-  #root details.scan-settings-disclosure:not([open]) > .scan-settings-content,
-  #root details.step2-share-settings-disclosure:not([open]) > .step2-share-settings-content,
-  #root details.step2-receipt-photo-disclosure:not([open]) > .app-card,
-  #root details.claim-share-disclosure:not([open]) > .claim-share-block { display: none !important; }
-}
+#root details.scan-settings-disclosure:not([open]) > .scan-settings-content,
+#root details.step2-share-settings-disclosure:not([open]) > .step2-share-settings-content,
+#root details.step2-receipt-photo-disclosure:not([open]) > .app-card,
+#root details.claim-share-disclosure:not([open]) > .claim-share-block { display: none !important; }
 
 @media (min-width: 640px) {
   #root .scan-settings-content > .app-card,

@@ -111,6 +111,7 @@ async function pageFor(label, host = false) {
   pages.push({ page, label, host }); return page;
 }
 async function visible(page, selector) { const all = page.locator(selector); for (let n = 0; n < await all.count(); n++) if (await all.nth(n).isVisible()) return all.nth(n); throw new Error(`Missing visible UI contract: ${selector}`); }
+async function openTextImport(page) { const toggle = page.getByTestId('toggle-receipt-text-import'); if (await toggle.getAttribute('aria-expanded') !== 'true') await toggle.click(); await page.getByTestId('receipt-text-draft').waitFor({ state: 'visible' }); }
 const firstCode = page => page.locator('#claim-password');
 const authCode = page => page.locator('#auth-password');
 async function stored(page, host = false) { const value = await page.evaluate(() => ({ url: location.href, local: { ...localStorage }, session: { ...sessionStorage }, replies: document.querySelector('#reply-preview,[data-testid="claim-replies"]')?.value || '' })); secretFree(value.url); secretFree(value.local, host); secretFree(value.session, host); secretFree(value.replies); }
@@ -202,7 +203,7 @@ async function hostFixture() {
   await host.getByTestId('scan-start').waitFor({ state: 'visible' });
   const step1Accent = await host.getByTestId('scan-start').evaluate(el => getComputedStyle(el).borderLeftColor);
   assert.equal(step1Accent, 'rgb(116, 121, 142)', 'Step 1 work area uses its grey-violet accent');
-  await host.getByTestId('toggle-receipt-text-import').click();
+  await openTextImport(host);
   await host.getByTestId('receipt-text-draft').fill(JSON.stringify({ items: [{ name: 'QA茶', nameEn: 'QA tea', original: 'QA茶', ja: '', price: 100, qty: 1, totalQty: null, unit: '', total: 100 }], adjustments: [], taxTotal: 0, taxNote: '', currency: 'HKD', date: null, receiptTotal: 100 }));
   await host.getByTestId('submit-receipt-text').click();
   await host.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '2', null, { timeout: 30000 });
@@ -378,19 +379,24 @@ async function hostSettle(fixture, qty, initial = false, names = [A, B], claimsA
     const fallback = document.querySelector('[data-testid="report-fallback-options"]');
     return Boolean(web && fallback && (web.compareDocumentPosition(fallback) & Node.DOCUMENT_POSITION_FOLLOWING));
   });
-  assert.equal(webBeforeFallback, true, 'preferred web option appears before collapsed text backups');
+  assert.equal(webBeforeFallback, true, 'preferred web option appears before clearly labelled text backups');
   const friendLink = host.getByTestId('friend-share-open');
   assert.equal(await friendLink.getAttribute('href'), link, 'clickable href remains the complete original friend link');
   const visibleUrl = await host.getByTestId('friend-share-url-display').innerText();
   assert(visibleUrl.length < link.length, 'visible URL is shortened');
   if (link.length > 52) assert.match(visibleUrl, /…/, 'long URL is shortened with a middle ellipsis');
-  assert.equal(await host.getByTestId('final-summary-preview').count(), 0, 'fallback reports are collapsed by default');
+  assert.equal(await host.getByTestId('final-summary-preview').isVisible(), true, 'first-time users see the fallback report options expanded');
   assert.equal(await host.getByTestId('friend-web-preferred-badge').innerText(), '首選・網頁');
   assert.equal(await host.getByTestId('friend-web-intro').innerText(), '同一連結');
   assert.match(await host.getByTestId('friend-network-option').innerText(), /認帳＋結果/);
   assert.equal((await host.getByTestId('friend-share-privacy-note').innerText()).trim(), '持連結者可看帳單及收據。');
   const backups = host.getByTestId('report-fallback-options');
-  await backups.getByRole('button').click();
+  const backupToggle = host.getByTestId('report-fallback-toggle');
+  if (await backupToggle.getAttribute('aria-expanded') !== 'true') await backupToggle.click();
+  await host.getByTestId('final-summary-preview').waitFor({ state: 'visible' });
+  await backupToggle.click();
+  assert.equal(await host.getByTestId('final-summary-preview').isVisible(), false, 'the fallback reports can be collapsed manually');
+  await backupToggle.click();
   await host.getByTestId('final-summary-preview').waitFor({ state: 'visible' });
   await host.getByTestId('final-detail-preview').waitFor({ state: 'visible' });
   assert.equal(await host.getByTestId('summary-report-actions').getByRole('button', { name: '分享' }).count(), 1);
@@ -402,7 +408,7 @@ async function manualClaimEntry() {
   const host = await pageFor('manual claim host', true);
   await host.goto(new URL('index.html', site).href, { waitUntil: 'domcontentloaded', timeout: 30000 });
   await host.getByTestId('scan-start').waitFor({ state: 'visible' });
-  await host.getByTestId('toggle-receipt-text-import').click();
+  await openTextImport(host);
   await host.getByTestId('receipt-text-draft').fill(JSON.stringify({ items: [{ name: 'QA茶', nameEn: 'QA tea', original: 'QA茶', ja: '', price: 100, qty: 1, totalQty: null, unit: '', total: 100 }], adjustments: [], taxTotal: 0, taxNote: '', currency: 'HKD', date: null, receiptTotal: 100 }));
   await host.getByTestId('submit-receipt-text').click();
   await host.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '2', null, { timeout: 30000 });
@@ -491,14 +497,15 @@ async function ui() {
   assert.equal(await fixture.host.getByTestId('share-receipt-images').count(), 0, 'share action is absent until a receipt photo is added');
   const friendGuideDetails = fixture.host.getByTestId('late-person-flow-details');
   const friendGuideSummary = fixture.host.getByTestId('late-person-flow-summary');
-  assert.equal(await friendGuideDetails.evaluate(node => node.open), false, 'the original missing-friend guide remains collapsed');
+  assert.equal(await friendGuideDetails.evaluate(node => node.open), true, 'the original missing-friend guide is visible on first use');
   assert.match(await friendGuideSummary.innerText(), /漏咗朋友？點樣補加[\s\S]*▼/);
   await friendGuideSummary.click();
-  assert.match(await fixture.host.getByTestId('missing-person-steps').innerText(), /複製同一連結給朋友/);
+  assert.equal(await friendGuideDetails.evaluate(node => node.open), false, 'the missing-friend guide can be manually collapsed');
   await friendGuideSummary.click();
+  assert.match(await fixture.host.getByTestId('missing-person-steps').innerText(), /複製同一連結給朋友/);
   const billGuideDetails = fixture.host.getByTestId('missing-bill-flow-details');
   const billGuideSummary = fixture.host.getByTestId('missing-bill-flow-summary');
-  assert.equal(await billGuideDetails.evaluate(node => node.open), false, 'the bill guide replacing the circled share button stays collapsed');
+  assert.equal(await billGuideDetails.evaluate(node => node.open), true, 'the bill guide replacing the circled share button is visible on first use');
   assert.match(await billGuideSummary.innerText(), /漏貼帳單？點樣補加[\s\S]*▼/);
   const billSummaryHeight = Math.round((await billGuideSummary.boundingBox()).height);
   assert(billSummaryHeight >= 40 && billSummaryHeight <= 42, `bill guide control is compact but touchable (${billSummaryHeight}px)`);
@@ -511,6 +518,9 @@ async function ui() {
       && (bill.compareDocumentPosition(report) & Node.DOCUMENT_POSITION_FOLLOWING));
   }), true, 'the original friend guide stays above the bill guide, which replaces the circled button before report sharing');
   await billGuideSummary.click();
+  assert.equal(await billGuideDetails.evaluate(node => node.open), false, 'the bill guide can be manually collapsed');
+  await billGuideSummary.click();
+  assert.equal(await billGuideDetails.evaluate(node => node.open), true, 'the bill guide reopens on the arrow');
   assert.equal((await fixture.host.getByTestId('missing-person-claim-direction').locator('h3').innerText()).trim(), '1. 認帳單補加');
   assert.equal((await fixture.host.getByTestId('share-bill-direction').locator('h3').innerText()).trim(), '2. 分享帳單');
   assert.match(await fixture.host.getByTestId('share-bill-direction').innerText(), /新增圖片會先在本機遮蓋/);
@@ -615,13 +625,15 @@ async function ui() {
   const latePersonGuide = host.getByTestId('add-missing-person-guide');
   const flowDetails = host.getByTestId('late-person-flow-details');
   const flowSummary = host.getByTestId('late-person-flow-summary');
-  assert.equal(await flowDetails.evaluate(node => node.open), false, 'missing-person guidance starts collapsed');
+  assert.equal(await flowDetails.evaluate(node => node.open), true, 'missing-person guidance is expanded for first-time users');
   assert.match(await flowSummary.innerText(), /漏咗朋友？點樣補加[\s\S]*▼/, 'the original missing-friend control stays in its original position');
   const friendSummaryHeight = Math.round((await flowSummary.boundingBox()).height);
   assert(friendSummaryHeight >= 40 && friendSummaryHeight <= 42, `friend guide control is compact but touchable (${friendSummaryHeight}px)`);
-  assert.equal(await host.getByTestId('copy-late-person-link').isVisible(), false, 'actions stay hidden until expanded');
+  assert.equal(await host.getByTestId('copy-late-person-link').isVisible(), true, 'first-time users can see the add-person actions without discovering a hidden panel');
   await flowSummary.click();
-  assert.equal(await flowDetails.evaluate(node => node.open), true, 'downward summary expands the guide');
+  assert.equal(await flowDetails.evaluate(node => node.open), false, 'the downward summary collapses the guide');
+  await flowSummary.click();
+  assert.equal(await flowDetails.evaluate(node => node.open), true, 'the upward summary reopens the guide');
   const guideText = await latePersonGuide.innerText();
   assert.match(guideText, /複製同一連結[\s\S]*接收新認帳[\s\S]*第三步重算/, 'expanded guidance keeps the correct add → receive → recalculate order');
   assert((await host.getByTestId('missing-person-steps').innerText()).length <= 100, 'expanded instructions remain concise');
@@ -632,15 +644,13 @@ async function ui() {
   await host.getByTestId('claim-inbox').waitFor({ state: 'visible' });
   await host.locator('.step-nav').getByRole('button', { name: '最終結果' }).click();
   await latePersonGuide.waitFor({ state: 'visible' });
-  assert.equal(await flowDetails.evaluate(node => node.open), false, 'receiving action returns to results with the guide collapsed');
-  await flowSummary.click();
+  assert.equal(await flowDetails.evaluate(node => node.open), true, 'receiving action returns to results with the first-use guide still expanded');
   await host.evaluate(() => { window.__copiedLatePersonLink = ''; document.execCommand = command => { if (command === 'copy') window.__copiedLatePersonLink = document.activeElement?.value || ''; return command === 'copy'; }; });
   await host.getByTestId('manual-late-person-replies').click();
   await host.waitForFunction(() => document.activeElement?.getAttribute('data-testid') === 'claim-replies', null, { timeout: 5000 });
   await host.locator('.step-nav').getByRole('button', { name: '最終結果' }).click();
   await latePersonGuide.waitFor({ state: 'visible' });
-  assert.equal(await flowDetails.evaluate(node => node.open), false, 'guide returns collapsed when the results step is reopened');
-  await flowSummary.click();
+  assert.equal(await flowDetails.evaluate(node => node.open), true, 'guide remains expanded when the results step is reopened');
   await host.getByTestId('copy-late-person-link').click();
   assert.equal(await host.evaluate(() => window.__copiedLatePersonLink), link, 'the first action copies the same share link');
   await late.getByTestId('add-another-person').click();

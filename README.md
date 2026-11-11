@@ -22,6 +22,14 @@ After the organizer recalculates, the per-session Durable Object serves the stro
 
 The mobile stepper names all four stages and lets users revisit completed steps. When no Key is configured, the photo action gets a clear prompt, a direct application guide, and a concise explanation of text/JSON/manual alternatives. Mobile controls remain at least 44px; desktop geometry and colors are unchanged. PWA cache epoch: `v130-mobile-onboarding-20261111`.
 
+## R131：新手資訊先展開，熟手可收起
+
+首次使用會直接看到免費 Key 申請教學、其他 AI 翻譯的三步說明，以及第二步和結果頁的重要操作指引；每個區塊都有清楚箭嘴。使用者手動收合或重開後，偏好只保存在本機並於下次沿用。首頁仍先顯示相機入口，桌面保留四步流程與既有配色。PWA cache epoch：`v131-first-run-disclosures-20261111`。
+
+## R131: First-use guidance with remembered controls
+
+First-time visitors see the free Key guide, the three-step workflow for using another AI to translate a bill, and the important Step 2/results instructions. Each section has a clear chevron; manual open/close choices are saved locally and reused next time. The camera remains the first action, and the existing desktop workflow and palette are preserved. PWA cache epoch: `v131-first-run-disclosures-20261111`.
+
 ## R127：复查問題與草稿安全修正
 
 拒絕負數／無效商品金額和數量，並在第二步清楚顯示錯誤；有效 JSON 的稅費、折扣或商品資料錯誤時不會改送 AI。未提交的單據文字會留在本機草稿，取消新單可保留，確認新單則一併清除。舊草稿會先要求核對認領編號；OCR 重認可按唯一商品規格沿用編號，無法安全配對時改用新編號並阻止舊認帳錯套。設定／歷史頁不再顯示過期的結算狀態，字級選項及頂部功能選單均有至少 44px 觸控範圍。PWA cache epoch：`v127-recheck-audit-20261110`。

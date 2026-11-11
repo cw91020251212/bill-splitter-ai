@@ -351,7 +351,7 @@ async function runKeyStatusHintSmoke(browser) {
       localStorage.setItem('billSplitterLanguage', 'zh-HK');
     }, key);
     await page.goto(base, { waitUntil: 'networkidle' });
-    assert.equal(await page.getByTestId('scan-settings').evaluate(details => details.open), false, 'recognition settings remain collapsed on the phone first screen');
+    assert.equal(await page.getByTestId('scan-settings').evaluate(details => details.open), true, 'first-use recognition and Key guidance is open on the phone first screen');
     const shortHint = page.getByTestId('scan-key-short-hint');
     if (key) {
       assert.equal(await shortHint.count(), 0, 'configured key does not show the missing-key hint');
@@ -372,7 +372,7 @@ async function runKeyStatusHintSmoke(browser) {
       assert.equal(await page.getByTestId('tutorial-openrouter-video').isVisible(), true, 'the guide opens the key application video directly');
       await page.getByTestId('skip-tutorials').click();
     }
-    await page.getByTestId('scan-settings-toggle').click();
+    if (!(await page.getByTestId('scan-settings').evaluate(details => details.open))) await page.getByTestId('scan-settings-toggle').click();
     await page.waitForFunction(hasKey => {
       const text = document.querySelector('[data-testid="open-free-key-settings"]')?.innerText || '';
       return hasKey ? text.includes('已設定') : text.includes('尚未設定免費鎖匙');

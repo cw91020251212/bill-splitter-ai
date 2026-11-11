@@ -29,6 +29,11 @@ const textModelPayload = {
   items: [{ name: '芒果糯米飯', nameEn: 'Mango sticky rice', original: 'ข้าวเหนียวมะม่วง', ja: '', price: 65, qty: 1, totalQty: 1, unit: '份', total: 65 }],
   adjustments: [], taxTotal: 0, taxNote: '', currency: 'THB', date: null, receiptTotal: 65
 };
+async function openTextImport(page) {
+  const toggle = page.getByTestId('toggle-receipt-text-import');
+  if (await toggle.getAttribute('aria-expanded') !== 'true') await toggle.click();
+  await page.getByTestId('receipt-text-draft').waitFor({ state: 'visible' });
+}
 
 const initStorage = async (page, config) => {
   await page.route(/^https:\/\/cdn\.tailwindcss\.com(?:\/.*)?$/, route => route.fulfill({ status: 200, contentType: 'application/javascript', body: 'window.tailwind = window.tailwind || {};' }));
@@ -73,16 +78,27 @@ const initStorage = async (page, config) => {
     });
     await initStorage(noKeyPage, null);
 
-    assert.equal(await noKeyPage.getByTestId('scan-settings').evaluate(node => node.open), false, 'recognition settings start collapsed on phones');
-    await noKeyPage.getByTestId('scan-settings-toggle').click();
+    assert.equal(await noKeyPage.getByTestId('scan-settings').evaluate(node => node.open), true, 'first-time recognition and Key guidance is expanded on phones');
     await noKeyPage.getByTestId('scan-model-select').waitFor({ state: 'visible' });
     assert.equal(await noKeyPage.getByTestId('scan-model-select').inputValue(), 'local/paddleocr-js', 'fresh installs use local PaddleOCR + Dots by default');
     await noKeyPage.getByTestId('scan-settings-toggle').click();
-    assert.equal(await noKeyPage.getByTestId('copy-receipt-json-prompt').isVisible(), false, 'the nonessential prompt action is kept inside the collapsed text-import flow on phones');
-    assert.equal(await noKeyPage.getByTestId('receipt-text-import-toggle-icon').getAttribute('data-direction'), 'down', 'a collapsed import panel uses the shared down chevron');
+    await noKeyPage.waitForFunction(() => localStorage.getItem('billSplitterDisclosureV1:scan-settings') === 'closed');
+    await noKeyPage.reload({ waitUntil: 'networkidle' });
+    assert.equal(await noKeyPage.getByTestId('scan-settings').evaluate(node => node.open), false, 'manually collapsed Key settings remain collapsed after reload');
+    assert.equal(await noKeyPage.getByTestId('scan-model-select').isVisible(), false, 'collapsed settings hide model controls');
+    await noKeyPage.getByTestId('scan-settings-toggle').click();
+    assert.equal(await noKeyPage.getByTestId('copy-receipt-json-prompt-mobile').isVisible(), true, 'the prompt action is visible inside the expanded AI-import guide');
+    assert.equal(await noKeyPage.getByTestId('receipt-text-import-toggle-icon').getAttribute('data-direction'), 'up', 'an expanded import panel uses the up chevron');
     const zhImportHeading = await noKeyPage.getByTestId('toggle-receipt-text-import').innerText();
-    assert.match(zhImportHeading, /貼上文字／JSON/);
+    assert.match(zhImportHeading, /搵其他 AI 幫手翻譯/);
+    assert.match(zhImportHeading, /提示詞＋賬單＝專用翻譯檔（\.json）/);
+    assert.match(await noKeyPage.getByTestId('external-ai-howto').innerText(), /複製提示詞.*其他 AI.*JSON.*上載檔案/);
     assert.equal(await noKeyPage.getByTestId('receipt-text-import').evaluate(node => node.previousElementSibling?.getAttribute('data-testid') === 'choice-divider'), true, 'the receipt OCR and external AI import paths are separated by “or”');
+    await noKeyPage.getByTestId('toggle-receipt-text-import').click();
+    await noKeyPage.waitForFunction(() => localStorage.getItem('billSplitterDisclosureV1:external-ai-import') === 'closed');
+    await noKeyPage.reload({ waitUntil: 'networkidle' });
+    assert.equal(await noKeyPage.getByTestId('toggle-receipt-text-import').getAttribute('aria-expanded'), 'false', 'a manually collapsed AI guide remains collapsed after reload');
+    await openTextImport(noKeyPage);
     await noKeyPage.getByTestId('start-manual').click();
     await noKeyPage.getByTestId('item-name').first().fill('測試項目');
     const removeItem = noKeyPage.getByTestId('remove-item').first();
@@ -109,7 +125,7 @@ const initStorage = async (page, config) => {
     await noKeyPage.getByTestId('manual-empty-state').waitFor({ state: 'visible' });
     assert.equal(await noKeyPage.getByTestId('manual-empty-state').getByTestId('choice-divider').count(), 1, 'photo scan and manual entry are separated by “or”');
     await noKeyPage.getByTestId('back-to-step1').click();
-    await noKeyPage.getByTestId('toggle-receipt-text-import').click();
+    await openTextImport(noKeyPage);
     assert.equal(await noKeyPage.getByTestId('receipt-text-import-toggle-icon').getAttribute('data-direction'), 'up', 'an expanded import panel uses the up chevron');
     const zhImportHelp = await noKeyPage.getByTestId('receipt-text-import').innerText();
     assert.match(zhImportHelp, /JSON 本機匯入/);
@@ -125,9 +141,9 @@ const initStorage = async (page, config) => {
     await noKeyPage.evaluate(() => localStorage.setItem('billSplitterLanguage', 'en'));
     await noKeyPage.reload();
     await noKeyPage.getByTestId('toggle-receipt-text-import').waitFor({ state: 'visible', timeout: 30000 });
-    await noKeyPage.getByTestId('toggle-receipt-text-import').click();
+    await openTextImport(noKeyPage);
     const enImportHelp = await noKeyPage.getByTestId('receipt-text-import').innerText();
-    assert.match(enImportHelp, /Paste text\/JSON/);
+    assert.match(enImportHelp, /Ask another AI to translate/);
     await noKeyPage.getByTestId('copy-receipt-json-prompt-mobile').click();
     const copiedEnglishPrompt = await noKeyPage.evaluate(() => window.__copiedPrompt || '');
     assert.match(copiedEnglishPrompt, /Read the receipt photo/);
@@ -139,7 +155,7 @@ const initStorage = async (page, config) => {
     await noKeyPage.evaluate(() => localStorage.setItem('billSplitterLanguage', 'zh-HK'));
     await noKeyPage.reload();
     await noKeyPage.getByTestId('toggle-receipt-text-import').waitFor({ state: 'visible', timeout: 30000 });
-    await noKeyPage.getByTestId('toggle-receipt-text-import').click();
+    await openTextImport(noKeyPage);
 
     await noKeyPage.getByTestId('receipt-text-draft').fill(JSON.stringify(jsonPastePayload));
     await noKeyPage.getByTestId('submit-receipt-text').click();
@@ -154,9 +170,8 @@ const initStorage = async (page, config) => {
     assert.equal(await noKeyPage.locator('[data-testid="items-step"] [data-testid="last-recognition-model"]').count(), 0, 'the review step hides redundant source/model details');
     assert.equal(noKeyRequests, 0, 'valid JSON is imported locally without an API key or network request');
     const receiptPhotoDisclosure = noKeyPage.getByTestId('receipt-photo-disclosure');
-    assert.equal(await receiptPhotoDisclosure.evaluate(details => details.open), false, 'the photo attachment form stays collapsed below the item list on phones');
+    assert.equal(await receiptPhotoDisclosure.evaluate(details => details.open), true, 'the photo attachment guidance is visible on first use below the item list');
     assert.match(await receiptPhotoDisclosure.locator('summary').innerText(), /漏貼帳單？補加相片/);
-    await receiptPhotoDisclosure.locator('summary').click();
     const missingBillReminder = noKeyPage.getByTestId('ai-import-bill-photo-reminder');
     await missingBillReminder.waitFor({ state: 'visible' });
     assert.match(await missingBillReminder.innerText(), /AI 只匯入項目，未有帳單圖片/);
@@ -167,14 +182,12 @@ const initStorage = async (page, config) => {
     await noKeyPage.evaluate(() => localStorage.setItem('billSplitterLanguage', 'en'));
     await noKeyPage.reload();
     await noKeyPage.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '2', null, { timeout: 30000 });
-    await noKeyPage.getByTestId('receipt-photo-disclosure').locator('summary').click();
     await noKeyPage.waitForFunction(() => document.querySelector('[data-testid="ai-import-bill-photo-reminder"]')?.textContent.includes('AI import includes the items, not the bill photo.'));
     assert.match(await missingBillReminder.innerText(), /friends can view it on the same result link/);
     assert.match(await noKeyPage.getByTestId('attach-receipt-image').innerText(), /Attach original bill/);
     await noKeyPage.evaluate(() => localStorage.setItem('billSplitterLanguage', 'zh-HK'));
     await noKeyPage.reload();
     await noKeyPage.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '2', null, { timeout: 30000 });
-    await noKeyPage.getByTestId('receipt-photo-disclosure').locator('summary').click();
     await noKeyPage.waitForFunction(() => document.querySelector('[data-testid="ai-import-bill-photo-reminder"]')?.textContent.includes('AI 只匯入項目，未有帳單圖片'));
 
     await noKeyPage.evaluate(base64 => {
@@ -224,7 +237,6 @@ const initStorage = async (page, config) => {
     }, null, { timeout: 15000 });
     await noKeyPage.reload();
     await noKeyPage.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '2', null, { timeout: 30000 });
-    await noKeyPage.getByTestId('receipt-photo-disclosure').locator('summary').click();
     assert.match(await noKeyPage.getByTestId('receipt-attachment-status').innerText(), /已加1張/, 'the attached photo remains with the imported bill after reload');
     assert.equal(await noKeyPage.getByTestId('ai-import-bill-photo-reminder').count(), 0, 'the restored photo also keeps the reminder hidden');
     assert.equal((await noKeyPage.getByTestId('draft-status').innerText()).trim(), '已恢復');
@@ -233,7 +245,6 @@ const initStorage = async (page, config) => {
     await noKeyPage.evaluate(() => localStorage.setItem('billSplitterLanguage', 'en'));
     await noKeyPage.reload();
     await noKeyPage.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '2', null, { timeout: 30000 });
-    await noKeyPage.getByTestId('receipt-photo-disclosure').locator('summary').click();
     assert.equal((await noKeyPage.getByTestId('draft-status').innerText()).trim(), 'Restored');
     assert.equal(await noKeyPage.getByTestId('ai-import-bill-photo-reminder').count(), 0, 'the hidden reminder stays hidden after the English reload');
     assert.match(await noKeyPage.getByTestId('attach-receipt-image').innerText(), /Add photo/);
@@ -260,7 +271,7 @@ const initStorage = async (page, config) => {
     await noKeyPage.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '2', null, { timeout: 30000 });
 
     await noKeyPage.getByTestId('back-to-step1').click();
-    await noKeyPage.getByTestId('toggle-receipt-text-import').click();
+    await openTextImport(noKeyPage);
     const fencedJson = `\`\`\`json\n${JSON.stringify(filePayload)}\n\`\`\``;
     await noKeyPage.getByTestId('receipt-text-file').setInputFiles({
       name: 'translated-receipt.txt', mimeType: 'text/plain', buffer: Buffer.from(fencedJson, 'utf8')
@@ -268,12 +279,12 @@ const initStorage = async (page, config) => {
     await noKeyPage.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '2', null, { timeout: 30000 });
     assert.equal(await noKeyPage.getByTestId('verify-item').count(), 1, 'a text file containing fenced JSON also imports locally');
     assert.match(await noKeyPage.getByTestId('verify-item').first().innerText(), /冰咖啡/);
-    assert.equal(await noKeyPage.getByTestId('receipt-photo-disclosure').evaluate(details => details.open), false, 'text-file JSON also leaves photo controls collapsed under the item list');
+    assert.equal(await noKeyPage.getByTestId('receipt-photo-disclosure').evaluate(details => details.open), true, 'text-file JSON shows optional original-photo guidance on first use');
     assert.match(await noKeyPage.getByTestId('receipt-photo-disclosure').locator('summary').innerText(), /漏貼帳單？補加相片/);
     assert.equal(noKeyRequests, 0, 'text-file JSON also makes no network request');
 
     await noKeyPage.getByTestId('back-to-step1').click();
-    await noKeyPage.getByTestId('toggle-receipt-text-import').click();
+    await openTextImport(noKeyPage);
     await noKeyPage.getByTestId('receipt-text-draft').fill('拉麵 1 碗 100 元；消費税 8 元；應付 108 元');
     await noKeyPage.getByTestId('submit-receipt-text').click();
     await noKeyPage.getByTestId('receipt-text-import-error').waitFor({ state: 'visible' });
@@ -311,7 +322,7 @@ const initStorage = async (page, config) => {
       keys: { openrouter: 'local-test-key' }, model: DOTS,
       allowPaidModels: false, ocrModelPreferenceVersion: 5
     });
-    await modelPage.getByTestId('toggle-receipt-text-import').click();
+    await openTextImport(modelPage);
     await modelPage.getByTestId('receipt-text-draft').fill(JSON.stringify({ items: [{ name: '負稅測試', price: 10, qty: 1, total: 10 }], taxTotal: -2, currency: 'HKD' }));
     await modelPage.getByTestId('submit-receipt-text').click();
     await modelPage.getByTestId('receipt-text-import-error').waitFor({ state: 'visible' });
@@ -330,9 +341,8 @@ const initStorage = async (page, config) => {
     assert.equal(capturedImageCount, 0, 'text-only requests contain no image payload');
     assert.match(await modelPage.getByTestId('verify-item').first().innerText(), /芒果糯米飯/);
     assert.match(await modelPage.getByTestId('verify-summary').innerText(), /^1項/);
-    assert.equal(await modelPage.getByTestId('receipt-photo-disclosure').evaluate(details => details.open), false, 'AI-structured text keeps the optional photo controls below the items');
+    assert.equal(await modelPage.getByTestId('receipt-photo-disclosure').evaluate(details => details.open), true, 'AI-structured text shows optional photo guidance on first use');
     assert.match(await modelPage.getByTestId('receipt-photo-disclosure').locator('summary').innerText(), /漏貼帳單？補加相片/);
-    await modelPage.getByTestId('receipt-photo-disclosure').locator('summary').click();
     assert.equal(await modelPage.getByTestId('ai-import-bill-photo-reminder').isVisible(), true, 'AI-structured text still offers the original-bill reminder after expansion');
     assert.match(await modelPage.getByTestId('attach-receipt-image').innerText(), /補貼原帳單/);
     assert.equal(await modelPage.locator('[data-testid="items-step"] [data-testid="last-recognition-model"]').count(), 0);

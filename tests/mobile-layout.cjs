@@ -7,7 +7,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
 
 const base = new URL(process.env.BASE_URL || 'http://127.0.0.1:4178/');
 if (!['127.0.0.1', 'localhost'].includes(base.hostname)) throw new Error('This test only runs against a local server.');
-const outputDir = process.env.TEST_OUTPUT_DIR || '/tmp/r130-mobile-onboarding';
+const outputDir = process.env.TEST_OUTPUT_DIR || '/tmp/r131-first-run-guidance';
 const receiptJson = {
   items: [
     { name: '魚蛋', nameEn: 'Fish balls', original: '魚蛋', ja: '', price: 25, qty: 2, totalQty: 2, unit: '碗', total: 50 },
@@ -86,7 +86,8 @@ async function assertMobileStepNavigation(page, step, label) {
 
 async function assertImportedStep2(page, width, height, largeText = false) {
   const label = `${width}×${height}${largeText ? ' large text' : ''}`;
-  await page.getByTestId('toggle-receipt-text-import').click();
+  const importToggle = page.getByTestId('toggle-receipt-text-import');
+  if (await importToggle.getAttribute('aria-expanded') !== 'true') await importToggle.click();
   await page.getByTestId('receipt-text-draft').fill(JSON.stringify(receiptJson));
   await page.getByTestId('submit-receipt-text').click();
   await page.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '2', null, { timeout: 30000 });
@@ -101,8 +102,8 @@ async function assertImportedStep2(page, width, height, largeText = false) {
   const manualClaimBox = await page.getByTestId('manual-claim-entry-option').boundingBox();
   assert.ok(itemListBox && manualClaimBox && manualClaimBox.y >= itemListBox.y + itemListBox.height - 1, `${label}: manual claim entry follows the complete item list`);
   assert.ok(manualClaimBox.y - (itemListBox.y + itemListBox.height) <= 44, `${label}: manual claim entry is immediately after the list`);
-  assert.equal(await page.getByTestId('step2-share-settings').evaluate(details => details.open), false, `${label}: activity/share settings stay collapsed on phones`);
-  assert.equal(await page.getByTestId('receipt-photo-disclosure').evaluate(details => details.open), false, `${label}: receipt-photo controls stay collapsed on phones`);
+  assert.equal(await page.getByTestId('step2-share-settings').evaluate(details => details.open), true, `${label}: activity/share guidance is visible on first use`);
+  assert.equal(await page.getByTestId('receipt-photo-disclosure').evaluate(details => details.open), true, `${label}: receipt-photo guidance is visible on first use`);
   assert.ok(await page.getByTestId('manual-claim-entry-option').isVisible(), `${label}: manual claim entry remains available`);
   await assertNoOverflow(page, width, `${label} Step 2`);
   const touchTargets = await assertVisibleTargets(page, `${label} Step 2`);
@@ -136,7 +137,7 @@ async function assertImportedStep2(page, width, height, largeText = false) {
         '[data-testid="receipt-upload"]', '[data-testid="toggle-receipt-text-import"]',
         '[data-testid="start-manual"]', '[data-testid="scan-settings-toggle"]',
         '[data-testid="scan-key-tutorial"]', '[data-testid="scan-key-short-hint"]',
-        '[data-testid="scan-key-methods-hint"]'
+        '[data-testid="scan-key-methods-hint"]', '[data-testid="external-ai-howto"]'
       ]);
       await assertNoOverflow(page, width, `${width}×${height} home`);
       assert.equal(current['.app-header-row'][3], 48, `${width}×${height}: header stays within the 48px target`);
@@ -147,17 +148,21 @@ async function assertImportedStep2(page, width, height, largeText = false) {
       assert.equal(current['[data-testid="scan-start"] .page-section-heading'] && await page.evaluate(() => getComputedStyle(document.querySelector('[data-testid="scan-start"] .page-section-heading h2')).fontSize), '23px', `${width}×${height}: mobile title uses 23px text`);
       assert.ok(current['[data-testid="receipt-camera"]'][1] < 220 && current['[data-testid="receipt-upload"]'][1] < 220, `${width}×${height}: photo actions begin before y=220`);
       assert.ok(current['[data-testid="receipt-camera"]'][3] >= 52 && current['[data-testid="receipt-upload"]'][3] >= 52, `${width}×${height}: photo buttons are at least 44×52px`);
-      assert.ok(current['[data-testid="toggle-receipt-text-import"]'][1] + current['[data-testid="toggle-receipt-text-import"]'][3] <= 600, `${width}×${height}: text-import action is visible above y=600`);
-      assert.ok(current['[data-testid="start-manual"]'][1] + current['[data-testid="start-manual"]'][3] <= (height === 844 ? 600 : height), `${width}×${height}: manual entry is visible without scrolling`);
+      assert.ok(current['[data-testid="start-manual"]'][1] + current['[data-testid="start-manual"]'][3] <= (height === 844 ? 600 : height), `${width}×${height}: manual entry remains close to the image option`);
       assert.ok(current['[data-testid="scan-key-tutorial"]'] && current['[data-testid="scan-key-tutorial"]'][3] >= 44, `${width}×${height}: Key application tutorial is a visible 44px action`);
       assert.ok(current['[data-testid="scan-key-tutorial"]'][1] >= current['[data-testid="receipt-upload"]'][1] + current['[data-testid="receipt-upload"]'][3] - 1, `${width}×${height}: Key setup appears beside the image-recognition workflow`);
       assert.ok(current['[data-testid="scan-key-methods-hint"]'][1] >= current['[data-testid="scan-key-tutorial"]'][1] + current['[data-testid="scan-key-tutorial"]'][3] - 1, `${width}×${height}: Key alternatives are explained after image actions`);
       assert.ok(current['[data-testid="toggle-receipt-text-import"]'][1] >= current['[data-testid="scan-key-methods-hint"]'][1] + current['[data-testid="scan-key-methods-hint"]'][3] - 1, `${width}×${height}: text import follows the Key alternatives`);
-      assert.equal(await page.getByTestId('scan-settings').evaluate(details => details.open), false, `${width}×${height}: recognition settings start collapsed`);
-      assert.equal(await page.getByTestId('scan-model-select').isVisible(), false, `${width}×${height}: model cards stay out of the first screen`);
+      assert.equal(await page.getByTestId('scan-settings').evaluate(details => details.open), true, `${width}×${height}: first-use Key and recognition guidance starts expanded`);
+      assert.equal(await page.getByTestId('scan-model-select').isVisible(), true, `${width}×${height}: first-use model guidance is visible until the user collapses it`);
+      assert.equal(await page.getByTestId('external-ai-howto').isVisible(), true, `${width}×${height}: external-AI translation steps are shown on first use`);
+      assert.match(await page.getByTestId('toggle-receipt-text-import').innerText(), /搵其他 AI 幫手翻譯/);
       assert.match(await page.getByTestId('scan-key-status').innerText(), /未設定/);
       assert.match(await page.getByTestId('scan-key-short-hint').innerText(), /相片辨識需 Key/);
       assert.match(await page.getByTestId('scan-key-methods-hint').innerText(), /文字需 Key.*JSON／手動免/);
+      assert.match(await page.getByTestId('scan-subtitle-mobile').innerText(), /其他 AI 翻譯/, `${width}×${height}: the first screen explicitly mentions the other-AI route`);
+      assert.match(await page.getByTestId('scan-key-tutorial').innerText(), /免費 Key 申請教學/, `${width}×${height}: the missing-key help tells users how to apply`);
+      assert.equal(await page.getByTestId('toggle-receipt-text-import').getAttribute('aria-expanded'), 'true', `${width}×${height}: the other-AI workflow is open on first use`);
       const hintBox = await page.getByTestId('scan-key-short-hint').boundingBox();
       assert.ok(hintBox && hintBox.height <= 24, `${width}×${height}: key hint stays on one line`);
       const targetCount = await assertVisibleTargets(page, `${width}×${height} home`);
@@ -180,7 +185,7 @@ async function assertImportedStep2(page, width, height, largeText = false) {
         assert.ok(largeHintBox && largeHintBox.height <= 24 && fullHintVisible, 'large text keeps the pre-photo Key prompt on one line');
         assert.ok(largeMethodsBox && largeMethodsBox.height <= 44 && fullMethodsHintVisible, 'large text keeps Key alternatives visible without clipping');
         const largeHomeActions = await geometry(page, ['[data-testid="receipt-camera"]', '[data-testid="receipt-upload"]', '[data-testid="toggle-receipt-text-import"]', '[data-testid="start-manual"]']);
-        assert.ok(largeHomeActions['[data-testid="start-manual"]'][1] + largeHomeActions['[data-testid="start-manual"]'][3] <= 600, 'large text keeps manual entry on the first screen');
+        assert.ok(largeHomeActions['[data-testid="start-manual"]'][1] + largeHomeActions['[data-testid="start-manual"]'][3] <= 700, 'large text keeps manual entry near the photo action');
         await page.screenshot({ path: path.join(outputDir, 'home-320x844-large.png'), fullPage: false });
 
         await assertImportedStep2(page, width, height, true);
@@ -204,11 +209,11 @@ async function assertImportedStep2(page, width, height, largeText = false) {
     ]);
     assert.deepEqual(step1['.app-header-row'], [304, 0, 672, 74], 'desktop header geometry remains unchanged');
     assert.deepEqual(step1['.stepper-panel'], [304, 74, 672, 93], 'desktop four-step navigation geometry remains unchanged');
-    assert.deepEqual(step1['.api-settings-card'], [336, 326, 611, 132], 'desktop recognition settings remain in their original position');
-    assert.deepEqual(step1['.upload-dropzone'], [336, 680, 611, 267], 'desktop image upload card geometry remains unchanged');
+    assert.deepEqual(step1['.api-settings-card'], [336, 370, 611, 188], 'desktop first-use Key guidance remains expanded with the visible application CTA');
     assert.equal(await desktopPage.getByTestId('scan-key-status').isVisible(), false, 'mobile-only Key status stays hidden on desktop');
     assert.ok((await desktopPage.getByTestId('scan-settings-toggle').innerText()).includes('辨識設定'), 'desktop keeps the original full settings label');
-    await desktopPage.getByTestId('toggle-receipt-text-import').click();
+    assert.equal(await desktopPage.getByTestId('scan-settings').evaluate(details => details.open), true, 'desktop first use also shows recognition and Key guidance expanded');
+    assert.equal(await desktopPage.getByTestId('toggle-receipt-text-import').getAttribute('aria-expanded'), 'true', 'desktop first use also shows the external-AI workflow expanded');
     await desktopPage.getByTestId('receipt-text-draft').fill(JSON.stringify({ items: [{ name: '測試項目', price: 20, qty: 1, totalQty: 1, unit: '份', total: 20 }], adjustments: [], taxTotal: 0, currency: 'HKD', receiptTotal: 20 }));
     await desktopPage.getByTestId('submit-receipt-text').click();
     await desktopPage.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '2', null, { timeout: 30000 });
@@ -219,9 +224,9 @@ async function assertImportedStep2(page, width, height, largeText = false) {
     ]);
     assert.deepEqual(step2['.app-header-row'], [304, 0, 672, 74], 'desktop Step 2 header remains unchanged');
     assert.deepEqual(step2['.stepper-panel'], [304, 74, 672, 93], 'desktop Step 2 navigation remains unchanged');
-    assert.deepEqual(step2['[data-testid="activity-settings"]'], [336, 454, 611, 304], 'desktop activity settings remain in their original position');
-    assert.deepEqual(step2['[data-testid="items-step"] .space-y-4'], [336, 782, 611, 194], 'desktop item list remains in its original position');
-    console.log('PASS desktop geometry: original header, four-step bar, model card, photo actions and Step 2 list positions unchanged');
+    assert.deepEqual(step2['[data-testid="activity-settings"]'], [336, 542, 611, 304], 'desktop activity settings follow visible, collapsible photo and sharing guides');
+    assert.deepEqual(step2['[data-testid="items-step"] .space-y-4'], [336, 870, 611, 194], 'desktop item list size and order remain stable below expanded guidance');
+    console.log('PASS desktop geometry: header and four-step bar are unchanged; first-use guides add compact 44px collapsible headers while item card sizes remain stable');
     assert.equal(apiRequests, 0, 'test traffic never reaches a real model or bill API');
     assert.deepEqual(failures, [], failures.join('\n'));
     await desktop.close();

@@ -343,3 +343,10 @@
 - [x] 在 320×844、390×844、320×700 和大字體下，步驟名稱不換行、沒有橫向溢位，觸控區至少 44×44px；相機／選圖仍在首屏靠前，文字／手動入口仍清晰可見。
 - [x] 驗收：`mobile-layout.cjs` 通過三種手機尺寸、大字體及桌面幾何；`tutorial-ui.cjs` 19/19、`friend-navigation.cjs`、`settings-free-models.cjs`、`friend-whatsapp-details.cjs`、`friend-recognition.cjs` 16/16，Worker/DO 36/36，所有改動檔語法與 `git diff --check` 通過。
 - [x] Cache epoch `v130-mobile-onboarding-20261111`、可見版號 R130；已推送 main（`d48910f`），Pages workflow `42943712688` 成功。公開首頁、PWA、Service Worker 與 CSS 均為 R130；公開 390px 手機實測四階段、Key 教學直達、相機 y=204px 且無橫向溢位。
+
+## R131：首訪完整引導與手動收合偏好
+- [x] 首次使用直接展開免費 Key 設定／申請教學、其他 AI 翻譯方式與模型說明；手機首屏副標題明確提及「其他 AI 翻譯」，不再依賴用家猜測或先找隱藏面板。
+- [x] 第二步補貼收據、分享／認帳設定及結果頁補人、補帳、簡易／詳細後備，首次可見並可用箭嘴手動收合／重開；手動選擇存在本機，下次沿用；不改計算、OCR、認帳資料或分享內容。
+- [x] 保留 320×844、390×844、320×700 及大字體手機版的相機優先、44px 觸控與無橫向溢位；桌面四步導覽、原色系和卡片尺寸保持，加入緊湊的 44px disclosure 標題；固定底部狀態欄不遮擋第二步最後操作。
+- [x] 驗收：`mobile-layout.cjs` 三種手機尺寸／大字體／桌面 geometry 通過；`text-import.cjs`、`settings-free-models.cjs`、`tutorial-ui.cjs` 19/19、`card-redaction-ui.cjs`、`recognition-retry-ui.cjs`、`friend-navigation.cjs`、`friend-whatsapp-details.cjs`、`friend-recognition.cjs` 16/16 均通過；Worker/DO 36/36、JavaScript syntax、`git diff --check` 均通過。
+- [ ] 推送 R131 至 GitHub main，確認 Pages workflow 成功並以公開網址驗證新訪客、舊訪客偏好和手機版。
