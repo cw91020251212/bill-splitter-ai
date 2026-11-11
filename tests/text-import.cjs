@@ -83,10 +83,9 @@ const ensureAIImportOpen = async page => {
     assert.equal(await noKeyPage.getByTestId('copy-receipt-json-prompt').isVisible(), true, 'the prompt-copy action is visible without opening the details');
     assert.equal(await noKeyPage.getByTestId('toggle-receipt-text-import').getAttribute('aria-expanded'), 'true', 'first-use AI translation guide starts open');
     assert.equal(await noKeyPage.getByTestId('receipt-text-import-toggle-icon').getAttribute('data-direction'), 'up', 'an expanded import panel uses the shared up chevron');
-    const zhImportHeading = await noKeyPage.getByTestId('toggle-receipt-text-import').innerText();
-    assert.match(zhImportHeading, /搵其他 AI 幫手翻譯/);
-    assert.match(zhImportHeading, /提示詞＋賬單＝專用翻譯檔（\.json）/);
-    assert.match(await noKeyPage.getByTestId('external-ai-provider-examples').innerText(), /Gemini.*豆包…$/);
+    assert.equal(await noKeyPage.getByTestId('receipt-text-import-title').getAttribute('aria-label'), '搵其他 AI 幫手翻譯');
+    assert.match(await noKeyPage.getByTestId('receipt-text-import').innerText(), /提示詞＋賬單＝專用翻譯檔（\.json）/);
+    assert.match(await noKeyPage.getByTestId('external-ai-provider-examples').innerText(), /^e\.g\. Gemini·ChatGPT·豆包…$/);
     assert.equal(await noKeyPage.getByTestId('receipt-text-import').evaluate(node => node.previousElementSibling?.getAttribute('data-testid') === 'choice-divider'), true, 'the receipt OCR and external AI import paths are separated by “or”');
     await noKeyPage.getByTestId('start-manual').click();
     await noKeyPage.getByTestId('item-name').first().fill('測試項目');

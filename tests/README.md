@@ -195,3 +195,6 @@ R119 漏人指引：`friend-recognition.cjs` 驗證結果卡預設收起、向�
 
 ## R136：第一步短文案
 `mobile-layout.cjs` 驗證圖片提示同時標明收據／帳單與五張限制、第一步方法提示在 14px 以上保持單行，以及 Gemini、豆包與省略號以較小文字和「搵其他 AI 幫手翻譯」標題平排、位於右側；同時驗收 320px／390px 不換行。`text-import.cjs` 確認範例文案不影響原提示詞／JSON 匯入。
+
+## R137：AI 範例加字與 ChatGPT
+`mobile-layout.cjs` 驗證例子包含 `e.g.`、Gemini、ChatGPT、豆包及省略號；320px 時以可讀字級換行，360px 以上與手機短標題同列並放大字級；`text-import.cjs` 確認中英文標題與匯入功能正常。

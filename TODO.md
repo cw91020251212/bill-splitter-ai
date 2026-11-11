@@ -382,3 +382,8 @@
 - [x] 把第一步長說明改為小字單行「以下三種方法處理單據：」，手機 320px／390px 不換行或橫向溢出；翻譯功能、圖片辨識和三個輸入入口正常。
 - [x] 驗收：`mobile-layout.cjs` 於 320×844、390×844、320×700、1280×900 通過；AI 範例與標題同列且省略號收尾（320px 字級 13.5／10px、390px 15／11px），不橫向溢出。`text-import.cjs` 與 `settings-free-models.cjs` 通過，JavaScript syntax 及 `git diff --check` 通過。
 - [x] 推送 R136（`36c6ec6`）並驗收正式頁：320px、390px 和 1280px 均為 R136；手機例子同列、不溢出，桌面維持原插圖及流程。
+
+## R137：加大 AI 範例字並加入 ChatGPT
+- [x] 標題右側例子加上「e.g.」，包含 Gemini、ChatGPT、豆包及省略號；390px 時例子字級由 R136 的 11px 放大至 13px。
+- [x] 360px 以上例子與短標題同列、不壓到箭嘴、不橫向溢出；320px 時可自然分行而非縮至難讀。桌面維持易讀版面。
+- [x] AI 匯入流程及中英文顯示正常；本機 `mobile-layout.cjs`、`text-import.cjs`、`settings-free-models.cjs` 和語法／diff 檢查通過；版本 R137 及 PWA／SW cache epoch 已更新。
