@@ -331,15 +331,31 @@ export async function handleRequest(request, env, now = Date.now()) {
         try { await env.BILL_SHARES.delete(`share:${match[1]}`); } catch (_) {}
         return jsonResponse({ error: '這條分享連結已到期。', code: 'expired', status: 'expired', serverNow: new Date(now).toISOString(), expiresAt: new Date(record.expiresAt).toISOString() }, 410, origin);
       }
-      let claimSecurity = record.claimSecurity;
-      if (record.kind === 'claim-session' && !claimSecurity && env.CLAIM_AUTH && env.CLAIM_PASSWORD_PEPPER) {
-        const metadata = await claimOperation(env, record, match[1], now, 'metadata');
-        if (metadata.ok && (await metadata.json()).enabled) claimSecurity = 'password';
+      if (record.kind === 'claim-session') {
+        const metadataOnly = url.searchParams.get('meta') === '1';
+        let current = await claimOperation(env, record, match[1], now, metadataOnly ? 'resultMeta' : 'getResult');
+        if (!current.ok) return claimResponse(current, origin);
+        let published = await current.json();
+        // Backfill existing sessions once. After that, the Durable Object remains
+        // authoritative even when this edge still has an older KV value cached.
+        if (published.status === 'pending' && record.status === 'ready' && record.data) {
+          current = await claimOperation(env, record, match[1], now, 'seedResult', { input: { data: record.data, updatedAt: record.updatedAt } });
+          if (!current.ok) return claimResponse(current, origin);
+          published = await current.json();
+        }
+        const claimSecurity = record.claimSecurity || (published.enabled ? 'password' : undefined);
+        const body = {
+          status: published.status,
+          ...(claimSecurity ? { claimSecurity } : {}),
+          serverNow: new Date(now).toISOString(),
+          expiresAt: new Date(record.expiresAt).toISOString(),
+          resultRevision: Number(published.resultRevision) || 0,
+          ...(published.resultUpdatedAt ? { resultUpdatedAt: published.resultUpdatedAt } : {}),
+          ...(!metadataOnly && published.status === 'ready' ? { data: published.data } : {})
+        };
+        return jsonResponse(body, published.status === 'pending' ? 202 : 200, origin);
       }
-      if (record.kind === 'claim-session' && record.status === 'pending') {
-        return jsonResponse({ status: 'pending', claimSecurity, serverNow: new Date(now).toISOString(), expiresAt: new Date(record.expiresAt).toISOString() }, 202, origin);
-      }
-      return jsonResponse({ status: 'ready', data: record.data, claimSecurity, serverNow: new Date(now).toISOString(), expiresAt: new Date(record.expiresAt).toISOString() }, 200, origin);
+      return jsonResponse({ status: 'ready', data: record.data, serverNow: new Date(now).toISOString(), expiresAt: new Date(record.expiresAt).toISOString() }, 200, origin);
     }
 
     if (match && method === 'PUT') {
@@ -372,23 +388,24 @@ export async function handleRequest(request, env, now = Date.now()) {
       if (new TextEncoder().encode(JSON.stringify(data)).byteLength > MAX_SHARE_BYTES) {
         return jsonResponse({ error: '帳單及收據合計超過 8 MiB 上限，請減少或縮小收據相片。' }, 413, origin);
       }
-      const lastWriteAt = Number(record.updatedAt) || Number(record.createdAt) || 0;
-      const waitMs = Math.max(0, 1050 - (now - lastWriteAt));
-      if (waitMs) await new Promise(resolve => setTimeout(resolve, waitMs));
-      const updatedAt = Math.max(now + waitMs, Date.now());
+      const updatedAt = Math.max(now, Date.now());
       const remainingTtl = Math.floor((record.expiresAt - updatedAt) / 1000);
       if (remainingTtl < 60) return jsonResponse({ error: '這條分享連結已到期。', code: 'expired' }, 410, origin);
-      // Always consult the DO, including legacy sessions: an old client cannot bypass
-      // protection by publishing ntfy-derived allocations with a valid organizer token.
-      const validation = await claimOperation(env, record, match[1], updatedAt, 'validateResult', { owner: true, input: { data } });
-      if (!validation.ok) return claimResponse(validation, origin);
-      const updatedRecord = { ...record, status: 'ready', updatedAt, data };
+      // Validate claims and commit the new public result in the per-session DO.
+      // KV remains a compatibility mirror, not the source friends read from.
+      const publishedResponse = await claimOperation(env, record, match[1], updatedAt, 'publishResult', { owner: true, input: { data, updatedAt } });
+      if (!publishedResponse.ok) return claimResponse(publishedResponse, origin);
+      const published = await publishedResponse.json();
+      const lastWriteAt = Number(record.updatedAt) || Number(record.createdAt) || 0;
+      const waitMs = Math.max(0, 1050 - (updatedAt - lastWriteAt));
+      if (waitMs) await new Promise(resolve => setTimeout(resolve, waitMs));
+      const mirrorUpdatedAt = Math.max(updatedAt + waitMs, Date.now());
+      const mirrorTtl = Math.floor((record.expiresAt - mirrorUpdatedAt) / 1000);
+      const updatedRecord = { ...record, status: 'ready', updatedAt: mirrorUpdatedAt, data };
       try {
-        await env.BILL_SHARES.put(`share:${match[1]}`, JSON.stringify(updatedRecord), { expirationTtl: remainingTtl });
-      } catch (_) {
-        return jsonResponse({ error: '暫時無法更新活動結果，請稍後重試。' }, 503, origin);
-      }
-      return jsonResponse({ id: match[1], status: 'ready', expiresAt: new Date(record.expiresAt).toISOString() }, 200, origin);
+        if (mirrorTtl >= 60) await env.BILL_SHARES.put(`share:${match[1]}`, JSON.stringify(updatedRecord), { expirationTtl: mirrorTtl });
+      } catch (_) { /* The DO already committed the canonical result. */ }
+      return jsonResponse({ id: match[1], status: 'ready', resultRevision: Number(published.resultRevision) || 0, expiresAt: new Date(record.expiresAt).toISOString() }, 200, origin);
     }
     return jsonResponse({ error: '找不到分享 API。' }, 404, origin);
   }
@@ -399,7 +416,7 @@ export async function handleRequest(request, env, now = Date.now()) {
     let destination;
     try { destination = new URL('detailed-view.html', siteBase.endsWith('/') ? siteBase : `${siteBase}/`); }
     catch (_) { return textResponse('分享頁未設定。', 503); }
-    destination.searchParams.set('v', 'v117-readable-text-3-levels-20261110');
+    destination.searchParams.set('v', 'v129-shared-link-sync-20261111');
     destination.searchParams.set('share', shortMatch[1]);
     const expiryHint = url.searchParams.get('e');
     if (expiryHint && /^\d{10}$/.test(expiryHint)) destination.searchParams.set('e', expiryHint);

@@ -2,6 +2,8 @@ const encoder = new TextEncoder();
 const WINDOW_MS = 15 * 60 * 1000;
 const CODE_MS = 10 * 60 * 1000;
 const ITERATIONS = 100000; // Workers WebCrypto PBKDF2 maximum; the secret pepper adds server-only entropy.
+const MAX_RESULT_BYTES = 8 * 1024 * 1024;
+const RESULT_CHUNK_BYTES = 512 * 1024;
 const CONTROL = /[\p{Cc}\p{Cf}:：=＝]/u;
 const INTERNAL_URL = 'https://claim-auth.internal/dispatch';
 
@@ -159,6 +161,51 @@ export class ClaimAuth {
   async members() {
     return [...(await this.ctx.storage.list({ prefix: 'member:' })).values()];
   }
+  async readPublishedResult(meta) {
+    const revision = Number(meta.resultRevision) || 0;
+    const chunkCount = Number(meta.resultChunkCount) || 0;
+    const byteLength = Number(meta.resultBytes) || 0;
+    if (!revision || !chunkCount || !byteLength || byteLength > MAX_RESULT_BYTES) return null;
+    const bytes = new Uint8Array(byteLength);
+    let offset = 0;
+    for (let index = 0; index < chunkCount; index++) {
+      const chunk = await this.ctx.storage.get(`result:${revision}:${index}`);
+      const view = chunk instanceof ArrayBuffer
+        ? new Uint8Array(chunk)
+        : ArrayBuffer.isView(chunk) ? new Uint8Array(chunk.buffer, chunk.byteOffset, chunk.byteLength) : null;
+      if (!view || offset + view.byteLength > byteLength) fail(503, 'published_result_unavailable');
+      bytes.set(view, offset);
+      offset += view.byteLength;
+    }
+    if (offset !== byteLength) fail(503, 'published_result_unavailable');
+    try { return JSON.parse(new TextDecoder().decode(bytes)); }
+    catch (_) { fail(503, 'published_result_unavailable'); }
+  }
+  async writePublishedResult(meta, data, updatedAt) {
+    const bytes = encoder.encode(JSON.stringify(data));
+    if (bytes.byteLength > MAX_RESULT_BYTES) fail(413, 'result_too_large');
+    const previousRevision = Number(meta.resultRevision) || 0;
+    const previousChunkCount = Number(meta.resultChunkCount) || 0;
+    const revision = previousRevision + 1;
+    const chunkCount = Math.ceil(bytes.byteLength / RESULT_CHUNK_BYTES);
+    const chunks = {};
+    for (let index = 0; index < chunkCount; index++) {
+      const start = index * RESULT_CHUNK_BYTES;
+      chunks[`result:${revision}:${index}`] = bytes.slice(start, Math.min(start + RESULT_CHUNK_BYTES, bytes.byteLength));
+    }
+    await this.ctx.storage.put(chunks);
+    const resultUpdatedAt = Number(updatedAt) || Date.now();
+    meta.resultRevision = revision;
+    meta.resultChunkCount = chunkCount;
+    meta.resultBytes = bytes.byteLength;
+    meta.resultUpdatedAt = resultUpdatedAt;
+    await this.ctx.storage.put('meta', meta);
+    if (previousRevision && previousChunkCount) {
+      const previousKeys = Array.from({ length: previousChunkCount }, (_, index) => `result:${previousRevision}:${index}`);
+      await this.ctx.storage.delete(previousKeys);
+    }
+    return { revision, updatedAt: resultUpdatedAt };
+  }
   async memberKey(name) { return `member:${await digest(name)}`; }
   async rateKeys(name, ip) {
     return [`rate:ip:${await digest(ip)}`, `rate:name-ip:${await digest(`${name}\n${ip}`)}`];
@@ -257,7 +304,7 @@ export class ClaimAuth {
       await storage.setAlarm(meta.expiresAt);
     }
     const timing = { serverNow: new Date(e.now).toISOString(), expiresAt: new Date(meta.expiresAt).toISOString() };
-    if (['setup', 'inbox', 'approve', 'validateResult', 'initialize'].includes(e.op) && e.owner !== true) fail(403, 'forbidden');
+    if (['setup', 'inbox', 'approve', 'validateResult', 'publishResult', 'initialize'].includes(e.op) && e.owner !== true) fail(403, 'forbidden');
     if (e.op === 'initialize') {
       meta.enabled = true;
       await storage.put('meta', meta);
@@ -287,8 +334,12 @@ export class ClaimAuth {
         .map(member => ({ ...member.payload, revision: member.updatedRevision })).sort((a, b) => a.revision - b.revision),
         cursor: meta.cursor, members: members.map(memberSummary), ...timing };
     }
-    if (e.op === 'validateResult') {
-      if (!meta.enabled) return { enabled: false, ...timing };
+    if (e.op === 'validateResult' || e.op === 'publishResult') {
+      if (!meta.enabled && e.op === 'validateResult') return { enabled: false, ...timing };
+      if (!meta.enabled && e.op === 'publishResult') {
+        const saved = await this.writePublishedResult(meta, e.input?.data, e.input?.updatedAt);
+        return { enabled: false, cursor: meta.cursor, status: 'ready', resultRevision: saved.revision, resultUpdatedAt: saved.updatedAt, ...timing };
+      }
       let published;
       try { published = resultMembers(e.input?.data); }
       catch (_) { fail(409, 'claims_outdated'); }
@@ -308,7 +359,28 @@ export class ClaimAuth {
         }
       }
       for (const [name, entry] of expected) if (canonical(entry) !== canonical(actual.get(name))) fail(409, 'claims_outdated');
+      if (e.op === 'publishResult') {
+        const saved = await this.writePublishedResult(meta, e.input.data, e.input.updatedAt);
+        return { enabled: true, cursor: meta.cursor, status: 'ready', resultRevision: saved.revision, resultUpdatedAt: saved.updatedAt, ...timing };
+      }
       return { enabled: true, cursor: meta.cursor, ...timing };
+    }
+    if (e.op === 'resultMeta') {
+      return { status: meta.resultRevision ? 'ready' : 'pending', resultRevision: Number(meta.resultRevision) || 0,
+        resultUpdatedAt: Number(meta.resultUpdatedAt) || 0, enabled: meta.enabled, ...timing };
+    }
+    if (e.op === 'getResult') {
+      if (!meta.resultRevision) return { status: 'pending', resultRevision: 0, enabled: meta.enabled, ...timing };
+      return { status: 'ready', data: await this.readPublishedResult(meta), resultRevision: Number(meta.resultRevision),
+        resultUpdatedAt: Number(meta.resultUpdatedAt) || 0, enabled: meta.enabled, ...timing };
+    }
+    if (e.op === 'seedResult') {
+      if (!meta.resultRevision && e.input?.data && typeof e.input.data === 'object') {
+        await this.writePublishedResult(meta, e.input.data, e.input.updatedAt);
+      }
+      if (!meta.resultRevision) return { status: 'pending', resultRevision: 0, enabled: meta.enabled, ...timing };
+      return { status: 'ready', data: await this.readPublishedResult(meta), resultRevision: Number(meta.resultRevision),
+        resultUpdatedAt: Number(meta.resultUpdatedAt) || 0, enabled: meta.enabled, ...timing };
     }
     const name = normalizeClaimName(e.input?.name);
     const key = await this.memberKey(name);

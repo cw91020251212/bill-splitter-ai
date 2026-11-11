@@ -241,6 +241,15 @@
     return { ...result, status: result.status || 'ready' };
   }
 
+  async function getSessionRevision(shareId, explicitApiBase) {
+    const { result, status } = await requestJson(sharePath(shareId, '?meta=1'), { allowStatus: [404, 410] }, explicitApiBase);
+    if (status === 202 || result.status === 'pending') return { ...result, status: 'pending', resultRevision: Number(result.resultRevision) || 0 };
+    if (status === 404 || status === 410) {
+      return { ...result, status: status === 410 || result.code === 'expired' ? 'expired' : 'unknown', resultRevision: Number(result.resultRevision) || 0 };
+    }
+    return { ...result, status: result.status || 'ready', resultRevision: Number(result.resultRevision) || 0 };
+  }
+
   root.BillShareApi = Object.freeze({
     MAX_BODY_BYTES,
     prepareShareData,
@@ -249,6 +258,7 @@
     createSession,
     publishSession,
     getSession,
+    getSessionRevision,
     getClaimStatus,
     unlockClaim,
     submitSecureClaim,

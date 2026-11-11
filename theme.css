@@ -913,6 +913,7 @@ body.bg-slate-50 { background: var(--page-grey); color: var(--ink); }
   filter: none !important;
 }
 
+#root .mobile-step-progress { display: none; }
 
 /* R128: phone-only workflow density. Desktop rules and stage palette stay intact. */
 @media (max-width: 639px) {
@@ -934,7 +935,7 @@ body.bg-slate-50 { background: var(--page-grey); color: var(--ink); }
   }
   #root .step-progress, #root .step-nav { display: none !important; }
   #root .mobile-step-label {
-    display: flex; align-items: center; gap: 8px; min-width: 0; height: 35px;
+    display: flex; flex: 1 1 auto; align-items: center; gap: 8px; min-width: 0; height: 35px;
     color: #303744; font-size: calc(16px * var(--app-font-scale, 1)); font-weight: 700; line-height: 1.2;
   }
   #root .mobile-step-dot { width: 9px; height: 9px; flex: 0 0 9px; border-radius: 50%; background: #65708a; outline: 2px solid #e3e5ee; }
@@ -942,6 +943,13 @@ body.bg-slate-50 { background: var(--page-grey); color: var(--ink); }
   #root .mobile-step-label[data-step="3"] .mobile-step-dot { background: #c4842a; outline-color: #fff1cf; }
   #root .mobile-step-label[data-step="4"] .mobile-step-dot { background: #2f9a68; outline-color: #e6f1e9; }
   #root .mobile-step-label { display: flex; }
+  #root .mobile-step-progress { display: flex; flex: 0 0 auto; align-items: center; gap: 7px; margin-left: 10px; }
+  #root .mobile-step-progress-dot { box-sizing: border-box; display: block; width: 7px; height: 7px; border: 1px solid #8a929d; border-radius: 50%; background: #e3e6eb; }
+  #root .mobile-step-progress-dot[data-status="complete"] { border-color: #6f987c; background: #91b69d; }
+  #root .mobile-step-progress-dot[data-status="current"] { width: 9px; height: 9px; border: 2px solid #454a60; background: #555b73; }
+  #root .mobile-step-progress[data-step="2"] .mobile-step-progress-dot[data-status="current"] { border-color: #3c3578; background: #4a4588; }
+  #root .mobile-step-progress[data-step="3"] .mobile-step-progress-dot[data-status="current"] { border-color: #704a08; background: #80550d; }
+  #root .mobile-step-progress[data-step="4"] .mobile-step-progress-dot[data-status="current"] { border-color: #1f6b45; background: #2f9a68; }
 
   #root main[data-current-step="1"],
   #root main[data-current-step="2"] {

@@ -524,6 +524,7 @@
       let serverTimeAnchorMs = null;
       let serverTimeAnchorPerf = null;
       let showingSharedResult = false;
+      let renderedResultRevision = 0;
       let resultFrame = null;
       let latestSession = null;
       let editingClaim = false;
@@ -1069,12 +1070,14 @@
         if (refresh && resultFrame) { resultFrame.remove(); resultFrame = null; }
         if (!resultFrame) {
           const sessionId = new URLSearchParams(location.search).get('session');
+          renderedResultRevision = Number(session.resultRevision) || 1;
           resultFrame = document.createElement('iframe');
           resultFrame.className = 'same-link-result';
           resultFrame.title = language === 'en' ? 'Final bill result' : '最終分帳結果';
           const resultUrl = new URL('./detailed-view.html', location.href);
-          resultUrl.searchParams.set('v', 'v117-readable-text-3-levels-20261110');
+          resultUrl.searchParams.set('v', 'v129-shared-link-sync-20261111');
           resultUrl.searchParams.set('share', sessionId);
+          resultUrl.searchParams.set('revision', String(renderedResultRevision));
           if (session.expiresAt) resultUrl.searchParams.set('e', String(Math.floor(Date.parse(session.expiresAt) / 1000)));
           resultFrame.src = resultUrl.href;
           resultFrame.addEventListener('load', sendResultContext);
@@ -1083,8 +1086,6 @@
         }
         updateClaimView();
         sendResultContext();
-        window.clearInterval(sessionPollTimer);
-        sessionPollTimer = null;
       }
 
       function beginClaimEdit(requestedName) {
@@ -1242,7 +1243,12 @@
         if (!window.BillShareApi?.getSession) return;
         sessionPollBusy = true;
         try {
-          const requestStartedAt = performance.now();
+          let requestStartedAt = performance.now();
+          if (showingSharedResult && !editingClaim && !authOpen && !pendingClaim && window.BillShareApi.getSessionRevision) {
+            const revision = await window.BillShareApi.getSessionRevision(sessionId);
+            if (revision.status === 'ready' && Number(revision.resultRevision) <= renderedResultRevision) return;
+            requestStartedAt = performance.now();
+          }
           const session = await window.BillShareApi.getSession(sessionId);
           const requestFinishedAt = performance.now();
           const serverNow = Date.parse(session.serverNow || '');
@@ -1273,7 +1279,8 @@
           // Never take the person away from an unsent edit, even when another
           // participant's result was updated in the meantime.
           if (editingClaim || fillingAnotherName) return;
-          showSharedResult(session, acceptedRevision);
+          const resultAdvanced = showingSharedResult && (Number(session.resultRevision) || 1) > renderedResultRevision;
+          showSharedResult(session, acceptedRevision || resultAdvanced);
         } catch (_) {
           sessionNote.textContent = language === 'en'
             ? 'Could not verify the link expiry or final result. Check your connection and retry; the form stays closed until the expiry is verified.'

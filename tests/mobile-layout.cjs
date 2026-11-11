@@ -60,12 +60,25 @@ async function assertVisibleTargets(page, label) {
   return targets.length;
 }
 
+async function assertStepProgress(page, step, label) {
+  const progress = page.getByTestId('mobile-step-progress');
+  assert.equal(await progress.isVisible(), true, `${label}: compact step progress remains visible`);
+  assert.equal(await progress.getAttribute('aria-valuenow'), String(step), `${label}: accessible progress value matches the current step`);
+  const dots = progress.getByTestId('mobile-step-progress-dot');
+  assert.equal(await dots.count(), 4, `${label}: all four step indicators are present`);
+  const states = await dots.evaluateAll(nodes => nodes.map(node => node.dataset.status));
+  assert.deepEqual(states, Array.from({ length: 4 }, (_, i) => i + 1 < step ? 'complete' : i + 1 === step ? 'current' : 'upcoming'), `${label}: step dots show completed, current, and upcoming stages`);
+  const boxes = await dots.evaluateAll(nodes => nodes.map(node => { const rect = node.getBoundingClientRect(); return { width: rect.width, height: rect.height }; }));
+  assert(boxes.every(box => box.width >= 6 && box.height >= 6), `${label}: four progress indicators are visibly sized`);
+}
+
 async function assertImportedStep2(page, width, height, largeText = false) {
   const label = `${width}×${height}${largeText ? ' large text' : ''}`;
   await page.getByTestId('toggle-receipt-text-import').click();
   await page.getByTestId('receipt-text-draft').fill(JSON.stringify(receiptJson));
   await page.getByTestId('submit-receipt-text').click();
   await page.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '2', null, { timeout: 30000 });
+  await assertStepProgress(page, 2, `${label} Step 2`);
   await page.getByTestId('verify-summary').waitFor({ state: 'visible' });
   const summaryText = await page.getByTestId('verify-summary').innerText();
   assert.match(summaryText, /2項/);
@@ -99,7 +112,7 @@ async function assertImportedStep2(page, width, height, largeText = false) {
       await page.route('https://**/*.workers.dev/**', async route => { apiRequests += 1; await route.abort(); });
       await initialize(page);
       const current = await geometry(page, [
-        '.app-header-row', '.stepper-panel', '[data-testid="mobile-step-label"]', 'main',
+        '.app-header-row', '.stepper-panel', '[data-testid="mobile-step-label"]', '[data-testid="mobile-step-progress"]', 'main',
         '[data-testid="scan-start"]', '[data-testid="scan-start"] .page-section-heading',
         '[data-testid="scan-subtitle-mobile"]', '[data-testid="receipt-camera"]',
         '[data-testid="receipt-upload"]', '[data-testid="toggle-receipt-text-import"]',
@@ -108,6 +121,7 @@ async function assertImportedStep2(page, width, height, largeText = false) {
       await assertNoOverflow(page, width, `${width}×${height} home`);
       assert.equal(current['.app-header-row'][3], 48, `${width}×${height}: header stays within the 48px target`);
       assert.ok(current['.stepper-panel'][3] >= 32 && current['.stepper-panel'][3] <= 40, `${width}×${height}: compact step row is 32–40px high`);
+      await assertStepProgress(page, 1, `${width}×${height} Step 1`);
       assert.equal(current['[data-testid="scan-start"]'][0], width === 320 ? 12 : 16, `${width}×${height}: requested horizontal page margin`);
       assert.ok(current['[data-testid="scan-start"] .page-section-heading'][3] >= 28, `${width}×${height}: heading is not shrunk to save space`);
       assert.equal(current['[data-testid="scan-start"] .page-section-heading'] && await page.evaluate(() => getComputedStyle(document.querySelector('[data-testid="scan-start"] .page-section-heading h2')).fontSize), '23px', `${width}×${height}: mobile title uses 23px text`);
@@ -130,6 +144,7 @@ async function assertImportedStep2(page, width, height, largeText = false) {
         await page.getByTestId('app-text-size-large').click();
         await page.getByTestId('header-action-menu-toggle').click();
         await assertNoOverflow(page, width, '320×844 large text home');
+        await assertStepProgress(page, 1, '320×844 large text Step 1');
         const largeStepLine = await page.getByTestId('mobile-step-label').evaluate(element => {
           const text = element.lastElementChild;
           const rect = text.getBoundingClientRect();

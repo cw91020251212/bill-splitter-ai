@@ -85,11 +85,11 @@
   ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
   ::-webkit-scrollbar-thumb:hover { background: #64748b; }
   </style>
-  <link rel="stylesheet" href="./theme.css?v=v128-mobile-layout-20261111">
+  <link rel="stylesheet" href="./theme.css?v=v129-shared-link-sync-20261111">
   <link rel="stylesheet" href="./tutorial.css?v=v86-free-models-only">
-  <!-- R128: mobile layout; current interactive guide; original video lessons retained. -->
-  <meta name="bill-app-release" content="v128-mobile-layout-20261111">
-  <script defer src="./pwa.js?v=v128-mobile-layout-20261111"></script>
+  <!-- R129: stable friend-link result synchronization; R128 mobile layout retained. -->
+  <meta name="bill-app-release" content="v129-shared-link-sync-20261111">
+  <script defer src="./pwa.js?v=v129-shared-link-sync-20261111"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
@@ -104,7 +104,7 @@
   <script src="./card-redaction.js?v=v97-card-number-redaction"></script>
   <script src="./card-share-review.js?v=v97-card-number-redaction"></script>
   <script src="./exchange-rates.js?v=v90-cross-currency-settlement"></script>
-    <script src="./tutorial.js?v=v128-mobile-layout-20261111"></script>
+    <script src="./tutorial.js?v=v129-shared-link-sync-20261111"></script>
   <script type="text/babel">
     const { useState, useRef, useEffect, useLayoutEffect, useMemo } = React;
     const tr = value => window.BillI18n.t(value);
@@ -2544,7 +2544,7 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
         const storageKey = 'billSplitterDetailTablePreviewV1';
         try {
           localStorage.setItem(storageKey, JSON.stringify(previewData));
-          const previewWindow = window.open('./detailed-view.html?v=v128-mobile-layout-20261111', '_blank');
+          const previewWindow = window.open('./detailed-view.html?v=v129-shared-link-sync-20261111', '_blank');
           if (!previewWindow) {
             localStorage.removeItem(storageKey);
             toast(bi('允許彈窗', 'Allow pop-ups'), 'error');
@@ -3794,7 +3794,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
         const metadata = getClaimLinkMetadata();
         const link = new URL('./claim.html', window.location.href);
         link.searchParams.set('lang', lang === 'en' ? 'en' : 'zh-HK');
-        link.searchParams.set('v', 'v128-mobile-layout-20261111');
+        link.searchParams.set('v', 'v129-shared-link-sync-20261111');
         link.searchParams.set('session', session.id);
         link.hash = window.ClaimRelay
           ? window.ClaimRelay.buildHash(encodeClaimLinkPayload(payload), room, metadata)
@@ -4556,7 +4556,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                 <div className="flex items-center gap-2 sm:gap-3 shrink-0">
                   <img src="./icons/icon.svg" alt="" width="48" height="48" className="app-brand-icon shrink-0" />
                   <div>
-                  <h1 className="text-xl font-extrabold text-slate-800 tracking-tight"><span className="app-brand-name block sm:inline whitespace-nowrap">{tr("分帳管家")}</span><span className="inline-flex items-baseline gap-1 sm:ml-1 whitespace-nowrap"><span data-testid="app-pro-label" className="text-brand-600 font-black">Pro</span><span data-testid="app-version-label" className="text-[10px] leading-3 font-semibold tracking-normal text-brand-700">R128</span></span></h1>
+                  <h1 className="text-xl font-extrabold text-slate-800 tracking-tight"><span className="app-brand-name block sm:inline whitespace-nowrap">{tr("分帳管家")}</span><span className="inline-flex items-baseline gap-1 sm:ml-1 whitespace-nowrap"><span data-testid="app-pro-label" className="text-brand-600 font-black">Pro</span><span data-testid="app-version-label" className="text-[10px] leading-3 font-semibold tracking-normal text-brand-700">R129</span></span></h1>
                   </div>
               </div>
               <div className="header-actions relative flex items-center gap-1.5 sm:gap-2">
@@ -4624,6 +4624,13 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                     bi('分帳運算', 'Calculate split'),
                     bi('完成', 'Results')
                   ][step - 1]}</span>
+                </div>
+                <div className="mobile-step-progress" data-testid="mobile-step-progress" data-step={step} role="progressbar" aria-label={bi('流程進度', 'Progress')} aria-valuemin={1} aria-valuemax={4} aria-valuenow={step} aria-valuetext={bi(`第 ${step} 步，共 4 步`, `Step ${step} of 4`)}>
+                  {STEP_LABELS.map((_, i) => {
+                    const num = i + 1;
+                    const status = step > num ? 'complete' : step === num ? 'current' : 'upcoming';
+                    return <span key={num} className="mobile-step-progress-dot" data-testid="mobile-step-progress-dot" data-step={num} data-status={status} aria-hidden="true"></span>;
+                  })}
                 </div>
                 <div className="step-progress mb-2.5" data-testid="step-progress" data-step={step} role="progressbar" aria-valuemin={1} aria-valuemax={4} aria-valuenow={step} aria-valuetext={bi(`第 ${step} 步，共 4 步`, `Step ${step} of 4`)}>
                   <div className="step-progress-fill" style={{ width: `${(step / 4) * 100}%` }}></div>
@@ -5402,10 +5409,11 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                 {claimSession?.link && <div data-testid="same-link-sync-status" role="status" className={`rounded-xl border p-3 text-sm font-semibold leading-relaxed ${friendShareStatus === 'error' ? 'border-red-400 bg-red-50 text-red-800' : 'border-emerald-400 bg-emerald-50 text-emerald-900'}`}>
                   {friendShareStatus === 'uploading' ? bi('同步中…', 'Syncing…')
                     : receiptImageSharePending ? bi('加圖中…', 'Adding photo…')
+                    : !results ? bi('等候計算', 'Waiting for calculation')
                     : friendShareInfo?.signature === currentFriendShareSignature ? bi('已更新', 'Updated')
                     : friendShareStatus === 'error' ? bi('同步失敗', 'Sync failed')
-                    : bi('已同步', 'Synced')}
-                  {friendShareStatus === 'error' && <button type="button" data-testid="retry-same-link-sync" onClick={createFriendShareLink} className="ml-2 underline">{bi('重試', 'Retry')}</button>}
+                    : bi('待同步', 'Sync pending')}
+                  {results && friendShareInfo?.signature !== currentFriendShareSignature && friendShareStatus !== 'uploading' && <button type="button" data-testid="retry-same-link-sync" onClick={createFriendShareLink} className="ml-2 inline-flex min-h-[44px] items-center px-2 underline">{friendShareStatus === 'error' ? bi('重試', 'Retry') : bi('立即同步', 'Sync now')}</button>}
                   </div>}
 
                 <Card data-testid="add-missing-person-guide" className="!px-3 !py-2 border-blue-300 bg-blue-50 !shadow-none">

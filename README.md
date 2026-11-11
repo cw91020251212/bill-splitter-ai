@@ -6,6 +6,14 @@
 
 Mobile-only layout changes bring the camera, image picker, text/JSON import and manual-entry actions onto the first screen, with recognition settings collapsed by default. Step 2 now leads with the bill total and item list, followed immediately by manual claims; receipt-photo and activity/share settings stay collapsed below. Existing colors remain. Calculation, claims and sharing behavior are unchanged, and desktop geometry is preserved. PWA cache epoch: `v128-mobile-layout-20261111`.
 
+## R129：同一朋友連結同步最新結果
+
+主辦人重新計算後，最新結果以每個活動的 Durable Object 作強一致版本來源；朋友原有連結不變，已開啟的結果頁會檢查輕量版本號並自動更新。KV 保留作相容鏡像；PWA cache epoch：`v129-shared-link-sync-20261111`。
+
+## R129: Same friend link, latest recalculated result
+
+After the organizer recalculates, the per-session Durable Object serves the strongly consistent latest result. The friend URL stays unchanged, and an already-open result page checks a lightweight revision and refreshes automatically. KV remains a compatibility mirror. PWA cache epoch: `v129-shared-link-sync-20261111`.
+
 ## R127：复查問題與草稿安全修正
 
 拒絕負數／無效商品金額和數量，並在第二步清楚顯示錯誤；有效 JSON 的稅費、折扣或商品資料錯誤時不會改送 AI。未提交的單據文字會留在本機草稿，取消新單可保留，確認新單則一併清除。舊草稿會先要求核對認領編號；OCR 重認可按唯一商品規格沿用編號，無法安全配對時改用新編號並阻止舊認帳錯套。設定／歷史頁不再顯示過期的結算狀態，字級選項及頂部功能選單均有至少 44px 觸控範圍。PWA cache epoch：`v127-recheck-audit-20261110`。

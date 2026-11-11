@@ -13,6 +13,10 @@ BASE_URL=http://127.0.0.1:4178/ \
 node tests/mobile-layout.cjs
 ```
 
+## R129 同链接重算同步
+
+`friend-recognition.cjs` 使用本机 Worker／Durable Object 验证主办人改税费并重新计算后，已打开的朋友结果页会在原 URL 自动更新总额。`worker/worker-core.test.mjs` 模拟边缘 KV 仍返回旧值，确认 GET 和 `?meta=1` 仍从 Durable Object 取得最新版本；不访问正式帐单 API。
+
 ## R127 複查回歸
 
 `calculation-regressions.cjs` 驗證負／無效商品價與數量會在第二步顯示錯誤、舊草稿認領需要逐項核對、未提交的收據文字可在本機還原且新單確認後清除。`text-import.cjs` 覆蓋有效但有負稅／折扣／商品錯誤的 JSON 不會外送 AI。`recognition-retry-ui.cjs` 用 mock OCR 測試同名不同規格的順序變更會沿用正確認領編號；完全重複而無法唯一配對時，會改發新編號並停用舊認帳。它仍只使用 localhost／mock，不寫入正式或公開帳單 API。

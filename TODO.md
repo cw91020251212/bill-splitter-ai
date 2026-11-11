@@ -327,3 +327,12 @@
 - [x] 官方 Playwright 文件確認 `getByTestId` 使用 DOM `data-testid`，`.click()` 等待可見／穩定／可接收事件；先前 OCR E2E 超時不是 Playwright 已知 bug，而是測試進入第三步後錯點僅屬第二步的返回控件。已改按手機實際路徑逐步返回。[Locator 指南](https://playwright.dev/docs/locators) [click/actionability API](https://playwright.dev/docs/api/class-locator) [可見性斷言](https://playwright.dev/docs/api/class-locatorassertions)。
 - [x] R128 程式提交 `99569af` 已推送至 `main`；[GitHub Pages workflow 42883834064](https://github.com/cw91020251212/bill-splitter-ai/actions/runs/42883834064) 成功。
 - [x] 公開首頁、`pwa.js`、`sw.js`、`theme.css`、`tutorial.js`、`detailed-view.html` 均 HTTP 200；公開首頁及 PWA／Service Worker 均驗證 `v128-mobile-layout-20261111`，公開網址為 https://cw91020251212.github.io/bill-splitter-ai/。
+
+## R129：朋友連結重算同步
+- [x] 根因確認：Cloudflare KV 跨區讀取可能沿用舊快取；朋友頁一顯示 ready 即停止輪詢，已開啟頁不會察覺主辦人後續重算。
+- [x] 每個認帳活動沿用既有 SQLite Durable Object 儲存最新結算結果及單調遞增 revision；結果按 512 KiB chunks 儲存，KV 保留相容鏡像。舊活動首次讀取時會安全地由既有 KV 結果補種 DO。
+- [x] `/api/shares/{id}` 由 DO 提供最新結果，`?meta=1` 只回輕量 revision；朋友頁每 6 秒檢查版本，只在版本變更時重載內嵌報告，不更換連結，也不覆蓋未送出的編輯。
+- [x] 重算同步狀態不再錯顯示「已同步」；待同步／失敗時可按 44px「立即同步／重試」。
+- [x] 手機步驟列補回四點進度：完成／目前／未到階段可區分；仍只顯示目前步驟文字並保持 36px 高。320px、390px、短屏、大字及桌面幾何 E2E 通過。
+- [x] 驗收：Worker/DO 36 個單元測試通過；`friend-recognition.cjs` 16/16，包含本地 Worker/DO、邊緣 KV 保留舊值、已開啟朋友頁自動刷新及編輯中的未提交認帳保護；`mobile-layout.cjs` 320×844、390×844、320×700 與桌面幾何測試全部通過。
+- [x] 本版暫定 cache epoch `v129-shared-link-sync-20261111`、可見版號 R129；上線及公開網址驗證待完成。

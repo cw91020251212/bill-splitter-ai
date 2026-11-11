@@ -6,17 +6,19 @@ import { ClaimAuth } from './src/claim-auth.mjs';
 const ORIGIN = 'https://cw91020251212.github.io';
 const env = () => {
   const values = new Map();
+  const staleValues = new Map();
   const objects = new Map();
   const result = {
     BILL_SHARES: {
       async put(key, value, options) { values.set(key, { value, options }); },
-      async get(key) { return values.get(key)?.value ?? null; },
-      async delete(key) { values.delete(key); }
+      async get(key) { return staleValues.has(key) ? staleValues.get(key) : values.get(key)?.value ?? null; },
+      async delete(key) { values.delete(key); staleValues.delete(key); }
     },
     ALLOWED_ORIGINS: ORIGIN,
     SHARE_TTL_SECONDS: '604800',
     CLAIM_PASSWORD_PEPPER: 'local-test-pepper-only',
-    values
+    values,
+    staleValues
   };
   result.CLAIM_AUTH = {
     idFromName(id) { return id; },
@@ -31,6 +33,7 @@ const env = () => {
               if (typeof key === 'object') for (const [name, entry] of Object.entries(key)) data.set(name, structuredClone(entry));
               else data.set(key, structuredClone(value));
             },
+            async delete(keys) { for (const key of Array.isArray(keys) ? keys : [keys]) data.delete(key); },
             async list({ prefix }) { return new Map([...data].filter(([key]) => key.startsWith(prefix)).map(([key, value]) => [key, structuredClone(value)])); },
             async setAlarm() {}, async deleteAlarm() {}, async deleteAll() { data.clear(); }
           },
@@ -68,7 +71,7 @@ test('short friend links redirect to the current versioned result page', async (
   assert(destination.pathname.endsWith('/detailed-view.html'), `redirect targets detailed-view.html: ${destination.pathname}`);
   assert.equal(destination.searchParams.get('share'), id);
   assert.equal(destination.searchParams.get('e'), '1794268800');
-  assert.equal(destination.searchParams.get('v'), 'v117-readable-text-3-levels-20261110');
+  assert.equal(destination.searchParams.get('v'), 'v129-shared-link-sync-20261111');
 });
 
 test('one claim session changes from pending to ready only with organizer token', async () => {
@@ -105,6 +108,34 @@ test('one claim session changes from pending to ready only with organizer token'
   assert.equal(result.status, 'ready');
   assert.equal(Date.parse(result.serverNow), publishTime + 1200);
   assert.equal(result.data.participants[0].name, '阿明');
+
+  const previouslyCachedValue = storage.values.get(`share:${created.id}`).value;
+  const recalculated = structuredClone(sample);
+  recalculated.bill.billTotal = 12;
+  recalculated.participants[0].total = 12;
+  recalculated.items[0].sourceAmount = 12;
+  recalculated.items[0].allocatedAmount = 12;
+  recalculated.items[0].shares[0].amount = 12;
+  recalculated.images = [{ mimeType: 'image/jpeg', data: 'A'.repeat(800000) }];
+  const recalculatedAt = publishTime + 3000;
+  const updated = await handleRequest(request(`https://worker.test/api/shares/${created.id}`, 'PUT', recalculated, { Authorization: `Bearer ${created.writeToken}` }), storage, recalculatedAt);
+  assert.equal(updated.status, 200);
+  assert.equal((await json(updated)).resultRevision, 2);
+  storage.staleValues.set(`share:${created.id}`, previouslyCachedValue);
+
+  const sameLinkRead = await handleRequest(request(`https://worker.test/api/shares/${created.id}`), storage, recalculatedAt + 100);
+  assert.equal(sameLinkRead.status, 200);
+  const latest = await json(sameLinkRead);
+  assert.equal(latest.resultRevision, 2);
+  assert.equal(latest.data.bill.billTotal, 12, 'same link serves latest strong-consistency result despite stale KV at this edge');
+  assert.equal(latest.data.images[0].data.length, 800000, 'chunked latest result preserves larger receipt payloads');
+  assert.equal(JSON.parse(storage.BILL_SHARES ? storage.staleValues.get(`share:${created.id}`) : 'null').data.bill.billTotal, 10, 'the mocked edge still holds the prior KV result');
+
+  const revisionOnly = await handleRequest(request(`https://worker.test/api/shares/${created.id}?meta=1`), storage, recalculatedAt + 200);
+  assert.equal(revisionOnly.status, 200);
+  const revision = await json(revisionOnly);
+  assert.equal(revision.resultRevision, 2);
+  assert.equal(Object.hasOwn(revision, 'data'), false, 'polling reads only lightweight revision metadata');
 });
 
 test('claim sessions accept only the advertised TTL options', async () => {
