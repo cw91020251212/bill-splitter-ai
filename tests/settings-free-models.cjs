@@ -24,16 +24,17 @@ async function readModelDescription(page, scope) {
 async function assertRouteDescription(page, expectedText, label, scope = 'scan') {
   const toggle = page.getByTestId(`toggle-${scope}-model-description`);
   const description = page.getByTestId(`${scope}-model-description`);
-  if (await toggle.getAttribute('aria-expanded') === 'true') await toggle.click();
-  assert.equal(await toggle.getAttribute('aria-expanded'), 'false', `${label}: details start collapsed`);
-  assert.equal(await page.getByTestId(`${scope}-model-description-icon`).getAttribute('data-direction'), 'down', `${label}: collapsed chevron points down`);
-  assert.equal(await description.count(), 0, `${label}: model details are hidden until requested`);
-  await toggle.click();
+  assert.equal(await toggle.getAttribute('aria-expanded'), 'true', `${label}: first-use model details are open`);
   await description.waitFor({ state: 'visible' });
-  assert.equal(await toggle.getAttribute('aria-expanded'), 'true', `${label}: details expand on arrow tap`);
   assert.equal(await page.getByTestId(`${scope}-model-description-icon`).getAttribute('data-direction'), 'up', `${label}: expanded chevron points up`);
   const actual = await description.innerText();
   assert(actual.includes(expectedText), `${label}: ${actual}`);
+  await toggle.click();
+  assert.equal(await toggle.getAttribute('aria-expanded'), 'false', `${label}: user can collapse the long description`);
+  assert.equal(await page.getByTestId(`${scope}-model-description-icon`).getAttribute('data-direction'), 'down', `${label}: collapsed chevron points down`);
+  assert.equal(await description.count(), 0, `${label}: collapsed description is hidden`);
+  await toggle.click();
+  assert.equal(await toggle.getAttribute('aria-expanded'), 'true', `${label}: user can reopen the description`);
 }
 
 async function openSettingsAndAssertMatch(page, scanSelect, label) {
@@ -44,7 +45,7 @@ async function openSettingsAndAssertMatch(page, scanSelect, label) {
   const settingsSelect = page.getByTestId('model-select');
   await settingsSelect.waitFor({ state: 'visible' });
   assert.equal(await settingsSelect.inputValue(), scanRoute, `${label}: selected route matches after opening settings`);
-  assert.equal(await page.getByTestId('toggle-settings-model-description').getAttribute('aria-expanded'), 'false', `${label}: settings details also start collapsed`);
+  assert.equal(await page.getByTestId('toggle-settings-model-description').getAttribute('aria-expanded'), 'true', `${label}: settings shares the current model-details preference`);
   assert.equal(await readModelDescription(page, 'settings'), scanDescription, `${label}: descriptions match after opening settings`);
   return settingsSelect;
 }
@@ -79,7 +80,7 @@ async function closeSettingsAndAssertMatch(page, scanSelect, settingsSelect, lab
     const firstVisitSelect = firstVisitPage.getByTestId('scan-model-select');
     await firstVisitSelect.waitFor({ state: 'visible' });
     assert.equal(await firstVisitSelect.inputValue(), localPaddleModel, 'first visit defaults to PaddleOCR.js local + Dots3-Note');
-    assert.equal((await firstVisitPage.getByTestId('app-version-label').innerText()).trim(), 'R132');
+    assert.equal((await firstVisitPage.getByTestId('app-version-label').innerText()).trim(), 'R133');
     console.log('PASS first-visit default is PaddleOCR.js local + Dots3-Note');
 
     await assertRouteDescription(firstVisitPage, '不送去 OpenRouter', 'local route keeps the image on-device');
@@ -182,7 +183,7 @@ async function closeSettingsAndAssertMatch(page, scanSelect, settingsSelect, lab
       await page.waitForFunction(model => JSON.parse(localStorage.getItem('billSplitterApiConfig') || 'null')?.model === model, freeModel);
       const menuTrigger = page.getByTestId('header-action-menu-toggle');
       await menuTrigger.waitFor({ state: 'visible' });
-      assert.equal((await page.getByTestId('app-version-label').innerText()).trim(), 'R132');
+      assert.equal((await page.getByTestId('app-version-label').innerText()).trim(), 'R133');
       await menuTrigger.click();
       const menu = page.locator('#header-action-menu');
       await menu.waitFor({ state: 'visible' });
@@ -249,7 +250,7 @@ async function closeSettingsAndAssertMatch(page, scanSelect, settingsSelect, lab
       }
       const routeBeforeSettings = await scanSelect.inputValue();
       const descriptionBeforeSettings = await readModelDescription(page, 'scan');
-      await page.getByTestId('header-action-menu-toggle').click();
+      if (!await page.locator('.header-settings-button').isVisible()) await page.getByTestId('header-action-menu-toggle').click();
       await page.locator('.header-settings-button').click();
       let select = page.getByTestId('model-select');
       await select.waitFor({ state: 'visible' });
@@ -261,7 +262,7 @@ async function closeSettingsAndAssertMatch(page, scanSelect, settingsSelect, lab
       }, freeModel);
 
       assert.equal(await select.inputValue(), routeBeforeSettings, `${storageKind}: settings keeps the current route`);
-      assert.equal(await page.getByTestId('toggle-settings-model-description').getAttribute('aria-expanded'), 'false', `${storageKind}: settings description starts hidden`);
+      assert.equal(await page.getByTestId('toggle-settings-model-description').getAttribute('aria-expanded'), 'true', `${storageKind}: setting description is initially open and user-controlled`);
       assert.equal(await readModelDescription(page, 'settings'), descriptionBeforeSettings, `${storageKind}: settings description matches the first-screen description`);
       assert.equal(await page.getByTestId('paid-models-opt-in').count(), 0, 'paid-model toggle must be absent');
       const choices = await select.locator('option').evaluateAll(nodes => nodes.map(node => node.value));

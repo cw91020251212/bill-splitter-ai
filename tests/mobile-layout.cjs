@@ -10,8 +10,9 @@ const base = new URL(process.env.BASE_URL || 'http://127.0.0.1:4178/');
 if (!['127.0.0.1', 'localhost'].includes(base.hostname)) {
   throw new Error('This test only runs against a local server.');
 }
-const outputDir = process.env.TEST_OUTPUT_DIR || '/tmp/r132-restored-r127-ui';
-const expectedSteps = ['上載睇單', '各自認帳', '分帳運算', '最終結果'];
+const outputDir = process.env.TEST_OUTPUT_DIR || '/tmp/r133-compact-progress';
+const expectedSteps = ['睇單', '認帳', '運算', '結果'];
+const expectedAriaSteps = ['上載並分析單據', '核對項目和認帳', '分帳運算', '最終結果'];
 const receiptJson = {
   items: [
     { name: '魚蛋', nameEn: 'Fish balls', original: '魚蛋', ja: '', price: 25, qty: 2, totalQty: 2, unit: '碗', total: 50 },
@@ -48,33 +49,46 @@ async function assertOriginalFirstStep(page, width, height) {
   const navInfo = await nav.locator('button[data-step]').evaluateAll(nodes => nodes.map(node => ({
     step: node.dataset.step,
     label: node.innerText.replace(/^\d+\s*/, '').trim(),
+    ariaLabel: node.getAttribute('aria-label'),
     width: Math.round(node.getBoundingClientRect().width),
-    height: Math.round(node.getBoundingClientRect().height)
+    height: Math.round(node.getBoundingClientRect().height),
+    inline: Math.abs(
+      (node.children[0].getBoundingClientRect().top + node.children[0].getBoundingClientRect().height / 2) -
+      (node.children[1].getBoundingClientRect().top + node.children[1].getBoundingClientRect().height / 2)
+    ) <= 2
   })));
-  assert.deepEqual(navInfo.map(item => item.label), expectedSteps, `${label}: full original step names are present`);
-  assert.equal(navInfo.length, 4, `${label}: all four original step buttons remain`);
-  assert(navInfo.every(item => item.width >= 44 && item.height >= 44), `${label}: the original four buttons remain touchable (${JSON.stringify(navInfo)})`);
+  assert.deepEqual(navInfo.map(item => item.label), expectedSteps, `${label}: concise step labels are present`);
+  assert.equal(navInfo.length, 4, `${label}: all four step buttons remain`);
+  assert(navInfo.every(item => item.width >= 44 && item.height >= 44 && item.height <= 56), `${label}: buttons are touchable and compact (${JSON.stringify(navInfo)})`);
+  assert(navInfo.every((item, index) => item.inline && item.ariaLabel.includes(expectedAriaSteps[index])), `${label}: number and short label share a row while full labels remain accessible (${JSON.stringify(navInfo)})`);
   const progress = page.getByTestId('step-progress');
   assert.equal(await progress.isVisible(), true, `${label}: progress bar is visible above the step buttons`);
   assert.equal(await progress.getAttribute('aria-valuenow'), '1', `${label}: progress bar reports Step 1`);
   assert.equal(await progress.getAttribute('aria-valuemax'), '4', `${label}: progress bar reports four total stages`);
-  assert.equal(await page.getByTestId('app-version-label').innerText(), 'R132', `${label}: R132 is loaded`);
+  assert.equal(await page.getByTestId('app-version-label').innerText(), 'R133', `${label}: R133 is loaded`);
 
   const keyCard = page.locator('.api-settings-card');
   assert.equal(await keyCard.isVisible(), true, `${label}: original Key status/action card is visible`);
   assert.match(await keyCard.innerText(), /尚未設定免費鎖匙/);
-  assert.match(await keyCard.innerText(), /相片及一般文字需要免費鎖匙/);
+  assert.match(await keyCard.innerText(), /相片／文字需 Key/);
   assert.equal(await page.getByTestId('open-free-key-settings').isVisible(), true, `${label}: the Key card opens the existing setup route`);
+  const keyHelpToggle = page.getByTestId('toggle-key-guidance');
+  assert.equal(await keyHelpToggle.getAttribute('aria-expanded'), 'true', `${label}: first-time Key explanation is open`);
+  assert.equal(await page.getByTestId('key-guidance-content').isVisible(), true, `${label}: application and no-key alternatives are explained`);
+  assert((await keyHelpToggle.boundingBox()).height >= 44, `${label}: Key help control is at least 44px high`);
   assert.equal(await page.getByTestId('scan-model-select').isVisible(), true, `${label}: original model selector remains available`);
+  assert.equal(await page.getByTestId('scan-model-description').isVisible(), true, `${label}: first-time model details are visible`);
 
   assert.equal(await page.getByTestId('receipt-camera').isVisible(), true, `${label}: camera action remains`);
   assert.equal(await page.getByTestId('receipt-upload').isVisible(), true, `${label}: image selection remains`);
   assert.equal(await page.getByTestId('start-manual').isVisible(), true, `${label}: manual-entry action remains`);
   const aiHeading = page.getByTestId('toggle-receipt-text-import');
   assert.equal(await aiHeading.isVisible(), true, `${label}: other-AI translation option is discoverable`);
+  assert.equal(await aiHeading.getAttribute('aria-expanded'), 'true', `${label}: first-time AI translation guide is open`);
   assert.match(await aiHeading.innerText(), /搵其他 AI 幫手翻譯/);
   assert.match(await aiHeading.innerText(), /提示詞＋賬單＝專用翻譯檔（\.json）/);
-  assert.equal(await aiHeading.getAttribute('aria-expanded'), 'false', `${label}: existing R127 disclosure behavior is retained, not newly redesigned`);
+  assert.equal(await page.getByTestId('external-ai-steps').isVisible(), true, `${label}: AI translation steps are visible`);
+  assert((await aiHeading.boundingBox()).height >= 44, `${label}: AI guide toggle is at least 44px high`);
   await assertNoOverflow(page, width, `${label} first step`);
   await page.screenshot({ path: path.join(outputDir, `step1-${width}x${height}.png`), fullPage: false });
   console.log(`PASS original Step 1 ${label}: four progress labels, Key path, camera/photo, AI translation heading and manual entry`);
@@ -92,6 +106,37 @@ async function assertKeyApplicationRoute(page) {
   await page.getByTestId('header-back-button').click();
   await page.getByTestId('receipt-camera').waitFor({ state: 'visible' });
   console.log('PASS Key card → Settings → free Key application link and tutorial → return to app');
+}
+
+async function assertDisclosurePreferences(page) {
+  const disclosures = [
+    ['toggle-key-guidance', 'key-guidance-r133', 'key-guidance-content'],
+    ['toggle-receipt-text-import', 'receipt-ai-import-r133', 'receipt-text-draft'],
+    ['toggle-scan-model-description', 'model-description-r133', 'scan-model-description']
+  ];
+  for (const [toggleId, preferenceKey] of disclosures) {
+    const toggle = page.getByTestId(toggleId);
+    assert.equal(await toggle.getAttribute('aria-expanded'), 'true', `${toggleId}: first-use state is open`);
+    await toggle.click();
+    assert.equal(await toggle.getAttribute('aria-expanded'), 'false', `${toggleId}: user can collapse it`);
+    assert.equal(await page.evaluate(key => localStorage.getItem(`billSplitterUiDisclosureV1.${key}`), preferenceKey), 'closed', `${toggleId}: manual collapse is stored locally`);
+  }
+  await page.reload({ waitUntil: 'networkidle', timeout: 60000 });
+  await page.getByTestId('receipt-camera').waitFor({ state: 'visible' });
+  for (const [toggleId, , contentId] of disclosures) {
+    assert.equal(await page.getByTestId(toggleId).getAttribute('aria-expanded'), 'false', `${toggleId}: collapsed state is remembered after reload`);
+    assert.equal(await page.getByTestId(contentId).isVisible().catch(() => false), false, `${contentId}: closed content stays hidden after reload`);
+  }
+  for (const [toggleId, preferenceKey] of disclosures) {
+    const toggle = page.getByTestId(toggleId);
+    await toggle.click();
+    assert.equal(await toggle.getAttribute('aria-expanded'), 'true', `${toggleId}: user can reopen it`);
+    assert.equal(await page.evaluate(key => localStorage.getItem(`billSplitterUiDisclosureV1.${key}`), preferenceKey), 'open', `${toggleId}: reopening is remembered locally`);
+  }
+  await page.reload({ waitUntil: 'networkidle', timeout: 60000 });
+  await page.getByTestId('receipt-camera').waitFor({ state: 'visible' });
+  for (const [toggleId] of disclosures) assert.equal(await page.getByTestId(toggleId).getAttribute('aria-expanded'), 'true', `${toggleId}: reopened state survives reload`);
+  console.log('PASS selective disclosures: first-use help, local manual collapse, reload, reopen and reload');
 }
 
 async function assertOriginalStep2Order(page, width) {
@@ -141,7 +186,10 @@ async function assertOriginalStep2Order(page, width) {
       await page.route('https://**/*.workers.dev/**', async route => { externalApiRequests += 1; await route.abort(); });
       await initialize(page);
       await assertOriginalFirstStep(page, width, height);
-      if (width === 320 && height === 844) await assertKeyApplicationRoute(page);
+      if (width === 320 && height === 844) {
+        await assertDisclosurePreferences(page);
+        await assertKeyApplicationRoute(page);
+      }
       if (width === 390) await assertOriginalStep2Order(page, width);
       await context.close();
     }

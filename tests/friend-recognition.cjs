@@ -202,7 +202,8 @@ async function hostFixture() {
   await host.getByTestId('scan-start').waitFor({ state: 'visible' });
   const step1Accent = await host.getByTestId('scan-start').evaluate(el => getComputedStyle(el).borderLeftColor);
   assert.equal(step1Accent, 'rgb(116, 121, 142)', 'Step 1 work area uses its grey-violet accent');
-  await host.getByTestId('toggle-receipt-text-import').click();
+  const importToggle = host.getByTestId('toggle-receipt-text-import');
+  if (await importToggle.getAttribute('aria-expanded') !== 'true') await importToggle.click();
   await host.getByTestId('receipt-text-draft').fill(JSON.stringify({ items: [{ name: 'QA茶', nameEn: 'QA tea', original: 'QA茶', ja: '', price: 100, qty: 1, totalQty: null, unit: '', total: 100 }], adjustments: [], taxTotal: 0, taxNote: '', currency: 'HKD', date: null, receiptTotal: 100 }));
   await host.getByTestId('submit-receipt-text').click();
   await host.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '2', null, { timeout: 30000 });
@@ -291,7 +292,7 @@ async function hostFixture() {
   });
   assert.deepEqual(sectionOrder.missing, [], 'all settlement controls are present');
   assert.deepEqual(sectionOrder.order, ['payer', 'currency', 'payment', 'fee-split', 'report'], 'Step 3 keeps settlement settings before the report action');
-  await host.locator('.step-nav').getByRole('button', { name: '各自認帳' }).click();
+  await host.locator('.step-nav button[data-step="2"]').click();
   await until(async () => await host.getByTestId('claim-expiry-days').isVisible(), 'can return to Step 2 replies');
   assert.equal(await host.getByTestId('claim-inbox').count(), 1, 'inbox is available once on Step 2');
   assert.equal(await host.getByTestId('claim-replies').count(), 1, 'reply field is available once on Step 2');
@@ -336,8 +337,8 @@ async function hostSettle(fixture, qty, initial = false, names = [A, B], claimsA
   const { host, c, link } = fixture;
   if (!host) return publish(c, [payload(A, qty), payload(B)]);
   await host.bringToFront(); await host.evaluate(() => window.dispatchEvent(new Event('focus')));
-  const claimsNav = host.locator('.step-nav').getByRole('button', { name: '各自認帳' });
-  const calcNav = host.locator('.step-nav').getByRole('button', { name: '分帳運算' });
+  const claimsNav = host.locator('.step-nav button[data-step="2"]');
+  const calcNav = host.locator('.step-nav button[data-step="3"]');
   if (claimsAlreadyReceived) {
     await until(async () => await host.getByTestId('calculate-split').isEnabled(), 'late claim is received and Step 3 is ready to calculate');
   } else {
@@ -384,13 +385,16 @@ async function hostSettle(fixture, qty, initial = false, names = [A, B], claimsA
   const visibleUrl = await host.getByTestId('friend-share-url-display').innerText();
   assert(visibleUrl.length < link.length, 'visible URL is shortened');
   if (link.length > 52) assert.match(visibleUrl, /…/, 'long URL is shortened with a middle ellipsis');
-  assert.equal(await host.getByTestId('final-summary-preview').count(), 0, 'fallback reports are collapsed by default');
+  const fallbackToggle = host.getByTestId('report-fallback-toggle');
+  const fallbackOpen = (await fallbackToggle.getAttribute('aria-expanded')) === 'true';
+  if (initial) assert.equal(fallbackOpen, false, 'fallback reports start collapsed on the first settlement');
+  assert.equal(await host.getByTestId('final-summary-preview').count(), fallbackOpen ? 1 : 0, 'fallback reports follow the organizer\'s remembered preference');
   assert.equal(await host.getByTestId('friend-web-preferred-badge').innerText(), '首選・網頁');
   assert.equal(await host.getByTestId('friend-web-intro').innerText(), '同一連結');
   assert.match(await host.getByTestId('friend-network-option').innerText(), /認帳＋結果/);
   assert.equal((await host.getByTestId('friend-share-privacy-note').innerText()).trim(), '持連結者可看帳單及收據。');
   const backups = host.getByTestId('report-fallback-options');
-  await backups.getByRole('button').click();
+  if (!fallbackOpen) await backups.getByRole('button').click();
   await host.getByTestId('final-summary-preview').waitFor({ state: 'visible' });
   await host.getByTestId('final-detail-preview').waitFor({ state: 'visible' });
   assert.equal(await host.getByTestId('summary-report-actions').getByRole('button', { name: '分享' }).count(), 1);
@@ -402,7 +406,8 @@ async function manualClaimEntry() {
   const host = await pageFor('manual claim host', true);
   await host.goto(new URL('index.html', site).href, { waitUntil: 'domcontentloaded', timeout: 30000 });
   await host.getByTestId('scan-start').waitFor({ state: 'visible' });
-  await host.getByTestId('toggle-receipt-text-import').click();
+  const importToggle = host.getByTestId('toggle-receipt-text-import');
+  if (await importToggle.getAttribute('aria-expanded') !== 'true') await importToggle.click();
   await host.getByTestId('receipt-text-draft').fill(JSON.stringify({ items: [{ name: 'QA茶', nameEn: 'QA tea', original: 'QA茶', ja: '', price: 100, qty: 1, totalQty: null, unit: '', total: 100 }], adjustments: [], taxTotal: 0, taxNote: '', currency: 'HKD', date: null, receiptTotal: 100 }));
   await host.getByTestId('submit-receipt-text').click();
   await host.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '2', null, { timeout: 30000 });
@@ -431,7 +436,7 @@ async function manualClaimEntry() {
   });
   await host.waitForTimeout(120);
   assert.equal(harness.requests.length, beforeManual, 'manual mode and text entry make no network request');
-  await host.reload({ waitUntil: 'domcontentloaded' });
+  await host.reload({ waitUntil: 'domcontentloaded', timeout: 30000 });
   await host.getByTestId('claim-replies').waitFor({ state: 'visible' });
   await until(async () => await host.getByTestId('claim-replies').inputValue() === localReply, 'manual reply draft restores after reload');
   assert.equal(await host.getByTestId('manual-claim-entry-option').count(), 0, 'the selected mode persists and does not show the opt-in card again');
@@ -555,9 +560,9 @@ async function ui() {
     const displayedTotal = await a.frameLocator('iframe.same-link-result').locator('#grand-total').innerText();
     const originalFriendUrl = a.url();
     await fixture.host.bringToFront();
-    await fixture.host.locator('.step-nav').getByRole('button', { name: '各自認帳' }).click();
+    await fixture.host.locator('.step-nav button[data-step="2"]').click();
     await fixture.host.getByTestId('tax-amount').fill('5');
-    await fixture.host.locator('.step-nav').getByRole('button', { name: '分帳運算' }).click();
+    await fixture.host.locator('.step-nav button[data-step="3"]').click();
     const recalculationStart = harness.requests.length;
     await fixture.host.getByTestId('calculate-split').click();
     await until(() => harness.requests.slice(recalculationStart).some(r => r.id === c.id && r.method === 'PUT' && r.status === 200), 'recalculation publishes to existing friend session');
@@ -565,6 +570,10 @@ async function ui() {
       const src = await openResultFrame.getAttribute('src');
       return src && Number(new URL(src).searchParams.get('revision')) > displayedRevision;
     }, 'already-open friend page reloads the newer result revision', 20000);
+    await until(async () => {
+      const total = (await a.frameLocator('iframe.same-link-result').locator('#grand-total').innerText()).trim();
+      return total && total !== '—' && total !== displayedTotal;
+    }, 'friend report renders the newly recalculated total', 20000);
     const recalculatedTotal = await a.frameLocator('iframe.same-link-result').locator('#grand-total').innerText();
     assert.notEqual(recalculatedTotal, displayedTotal, 'the existing friend page displays the recalculated total');
     assert.equal(a.url(), originalFriendUrl, 'automatic refresh preserves the stable friend URL');
@@ -579,9 +588,9 @@ async function ui() {
     await a.locator('#qty-0').fill(unsentQuantity);
     await stored(a);
     await fixture.host.bringToFront();
-    await fixture.host.locator('.step-nav').getByRole('button', { name: '各自認帳' }).click();
+    await fixture.host.locator('.step-nav button[data-step="2"]').click();
     await fixture.host.getByTestId('tax-amount').fill('6');
-    await fixture.host.locator('.step-nav').getByRole('button', { name: '分帳運算' }).click();
+    await fixture.host.locator('.step-nav button[data-step="3"]').click();
     await until(async () => await fixture.host.getByTestId('calculate-split').isEnabled(), 'host can recalculate while friend edits');
     const editPublishStart = harness.requests.length;
     await fixture.host.getByTestId('calculate-split').click();
@@ -594,6 +603,10 @@ async function ui() {
       const src = await openResultFrame.getAttribute('src');
       return src && Number(new URL(src).searchParams.get('revision')) > editRevision;
     }, 'canceling the edit reveals the latest result on the original friend page', 20000);
+    await until(async () => {
+      const total = (await a.frameLocator('iframe.same-link-result').locator('#grand-total').innerText()).trim();
+      return total && total !== '—' && total !== recalculatedTotal;
+    }, 'friend report renders the post-edit recalculation after cancel', 20000);
     assert.notEqual(await a.frameLocator('iframe.same-link-result').locator('#grand-total').innerText(), recalculatedTotal);
     assert.equal(a.url(), originalFriendUrl, 'edit-safe refresh keeps the original link');
     pass('an unsent friend edit survives the host recalculation and the same link updates after cancel');
@@ -636,17 +649,15 @@ async function ui() {
   await host.getByTestId('receive-late-person-claims').click();
   await host.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '2', null, { timeout: 10000 });
   await host.getByTestId('claim-inbox').waitFor({ state: 'visible' });
-  await host.locator('.step-nav').getByRole('button', { name: '最終結果' }).click();
+  await host.locator('.step-nav button[data-step="4"]').click();
   await latePersonGuide.waitFor({ state: 'visible' });
-  assert.equal(await flowDetails.evaluate(node => node.open), false, 'receiving action returns to results with the guide collapsed');
-  await flowSummary.click();
+  assert.equal(await flowDetails.evaluate(node => node.open), true, 'receiving action keeps the manually opened guide available');
   await host.evaluate(() => { window.__copiedLatePersonLink = ''; document.execCommand = command => { if (command === 'copy') window.__copiedLatePersonLink = document.activeElement?.value || ''; return command === 'copy'; }; });
   await host.getByTestId('manual-late-person-replies').click();
   await host.waitForFunction(() => document.activeElement?.getAttribute('data-testid') === 'claim-replies', null, { timeout: 5000 });
-  await host.locator('.step-nav').getByRole('button', { name: '最終結果' }).click();
+  await host.locator('.step-nav button[data-step="4"]').click();
   await latePersonGuide.waitFor({ state: 'visible' });
-  assert.equal(await flowDetails.evaluate(node => node.open), false, 'guide returns collapsed when the results step is reopened');
-  await flowSummary.click();
+  assert.equal(await flowDetails.evaluate(node => node.open), true, 'returning to results preserves the organizer\'s local open preference');
   await host.getByTestId('copy-late-person-link').click();
   assert.equal(await host.evaluate(() => window.__copiedLatePersonLink), link, 'the first action copies the same share link');
   await late.getByTestId('add-another-person').click();

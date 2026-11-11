@@ -45,6 +45,12 @@ const initStorage = async (page, config) => {
   await page.getByTestId('toggle-receipt-text-import').waitFor({ state: 'visible', timeout: 60000 });
 };
 
+const ensureAIImportOpen = async page => {
+  const toggle = page.getByTestId('toggle-receipt-text-import');
+  if (await toggle.getAttribute('aria-expanded') !== 'true') await toggle.click();
+  await page.getByTestId('receipt-text-draft').waitFor({ state: 'visible' });
+};
+
 (async () => {
   const browser = await chromium.launch({
     headless: true,
@@ -74,8 +80,9 @@ const initStorage = async (page, config) => {
     await initStorage(noKeyPage, null);
 
     assert.equal(await noKeyPage.getByTestId('scan-model-select').inputValue(), 'local/paddleocr-js', 'fresh installs use local PaddleOCR + Dots by default');
-    assert.equal(await noKeyPage.getByTestId('copy-receipt-json-prompt').isVisible(), true, 'the prompt-copy action is visible without expanding the import panel');
-    assert.equal(await noKeyPage.getByTestId('receipt-text-import-toggle-icon').getAttribute('data-direction'), 'down', 'a collapsed import panel uses the shared down chevron');
+    assert.equal(await noKeyPage.getByTestId('copy-receipt-json-prompt').isVisible(), true, 'the prompt-copy action is visible without opening the details');
+    assert.equal(await noKeyPage.getByTestId('toggle-receipt-text-import').getAttribute('aria-expanded'), 'true', 'first-use AI translation guide starts open');
+    assert.equal(await noKeyPage.getByTestId('receipt-text-import-toggle-icon').getAttribute('data-direction'), 'up', 'an expanded import panel uses the shared up chevron');
     const zhImportHeading = await noKeyPage.getByTestId('toggle-receipt-text-import').innerText();
     assert.match(zhImportHeading, /搵其他 AI 幫手翻譯/);
     assert.match(zhImportHeading, /提示詞＋賬單＝專用翻譯檔（\.json）/);
@@ -106,10 +113,10 @@ const initStorage = async (page, config) => {
     await noKeyPage.getByTestId('manual-empty-state').waitFor({ state: 'visible' });
     assert.equal(await noKeyPage.getByTestId('manual-empty-state').getByTestId('choice-divider').count(), 1, 'photo scan and manual entry are separated by “or”');
     await noKeyPage.locator('.step-nav button').first().click();
-    await noKeyPage.getByTestId('toggle-receipt-text-import').click();
+    await ensureAIImportOpen(noKeyPage);
     assert.equal(await noKeyPage.getByTestId('receipt-text-import-toggle-icon').getAttribute('data-direction'), 'up', 'an expanded import panel uses the up chevron');
     const zhImportHelp = await noKeyPage.getByTestId('receipt-text-import').innerText();
-    assert.match(zhImportHelp, /JSON 本機匯入/);
+    assert.match(zhImportHelp, /貼上 AI 的 JSON/);
     await noKeyPage.getByTestId('copy-receipt-json-prompt').click();
     const copiedPrompt = await noKeyPage.evaluate(() => window.__copiedPrompt || '');
     assert.match(copiedPrompt, /附上的收據相片/);
@@ -122,7 +129,7 @@ const initStorage = async (page, config) => {
     await noKeyPage.evaluate(() => localStorage.setItem('billSplitterLanguage', 'en'));
     await noKeyPage.reload();
     await noKeyPage.getByTestId('toggle-receipt-text-import').waitFor({ state: 'visible', timeout: 30000 });
-    await noKeyPage.getByTestId('toggle-receipt-text-import').click();
+    await ensureAIImportOpen(noKeyPage);
     const enImportHelp = await noKeyPage.getByTestId('receipt-text-import').innerText();
     assert.match(enImportHelp, /Ask another AI to translate/);
     assert.match(enImportHelp, /Prompt \+ bill = ready-to-import \.json file/);
@@ -137,7 +144,7 @@ const initStorage = async (page, config) => {
     await noKeyPage.evaluate(() => localStorage.setItem('billSplitterLanguage', 'zh-HK'));
     await noKeyPage.reload();
     await noKeyPage.getByTestId('toggle-receipt-text-import').waitFor({ state: 'visible', timeout: 30000 });
-    await noKeyPage.getByTestId('toggle-receipt-text-import').click();
+    await ensureAIImportOpen(noKeyPage);
 
     await noKeyPage.getByTestId('receipt-text-draft').fill(JSON.stringify(jsonPastePayload));
     await noKeyPage.getByTestId('submit-receipt-text').click();
@@ -248,7 +255,7 @@ const initStorage = async (page, config) => {
     await noKeyPage.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '2', null, { timeout: 30000 });
 
     await noKeyPage.locator('.step-nav button').first().click();
-    await noKeyPage.getByTestId('toggle-receipt-text-import').click();
+    await ensureAIImportOpen(noKeyPage);
     const fencedJson = `\`\`\`json\n${JSON.stringify(filePayload)}\n\`\`\``;
     await noKeyPage.getByTestId('receipt-text-file').setInputFiles({
       name: 'translated-receipt.txt', mimeType: 'text/plain', buffer: Buffer.from(fencedJson, 'utf8')
@@ -260,7 +267,7 @@ const initStorage = async (page, config) => {
     assert.equal(noKeyRequests, 0, 'text-file JSON also makes no network request');
 
     await noKeyPage.locator('.step-nav button').first().click();
-    await noKeyPage.getByTestId('toggle-receipt-text-import').click();
+    await ensureAIImportOpen(noKeyPage);
     await noKeyPage.getByTestId('receipt-text-draft').fill('拉麵 1 碗 100 元；消費税 8 元；應付 108 元');
     await noKeyPage.getByTestId('submit-receipt-text').click();
     await noKeyPage.getByTestId('receipt-text-import-error').waitFor({ state: 'visible' });
@@ -298,7 +305,7 @@ const initStorage = async (page, config) => {
       keys: { openrouter: 'local-test-key' }, model: DOTS,
       allowPaidModels: false, ocrModelPreferenceVersion: 5
     });
-    await modelPage.getByTestId('toggle-receipt-text-import').click();
+    await ensureAIImportOpen(modelPage);
     await modelPage.getByTestId('receipt-text-draft').fill(JSON.stringify({ items: [{ name: '負稅測試', price: 10, qty: 1, total: 10 }], taxTotal: -2, currency: 'HKD' }));
     await modelPage.getByTestId('submit-receipt-text').click();
     await modelPage.getByTestId('receipt-text-import-error').waitFor({ state: 'visible' });

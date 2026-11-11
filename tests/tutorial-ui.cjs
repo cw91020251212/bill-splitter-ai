@@ -77,7 +77,8 @@ async function snapshot(page) {
     const assets = await Promise.all(rows.map(async row => ({ ...row, files: row.files ? await Promise.all(row.files.map(async f => ({ name: f.name, text: await f.blob.text() }))) : undefined, attachments: row.attachments ? await Promise.all(row.attachments.map(async f => ({ name: f.name, type: f.type, text: await f.blob.text() }))) : undefined })));
     const store = Object.fromEntries(Object.keys(localStorage).sort().map(k => [k, localStorage.getItem(k)]));
     const root = document.querySelector('[data-live-app]');
-    return { store, assets, html: root.innerHTML.replace(/ style=""/g, ''), fields: [...root.querySelectorAll('input,textarea,select')].map(x => ({ type: x.type, value: x.value, checked: x.checked, disabled: x.disabled })), scrollY, focus: document.activeElement?.dataset.testid };
+    const html = root.innerHTML.replace(/ style=""/g, '').replace(/\saria-current="[^"]*"/g, '');
+    return { store, assets, html, fields: [...root.querySelectorAll('input,textarea,select')].map(x => ({ type: x.type, value: x.value, checked: x.checked, disabled: x.disabled })), scrollY, focus: document.activeElement?.dataset.testid };
   });
 }
 async function instrument(page) {
@@ -363,7 +364,11 @@ async function runKeyStatusHintSmoke(browser) {
       assert(!statusText.includes('Tap to change the model or key'));
     } else {
       assert.match(statusText, /尚未設定免費鎖匙/);
-      assert.match(statusText, /相片及一般文字需要免費鎖匙；符合格式的 JSON 文字可免鎖匙直接匯入/);
+      const keyHelpToggle = page.getByTestId('toggle-key-guidance');
+      if (await keyHelpToggle.getAttribute('aria-expanded') !== 'true') await keyHelpToggle.click();
+      const keyHelpText = await page.getByTestId('key-guidance-content').innerText();
+      assert.match(keyHelpText, /相片及一般文字辨識需要 OpenRouter 免費 Key/);
+      assert.match(keyHelpText, /指定 JSON 可本機匯入/);
     }
     await context.close();
   }

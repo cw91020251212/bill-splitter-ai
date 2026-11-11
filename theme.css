@@ -32,10 +32,12 @@ body.bg-slate-50 { background: var(--page-grey); color: var(--ink); }
 }
 #root button[data-ui-language] { min-height: 34px; border-radius: 7px; color: #425747; }
 #root button[data-ui-language][aria-pressed="true"] { background: #80d9aa; color: #fff; box-shadow: 0 1px 3px #173c2e30; }
-#root .stepper-panel { background: #fdfdfd; border-color: #89998a; padding-top: 12px; padding-bottom: 12px; }
+#root .stepper-panel { background: #fdfdfd; border-color: #89998a; padding-top: 7px; padding-bottom: 7px; }
 #root .stepper-panel .bg-slate-300 { background: #aebaae; }
-#root .step-nav { gap: 5px; padding: 0; }
-#root .step-nav button { min-height: 52px; padding: 6px 3px; border: 1px solid #68a17e; background: #ffffff; color: #526452; }
+#root .step-nav { gap: 3px; padding: 0; }
+#root .step-nav button { min-height: 46px; padding: 4px 2px; border: 1px solid #68a17e; background: #ffffff; color: #526452; }
+#root .step-nav button > span:first-child { width: 22px; height: 22px; }
+#root .step-nav button > span:nth-child(2) { font-size: 0.8125rem; line-height: 1.1; }
 #root .step-nav button[class*="bg-brand-50"] { background: #cce3d1; border-color: #428d62; color: #174b30; box-shadow: inset 0 0 0 .5px #428d62; }
 #root .step-nav button > span:first-child { border-color: #4f946a; }
 #root .step-nav button[class*="bg-brand-50"] > span:first-child { border-color: #60b68d; background: #67c99a; color: #fff; }
