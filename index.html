@@ -85,11 +85,11 @@
   ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
   ::-webkit-scrollbar-thumb:hover { background: #64748b; }
   </style>
-  <link rel="stylesheet" href="./theme.css?v=v133-compact-progress-20261111">
+  <link rel="stylesheet" href="./theme.css?v=v134-model-under-key-20261111">
   <link rel="stylesheet" href="./tutorial.css?v=v86-free-models-only">
-  <!-- R133: compact the four-step navigation and selectively remember low-frequency help panels. -->
-  <meta name="bill-app-release" content="v133-compact-progress-20261111">
-  <script defer src="./pwa.js?v=v133-compact-progress-20261111"></script>
+  <!-- R134: place model selection inside the collapsible Key/help section. -->
+  <meta name="bill-app-release" content="v134-model-under-key-20261111">
+  <script defer src="./pwa.js?v=v134-model-under-key-20261111"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
@@ -104,7 +104,7 @@
   <script src="./card-redaction.js?v=v97-card-number-redaction"></script>
   <script src="./card-share-review.js?v=v97-card-number-redaction"></script>
   <script src="./exchange-rates.js?v=v90-cross-currency-settlement"></script>
-    <script src="./tutorial.js?v=v133-compact-progress-20261111"></script>
+    <script src="./tutorial.js?v=v134-model-under-key-20261111"></script>
   <script type="text/babel">
     const { useState, useRef, useEffect, useLayoutEffect, useMemo } = React;
     const tr = value => window.BillI18n.t(value);
@@ -2586,7 +2586,7 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
         const storageKey = 'billSplitterDetailTablePreviewV1';
         try {
           localStorage.setItem(storageKey, JSON.stringify(previewData));
-          const previewWindow = window.open('./detailed-view.html?v=v133-compact-progress-20261111', '_blank');
+          const previewWindow = window.open('./detailed-view.html?v=v134-model-under-key-20261111', '_blank');
           if (!previewWindow) {
             localStorage.removeItem(storageKey);
             toast(bi('允許彈窗', 'Allow pop-ups'), 'error');
@@ -3836,7 +3836,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
         const metadata = getClaimLinkMetadata();
         const link = new URL('./claim.html', window.location.href);
         link.searchParams.set('lang', lang === 'en' ? 'en' : 'zh-HK');
-        link.searchParams.set('v', 'v133-compact-progress-20261111');
+        link.searchParams.set('v', 'v134-model-under-key-20261111');
         link.searchParams.set('session', session.id);
         link.hash = window.ClaimRelay
           ? window.ClaimRelay.buildHash(encodeClaimLinkPayload(payload), room, metadata)
@@ -4598,7 +4598,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                 <div className="flex items-center gap-2 sm:gap-3 shrink-0">
                   <img src="./icons/icon.svg" alt="" width="48" height="48" className="app-brand-icon shrink-0" />
                   <div>
-                  <h1 className="text-xl font-extrabold text-slate-800 tracking-tight"><span className="app-brand-name block sm:inline whitespace-nowrap">{tr("分帳管家")}</span><span className="inline-flex items-baseline gap-1 sm:ml-1 whitespace-nowrap"><span data-testid="app-pro-label" className="text-brand-600 font-black">Pro</span><span data-testid="app-version-label" className="text-[10px] leading-3 font-semibold tracking-normal text-brand-700">R133</span></span></h1>
+                  <h1 className="text-xl font-extrabold text-slate-800 tracking-tight"><span className="app-brand-name block sm:inline whitespace-nowrap">{tr("分帳管家")}</span><span className="inline-flex items-baseline gap-1 sm:ml-1 whitespace-nowrap"><span data-testid="app-pro-label" className="text-brand-600 font-black">Pro</span><span data-testid="app-version-label" className="text-[10px] leading-3 font-semibold tracking-normal text-brand-700">R134</span></span></h1>
                   </div>
               </div>
               <div className="header-actions relative flex items-center gap-1.5 sm:gap-2">
@@ -4818,7 +4818,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                       data-testid="toggle-key-guidance"
                       aria-controls="key-guidance-content"
                       aria-expanded={showKeyGuidance}
-                      aria-label={showKeyGuidance ? bi('收起鎖匙說明', 'Hide key help') : bi('展開鎖匙說明', 'Show key help')}
+                      aria-label={showKeyGuidance ? bi('收起鎖匙說明及模型選擇', 'Hide key help and model options') : bi('展開鎖匙說明及模型選擇', 'Show key help and model options')}
                       onClick={() => { const nextOpen = !showKeyGuidance; setShowKeyGuidance(nextOpen); if (!tutorialDemo) writeUiDisclosure('key-guidance-r133', nextOpen); }}
                       className="flex min-h-[56px] min-w-[68px] items-center justify-center gap-1 rounded-xl border border-brand-500 bg-white px-2 text-sm font-bold text-brand-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700"
                     >
@@ -4831,27 +4831,26 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                       ? bi('相片及一般文字用已設定的免費 Key；指定 JSON 可本機匯入，手動輸入亦免 Key。', 'Photos and free-form text use the configured free key; formatted JSON imports locally and manual entry needs no key.')
                       : bi('相片及一般文字辨識需要 OpenRouter 免費 Key；指定 JSON 可本機匯入，手動輸入亦免 Key。', 'Photo and free-form text recognition needs a free OpenRouter key; formatted JSON imports locally and manual entry needs no key.')}</p>
                     <p>{bi('按「鎖匙設定」開啟申請入口及免費 Key 教學影片。', 'Tap “Key settings” for the application link and free-key tutorial.')}</p>
+                    <div data-testid="scan-model-settings" className="mt-3 space-y-2 border-t border-brand-200 pt-3">
+                      <Label htmlFor="scan-model-select" className="text-base">{bi('今次辨識用邊個模型？', 'Choose a model for this scan')}</Label>
+                      <select
+                        id="scan-model-select"
+                        data-testid="scan-model-select"
+                        value={ocrEngine === 'paddlejs' ? LOCAL_PADDLE_MODEL_ID : resolveBillModel(apiModel, allowPaidModels)}
+                        onChange={(event) => chooseOcrModel(event.target.value)}
+                        disabled={tutorialDemo || isAnalyzing}
+                        className="w-full rounded-xl p-3.5 text-base font-semibold text-slate-800 bg-white border border-slate-400"
+                      >
+                        <optgroup label={bi('OpenRouter 免費模型', 'OpenRouter free models')}>
+                          {FREE_MODELS.map(([id, zh, en]) => <option key={id} value={id}>{bi(zh, en)}</option>)}
+                        </optgroup>
+                        <optgroup label={bi('本機 OCR', 'On-device OCR')}>
+                          <option value={LOCAL_PADDLE_MODEL_ID}>{bi('PaddleOCR.js 本機＋Dots3-Note 整理', 'PaddleOCR.js local + Dots3-Note')}</option>
+                        </optgroup>
+                      </select>
+                      {renderModelDescriptionDisclosure('scan', showScanModelDescription, setModelDescriptionVisibility)}
+                    </div>
                   </div>}
-                </Card>
-
-                <Card className="border-slate-400 bg-white">
-                  <Label htmlFor="scan-model-select" className="text-base">{bi('今次辨識用邊個模型？', 'Choose a model for this scan')}</Label>
-                  <select
-                    id="scan-model-select"
-                    data-testid="scan-model-select"
-                    value={ocrEngine === 'paddlejs' ? LOCAL_PADDLE_MODEL_ID : resolveBillModel(apiModel, allowPaidModels)}
-                    onChange={(event) => chooseOcrModel(event.target.value)}
-                    disabled={tutorialDemo || isAnalyzing}
-                    className="w-full rounded-xl p-3.5 text-base font-semibold text-slate-800 bg-white border border-slate-400"
-                  >
-                    <optgroup label={bi('OpenRouter 免費模型', 'OpenRouter free models')}>
-                      {FREE_MODELS.map(([id, zh, en]) => <option key={id} value={id}>{bi(zh, en)}</option>)}
-                    </optgroup>
-                    <optgroup label={bi('本機 OCR', 'On-device OCR')}>
-                      <option value={LOCAL_PADDLE_MODEL_ID}>{bi('PaddleOCR.js 本機＋Dots3-Note 整理', 'PaddleOCR.js local + Dots3-Note')}</option>
-                    </optgroup>
-                  </select>
-                  {renderModelDescriptionDisclosure('scan', showScanModelDescription, setModelDescriptionVisibility)}
                 </Card>
 
                 {!isOnline && <p className="text-base text-amber-900 bg-amber-50 border border-amber-400 rounded-xl p-3">{bi('而家冇網絡：相片及一般文字要等連線；已整理成指定 JSON 的文字可離線匯入，亦可手動輸入。', 'No connection: photos and free-form text need a connection. Formatted JSON can still be imported offline, or enter items manually.')}</p>}

@@ -74,6 +74,8 @@ const payload = {
       }));
     });
     await page.goto(base.toString(), { waitUntil: 'domcontentloaded' });
+    const keyGuidanceToggle = page.getByTestId('toggle-key-guidance');
+    if (await keyGuidanceToggle.getAttribute('aria-expanded') !== 'true') await keyGuidanceToggle.click();
     const scanSelect = page.getByTestId('scan-model-select');
     await scanSelect.waitFor({ state: 'visible', timeout: 60000 });
     await scanSelect.selectOption(LOCAL);

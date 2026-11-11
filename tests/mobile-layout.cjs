@@ -65,7 +65,7 @@ async function assertOriginalFirstStep(page, width, height) {
   assert.equal(await progress.isVisible(), true, `${label}: progress bar is visible above the step buttons`);
   assert.equal(await progress.getAttribute('aria-valuenow'), '1', `${label}: progress bar reports Step 1`);
   assert.equal(await progress.getAttribute('aria-valuemax'), '4', `${label}: progress bar reports four total stages`);
-  assert.equal(await page.getByTestId('app-version-label').innerText(), 'R133', `${label}: R133 is loaded`);
+  assert.equal(await page.getByTestId('app-version-label').innerText(), 'R134', `${label}: R134 is loaded`);
 
   const keyCard = page.locator('.api-settings-card');
   assert.equal(await keyCard.isVisible(), true, `${label}: original Key status/action card is visible`);
@@ -75,6 +75,7 @@ async function assertOriginalFirstStep(page, width, height) {
   const keyHelpToggle = page.getByTestId('toggle-key-guidance');
   assert.equal(await keyHelpToggle.getAttribute('aria-expanded'), 'true', `${label}: first-time Key explanation is open`);
   assert.equal(await page.getByTestId('key-guidance-content').isVisible(), true, `${label}: application and no-key alternatives are explained`);
+  assert.equal(await page.getByTestId('scan-model-settings').isVisible(), true, `${label}: model choice is grouped under Key guidance`);
   assert((await keyHelpToggle.boundingBox()).height >= 44, `${label}: Key help control is at least 44px high`);
   assert.equal(await page.getByTestId('scan-model-select').isVisible(), true, `${label}: original model selector remains available`);
   assert.equal(await page.getByTestId('scan-model-description').isVisible(), true, `${label}: first-time model details are visible`);
@@ -109,33 +110,50 @@ async function assertKeyApplicationRoute(page) {
 }
 
 async function assertDisclosurePreferences(page) {
-  const disclosures = [
-    ['toggle-key-guidance', 'key-guidance-r133', 'key-guidance-content'],
-    ['toggle-receipt-text-import', 'receipt-ai-import-r133', 'receipt-text-draft'],
-    ['toggle-scan-model-description', 'model-description-r133', 'scan-model-description']
-  ];
-  for (const [toggleId, preferenceKey] of disclosures) {
-    const toggle = page.getByTestId(toggleId);
-    assert.equal(await toggle.getAttribute('aria-expanded'), 'true', `${toggleId}: first-use state is open`);
-    await toggle.click();
-    assert.equal(await toggle.getAttribute('aria-expanded'), 'false', `${toggleId}: user can collapse it`);
-    assert.equal(await page.evaluate(key => localStorage.getItem(`billSplitterUiDisclosureV1.${key}`), preferenceKey), 'closed', `${toggleId}: manual collapse is stored locally`);
-  }
+  const keyToggle = page.getByTestId('toggle-key-guidance');
+  const aiToggle = page.getByTestId('toggle-receipt-text-import');
+  const modelToggle = page.getByTestId('toggle-scan-model-description');
+  assert.equal(await keyToggle.getAttribute('aria-expanded'), 'true', 'first-use Key and model options are open');
+  assert.equal(await aiToggle.getAttribute('aria-expanded'), 'true', 'first-use AI guide is open');
+  assert.equal(await modelToggle.getAttribute('aria-expanded'), 'true', 'first-use model details are open inside Key options');
+  await keyToggle.click();
+  assert.equal(await keyToggle.getAttribute('aria-expanded'), 'false', 'Key arrow collapses the whole settings group');
+  assert.equal(await page.getByTestId('scan-model-settings').isVisible().catch(() => false), false, 'model selector and description hide with Key guidance');
+  assert.equal(await page.evaluate(() => localStorage.getItem('billSplitterUiDisclosureV1.key-guidance-r133')), 'closed', 'Key arrow stores the combined group state');
+  await aiToggle.click();
+  assert.equal(await aiToggle.getAttribute('aria-expanded'), 'false', 'AI guide can also be collapsed independently');
+  assert.equal(await page.evaluate(() => localStorage.getItem('billSplitterUiDisclosureV1.receipt-ai-import-r133')), 'closed', 'AI guide collapse is stored locally');
   await page.reload({ waitUntil: 'networkidle', timeout: 60000 });
   await page.getByTestId('receipt-camera').waitFor({ state: 'visible' });
-  for (const [toggleId, , contentId] of disclosures) {
-    assert.equal(await page.getByTestId(toggleId).getAttribute('aria-expanded'), 'false', `${toggleId}: collapsed state is remembered after reload`);
-    assert.equal(await page.getByTestId(contentId).isVisible().catch(() => false), false, `${contentId}: closed content stays hidden after reload`);
-  }
-  for (const [toggleId, preferenceKey] of disclosures) {
-    const toggle = page.getByTestId(toggleId);
-    await toggle.click();
-    assert.equal(await toggle.getAttribute('aria-expanded'), 'true', `${toggleId}: user can reopen it`);
-    assert.equal(await page.evaluate(key => localStorage.getItem(`billSplitterUiDisclosureV1.${key}`), preferenceKey), 'open', `${toggleId}: reopening is remembered locally`);
-  }
+  assert.equal(await keyToggle.getAttribute('aria-expanded'), 'false', 'combined Key/model collapse persists after reload');
+  assert.equal(await aiToggle.getAttribute('aria-expanded'), 'false', 'AI guide collapse persists after reload');
+  assert.equal(await page.getByTestId('key-guidance-content').isVisible().catch(() => false), false, 'collapsed Key group stays hidden after reload');
+  assert.equal(await page.getByTestId('scan-model-settings').isVisible().catch(() => false), false, 'collapsed model options stay hidden after reload');
+  assert.equal(await page.getByTestId('receipt-text-draft').isVisible().catch(() => false), false, 'collapsed AI content stays hidden after reload');
+  await keyToggle.click();
+  assert.equal(await page.getByTestId('scan-model-select').isVisible(), true, 'opening the Key arrow restores the model selector');
+  assert.equal(await page.getByTestId('scan-model-description').isVisible(), true, 'model details stay expanded inside the group');
+  await modelToggle.click();
+  assert.equal(await modelToggle.getAttribute('aria-expanded'), 'false', 'model details remain independently collapsible');
+  assert.equal(await page.evaluate(() => localStorage.getItem('billSplitterUiDisclosureV1.model-description-r133')), 'closed', 'model-details choice is stored locally');
+  await keyToggle.click();
   await page.reload({ waitUntil: 'networkidle', timeout: 60000 });
   await page.getByTestId('receipt-camera').waitFor({ state: 'visible' });
-  for (const [toggleId] of disclosures) assert.equal(await page.getByTestId(toggleId).getAttribute('aria-expanded'), 'true', `${toggleId}: reopened state survives reload`);
+  assert.equal(await keyToggle.getAttribute('aria-expanded'), 'false', 'combined Key/model group remains collapsed after a second reload');
+  await keyToggle.click();
+  assert.equal(await page.getByTestId('scan-model-select').isVisible(), true, 'reopened group still exposes the model selector');
+  assert.equal(await modelToggle.getAttribute('aria-expanded'), 'false', 'separate model-details choice also persists in the nested group');
+  await modelToggle.click();
+  assert.equal(await modelToggle.getAttribute('aria-expanded'), 'true', 'model description can be reopened');
+  assert.equal(await page.evaluate(() => localStorage.getItem('billSplitterUiDisclosureV1.model-description-r133')), 'open', 'reopening model details is remembered locally');
+  await aiToggle.click();
+  assert.equal(await aiToggle.getAttribute('aria-expanded'), 'true', 'AI guide can be reopened independently');
+  assert.equal(await page.evaluate(() => localStorage.getItem('billSplitterUiDisclosureV1.receipt-ai-import-r133')), 'open', 'reopening AI guide is remembered locally');
+  await page.reload({ waitUntil: 'networkidle', timeout: 60000 });
+  await page.getByTestId('receipt-camera').waitFor({ state: 'visible' });
+  assert.equal(await keyToggle.getAttribute('aria-expanded'), 'true', 'reopened combined group survives reload');
+  assert.equal(await aiToggle.getAttribute('aria-expanded'), 'true', 'reopened AI guide survives reload');
+  assert.equal(await modelToggle.getAttribute('aria-expanded'), 'true', 'reopened nested model description survives reload');
   console.log('PASS selective disclosures: first-use help, local manual collapse, reload, reopen and reload');
 }
 
