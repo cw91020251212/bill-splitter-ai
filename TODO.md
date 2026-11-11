@@ -393,3 +393,7 @@
 - [x] 標題改為「其他 AI 翻譯」，在所有螢幕採用與手機單據上載標題相同的字級及粗體，不因寬度縮小；輔助例子只列 e.g. Gemini、豆包，不再列 ChatGPT。
 - [x] 驗收 320px、360px、390px 及桌面：320px 只讓例子換到下一行，其餘尺寸例子緊接標題；標題不擠壓箭嘴，無橫向溢出，翻譯匯入和既有功能正常。`mobile-layout.cjs`、`text-import.cjs`、`settings-free-models.cjs` 及 JavaScript／diff 檢查通過。
 - [x] R138（`7969c38`）已推送 Pages，正式站在 320px／360px／390px／1280px 驗證標題及上載標題同字級和粗度，例子正確、無溢出，PWA／SW 版號更新。
+
+## R139：AI 翻譯例子改為 Google AI 模式
+- [x] 把標題例子改為「（Google AI 模式，豆包…）」；保留「其他 AI 翻譯」的既有標題字級、粗體和內容。
+- [x] 驗收 320px、360px、390px 和桌面：例子在卡片寬度不足時自然換到標題下方，不縮小標題、不擠壓箭嘴或造成橫向溢出；AI 匯入及既有功能正常。`mobile-layout.cjs`、`text-import.cjs`、`settings-free-models.cjs` 與語法／diff 檢查均通過。

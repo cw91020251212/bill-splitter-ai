@@ -589,10 +589,6 @@ body.bg-slate-50 { background: var(--page-grey); color: var(--ink); }
 
 #root main [data-testid="external-ai-provider-examples"] { font-size: 13px; }
 
-@media (max-width: 359px) {
-  #root main [data-testid="receipt-text-import-title-row"] { flex-wrap: wrap; white-space: normal; }
-}
-
 /* Point accents. Brand green stays on the logo, primary buttons, the scan
    frame and focus. These rules sit last so they beat the slate remap when a
    control also carries a semantic color class. */

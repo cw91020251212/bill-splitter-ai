@@ -65,7 +65,7 @@ async function assertOriginalFirstStep(page, width, height) {
   assert.equal(await progress.isVisible(), true, `${label}: progress bar is visible above the step buttons`);
   assert.equal(await progress.getAttribute('aria-valuenow'), '1', `${label}: progress bar reports Step 1`);
   assert.equal(await progress.getAttribute('aria-valuemax'), '4', `${label}: progress bar reports four total stages`);
-  assert.equal(await page.getByTestId('app-version-label').innerText(), 'R138', `${label}: R138 is loaded`);
+  assert.equal(await page.getByTestId('app-version-label').innerText(), 'R139', `${label}: R139 is loaded`);
 
   const keyCard = page.locator('.api-settings-card');
   assert.equal(await keyCard.isVisible(), true, `${label}: original Key status/action card is visible`);
@@ -120,11 +120,12 @@ async function assertOriginalFirstStep(page, width, height) {
     const rowRect = row.getBoundingClientRect();
     return { text: examples.innerText, titleTop: titleRect.top, titleBottom: titleRect.bottom, examplesTop: examplesRect.top, examplesBottom: examplesRect.bottom, titleRight: titleRect.right, examplesLeft: examplesRect.left, examplesRight: examplesRect.right, rowRight: rowRect.right, titleFont: parseFloat(getComputedStyle(title).fontSize), referenceFont: parseFloat(getComputedStyle(referenceHeading).fontSize), titleWeight: parseInt(getComputedStyle(title).fontWeight, 10), referenceWeight: parseInt(getComputedStyle(referenceHeading).fontWeight, 10), examplesFont: parseFloat(getComputedStyle(examples).fontSize), rowHeight: rowRect.height };
   });
-  assert.match(inlineAIExamples.text, /^e\.g\. Gemini·豆包…$/, `${label}: examples identify Gemini and Doubao without ChatGPT`);
+  assert.equal(inlineAIExamples.text, '（Google AI 模式，豆包…）', `${label}: examples match the requested Google AI mode and Doubao copy`);
   assert(inlineAIExamples.titleFont === inlineAIExamples.referenceFont && inlineAIExamples.titleWeight === inlineAIExamples.referenceWeight && inlineAIExamples.titleWeight >= 700, `${label}: heading matches the regular bold upload-heading typography (${JSON.stringify(inlineAIExamples)})`);
-  if (width < 360) assert(inlineAIExamples.examplesTop >= inlineAIExamples.titleBottom - 1, `${label}: only the example wraps below the full-size heading (${JSON.stringify(inlineAIExamples)})`);
-  else assert(Math.min(inlineAIExamples.titleBottom, inlineAIExamples.examplesBottom) - Math.max(inlineAIExamples.titleTop, inlineAIExamples.examplesTop) >= inlineAIExamples.examplesFont * 0.6 && inlineAIExamples.examplesLeft >= inlineAIExamples.titleRight - 1, `${label}: compact examples sit beside, not instead of, the heading (${JSON.stringify(inlineAIExamples)})`);
-  assert(inlineAIExamples.examplesRight <= inlineAIExamples.rowRight + 1 && inlineAIExamples.rowHeight <= (width < 360 ? 50 : 30), `${label}: heading and examples fit beside the chevron without overflow (${JSON.stringify(inlineAIExamples)})`);
+  const sameLine = Math.min(inlineAIExamples.titleBottom, inlineAIExamples.examplesBottom) - Math.max(inlineAIExamples.titleTop, inlineAIExamples.examplesTop) >= inlineAIExamples.examplesFont * 0.6;
+  if (sameLine) assert(inlineAIExamples.examplesLeft >= inlineAIExamples.titleRight - 1, `${label}: examples follow the title, not precede it (${JSON.stringify(inlineAIExamples)})`);
+  else assert(inlineAIExamples.examplesTop >= inlineAIExamples.titleBottom - 1, `${label}: longer examples wrap below the unchanged heading (${JSON.stringify(inlineAIExamples)})`);
+  assert(inlineAIExamples.examplesRight <= inlineAIExamples.rowRight + 1 && inlineAIExamples.rowHeight <= 55, `${label}: title and wrapped examples fit beside the chevron without overflow (${JSON.stringify(inlineAIExamples)})`);
   assert.equal(await page.getByTestId('external-ai-steps').isVisible(), true, `${label}: AI translation steps are visible`);
   assert((await aiHeading.boundingBox()).height >= 44, `${label}: AI guide toggle is at least 44px high`);
   await assertNoOverflow(page, width, `${label} first step`);

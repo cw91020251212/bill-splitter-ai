@@ -201,3 +201,6 @@ R119 漏人指引：`friend-recognition.cjs` 驗證結果卡預設收起、向�
 
 ## R138：AI 翻譯標題層級
 `mobile-layout.cjs` 驗證「其他 AI 翻譯」標題字級與粗度完全等同單據上載標題（繁中及英文均適用）；標題旁只顯示 e.g. Gemini、豆包，320px 時由例子換行，360px 以上同列，且不溢出或遮擋箭嘴。`text-import.cjs` 確認範例文案不影響 JSON 匯入。
+
+## R139：AI 翻譯例子文字
+`mobile-layout.cjs` 驗證例子文案為「（Google AI 模式，豆包…）」；標題維持既有字級與粗度，長例子會在卡片寬度不足時自然換行，不遮住箭嘴或造成橫向溢出。`text-import.cjs` 確認提示詞與 JSON 匯入正常。
