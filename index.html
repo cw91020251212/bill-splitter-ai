@@ -85,11 +85,11 @@
   ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
   ::-webkit-scrollbar-thumb:hover { background: #64748b; }
   </style>
-  <link rel="stylesheet" href="./theme.css?v=v134-model-under-key-20261111">
+  <link rel="stylesheet" href="./theme.css?v=v135-compact-receipt-upload-20261111">
   <link rel="stylesheet" href="./tutorial.css?v=v86-free-models-only">
-  <!-- R134: place model selection inside the collapsible Key/help section. -->
-  <meta name="bill-app-release" content="v134-model-under-key-20261111">
-  <script defer src="./pwa.js?v=v134-model-under-key-20261111"></script>
+  <!-- R135: compact receipt-image selection panel for mobile. -->
+  <meta name="bill-app-release" content="v135-compact-receipt-upload-20261111">
+  <script defer src="./pwa.js?v=v135-compact-receipt-upload-20261111"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
@@ -104,7 +104,7 @@
   <script src="./card-redaction.js?v=v97-card-number-redaction"></script>
   <script src="./card-share-review.js?v=v97-card-number-redaction"></script>
   <script src="./exchange-rates.js?v=v90-cross-currency-settlement"></script>
-    <script src="./tutorial.js?v=v134-model-under-key-20261111"></script>
+    <script src="./tutorial.js?v=v135-compact-receipt-upload-20261111"></script>
   <script type="text/babel">
     const { useState, useRef, useEffect, useLayoutEffect, useMemo } = React;
     const tr = value => window.BillI18n.t(value);
@@ -2586,7 +2586,7 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
         const storageKey = 'billSplitterDetailTablePreviewV1';
         try {
           localStorage.setItem(storageKey, JSON.stringify(previewData));
-          const previewWindow = window.open('./detailed-view.html?v=v134-model-under-key-20261111', '_blank');
+          const previewWindow = window.open('./detailed-view.html?v=v135-compact-receipt-upload-20261111', '_blank');
           if (!previewWindow) {
             localStorage.removeItem(storageKey);
             toast(bi('允許彈窗', 'Allow pop-ups'), 'error');
@@ -3836,7 +3836,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
         const metadata = getClaimLinkMetadata();
         const link = new URL('./claim.html', window.location.href);
         link.searchParams.set('lang', lang === 'en' ? 'en' : 'zh-HK');
-        link.searchParams.set('v', 'v134-model-under-key-20261111');
+        link.searchParams.set('v', 'v135-compact-receipt-upload-20261111');
         link.searchParams.set('session', session.id);
         link.hash = window.ClaimRelay
           ? window.ClaimRelay.buildHash(encodeClaimLinkPayload(payload), room, metadata)
@@ -4598,7 +4598,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                 <div className="flex items-center gap-2 sm:gap-3 shrink-0">
                   <img src="./icons/icon.svg" alt="" width="48" height="48" className="app-brand-icon shrink-0" />
                   <div>
-                  <h1 className="text-xl font-extrabold text-slate-800 tracking-tight"><span className="app-brand-name block sm:inline whitespace-nowrap">{tr("分帳管家")}</span><span className="inline-flex items-baseline gap-1 sm:ml-1 whitespace-nowrap"><span data-testid="app-pro-label" className="text-brand-600 font-black">Pro</span><span data-testid="app-version-label" className="text-[10px] leading-3 font-semibold tracking-normal text-brand-700">R134</span></span></h1>
+                  <h1 className="text-xl font-extrabold text-slate-800 tracking-tight"><span className="app-brand-name block sm:inline whitespace-nowrap">{tr("分帳管家")}</span><span className="inline-flex items-baseline gap-1 sm:ml-1 whitespace-nowrap"><span data-testid="app-pro-label" className="text-brand-600 font-black">Pro</span><span data-testid="app-version-label" className="text-[10px] leading-3 font-semibold tracking-normal text-brand-700">R135</span></span></h1>
                   </div>
               </div>
               <div className="header-actions relative flex items-center gap-1.5 sm:gap-2">
@@ -4855,7 +4855,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
 
                 {!isOnline && <p className="text-base text-amber-900 bg-amber-50 border border-amber-400 rounded-xl p-3">{bi('而家冇網絡：相片及一般文字要等連線；已整理成指定 JSON 的文字可離線匯入，亦可手動輸入。', 'No connection: photos and free-form text need a connection. Formatted JSON can still be imported offline, or enter items manually.')}</p>}
 
-                <div className={`upload-dropzone w-full rounded-2xl border border-dashed flex flex-col text-center transition-all ${isAnalyzing ? 'is-analyzing border-brand-500 bg-brand-50 shadow-inner' : 'p-10 items-center justify-center border-slate-500 bg-white hover:border-brand-500 hover:bg-slate-50 shadow-sm'}`}>
+                <div className={`upload-dropzone w-full rounded-2xl border border-dashed flex flex-col text-center transition-all ${isAnalyzing ? 'is-analyzing border-brand-500 bg-brand-50 shadow-inner' : 'upload-dropzone-compact items-center justify-center border-slate-500 bg-white hover:border-brand-500 hover:bg-slate-50 shadow-sm'}`}>
                   <input data-testid="receipt-ocr-file-input" type="file" multiple className="hidden" ref={fileInputRef} onChange={handleFileUpload} />
                   <input type="file" accept="image/jpeg,image/png,image/webp" capture="environment" className="hidden" ref={cameraInputRef} onChange={handleFileUpload} />
 
@@ -4873,8 +4873,15 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                     </div>
                   ) : (
                     <div className="flex flex-col items-center w-full">
-                      <div className={`w-20 h-20 ${uploadError ? 'bg-amber-50 text-amber-600 border-amber-300' : 'bg-slate-100 text-slate-500 border-slate-400'} rounded-full flex items-center justify-center mb-4 shadow-sm border`}><Icon path={uploadError ? icons.alert : icons.fileImage} size={36} /></div>
-                      <h3 className="text-lg font-bold text-slate-800">{uploadError ? tr("讀取失敗") : lastImageData.length ? bi('已保留上次單據圖片', 'Previous receipt image is ready') : tr("選擇單據圖片")}</h3>
+                      <div data-testid="receipt-upload-prompt" className="flex w-full items-center justify-center gap-2 sm:hidden">
+                        {uploadError && <Icon path={icons.alert} size={18} className="shrink-0 text-amber-700"/>}
+                        <h3 className="m-0 text-base font-bold text-slate-800">{uploadError ? tr("讀取失敗") : lastImageData.length ? bi('已保留上次單據圖片', 'Previous receipt image is ready') : bi('最多選 5 張圖片', 'Up to 5 images')}</h3>
+                      </div>
+                      <div className="hidden w-full flex-col items-center sm:flex">
+                        <div className={`w-20 h-20 ${uploadError ? 'bg-amber-50 text-amber-600 border-amber-300' : 'bg-slate-100 text-slate-500 border-slate-400'} rounded-full flex items-center justify-center mb-4 shadow-sm border`}><Icon path={uploadError ? icons.alert : icons.fileImage} size={36} /></div>
+                        <h3 className="text-lg font-bold text-slate-800">{uploadError ? tr("讀取失敗") : lastImageData.length ? bi('已保留上次單據圖片', 'Previous receipt image is ready') : tr("選擇單據圖片")}</h3>
+                        {!uploadError && <p className="text-base font-medium text-slate-600 mt-2">{lastImageData.length ? bi('可重試或拍新單。', 'Retry or take a new receipt.') : bi('最多選 5 張圖片。', 'Up to 5 images.')}</p>}
+                      </div>
                       {uploadError ? (
                         <div className="mt-2 text-center">
                           <p className="text-base font-medium text-slate-700">{bi('讀取失敗，可重試；舊結果會保留。', 'Could not read it this time. Retry here; the previous results stay until the new read succeeds.')}</p>
@@ -4883,12 +4890,13 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                           {uploadError.detail && <p className="text-sm text-slate-600 mt-1 break-words">{uploadError.detail}</p>}
                         </div>
                       ) : (
-                        <p className="text-base font-medium text-slate-600 mt-2">{lastImageData.length ? bi('可重試或拍新單。', 'Retry or take a new receipt.') : bi('最多選 5 張圖片。', 'Up to 5 images.')}</p>
+                        lastImageData.length > 0 && <p className="text-base font-medium text-slate-600 mt-1 sm:hidden">{bi('可重試或拍新單。', 'Retry or take a new receipt.')}</p>
                       )}
-                      <div data-testid="receipt-source-actions" className="flex flex-col sm:flex-row items-stretch gap-3 mt-5 w-full max-w-sm">
-                        <Button data-testid="receipt-camera" variant="primary" className="flex-1 !py-3" onClick={triggerCamera}><Icon path={'<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3Z"/><circle cx="12" cy="13" r="4"/>'} size={20}/>{tr("📷 直接影相").replace("📷", "").trim()}</Button>
+                      <div data-testid="receipt-source-actions" className="receipt-source-actions mt-3 grid w-full max-w-sm grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-stretch gap-1.5 sm:mt-5 sm:flex sm:flex-row sm:gap-3">
+                        <Button data-testid="receipt-camera" variant="primary" className="w-full min-w-0 flex-1 !px-1 !py-2 leading-tight sm:!px-5 sm:!py-3 sm:leading-normal" onClick={triggerCamera}><Icon path={'<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3Z"/><circle cx="12" cy="13" r="4"/>'} size={20}/>{tr("📷 直接影相").replace("📷", "").trim()}</Button>
                         <ChoiceDivider inline />
-                        <Button data-testid="receipt-upload" aria-haspopup="dialog" aria-expanded={showImageActionMenu} variant="secondary" className="flex-1 !py-3" onClick={() => tutorialDemo ? onTutorialAction?.('receipt') : setShowImageActionMenu(true)}><Icon path={icons.fileImage} size={18}/>{tr(" 選擇圖片")}</Button>
+                        <span data-testid="receipt-image-choice-or" aria-hidden="true" className="flex items-center justify-center px-0.5 text-sm font-semibold text-slate-700 sm:hidden">{tr('或')}</span>
+                        <Button data-testid="receipt-upload" aria-haspopup="dialog" aria-expanded={showImageActionMenu} variant="secondary" className="w-full min-w-0 flex-1 !px-1 !py-2 leading-tight sm:!px-5 sm:!py-3 sm:leading-normal" onClick={() => tutorialDemo ? onTutorialAction?.('receipt') : setShowImageActionMenu(true)}><Icon path={icons.fileImage} size={18}/>{tr(" 選擇圖片")}</Button>
                       </div>
                       {showImageActionMenu && (
                         <div data-testid="receipt-image-action-backdrop" className="fixed inset-0 z-[60] flex items-end justify-center bg-slate-900/40 p-3 backdrop-blur-sm sm:items-center" onClick={() => setShowImageActionMenu(false)}>

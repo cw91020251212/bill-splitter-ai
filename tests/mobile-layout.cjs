@@ -10,7 +10,7 @@ const base = new URL(process.env.BASE_URL || 'http://127.0.0.1:4178/');
 if (!['127.0.0.1', 'localhost'].includes(base.hostname)) {
   throw new Error('This test only runs against a local server.');
 }
-const outputDir = process.env.TEST_OUTPUT_DIR || '/tmp/r133-compact-progress';
+const outputDir = process.env.TEST_OUTPUT_DIR || '/tmp/r135-compact-receipt-upload';
 const expectedSteps = ['睇單', '認帳', '運算', '結果'];
 const expectedAriaSteps = ['上載並分析單據', '核對項目和認帳', '分帳運算', '最終結果'];
 const receiptJson = {
@@ -65,7 +65,7 @@ async function assertOriginalFirstStep(page, width, height) {
   assert.equal(await progress.isVisible(), true, `${label}: progress bar is visible above the step buttons`);
   assert.equal(await progress.getAttribute('aria-valuenow'), '1', `${label}: progress bar reports Step 1`);
   assert.equal(await progress.getAttribute('aria-valuemax'), '4', `${label}: progress bar reports four total stages`);
-  assert.equal(await page.getByTestId('app-version-label').innerText(), 'R134', `${label}: R134 is loaded`);
+  assert.equal(await page.getByTestId('app-version-label').innerText(), 'R135', `${label}: R135 is loaded`);
 
   const keyCard = page.locator('.api-settings-card');
   assert.equal(await keyCard.isVisible(), true, `${label}: original Key status/action card is visible`);
@@ -82,6 +82,22 @@ async function assertOriginalFirstStep(page, width, height) {
 
   assert.equal(await page.getByTestId('receipt-camera').isVisible(), true, `${label}: camera action remains`);
   assert.equal(await page.getByTestId('receipt-upload').isVisible(), true, `${label}: image selection remains`);
+  const uploadLayout = await page.evaluate(() => {
+    const zone = document.querySelector('.upload-dropzone-compact').getBoundingClientRect();
+    const camera = document.querySelector('[data-testid="receipt-camera"]').getBoundingClientRect();
+    const upload = document.querySelector('[data-testid="receipt-upload"]').getBoundingClientRect();
+    return { zoneHeight: Math.round(zone.height), cameraHeight: Math.round(camera.height), uploadHeight: Math.round(upload.height), rowDelta: Math.abs(camera.top - upload.top) };
+  });
+  assert(uploadLayout.cameraHeight >= 48 && uploadLayout.uploadHeight >= 48 && uploadLayout.rowDelta <= 2, `${label}: camera and image controls stay side by side with accessible targets (${JSON.stringify(uploadLayout)})`);
+  if (width < 640) {
+    assert.match(await page.getByTestId('receipt-upload-prompt').innerText(), /最多選 5 張圖片/, `${label}: compact prompt states the five-image limit`);
+    assert.equal(await page.locator('.upload-dropzone-compact .w-20.h-20').isVisible().catch(() => false), false, `${label}: the large decorative receipt circle is hidden on mobile`);
+    assert.equal(await page.getByTestId('receipt-image-choice-or').innerText(), '或', `${label}: the two image actions remain clear alternatives`);
+    assert(uploadLayout.zoneHeight <= 180, `${label}: empty receipt picker stays compact (${JSON.stringify(uploadLayout)})`);
+  } else {
+    assert.equal(await page.locator('.upload-dropzone-compact .w-20.h-20').isVisible(), true, `${label}: desktop retains the original receipt illustration`);
+    assert.match(await page.locator('.upload-dropzone-compact').innerText(), /選擇單據圖片/, `${label}: desktop retains the original prompt`);
+  }
   assert.equal(await page.getByTestId('start-manual').isVisible(), true, `${label}: manual-entry action remains`);
   const aiHeading = page.getByTestId('toggle-receipt-text-import');
   assert.equal(await aiHeading.isVisible(), true, `${label}: other-AI translation option is discoverable`);

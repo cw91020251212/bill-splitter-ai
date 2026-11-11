@@ -368,3 +368,9 @@
 - [x] 保留首次引導、使用者手動收合偏好、至少 44px 觸控及原有模型預設／保存行為；不改 OCR、計算、認帳、分享或第二步／設定頁模型選擇。
 - [x] 驗收：`mobile-layout.cjs` 通過 320×844、390×844、320×700 及桌面，覆蓋共同箭嘴收合／重開及重載記憶；`settings-free-models.cjs`、`paddle-local-ocr-ui.cjs`、`text-import.cjs` 均通過；`node --check` 和 `git diff --check` 通過。
 - [x] 推送 R134（`f2aaf99`）；GitHub Pages workflow `42981846105` 成功。公開手機頁確認首訪展開、收合後重載維持收起、再展開可切換模型，320px 沒有橫向溢位，頁面錯誤 0。
+
+## R135：精簡首頁單據圖片區
+- [x] 手機收據圖片空白狀態移除大圓形插圖和多餘高度，只顯示「最多選 5 張圖片」提示；「直接影相」和「選擇圖片」並排，保留「或」及每個按鈕至少 48px 高度。桌面維持原有插圖、說明和按鈕布局。
+- [x] 保留圖片選擇、拍照、既有 5 張限制、上次圖片重用及讀取錯誤說明；不改 OCR、分析、計算、認帳、分享流程。
+- [x] 手機 320px／390px、短畫面及桌面回歸，提示完整、按鈕同列、沒有橫向溢位且空白圖片區不超過 180px。320px 測得卡片 131px、按鈕各 72px（文字自然換行，沒有縮字）。
+- [x] 驗收：`mobile-layout.cjs`、`settings-free-models.cjs`、`paddle-local-ocr-ui.cjs`、`text-import.cjs`、`card-redaction-ui.cjs`、`recognition-retry-ui.cjs` 均通過；桌面圖示與提示保留，照片遮蓋、批次重試及失敗保留舊結果通過；JavaScript syntax 及 `git diff --check` 通過。

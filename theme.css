@@ -914,3 +914,23 @@ body.bg-slate-50 { background: var(--page-grey); color: var(--ink); }
   stroke: #000 !important;
   filter: none !important;
 }
+
+/* R135: compact the receipt picker on phones; preserve the established desktop card. */
+@media (max-width: 639px) {
+  #root .upload-dropzone.upload-dropzone-compact { padding: 12px 14px; }
+  #root .upload-dropzone.upload-dropzone-compact [data-testid="receipt-source-actions"] {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    gap: 6px;
+    margin-top: 10px;
+  }
+  #root .upload-dropzone.upload-dropzone-compact [data-testid="receipt-source-actions"] > [data-testid="choice-divider"] { display: none; }
+  #root .upload-dropzone.upload-dropzone-compact [data-testid="receipt-source-actions"] > button {
+    min-height: 52px;
+    padding: 8px 4px;
+  }
+}
+@media (max-width: 359px) {
+  #root .upload-dropzone.upload-dropzone-compact { padding: 10px 8px; }
+  #root .upload-dropzone.upload-dropzone-compact [data-testid="receipt-source-actions"] { gap: 4px; }
+}
