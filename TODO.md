@@ -397,3 +397,4 @@
 ## R139：AI 翻譯例子改為 Google AI 模式
 - [x] 把標題例子改為「（Google AI 模式，豆包…）」；保留「其他 AI 翻譯」的既有標題字級、粗體和內容。
 - [x] 驗收 320px、360px、390px 和桌面：例子在卡片寬度不足時自然換到標題下方，不縮小標題、不擠壓箭嘴或造成橫向溢出；AI 匯入及既有功能正常。`mobile-layout.cjs`、`text-import.cjs`、`settings-free-models.cjs` 與語法／diff 檢查均通過。
+- [x] R139（`384ba48`）已上線 GitHub Pages；正式站 320px／360px／390px／1280px 顯示新文案，標題與圖片標題字級粗度相同，無水平溢出、控制仍達 44px 以上，PWA／SW 版本正確。
