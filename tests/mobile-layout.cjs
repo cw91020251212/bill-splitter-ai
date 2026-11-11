@@ -65,7 +65,7 @@ async function assertOriginalFirstStep(page, width, height) {
   assert.equal(await progress.isVisible(), true, `${label}: progress bar is visible above the step buttons`);
   assert.equal(await progress.getAttribute('aria-valuenow'), '1', `${label}: progress bar reports Step 1`);
   assert.equal(await progress.getAttribute('aria-valuemax'), '4', `${label}: progress bar reports four total stages`);
-  assert.equal(await page.getByTestId('app-version-label').innerText(), 'R137', `${label}: R137 is loaded`);
+  assert.equal(await page.getByTestId('app-version-label').innerText(), 'R138', `${label}: R138 is loaded`);
 
   const keyCard = page.locator('.api-settings-card');
   assert.equal(await keyCard.isVisible(), true, `${label}: original Key status/action card is visible`);
@@ -107,26 +107,24 @@ async function assertOriginalFirstStep(page, width, height) {
   const aiHeading = page.getByTestId('toggle-receipt-text-import');
   assert.equal(await aiHeading.isVisible(), true, `${label}: other-AI translation option is discoverable`);
   assert.equal(await aiHeading.getAttribute('aria-expanded'), 'true', `${label}: first-time AI translation guide is open`);
-  assert.equal(await page.getByTestId('receipt-text-import-title').getAttribute('aria-label'), '搵其他 AI 幫手翻譯', `${label}: accessible title retains the full AI-translation wording`);
+  assert.equal(await page.getByTestId('receipt-text-import-title').getAttribute('aria-label'), '其他 AI 翻譯', `${label}: title is concise and accessible`);
   assert.match(await aiHeading.innerText(), /AI.*翻譯/);
   assert.match(await aiHeading.innerText(), /提示詞＋賬單＝專用翻譯檔（\.json）/);
   const inlineAIExamples = await page.evaluate(() => {
     const title = document.querySelector('[data-testid="receipt-text-import-title"]');
+    const referenceHeading = document.querySelector('[data-testid="receipt-upload-prompt"] h3');
     const examples = document.querySelector('[data-testid="external-ai-provider-examples"]');
     const row = document.querySelector('[data-testid="receipt-text-import-title-row"]');
     const titleRect = title.getBoundingClientRect();
     const examplesRect = examples.getBoundingClientRect();
     const rowRect = row.getBoundingClientRect();
-    return { text: examples.innerText, titleTop: titleRect.top, examplesTop: examplesRect.top, titleRight: titleRect.right, examplesLeft: examplesRect.left, examplesRight: examplesRect.right, rowRight: rowRect.right, titleFont: parseFloat(getComputedStyle(title).fontSize), examplesFont: parseFloat(getComputedStyle(examples).fontSize), rowHeight: rowRect.height };
+    return { text: examples.innerText, titleTop: titleRect.top, titleBottom: titleRect.bottom, examplesTop: examplesRect.top, examplesBottom: examplesRect.bottom, titleRight: titleRect.right, examplesLeft: examplesRect.left, examplesRight: examplesRect.right, rowRight: rowRect.right, titleFont: parseFloat(getComputedStyle(title).fontSize), referenceFont: parseFloat(getComputedStyle(referenceHeading).fontSize), titleWeight: parseInt(getComputedStyle(title).fontWeight, 10), referenceWeight: parseInt(getComputedStyle(referenceHeading).fontWeight, 10), examplesFont: parseFloat(getComputedStyle(examples).fontSize), rowHeight: rowRect.height };
   });
-  assert.match(inlineAIExamples.text, /^e\.g\. Gemini·ChatGPT·豆包…$/, `${label}: examples identify e.g. Gemini, ChatGPT and Doubao`);
-  if (width < 360) {
-    assert(inlineAIExamples.examplesTop > inlineAIExamples.titleTop + 6, `${label}: the narrowest screen wraps the examples instead of shrinking them too far (${JSON.stringify(inlineAIExamples)})`);
-    assert(inlineAIExamples.examplesRight <= inlineAIExamples.rowRight + 1 && inlineAIExamples.examplesFont >= 11.5 && inlineAIExamples.rowHeight <= 36, `${label}: wrapped examples stay readable and within the row (${JSON.stringify(inlineAIExamples)})`);
-  } else {
-    assert(Math.abs(inlineAIExamples.titleTop - inlineAIExamples.examplesTop) <= 6 && inlineAIExamples.examplesLeft >= inlineAIExamples.titleRight - 1, `${label}: provider examples sit beside the title on the right (${JSON.stringify(inlineAIExamples)})`);
-    assert(inlineAIExamples.examplesRight <= inlineAIExamples.rowRight + 1 && inlineAIExamples.examplesFont >= (width >= 390 ? 13 : 11.5) && inlineAIExamples.rowHeight <= 24, `${label}: larger right-side examples fit in one compact row (${JSON.stringify(inlineAIExamples)})`);
-  }
+  assert.match(inlineAIExamples.text, /^e\.g\. Gemini·豆包…$/, `${label}: examples identify Gemini and Doubao without ChatGPT`);
+  assert(inlineAIExamples.titleFont === inlineAIExamples.referenceFont && inlineAIExamples.titleWeight === inlineAIExamples.referenceWeight && inlineAIExamples.titleWeight >= 700, `${label}: heading matches the regular bold upload-heading typography (${JSON.stringify(inlineAIExamples)})`);
+  if (width < 360) assert(inlineAIExamples.examplesTop >= inlineAIExamples.titleBottom - 1, `${label}: only the example wraps below the full-size heading (${JSON.stringify(inlineAIExamples)})`);
+  else assert(Math.min(inlineAIExamples.titleBottom, inlineAIExamples.examplesBottom) - Math.max(inlineAIExamples.titleTop, inlineAIExamples.examplesTop) >= inlineAIExamples.examplesFont * 0.6 && inlineAIExamples.examplesLeft >= inlineAIExamples.titleRight - 1, `${label}: compact examples sit beside, not instead of, the heading (${JSON.stringify(inlineAIExamples)})`);
+  assert(inlineAIExamples.examplesRight <= inlineAIExamples.rowRight + 1 && inlineAIExamples.rowHeight <= (width < 360 ? 50 : 30), `${label}: heading and examples fit beside the chevron without overflow (${JSON.stringify(inlineAIExamples)})`);
   assert.equal(await page.getByTestId('external-ai-steps').isVisible(), true, `${label}: AI translation steps are visible`);
   assert((await aiHeading.boundingBox()).height >= 44, `${label}: AI guide toggle is at least 44px high`);
   await assertNoOverflow(page, width, `${label} first step`);

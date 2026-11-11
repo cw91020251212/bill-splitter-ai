@@ -587,29 +587,10 @@ body.bg-slate-50 { background: var(--page-grey); color: var(--ink); }
   #root [role="status"].fixed .text-\[10px\] { font-size: calc(13px * var(--app-font-scale, 1)); line-height: 1.35; }
 }
 
-#root main [data-testid="receipt-text-import-title"] { font-size: 15px; }
 #root main [data-testid="external-ai-provider-examples"] { font-size: 13px; }
-#root main .receipt-ai-title-mobile,
-#root main .receipt-ai-title-narrow { display: none; }
-
-@media (max-width: 639px) {
-  #root main .receipt-ai-title-full { display: none; }
-  #root main .receipt-ai-title-mobile { display: inline; }
-  #root main [data-testid="receipt-text-import-title"] { font-size: 13.5px; }
-  #root main [data-testid="external-ai-provider-examples"] { font-size: 13px; }
-}
-
-@media (min-width: 360px) and (max-width: 389px) {
-  #root main [data-testid="receipt-text-import-title"] { font-size: 12.5px; }
-  #root main [data-testid="external-ai-provider-examples"] { font-size: 11.5px; }
-}
 
 @media (max-width: 359px) {
-  #root main .receipt-ai-title-mobile { display: none; }
-  #root main .receipt-ai-title-narrow { display: inline; }
   #root main [data-testid="receipt-text-import-title-row"] { flex-wrap: wrap; white-space: normal; }
-  #root main [data-testid="receipt-text-import-title"] { font-size: 13.5px; }
-  #root main [data-testid="external-ai-provider-examples"] { font-size: 11.5px; }
 }
 
 /* Point accents. Brand green stays on the logo, primary buttons, the scan

@@ -85,11 +85,11 @@
   ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
   ::-webkit-scrollbar-thumb:hover { background: #64748b; }
   </style>
-  <link rel="stylesheet" href="./theme.css?v=v137-larger-ai-examples-20261111">
+  <link rel="stylesheet" href="./theme.css?v=v138-ai-heading-normal-weight-20261111">
   <link rel="stylesheet" href="./tutorial.css?v=v86-free-models-only">
-  <!-- R137: enlarge Step 1 AI examples and include ChatGPT. -->
-  <meta name="bill-app-release" content="v137-larger-ai-examples-20261111">
-  <script defer src="./pwa.js?v=v137-larger-ai-examples-20261111"></script>
+  <!-- R138: restore normal bold heading hierarchy; omit ChatGPT from examples. -->
+  <meta name="bill-app-release" content="v138-ai-heading-normal-weight-20261111">
+  <script defer src="./pwa.js?v=v138-ai-heading-normal-weight-20261111"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
@@ -104,7 +104,7 @@
   <script src="./card-redaction.js?v=v97-card-number-redaction"></script>
   <script src="./card-share-review.js?v=v97-card-number-redaction"></script>
   <script src="./exchange-rates.js?v=v90-cross-currency-settlement"></script>
-    <script src="./tutorial.js?v=v137-larger-ai-examples-20261111"></script>
+    <script src="./tutorial.js?v=v138-ai-heading-normal-weight-20261111"></script>
   <script type="text/babel">
     const { useState, useRef, useEffect, useLayoutEffect, useMemo } = React;
     const tr = value => window.BillI18n.t(value);
@@ -2586,7 +2586,7 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
         const storageKey = 'billSplitterDetailTablePreviewV1';
         try {
           localStorage.setItem(storageKey, JSON.stringify(previewData));
-          const previewWindow = window.open('./detailed-view.html?v=v137-larger-ai-examples-20261111', '_blank');
+          const previewWindow = window.open('./detailed-view.html?v=v138-ai-heading-normal-weight-20261111', '_blank');
           if (!previewWindow) {
             localStorage.removeItem(storageKey);
             toast(bi('允許彈窗', 'Allow pop-ups'), 'error');
@@ -3836,7 +3836,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
         const metadata = getClaimLinkMetadata();
         const link = new URL('./claim.html', window.location.href);
         link.searchParams.set('lang', lang === 'en' ? 'en' : 'zh-HK');
-        link.searchParams.set('v', 'v137-larger-ai-examples-20261111');
+        link.searchParams.set('v', 'v138-ai-heading-normal-weight-20261111');
         link.searchParams.set('session', session.id);
         link.hash = window.ClaimRelay
           ? window.ClaimRelay.buildHash(encodeClaimLinkPayload(payload), room, metadata)
@@ -4598,7 +4598,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                 <div className="flex items-center gap-2 sm:gap-3 shrink-0">
                   <img src="./icons/icon.svg" alt="" width="48" height="48" className="app-brand-icon shrink-0" />
                   <div>
-                  <h1 className="text-xl font-extrabold text-slate-800 tracking-tight"><span className="app-brand-name block sm:inline whitespace-nowrap">{tr("分帳管家")}</span><span className="inline-flex items-baseline gap-1 sm:ml-1 whitespace-nowrap"><span data-testid="app-pro-label" className="text-brand-600 font-black">Pro</span><span data-testid="app-version-label" className="text-[10px] leading-3 font-semibold tracking-normal text-brand-700">R137</span></span></h1>
+                  <h1 className="text-xl font-extrabold text-slate-800 tracking-tight"><span className="app-brand-name block sm:inline whitespace-nowrap">{tr("分帳管家")}</span><span className="inline-flex items-baseline gap-1 sm:ml-1 whitespace-nowrap"><span data-testid="app-pro-label" className="text-brand-600 font-black">Pro</span><span data-testid="app-version-label" className="text-[10px] leading-3 font-semibold tracking-normal text-brand-700">R138</span></span></h1>
                   </div>
               </div>
               <div className="header-actions relative flex items-center gap-1.5 sm:gap-2">
@@ -4930,12 +4930,10 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                     <button type="button" data-testid="toggle-receipt-text-import" aria-controls="receipt-text-import-content" aria-expanded={showReceiptTextImport} onClick={() => { const nextOpen = !showReceiptTextImport; setShowReceiptTextImport(nextOpen); if (!tutorialDemo) writeUiDisclosure('receipt-ai-import-r133', nextOpen); }} className="w-full min-h-[44px] flex items-center justify-between gap-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700">
                       <span className="min-w-0">
                         <span data-testid="receipt-text-import-title-row" className="flex min-w-0 items-baseline gap-0.5 whitespace-nowrap">
-                          <span data-testid="receipt-text-import-title" aria-label={bi('搵其他 AI 幫手翻譯', 'AI translation')} className="shrink-0 whitespace-nowrap font-bold text-slate-800" style={{ lineHeight: 1.25 }}>
-                            <span className="receipt-ai-title-full">{bi('搵其他 AI 幫手翻譯', 'AI translation')}</span>
-                            <span className="receipt-ai-title-mobile">{bi('搵其他 AI 翻譯', 'AI translation')}</span>
-                            <span className="receipt-ai-title-narrow">{bi('其他 AI 翻譯', 'AI translation')}</span>
+                          <span data-testid="receipt-text-import-title" aria-label={bi('其他 AI 翻譯', 'Other AI translation')} className="shrink-0 whitespace-nowrap text-base font-bold leading-tight text-slate-800">
+                            {bi('其他 AI 翻譯', 'Other AI translation')}
                           </span>
-                          <span data-testid="external-ai-provider-examples" aria-label={bi('例：Gemini、ChatGPT、豆包及其他', 'Examples: Gemini, ChatGPT, Doubao, and more')} className="shrink-0 whitespace-nowrap font-normal leading-tight text-slate-500">{bi('e.g. Gemini·ChatGPT·豆包…', 'e.g. Gemini·ChatGPT·Doubao...')}</span>
+                          <span data-testid="external-ai-provider-examples" aria-label={bi('例：Gemini、豆包及其他', 'Examples: Gemini, Doubao, and more')} className="shrink-0 whitespace-nowrap font-normal leading-tight text-slate-500">{bi('e.g. Gemini·豆包…', 'e.g. Gemini·Doubao...')}</span>
                         </span>
                         <span className="block mt-1 text-sm leading-relaxed text-slate-600">{bi('提示詞＋賬單＝專用翻譯檔（.json）', 'Prompt + bill = ready-to-import .json file')}</span>
                       </span>

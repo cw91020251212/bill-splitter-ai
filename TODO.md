@@ -388,3 +388,7 @@
 - [x] 360px 以上例子與短標題同列、不壓到箭嘴、不橫向溢出；320px 時可自然分行而非縮至難讀。桌面維持易讀版面。
 - [x] AI 匯入流程及中英文顯示正常；本機 `mobile-layout.cjs`、`text-import.cjs`、`settings-free-models.cjs` 和語法／diff 檢查通過；版本 R137 及 PWA／SW cache epoch 已更新。
 - [x] 推送 R137（`5e67e1f`）至 GitHub Pages；正式站驗收 320px、360px、390px、1280px，版號及 PWA／Service Worker cache epoch 正確、無橫向溢出，三個例子完整顯示。
+
+## R138：AI 翻譯標題恢復正常標題層級
+- [x] 標題改為「其他 AI 翻譯」，在所有螢幕採用與手機單據上載標題相同的字級及粗體，不因寬度縮小；輔助例子只列 e.g. Gemini、豆包，不再列 ChatGPT。
+- [x] 驗收 320px、360px、390px 及桌面：320px 只讓例子換到下一行，其餘尺寸例子緊接標題；標題不擠壓箭嘴，無橫向溢出，翻譯匯入和既有功能正常。`mobile-layout.cjs`、`text-import.cjs`、`settings-free-models.cjs` 及 JavaScript／diff 檢查通過。
