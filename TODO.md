@@ -387,3 +387,4 @@
 - [x] 標題右側例子加上「e.g.」，包含 Gemini、ChatGPT、豆包及省略號；390px 時例子字級由 R136 的 11px 放大至 13px。
 - [x] 360px 以上例子與短標題同列、不壓到箭嘴、不橫向溢出；320px 時可自然分行而非縮至難讀。桌面維持易讀版面。
 - [x] AI 匯入流程及中英文顯示正常；本機 `mobile-layout.cjs`、`text-import.cjs`、`settings-free-models.cjs` 和語法／diff 檢查通過；版本 R137 及 PWA／SW cache epoch 已更新。
+- [x] 推送 R137（`5e67e1f`）至 GitHub Pages；正式站驗收 320px、360px、390px、1280px，版號及 PWA／Service Worker cache epoch 正確、無橫向溢出，三個例子完整顯示。
