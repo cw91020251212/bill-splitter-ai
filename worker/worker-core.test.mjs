@@ -71,7 +71,7 @@ test('short friend links redirect to the current versioned result page', async (
   assert(destination.pathname.endsWith('/detailed-view.html'), `redirect targets detailed-view.html: ${destination.pathname}`);
   assert.equal(destination.searchParams.get('share'), id);
   assert.equal(destination.searchParams.get('e'), '1794268800');
-  assert.equal(destination.searchParams.get('v'), 'v129-shared-link-sync-20261111');
+  assert.equal(destination.searchParams.get('v'), 'v130-mobile-onboarding-20261111');
 });
 
 test('one claim session changes from pending to ready only with organizer token', async () => {

@@ -7,7 +7,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
 
 const base = new URL(process.env.BASE_URL || 'http://127.0.0.1:4178/');
 if (!['127.0.0.1', 'localhost'].includes(base.hostname)) throw new Error('This test only runs against a local server.');
-const outputDir = process.env.TEST_OUTPUT_DIR || '/tmp/r128-mobile-layout';
+const outputDir = process.env.TEST_OUTPUT_DIR || '/tmp/r130-mobile-onboarding';
 const receiptJson = {
   items: [
     { name: '魚蛋', nameEn: 'Fish balls', original: '魚蛋', ja: '', price: 25, qty: 2, totalQty: 2, unit: '碗', total: 50 },
@@ -60,16 +60,28 @@ async function assertVisibleTargets(page, label) {
   return targets.length;
 }
 
-async function assertStepProgress(page, step, label) {
-  const progress = page.getByTestId('mobile-step-progress');
-  assert.equal(await progress.isVisible(), true, `${label}: compact step progress remains visible`);
-  assert.equal(await progress.getAttribute('aria-valuenow'), String(step), `${label}: accessible progress value matches the current step`);
-  const dots = progress.getByTestId('mobile-step-progress-dot');
-  assert.equal(await dots.count(), 4, `${label}: all four step indicators are present`);
-  const states = await dots.evaluateAll(nodes => nodes.map(node => node.dataset.status));
-  assert.deepEqual(states, Array.from({ length: 4 }, (_, i) => i + 1 < step ? 'complete' : i + 1 === step ? 'current' : 'upcoming'), `${label}: step dots show completed, current, and upcoming stages`);
-  const boxes = await dots.evaluateAll(nodes => nodes.map(node => { const rect = node.getBoundingClientRect(); return { width: rect.width, height: rect.height }; }));
-  assert(boxes.every(box => box.width >= 6 && box.height >= 6), `${label}: four progress indicators are visibly sized`);
+async function assertMobileStepNavigation(page, step, label) {
+  const nav = page.locator('.step-nav');
+  assert.equal(await nav.isVisible(), true, `${label}: four named step buttons are visible`);
+  const buttons = page.getByTestId('step-nav-button');
+  assert.equal(await buttons.count(), 4, `${label}: all four workflow stages are shown`);
+  const states = await buttons.evaluateAll(nodes => nodes.map(node => node.dataset.status));
+  assert.deepEqual(states, Array.from({ length: 4 }, (_, i) => i + 1 < step ? 'complete' : i + 1 === step ? 'current' : 'upcoming'), `${label}: completed, current and upcoming stages are distinct`);
+  const details = await buttons.evaluateAll(nodes => nodes.map(node => {
+    const rect = node.getBoundingClientRect();
+    const text = node.querySelector('.step-nav-mobile-label');
+    return {
+      name: node.getAttribute('aria-label'), status: node.dataset.status, current: node.getAttribute('aria-current'),
+      label: text?.innerText.trim(), width: rect.width, height: rect.height,
+      labelWidth: text?.clientWidth, labelScrollWidth: text?.scrollWidth, labelHeight: text?.clientHeight, labelScrollHeight: text?.scrollHeight
+    };
+  }));
+  assert(details.every(item => item.name && item.width >= 44 && item.height >= 44), `${label}: every named step meets 44×44px (${JSON.stringify(details)})`);
+  assert.deepEqual(details.map(item => item.label), ['帳單', '商品', '分帳', '結果'], `${label}: concise stage names remain visible`);
+  assert.equal(details[step - 1].current, 'step', `${label}: current stage is announced to assistive technology`);
+  assert(details.every(item => item.labelScrollWidth <= item.labelWidth + 1 && item.labelScrollHeight <= item.labelHeight + 3), `${label}: stage names do not clip or wrap (${JSON.stringify(details)})`);
+  const panel = await page.locator('.stepper-panel').boundingBox();
+  assert(panel && panel.height >= 48 && panel.height <= 56, `${label}: labelled stepper stays compact at 48–56px (actual ${panel?.height})`);
 }
 
 async function assertImportedStep2(page, width, height, largeText = false) {
@@ -78,7 +90,7 @@ async function assertImportedStep2(page, width, height, largeText = false) {
   await page.getByTestId('receipt-text-draft').fill(JSON.stringify(receiptJson));
   await page.getByTestId('submit-receipt-text').click();
   await page.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '2', null, { timeout: 30000 });
-  await assertStepProgress(page, 2, `${label} Step 2`);
+  await assertMobileStepNavigation(page, 2, `${label} Step 2`);
   await page.getByTestId('verify-summary').waitFor({ state: 'visible' });
   const summaryText = await page.getByTestId('verify-summary').innerText();
   assert.match(summaryText, /2項/);
@@ -95,6 +107,12 @@ async function assertImportedStep2(page, width, height, largeText = false) {
   await assertNoOverflow(page, width, `${label} Step 2`);
   const touchTargets = await assertVisibleTargets(page, `${label} Step 2`);
   await page.screenshot({ path: path.join(outputDir, `step2-${width}x${height}${largeText ? '-large' : ''}.png`), fullPage: false });
+  await page.locator('.step-nav button[data-step="1"]').click();
+  await page.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '1');
+  await assertMobileStepNavigation(page, 1, `${label} return to Step 1`);
+  await page.locator('.step-nav button[data-step="2"]').click();
+  await page.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '2');
+  await assertMobileStepNavigation(page, 2, `${label} return to Step 2`);
   console.log(`PASS imported Step 2 ${label}: summary="${summaryText.trim()}", first item y=${Math.round(firstItemBox.y)}, ${touchTargets} visible touch targets`);
 }
 
@@ -112,16 +130,18 @@ async function assertImportedStep2(page, width, height, largeText = false) {
       await page.route('https://**/*.workers.dev/**', async route => { apiRequests += 1; await route.abort(); });
       await initialize(page);
       const current = await geometry(page, [
-        '.app-header-row', '.stepper-panel', '[data-testid="mobile-step-label"]', '[data-testid="mobile-step-progress"]', 'main',
+        '.app-header-row', '.stepper-panel', '.step-nav', 'main',
         '[data-testid="scan-start"]', '[data-testid="scan-start"] .page-section-heading',
         '[data-testid="scan-subtitle-mobile"]', '[data-testid="receipt-camera"]',
         '[data-testid="receipt-upload"]', '[data-testid="toggle-receipt-text-import"]',
-        '[data-testid="start-manual"]', '[data-testid="scan-settings-toggle"]'
+        '[data-testid="start-manual"]', '[data-testid="scan-settings-toggle"]',
+        '[data-testid="scan-key-tutorial"]', '[data-testid="scan-key-short-hint"]',
+        '[data-testid="scan-key-methods-hint"]'
       ]);
       await assertNoOverflow(page, width, `${width}×${height} home`);
       assert.equal(current['.app-header-row'][3], 48, `${width}×${height}: header stays within the 48px target`);
-      assert.ok(current['.stepper-panel'][3] >= 32 && current['.stepper-panel'][3] <= 40, `${width}×${height}: compact step row is 32–40px high`);
-      await assertStepProgress(page, 1, `${width}×${height} Step 1`);
+      assert.ok(current['.stepper-panel'][3] >= 48 && current['.stepper-panel'][3] <= 56, `${width}×${height}: labelled step row stays 48–56px high`);
+      await assertMobileStepNavigation(page, 1, `${width}×${height} Step 1`);
       assert.equal(current['[data-testid="scan-start"]'][0], width === 320 ? 12 : 16, `${width}×${height}: requested horizontal page margin`);
       assert.ok(current['[data-testid="scan-start"] .page-section-heading'][3] >= 28, `${width}×${height}: heading is not shrunk to save space`);
       assert.equal(current['[data-testid="scan-start"] .page-section-heading'] && await page.evaluate(() => getComputedStyle(document.querySelector('[data-testid="scan-start"] .page-section-heading h2')).fontSize), '23px', `${width}×${height}: mobile title uses 23px text`);
@@ -129,9 +149,15 @@ async function assertImportedStep2(page, width, height, largeText = false) {
       assert.ok(current['[data-testid="receipt-camera"]'][3] >= 52 && current['[data-testid="receipt-upload"]'][3] >= 52, `${width}×${height}: photo buttons are at least 44×52px`);
       assert.ok(current['[data-testid="toggle-receipt-text-import"]'][1] + current['[data-testid="toggle-receipt-text-import"]'][3] <= 600, `${width}×${height}: text-import action is visible above y=600`);
       assert.ok(current['[data-testid="start-manual"]'][1] + current['[data-testid="start-manual"]'][3] <= (height === 844 ? 600 : height), `${width}×${height}: manual entry is visible without scrolling`);
+      assert.ok(current['[data-testid="scan-key-tutorial"]'] && current['[data-testid="scan-key-tutorial"]'][3] >= 44, `${width}×${height}: Key application tutorial is a visible 44px action`);
+      assert.ok(current['[data-testid="scan-key-tutorial"]'][1] >= current['[data-testid="receipt-upload"]'][1] + current['[data-testid="receipt-upload"]'][3] - 1, `${width}×${height}: Key setup appears beside the image-recognition workflow`);
+      assert.ok(current['[data-testid="scan-key-methods-hint"]'][1] >= current['[data-testid="scan-key-tutorial"]'][1] + current['[data-testid="scan-key-tutorial"]'][3] - 1, `${width}×${height}: Key alternatives are explained after image actions`);
+      assert.ok(current['[data-testid="toggle-receipt-text-import"]'][1] >= current['[data-testid="scan-key-methods-hint"]'][1] + current['[data-testid="scan-key-methods-hint"]'][3] - 1, `${width}×${height}: text import follows the Key alternatives`);
       assert.equal(await page.getByTestId('scan-settings').evaluate(details => details.open), false, `${width}×${height}: recognition settings start collapsed`);
       assert.equal(await page.getByTestId('scan-model-select').isVisible(), false, `${width}×${height}: model cards stay out of the first screen`);
-      assert.match(await page.getByTestId('scan-key-short-hint').innerText(), /未設鎖匙/);
+      assert.match(await page.getByTestId('scan-key-status').innerText(), /未設定/);
+      assert.match(await page.getByTestId('scan-key-short-hint').innerText(), /相片辨識需 Key/);
+      assert.match(await page.getByTestId('scan-key-methods-hint').innerText(), /文字需 Key.*JSON／手動免/);
       const hintBox = await page.getByTestId('scan-key-short-hint').boundingBox();
       assert.ok(hintBox && hintBox.height <= 24, `${width}×${height}: key hint stays on one line`);
       const targetCount = await assertVisibleTargets(page, `${width}×${height} home`);
@@ -144,17 +170,15 @@ async function assertImportedStep2(page, width, height, largeText = false) {
         await page.getByTestId('app-text-size-large').click();
         await page.getByTestId('header-action-menu-toggle').click();
         await assertNoOverflow(page, width, '320×844 large text home');
-        await assertStepProgress(page, 1, '320×844 large text Step 1');
-        const largeStepLine = await page.getByTestId('mobile-step-label').evaluate(element => {
-          const text = element.lastElementChild;
-          const rect = text.getBoundingClientRect();
-          return { height: rect.height, clientHeight: text.clientHeight, scrollHeight: text.scrollHeight, text: text.innerText };
-        });
-        assert.ok(largeStepLine.height <= 25 && largeStepLine.scrollHeight <= largeStepLine.clientHeight + 2, `large text keeps the step label on one line (${JSON.stringify(largeStepLine)})`);
+        await assertMobileStepNavigation(page, 1, '320×844 large text Step 1');
         const largeTitle = await page.evaluate(() => getComputedStyle(document.querySelector('[data-testid="scan-start"] .page-section-heading h2')).fontSize);
         assert.ok(parseFloat(largeTitle) >= 27, `large text is applied without shrinking (${largeTitle})`);
         const largeHintBox = await page.getByTestId('scan-key-short-hint').boundingBox();
-        assert.ok(largeHintBox && largeHintBox.height <= 24, 'large text keeps the key hint to one line');
+        const fullHintVisible = await page.getByTestId('scan-key-short-hint').evaluate(element => element.scrollWidth <= element.clientWidth + 1 && element.scrollHeight <= element.clientHeight + 1);
+        const largeMethodsBox = await page.getByTestId('scan-key-methods-hint').boundingBox();
+        const fullMethodsHintVisible = await page.getByTestId('scan-key-methods-hint').evaluate(element => element.scrollWidth <= element.clientWidth + 1 && element.scrollHeight <= element.clientHeight + 1);
+        assert.ok(largeHintBox && largeHintBox.height <= 24 && fullHintVisible, 'large text keeps the pre-photo Key prompt on one line');
+        assert.ok(largeMethodsBox && largeMethodsBox.height <= 44 && fullMethodsHintVisible, 'large text keeps Key alternatives visible without clipping');
         const largeHomeActions = await geometry(page, ['[data-testid="receipt-camera"]', '[data-testid="receipt-upload"]', '[data-testid="toggle-receipt-text-import"]', '[data-testid="start-manual"]']);
         assert.ok(largeHomeActions['[data-testid="start-manual"]'][1] + largeHomeActions['[data-testid="start-manual"]'][3] <= 600, 'large text keeps manual entry on the first screen');
         await page.screenshot({ path: path.join(outputDir, 'home-320x844-large.png'), fullPage: false });
@@ -182,6 +206,8 @@ async function assertImportedStep2(page, width, height, largeText = false) {
     assert.deepEqual(step1['.stepper-panel'], [304, 74, 672, 93], 'desktop four-step navigation geometry remains unchanged');
     assert.deepEqual(step1['.api-settings-card'], [336, 326, 611, 132], 'desktop recognition settings remain in their original position');
     assert.deepEqual(step1['.upload-dropzone'], [336, 680, 611, 267], 'desktop image upload card geometry remains unchanged');
+    assert.equal(await desktopPage.getByTestId('scan-key-status').isVisible(), false, 'mobile-only Key status stays hidden on desktop');
+    assert.ok((await desktopPage.getByTestId('scan-settings-toggle').innerText()).includes('辨識設定'), 'desktop keeps the original full settings label');
     await desktopPage.getByTestId('toggle-receipt-text-import').click();
     await desktopPage.getByTestId('receipt-text-draft').fill(JSON.stringify({ items: [{ name: '測試項目', price: 20, qty: 1, totalQty: 1, unit: '份', total: 20 }], adjustments: [], taxTotal: 0, currency: 'HKD', receiptTotal: 20 }));
     await desktopPage.getByTestId('submit-receipt-text').click();

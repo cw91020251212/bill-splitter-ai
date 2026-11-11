@@ -85,11 +85,11 @@
   ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
   ::-webkit-scrollbar-thumb:hover { background: #64748b; }
   </style>
-  <link rel="stylesheet" href="./theme.css?v=v129-shared-link-sync-20261111">
+  <link rel="stylesheet" href="./theme.css?v=v130-mobile-onboarding-20261111">
   <link rel="stylesheet" href="./tutorial.css?v=v86-free-models-only">
-  <!-- R129: stable friend-link result synchronization; R128 mobile layout retained. -->
-  <meta name="bill-app-release" content="v129-shared-link-sync-20261111">
-  <script defer src="./pwa.js?v=v129-shared-link-sync-20261111"></script>
+  <!-- R130: beginner-friendly mobile steps and first-time Key guidance. -->
+  <meta name="bill-app-release" content="v130-mobile-onboarding-20261111">
+  <script defer src="./pwa.js?v=v130-mobile-onboarding-20261111"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
@@ -104,7 +104,7 @@
   <script src="./card-redaction.js?v=v97-card-number-redaction"></script>
   <script src="./card-share-review.js?v=v97-card-number-redaction"></script>
   <script src="./exchange-rates.js?v=v90-cross-currency-settlement"></script>
-    <script src="./tutorial.js?v=v129-shared-link-sync-20261111"></script>
+    <script src="./tutorial.js?v=v130-mobile-onboarding-20261111"></script>
   <script type="text/babel">
     const { useState, useRef, useEffect, useLayoutEffect, useMemo } = React;
     const tr = value => window.BillI18n.t(value);
@@ -2544,7 +2544,7 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
         const storageKey = 'billSplitterDetailTablePreviewV1';
         try {
           localStorage.setItem(storageKey, JSON.stringify(previewData));
-          const previewWindow = window.open('./detailed-view.html?v=v129-shared-link-sync-20261111', '_blank');
+          const previewWindow = window.open('./detailed-view.html?v=v130-mobile-onboarding-20261111', '_blank');
           if (!previewWindow) {
             localStorage.removeItem(storageKey);
             toast(bi('允許彈窗', 'Allow pop-ups'), 'error');
@@ -2722,6 +2722,14 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
         setShowTutorial(false);
         setStep(1);
         window.scrollTo({ top: 0, behavior: 'smooth' });
+      };
+
+      const openOpenRouterKeyTutorial = () => {
+        tutorialMenuOrigin.current = { x: window.scrollX, y: window.scrollY };
+        tutorialVideoJumpRef.current = true;
+        setShowHistory(false);
+        setShowSettings(false);
+        setShowTutorial(true);
       };
 
       const jumpToStep = (target) => {
@@ -3794,7 +3802,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
         const metadata = getClaimLinkMetadata();
         const link = new URL('./claim.html', window.location.href);
         link.searchParams.set('lang', lang === 'en' ? 'en' : 'zh-HK');
-        link.searchParams.set('v', 'v129-shared-link-sync-20261111');
+        link.searchParams.set('v', 'v130-mobile-onboarding-20261111');
         link.searchParams.set('session', session.id);
         link.hash = window.ClaimRelay
           ? window.ClaimRelay.buildHash(encodeClaimLinkPayload(payload), room, metadata)
@@ -4556,7 +4564,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                 <div className="flex items-center gap-2 sm:gap-3 shrink-0">
                   <img src="./icons/icon.svg" alt="" width="48" height="48" className="app-brand-icon shrink-0" />
                   <div>
-                  <h1 className="text-xl font-extrabold text-slate-800 tracking-tight"><span className="app-brand-name block sm:inline whitespace-nowrap">{tr("分帳管家")}</span><span className="inline-flex items-baseline gap-1 sm:ml-1 whitespace-nowrap"><span data-testid="app-pro-label" className="text-brand-600 font-black">Pro</span><span data-testid="app-version-label" className="text-[10px] leading-3 font-semibold tracking-normal text-brand-700">R129</span></span></h1>
+                  <h1 className="text-xl font-extrabold text-slate-800 tracking-tight"><span className="app-brand-name block sm:inline whitespace-nowrap">{tr("分帳管家")}</span><span className="inline-flex items-baseline gap-1 sm:ml-1 whitespace-nowrap"><span data-testid="app-pro-label" className="text-brand-600 font-black">Pro</span><span data-testid="app-version-label" className="text-[10px] leading-3 font-semibold tracking-normal text-brand-700">R130</span></span></h1>
                   </div>
               </div>
               <div className="header-actions relative flex items-center gap-1.5 sm:gap-2">
@@ -4635,15 +4643,17 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                 <div className="step-progress mb-2.5" data-testid="step-progress" data-step={step} role="progressbar" aria-valuemin={1} aria-valuemax={4} aria-valuenow={step} aria-valuetext={bi(`第 ${step} 步，共 4 步`, `Step ${step} of 4`)}>
                   <div className="step-progress-fill" style={{ width: `${(step / 4) * 100}%` }}></div>
                 </div>
-                <div className="step-nav grid grid-cols-4 gap-1 px-1">
+                <div className="step-nav grid grid-cols-4 gap-1 px-1" role="group" aria-label={bi('四個步驟；可返回已完成步驟', 'Four steps; revisit completed steps')}>
                   {STEP_LABELS.map((label, i) => {
                     const num = i + 1;
                     const done = step > num;
                     const active = step === num;
+                    const compactLabel = [bi('帳單', 'Bill'), bi('商品', 'Items'), bi('分帳', 'Split'), bi('結果', 'Done')][i];
                     return (
-                      <button key={num} data-step={num} onClick={() => jumpToStep(num)} className={`flex min-w-0 flex-col sm:flex-row justify-center items-center gap-1 sm:gap-2 rounded-lg px-1 py-1 text-center transition-all active:scale-[0.98] outline-none ${active ? 'text-brand-700 bg-brand-50' : done ? 'text-slate-600 hover:bg-slate-100' : 'text-slate-400'}`}>
+                      <button key={num} type="button" data-testid="step-nav-button" data-step={num} data-status={active ? 'current' : done ? 'complete' : 'upcoming'} aria-label={tr(label)} aria-current={active ? 'step' : undefined} title={tr(label)} onClick={() => jumpToStep(num)} className={`flex min-w-0 flex-col sm:flex-row justify-center items-center gap-1 sm:gap-2 rounded-lg px-1 py-1 text-center transition-all active:scale-[0.98] outline-none ${active ? 'text-brand-700 bg-brand-50' : done ? 'text-slate-600 hover:bg-slate-100' : 'text-slate-400'}`}>
                         <span className={`w-5 h-5 shrink-0 rounded-full flex items-center justify-center text-[11px] font-bold border ${active ? 'bg-brand-600 border-brand-600 text-white shadow-sm' : done ? 'bg-white border-brand-500 text-brand-600' : 'bg-white border-slate-400 text-slate-500'}`}>{done ? '✓' : num}</span>
-                        <span className="text-xs font-semibold leading-tight">{tr(label)}</span>
+                        <span className="step-nav-full-label text-xs font-semibold leading-tight">{tr(label)}</span>
+                        <span className="step-nav-mobile-label hidden" aria-hidden="true">{compactLabel}</span>
                       </button>
                     );
                   })}
@@ -4760,12 +4770,14 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                 <p className="scan-subtitle-desktop text-base text-slate-700 leading-relaxed">{bi('可以影相讀單；如已由其他 AI 翻譯，也可在下方貼上文字或上載文字檔。', 'Scan a receipt, or paste/upload text already translated by another AI.')}</p>
                 <p className="scan-subtitle-mobile" data-testid="scan-subtitle-mobile">{bi('影相讀單；或貼上文字／JSON。', 'Scan a bill, or paste text/JSON.')}</p>
 
-                <details data-testid="scan-settings" className="scan-settings-disclosure" open={tutorialDemo || window.innerWidth >= 640}>
-                  <summary data-testid="scan-settings-toggle" className="mobile-disclosure-summary">
-                    <span>{bi('辨識設定', 'Recognition settings')}</span>
-                    <Icon path={icons.chevronDown} size={18} aria-hidden="true" />
-                  </summary>
-                  <div className="scan-settings-content">
+                <div className="scan-settings-row" data-testid="scan-settings-row">
+                  <details data-testid="scan-settings" className="scan-settings-disclosure" open={tutorialDemo || window.innerWidth >= 640}>
+                    <summary data-testid="scan-settings-toggle" className="mobile-disclosure-summary">
+                      <span className="scan-settings-summary-title"><span className="scan-settings-title-mobile">{bi('辨識設定', 'AI setup')}</span><span className="scan-settings-title-desktop">{bi('辨識設定', 'Recognition settings')}</span></span>
+                      <span data-testid="scan-key-status" className={`scan-key-status${apiKey.trim() ? ' is-set' : ' is-missing'}`}>{apiKey.trim() ? bi('已設定', 'Set') : bi('未設定', 'Not set')}</span>
+                      <Icon path={icons.chevronDown} size={18} aria-hidden="true" />
+                    </summary>
+                    <div className="scan-settings-content">
                 <Card className="api-settings-card bg-gradient-to-br from-brand-50 to-white border-brand-500">
                   <button
                     type="button"
@@ -4817,10 +4829,17 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                   </select>
                   {renderModelDescriptionDisclosure('scan', showScanModelDescription, setShowScanModelDescription)}
                 </Card>
-                  </div>
-                </details>
+                    </div>
+                  </details>
+                  {!apiKey.trim() && (
+                    <button type="button" data-testid="scan-key-tutorial" aria-label={bi('OpenRouter API Key 申請教學', 'OpenRouter API key setup tutorial')} onClick={openOpenRouterKeyTutorial} className="key-tutorial-shortcut hidden">
+                      {bi('申請教學', 'Key guide')}
+                    </button>
+                  )}
+                </div>
 
-                {!apiKey.trim() && <p data-testid="scan-key-short-hint" className="scan-key-short-hint">{bi('未設鎖匙；文字／手動輸入。', 'No key; text/manual still works.')}</p>}
+                {!apiKey.trim() && <p data-testid="scan-key-short-hint" className="scan-key-short-hint">{bi('相片辨識需 Key。', 'Photo scan needs Key.')}</p>}
+                {!apiKey.trim() && <p data-testid="scan-key-methods-hint" className="scan-key-methods-hint">{bi('文字需 Key；JSON／手動免。', "Text needs Key; JSON/manual don't.")}</p>}
                 {!isOnline && <p className="scan-offline-hint text-base text-amber-900 bg-amber-50 border border-amber-400 rounded-xl p-3"><span className="hidden sm:inline">{bi('而家冇網絡：相片及一般文字要等連線；已整理成指定 JSON 的文字可離線匯入，亦可手動輸入。', 'No connection: photos and free-form text need a connection. Formatted JSON can still be imported offline, or enter items manually.')}</span><span className="sm:hidden">{bi('離線：JSON 可直接匯入，亦可手動輸入。', 'Offline: JSON and manual entry still work.')}</span></p>}
 
                 <div className={`upload-dropzone w-full rounded-2xl border border-dashed flex flex-col text-center transition-all ${isAnalyzing ? 'is-analyzing border-brand-500 bg-brand-50 shadow-inner' : 'p-10 items-center justify-center border-slate-500 bg-white hover:border-brand-500 hover:bg-slate-50 shadow-sm'}${uploadError ? ' has-upload-error' : ''}`}>

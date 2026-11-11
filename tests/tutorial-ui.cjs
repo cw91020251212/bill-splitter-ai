@@ -77,7 +77,8 @@ async function snapshot(page) {
     const assets = await Promise.all(rows.map(async row => ({ ...row, files: row.files ? await Promise.all(row.files.map(async f => ({ name: f.name, text: await f.blob.text() }))) : undefined, attachments: row.attachments ? await Promise.all(row.attachments.map(async f => ({ name: f.name, type: f.type, text: await f.blob.text() }))) : undefined })));
     const store = Object.fromEntries(Object.keys(localStorage).sort().map(k => [k, localStorage.getItem(k)]));
     const root = document.querySelector('[data-live-app]');
-    return { store, assets, html: root.innerHTML.replace(/ style=""/g, ''), fields: [...root.querySelectorAll('input,textarea,select')].map(x => ({ type: x.type, value: x.value, checked: x.checked, disabled: x.disabled })), scrollY, focus: document.activeElement?.dataset.testid };
+    const stableHtml = root.innerHTML.replace(/ style=""/g, '').replace(/\saria-current="[^"]*"/g, '');
+    return { store, assets, html: stableHtml, fields: [...root.querySelectorAll('input,textarea,select')].map(x => ({ type: x.type, value: x.value, checked: x.checked, disabled: x.disabled })), scrollY, focus: document.activeElement?.dataset.testid };
   });
 }
 async function instrument(page) {
@@ -354,9 +355,22 @@ async function runKeyStatusHintSmoke(browser) {
     const shortHint = page.getByTestId('scan-key-short-hint');
     if (key) {
       assert.equal(await shortHint.count(), 0, 'configured key does not show the missing-key hint');
+      assert.equal(await page.getByTestId('scan-key-methods-hint').count(), 0, 'configured key does not show missing-key alternatives');
+      assert.match(await page.getByTestId('scan-key-status').innerText(), /已設定/);
+      assert.equal(await page.getByTestId('scan-key-tutorial').count(), 0, 'configured key does not show the application shortcut');
     } else {
       assert.equal(await shortHint.isVisible(), true, 'missing-key guidance appears beside photo recognition');
-      assert.match(await shortHint.innerText(), /未設鎖匙；文字／手動輸入。/);
+      assert.match(await shortHint.innerText(), /相片辨識需 Key/);
+      const methodsHint = page.getByTestId('scan-key-methods-hint');
+      assert.equal(await methodsHint.isVisible(), true, 'text, JSON and manual alternatives are explained before their entry controls');
+      assert.match(await methodsHint.innerText(), /文字需 Key；JSON／手動免/);
+      assert.match(await page.getByTestId('scan-key-status').innerText(), /未設定/);
+      const keyGuide = page.getByTestId('scan-key-tutorial');
+      assert.equal(await keyGuide.isVisible(), true, 'first-time users have an explicit key application guide');
+      await keyGuide.click();
+      await page.getByTestId('openrouter-video-card').waitFor({ state: 'visible' });
+      assert.equal(await page.getByTestId('tutorial-openrouter-video').isVisible(), true, 'the guide opens the key application video directly');
+      await page.getByTestId('skip-tutorials').click();
     }
     await page.getByTestId('scan-settings-toggle').click();
     await page.waitForFunction(hasKey => {

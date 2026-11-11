@@ -14,6 +14,14 @@ Mobile-only layout changes bring the camera, image picker, text/JSON import and 
 
 After the organizer recalculates, the per-session Durable Object serves the strongly consistent latest result. The friend URL stays unchanged, and an already-open result page checks a lightweight revision and refreshes automatically. KV remains a compatibility mirror. PWA cache epoch: `v129-shared-link-sync-20261111`.
 
+## R130：手機新手導覽與 Key 引導
+
+手機步驟列顯示四個有名稱的階段，已完成步驟可點回查看／修改；未設定 Key 時，拍照前有明確提示，並提供申請教學，以及文字／JSON／手動輸入的 Key 使用說明。手機按鈕保持至少 44px，桌面版幾何與配色不變。PWA cache epoch：`v130-mobile-onboarding-20261111`。
+
+## R130: Beginner-friendly mobile guidance
+
+The mobile stepper names all four stages and lets users revisit completed steps. When no Key is configured, the photo action gets a clear prompt, a direct application guide, and a concise explanation of text/JSON/manual alternatives. Mobile controls remain at least 44px; desktop geometry and colors are unchanged. PWA cache epoch: `v130-mobile-onboarding-20261111`.
+
 ## R127：复查問題與草稿安全修正
 
 拒絕負數／無效商品金額和數量，並在第二步清楚顯示錯誤；有效 JSON 的稅費、折扣或商品資料錯誤時不會改送 AI。未提交的單據文字會留在本機草稿，取消新單可保留，確認新單則一併清除。舊草稿會先要求核對認領編號；OCR 重認可按唯一商品規格沿用編號，無法安全配對時改用新編號並阻止舊認帳錯套。設定／歷史頁不再顯示過期的結算狀態，字級選項及頂部功能選單均有至少 44px 觸控範圍。PWA cache epoch：`v127-recheck-audit-20261110`。

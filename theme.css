@@ -931,32 +931,32 @@ body.bg-slate-50 { background: var(--page-grey); color: var(--ink); }
 
   #root .stepper-panel {
     box-sizing: border-box; display: flex; align-items: center; width: 100%; max-width: none;
-    height: 36px; min-height: 36px; margin: 0; padding: 0 16px; border-top-width: 1px;
+    height: 52px; min-height: 52px; margin: 0; padding: 0 16px; border-top-width: 1px;
   }
-  #root .step-progress, #root .step-nav { display: none !important; }
-  #root .mobile-step-label {
-    display: flex; flex: 1 1 auto; align-items: center; gap: 8px; min-width: 0; height: 35px;
-    color: #303744; font-size: calc(16px * var(--app-font-scale, 1)); font-weight: 700; line-height: 1.2;
+  #root .step-progress, #root .mobile-step-label, #root .mobile-step-progress { display: none !important; }
+  #root .step-nav {
+    display: grid !important; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px;
+    width: 100%; margin: 0; padding: 0;
   }
-  #root .mobile-step-dot { width: 9px; height: 9px; flex: 0 0 9px; border-radius: 50%; background: #65708a; outline: 2px solid #e3e5ee; }
-  #root .mobile-step-label[data-step="2"] .mobile-step-dot { background: #4a4588; outline-color: #eeecfb; }
-  #root .mobile-step-label[data-step="3"] .mobile-step-dot { background: #c4842a; outline-color: #fff1cf; }
-  #root .mobile-step-label[data-step="4"] .mobile-step-dot { background: #2f9a68; outline-color: #e6f1e9; }
-  #root .mobile-step-label { display: flex; }
-  #root .mobile-step-progress { display: flex; flex: 0 0 auto; align-items: center; gap: 7px; margin-left: 10px; }
-  #root .mobile-step-progress-dot { box-sizing: border-box; display: block; width: 7px; height: 7px; border: 1px solid #8a929d; border-radius: 50%; background: #e3e6eb; }
-  #root .mobile-step-progress-dot[data-status="complete"] { border-color: #6f987c; background: #91b69d; }
-  #root .mobile-step-progress-dot[data-status="current"] { width: 9px; height: 9px; border: 2px solid #454a60; background: #555b73; }
-  #root .mobile-step-progress[data-step="2"] .mobile-step-progress-dot[data-status="current"] { border-color: #3c3578; background: #4a4588; }
-  #root .mobile-step-progress[data-step="3"] .mobile-step-progress-dot[data-status="current"] { border-color: #704a08; background: #80550d; }
-  #root .mobile-step-progress[data-step="4"] .mobile-step-progress-dot[data-status="current"] { border-color: #1f6b45; background: #2f9a68; }
+  #root .step-nav button {
+    box-sizing: border-box; width: 100%; min-width: 0; height: 48px; min-height: 48px;
+    flex-direction: row; gap: 4px; padding: 2px 3px; white-space: nowrap;
+  }
+  #root .step-nav button > span:first-child { width: 18px; height: 18px; flex: 0 0 18px; font-size: 11px; }
+  #root .step-nav .step-nav-full-label { display: none !important; }
+  #root .step-nav .step-nav-mobile-label {
+    display: block; min-width: 0; overflow: hidden; text-overflow: clip;
+    font-size: calc(14px * var(--app-font-scale, 1)); font-weight: 700; line-height: 1.1;
+  }
 
   #root main[data-current-step="1"],
   #root main[data-current-step="2"] {
     box-sizing: border-box; width: 100%; max-width: 42rem;
-    padding: 8px 16px calc(88px + env(safe-area-inset-bottom, 0px)) !important;
+    padding: 4px 16px calc(88px + env(safe-area-inset-bottom, 0px)) !important;
   }
-  #root [data-testid="scan-start"],
+  #root [data-testid="scan-start"] {
+    display: flex; flex-direction: column; gap: 6px; min-width: 0;
+  }
   #root [data-testid="items-step"] {
     display: flex; flex-direction: column; gap: 8px; min-width: 0;
   }
@@ -981,6 +981,31 @@ body.bg-slate-50 { background: var(--page-grey); color: var(--ink); }
   #root .scan-settings-disclosure {
     order: 6; width: 100%; min-width: 0; overflow: hidden; border: 1px solid #64748b; border-radius: 12px; background: #fff;
   }
+  #root .scan-settings-row {
+    order: 4; display: flex; align-items: flex-start; gap: 8px; width: 100%; min-width: 0;
+  }
+  #root .scan-key-methods-hint {
+    order: 4; box-sizing: border-box; width: 100%; min-width: 0; margin: 0; padding: 0;
+    color: #505967; font-size: calc(14px * var(--app-font-scale, 1)); line-height: 1.3;
+  }
+  #root .scan-settings-row > .scan-settings-disclosure {
+    order: 0; flex: 1 1 auto; width: auto; min-width: 0;
+  }
+  #root .scan-settings-row:has(details[open]) > .key-tutorial-shortcut { display: none !important; }
+  #root .scan-settings-row .key-tutorial-shortcut {
+    box-sizing: border-box; display: inline-flex !important; flex: 0 0 auto; align-items: center; justify-content: center;
+    min-width: 84px; min-height: 44px; padding: 4px 8px; border: 1px solid #52745f; border-radius: 10px;
+    background: #eef7f0; color: #244d32; font-size: calc(14px * var(--app-font-scale, 1));
+    font-weight: 700; line-height: 1.15; white-space: nowrap;
+  }
+  #root .scan-settings-summary-title { min-width: 0; white-space: nowrap; }
+  #root .scan-settings-title-desktop { display: none; }
+  #root .scan-key-status {
+    flex: 0 0 auto; padding: 2px 6px; border: 1px solid #8a929d; border-radius: 999px;
+    color: #4c5562; background: #f3f4f6; font-size: calc(14px * var(--app-font-scale, 1)); line-height: 1.2;
+  }
+  #root .scan-key-status.is-missing { border-color: #a14d44; color: #7a2f28; background: #fff1ef; }
+  #root .scan-key-status.is-set { border-color: #52745f; color: #244d32; background: #eef7f0; }
   #root .mobile-disclosure-summary {
     box-sizing: border-box; display: flex; align-items: center; justify-content: space-between; gap: 8px;
     min-height: 44px; padding: 8px 12px; color: #283444; font-size: calc(16px * var(--app-font-scale, 1));
@@ -1128,7 +1153,8 @@ body.bg-slate-50 { background: var(--page-grey); color: var(--ink); }
 }
 
 @media (min-width: 640px) {
-  #root .scan-key-short-hint { display: none !important; }
+  #root .scan-key-short-hint, #root .scan-key-methods-hint, #root .scan-key-status, #root .scan-settings-title-mobile { display: none !important; }
+  #root .scan-settings-title-desktop { display: inline !important; }
 }
 
 @media (max-width: 639px) {
@@ -1142,7 +1168,7 @@ body.bg-slate-50 { background: var(--page-grey); color: var(--ink); }
 }
 
 @media (max-width: 639px) {
-  #root .scan-key-short-hint { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #root .scan-key-short-hint { white-space: normal; overflow: visible; text-overflow: clip; }
 }
 
 @media (max-width: 639px) {

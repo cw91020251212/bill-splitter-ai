@@ -335,4 +335,11 @@
 - [x] 重算同步狀態不再錯顯示「已同步」；待同步／失敗時可按 44px「立即同步／重試」。
 - [x] 手機步驟列補回四點進度：完成／目前／未到階段可區分；仍只顯示目前步驟文字並保持 36px 高。320px、390px、短屏、大字及桌面幾何 E2E 通過。
 - [x] 驗收：Worker/DO 36 個單元測試通過；`friend-recognition.cjs` 16/16，包含本地 Worker/DO、邊緣 KV 保留舊值、已開啟朋友頁自動刷新及編輯中的未提交認帳保護；`mobile-layout.cjs` 320×844、390×844、320×700 與桌面幾何測試全部通過。
-- [x] 本版暫定 cache epoch `v129-shared-link-sync-20261111`、可見版號 R129；上線及公開網址驗證待完成。
+- [x] R129 Pages 已上線並驗證（提交 `e2f911d`）；Cloudflare Worker 部署仍待授權。
+
+## R130：新手流程提示與手機四步導航
+- [x] 手機第一步顯示四個有名稱、編號及狀態的步驟按鈕；已完成步驟可點回查看／修改，向前跳轉仍遵守原有資料檢查。桌面導航保持原狀。
+- [x] 未設定 Key 時，在第一步清楚顯示相片及一般文字辨識需要 Key、JSON／手動輸入可免 Key；提供直接打開申請教學的入口，辨識設定保持收起，且不遮住其他輸入方式。
+- [x] 在 320×844、390×844、320×700 和大字體下，步驟名稱不換行、沒有橫向溢位，觸控區至少 44×44px；相機／選圖仍在首屏靠前，文字／手動入口仍清晰可見。
+- [x] 驗收：`mobile-layout.cjs` 通過三種手機尺寸、大字體及桌面幾何；`tutorial-ui.cjs` 19/19、`friend-navigation.cjs`、`settings-free-models.cjs`、`friend-whatsapp-details.cjs`、`friend-recognition.cjs` 16/16，Worker/DO 36/36，所有改動檔語法與 `git diff --check` 通過。
+- [ ] Cache epoch `v130-mobile-onboarding-20261111`、可見版號 R130；本機驗收完成後推送 GitHub Pages 並驗證公開網址。
