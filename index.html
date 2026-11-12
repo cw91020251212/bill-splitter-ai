@@ -642,14 +642,23 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
 
     const parseClaimValue = (raw) => {
       const text = String(raw || '').replace(/＝/g, '=').trim();
-      const match = text.match(/([\d.]+)\s*([^\d\s=，,。！？]*)/);
-      return { qty: match ? parseFloat(match[1]) : NaN, unit: match ? String(match[2] || '').trim() : '' };
+      const match = text.match(/([+-]?(?:\d+\s*\/\s*\d+|\d+(?:\.\d*)?|\.\d+))\s*([^\d\s=，,。！？]*)/);
+      if (!match) return { qty: NaN, unit: '' };
+      const token = match[1].replace(/\s+/g, '');
+      let qty;
+      if (token.includes('/')) {
+        const [numerator, denominator] = token.split('/').map(Number);
+        qty = Number.isFinite(denominator) && denominator > 0 ? numerator / denominator : NaN;
+      } else qty = Number(token);
+      return { qty, unit: String(match[2] || '').trim() };
     };
 
     const parseClaims = (raw, items) => {
       const lines = String(raw || '').split('\n');
       const claims = {};
       const claimUnits = {};
+      const claimModes = {};
+      const shareExplicit = {};
       const people = [];
       const duplicatePeople = [];
       const unknownIds = new Set();
@@ -680,12 +689,47 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
               }
               if (!claims[currentPerson]) claims[currentPerson] = {};
               if (!claimUnits[currentPerson]) claimUnits[currentPerson] = {};
+              if (!claimModes[currentPerson]) claimModes[currentPerson] = {};
+              if (!shareExplicit[currentPerson]) shareExplicit[currentPerson] = {};
             }
           } else {
             issues.push({ type: 'name_no_delim', line: lineNo, text: cleanLine.substring(0, 40) });
           }
         } else if (currentPerson) {
-          if (cleanLine.match(/^\D*\d{2}.*=/)) {
+          const modeMatch = cleanLine.match(/^\D*(\d{2}).*[：:]\s*(共享(?:份數\s*=\s*.+)?|冇叫|Shared(?:\s+shares\s*=\s*.+)?|Didn['’]t order)$/i);
+          if (modeMatch) {
+            const id = modeMatch[1];
+            const modeText = modeMatch[2];
+            if (!itemIds.has(id)) {
+              unknownIds.add(id);
+              issues.push({ type: 'unknown_id', line: lineNo, text: cleanLine.substring(0, 40), person: currentPerson, id });
+            }
+            lastSeenId = null;
+            if (/^(?:冇叫|Didn['’]t order)$/i.test(modeText)) {
+              delete claims[currentPerson][id];
+              delete claimUnits[currentPerson][id];
+              delete shareExplicit[currentPerson][id];
+              claimModes[currentPerson][id] = 'none';
+            } else {
+              claimModes[currentPerson][id] = 'shared';
+              claimUnits[currentPerson][id] = '';
+              const explicitMatch = modeText.match(/(?:共享份數|Shared\s+shares)\s*=\s*(.+)$/i);
+              if (!explicitMatch) {
+                claims[currentPerson][id] = 1;
+                shareExplicit[currentPerson][id] = false;
+                totalClaimLines++;
+              } else {
+                const parsedValue = parseClaimValue(explicitMatch[1]);
+                if (!Number.isFinite(parsedValue.qty) || parsedValue.qty <= 0 || parsedValue.unit) {
+                  issues.push({ type: parsedValue.unit ? 'shared_has_unit' : parsedValue.qty < 0 ? 'qty_negative' : 'qty_not_number', line: lineNo, text: cleanLine.substring(0, 40), person: currentPerson, id });
+                } else {
+                  claims[currentPerson][id] = parsedValue.qty;
+                  shareExplicit[currentPerson][id] = true;
+                  totalClaimLines++;
+                }
+              }
+            }
+          } else if (cleanLine.match(/^\D*\d{2}.*=/)) {
             const idMatch = cleanLine.match(/\d{2}/);
             const parts = cleanLine.split(/=/);
             const parsedValue = parseClaimValue(parts.slice(1).join('='));
@@ -701,6 +745,8 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
                     if (qty > 0) {
                         claims[currentPerson][id] = qty;
                         claimUnits[currentPerson][id] = parsedValue.unit;
+                        delete claimModes[currentPerson][id];
+                        delete shareExplicit[currentPerson][id];
                         totalClaimLines++;
                     } else if (qty < 0) {
                         issues.push({ type: 'qty_negative', line: lineNo, text: cleanLine.substring(0, 40), person: currentPerson });
@@ -728,9 +774,11 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
 
             if (!isNaN(qty)) {
                 if (qty > 0) {
-                    claims[currentPerson][lastSeenId] = qty;
-                    claimUnits[currentPerson][lastSeenId] = parsedValue.unit;
-                    totalClaimLines++;
+                  claims[currentPerson][lastSeenId] = qty;
+                  claimUnits[currentPerson][lastSeenId] = parsedValue.unit;
+                  delete claimModes[currentPerson][lastSeenId];
+                  delete shareExplicit[currentPerson][lastSeenId];
+                  totalClaimLines++;
                 } else if (qty < 0) {
                     issues.push({ type: 'qty_negative', line: lineNo, text: cleanLine.substring(0, 40), person: currentPerson });
                 } else {
@@ -749,7 +797,7 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
       });
 
       const peopleWithNoClaims = people.filter(p => !claims[p] || Object.keys(claims[p]).length === 0);
-      return { claims, claimUnits, people, totalClaimLines, issues, duplicatePeople, unknownIds: Array.from(unknownIds), peopleWithNoClaims };
+      return { claims, claimUnits, claimModes, shareExplicit, people, totalClaimLines, issues, duplicatePeople, unknownIds: Array.from(unknownIds), peopleWithNoClaims };
     };
 
     const KEY_RULES = {
@@ -1624,9 +1672,17 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
         const byId = new Map(seedItems.map(item => [String(item.id), item]));
         const cleanUnit = value => String(value || '').replace(/[\r\n=＝]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 30);
         return parsed.people.map(name => {
-          const claims = Object.entries(parsed.claims[name] || {}).filter(([id, qty]) => /^\d{2}$/.test(id) && byId.has(id) && Number.isFinite(qty) && qty > 0 && qty <= 1000000)
+          const claims = Object.entries(parsed.claims[name] || {}).filter(([id, qty]) => {
+            const sharedBlank = parsed.claimModes?.[name]?.[id] === 'shared' && parsed.shareExplicit?.[name]?.[id] === false;
+            return /^\d{2}$/.test(id) && byId.has(id) && Number.isFinite(qty) && (qty > 0 || sharedBlank) && qty <= 1000000;
+          })
             .map(([id, qty]) => {
               // Actual quantities retain unit; share weights retain displayUnit only.
+              const mode = parsed.claimModes?.[name]?.[id];
+              if (mode === 'shared') {
+                const explicit = parsed.shareExplicit?.[name]?.[id] === true;
+                return { id, qty: explicit ? qty : 0, unit: '', displayUnit: '', mode: 'shared', shareExplicit: explicit };
+              }
               const unit = cleanUnit(parsed.claimUnits[name]?.[id]);
               return { id, qty, unit, displayUnit: unit ? '' : cleanUnit(byId.get(id)?.unit) };
             });
@@ -2426,11 +2482,13 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
             if (!sharesByItem.has(key)) sharesByItem.set(key, []);
             sharesByItem.get(key).push({
               person,
-              quantity: Number(entry.qty) || 0,
-              unit: entry.unit || entry.unitName || '',
+              quantity: entry.claimMode === 'shared' && entry.shareExplicit !== true ? 0 : Number(entry.qty) || 0,
+              unit: entry.claimMode === 'shared' ? '' : entry.unit || entry.unitName || '',
               amount: Number(entry.amount) || 0,
               allocationTotal: Number(entry.allocationTotal) || 0,
-              isActualUnit: Boolean(entry.isActualUnit)
+              isActualUnit: Boolean(entry.isActualUnit),
+              claimMode: entry.claimMode === 'shared' ? 'shared' : '',
+              shareExplicit: entry.shareExplicit === true
             });
           });
           (summary.adjustments || []).forEach(entry => adjustments.push({
@@ -4042,6 +4100,8 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
         const parsed = parseClaims(friendsReplies, items);
         const personClaims = parsed.claims;
         const claimUnits = parsed.claimUnits || {};
+        const claimModes = parsed.claimModes || {};
+        const shareExplicit = parsed.shareExplicit || {};
 
         if (parsed.people.length === 0) {
           setStepError(bi('未有可用認帳；請貼上朋友認領項目和數量。', 'No usable claims yet. Paste a friend’s item and quantity.'));
@@ -4086,13 +4146,46 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
           setStep(2); window.setTimeout(() => focusField('replies'), 120); return false;
         }
 
+        const sharedShareProblems = calculationItems.flatMap(item => {
+          if (toNum(item.total) <= 0) return [];
+          const actualPeople = claimants.filter(person => claimUnits[person]?.[item.id] && (personClaims[person]?.[item.id] || 0) > 0);
+          const sharedPeople = claimants.filter(person => (personClaims[person]?.[item.id] || 0) > 0 && !actualPeople.includes(person));
+          const newSharedPeople = sharedPeople.filter(person => claimModes[person]?.[item.id] === 'shared');
+          const legacySharePeople = sharedPeople.filter(person => claimModes[person]?.[item.id] !== 'shared');
+          if (newSharedPeople.length && legacySharePeople.length) return [`${item.id} ${displayItemName(item).trim() || bi('項目', 'item')}：新舊份數回覆混用；請把舊份數改成「共享」模式後再結算。`];
+          if (!newSharedPeople.length) return [];
+          const explicitPeople = newSharedPeople.filter(person => shareExplicit[person]?.[item.id] === true);
+          const explicitTotal = explicitPeople.reduce((sum, person) => sum + (Number(personClaims[person]?.[item.id]) || 0), 0);
+          const blankCount = newSharedPeople.length - explicitPeople.length;
+          if (explicitTotal > newSharedPeople.length + 0.000001) return [`${item.id} ${displayItemName(item).trim() || bi('項目', 'item')}：共享份數超過 ${newSharedPeople.length} 位共享者。`];
+          if (!blankCount && explicitTotal < newSharedPeople.length - 0.000001) return [`${item.id} ${displayItemName(item).trim() || bi('項目', 'item')}：尚有共享餘額未分配；請調整份數，或讓其他共享者留空平均分。`];
+          return [];
+        });
+        if (sharedShareProblems.length) {
+          setStepError(bi(`有共享份數未能對上共享人數，請先修正：${sharedShareProblems.slice(0, 2).join('；')}`, `Shared portions do not match the number of sharers. Correct them first: ${sharedShareProblems.slice(0, 2).join('; ')}`));
+          setStep(2); window.setTimeout(() => focusField('replies'), 120); return false;
+        }
+
         const reconciliationIssues = calculationItems.map(item => {
           const totalQty = toNum(item.totalQty);
           if (totalQty <= 0 || toNum(item.total) <= 0) return null;
           const actualPeople = claimants.filter(person => claimUnits[person]?.[item.id] && (personClaims[person][item.id] || 0) > 0);
           const sharePeople = claimants.filter(person => !claimUnits[person]?.[item.id] && (personClaims[person][item.id] || 0) > 0);
+          const newSharedPeople = sharePeople.filter(person => claimModes[person]?.[item.id] === 'shared');
           const claimedQty = actualPeople.reduce((sum, person) => sum + personClaims[person][item.id], 0);
           const difference = totalQty - claimedQty;
+          if (difference < -0.0001) {
+            const allocation = allocateCurrencyAmount(item.total, { claimed: Math.max(0, claimedQty), remaining: 0 }, detectedCurrency, 6);
+            return { itemId: item.id, name: item.name, unit: item.unit || '單位', totalQty, claimedQty, difference, amount: allocation.remaining || 0,
+              shareClaimCount: sharePeople.length, shareClaimTotal: sharePeople.reduce((sum, person) => sum + (Number(personClaims[person][item.id]) || 0), 0),
+              claimantKeys: [...new Set([...actualPeople, ...sharePeople])].sort(), requiresClaimCorrection: false };
+          }
+          if (newSharedPeople.length) {
+            if (Math.abs(difference) < 0.0001) return { itemId: item.id, name: item.name, unit: item.unit || '單位', totalQty, claimedQty, difference, amount: 0,
+              shareClaimCount: sharePeople.length, shareClaimTotal: sharePeople.reduce((sum, person) => sum + (Number(personClaims[person][item.id]) || 0), 0),
+              claimantKeys: [...new Set([...actualPeople, ...sharePeople])].sort(), requiresClaimCorrection: true };
+            return null;
+          }
           if (!sharePeople.length && Math.abs(difference) < 0.0001) return null;
           const allocation = allocateCurrencyAmount(item.total, { claimed: Math.max(0, claimedQty), remaining: Math.max(0, difference) }, detectedCurrency, 6);
           return { itemId: item.id, name: item.name, unit: item.unit || '單位', totalQty, claimedQty, difference, amount: allocation.remaining || 0,
@@ -4135,23 +4228,35 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
           const sharePeople = claimants.filter(person => (personClaims[person][item.id] || 0) > 0 && !actualPeople.includes(person));
           const actualTotal = actualPeople.reduce((sum, person) => sum + (Number(personClaims[person][item.id]) || 0), 0);
           const shareTotal = sharePeople.reduce((sum, person) => sum + (Number(personClaims[person][item.id]) || 0), 0);
-          let itemShares = {};
           const itemNeedsReconciliation = reconciliationIssues.some(issue => issue.itemId === item.id);
-          if (canUseActualUnits && itemNeedsReconciliation) {
-            const reconciledActualQty = Math.max(0, Math.min(totalQty, actualTotal));
-            const remainingQty = Math.max(0, totalQty - reconciledActualQty);
-            const groupShares = allocateCurrencyAmount(item.total, { actual: reconciledActualQty, shared: remainingQty }, detectedCurrency, 6);
-            if (actualTotal > 0) Object.assign(itemShares, allocateCurrencyAmount(groupShares.actual || 0,
+          const newSharedPeople = sharePeople.filter(person => claimModes[person]?.[item.id] === 'shared');
+          const explicitSharePeople = newSharedPeople.filter(person => shareExplicit[person]?.[item.id] === true);
+          const blankSharePeople = newSharedPeople.filter(person => shareExplicit[person]?.[item.id] !== true);
+          const explicitShareTotal = explicitSharePeople.reduce((sum, person) => sum + (Number(personClaims[person][item.id]) || 0), 0);
+          const remainingShareUnits = Math.max(0, newSharedPeople.length - explicitShareTotal);
+          const sharedWeights = Object.fromEntries(explicitSharePeople.map(person => [person, Number(personClaims[person][item.id]) || 0]));
+          if (blankSharePeople.length) blankSharePeople.forEach(person => { sharedWeights[person] = remainingShareUnits / blankSharePeople.length; });
+          const allocateSharedAmount = amount => newSharedPeople.length
+            ? allocateCurrencyAmount(amount, sharedWeights, detectedCurrency, 6)
+            : {};
+          let itemShares = {};
+          let sharedAmount = item.total;
+          if (newSharedPeople.length && canUseActualUnits && actualTotal > 0) {
+            const remainingQty = Math.max(0, totalQty - actualTotal);
+            const groupShares = allocateCurrencyAmount(item.total, { actual: actualTotal, shared: remainingQty }, detectedCurrency, 6);
+            sharedAmount = groupShares.shared || 0;
+            Object.assign(itemShares, allocateCurrencyAmount(groupShares.actual || 0,
               Object.fromEntries(actualPeople.map(person => [person, Number(personClaims[person][item.id]) || 0])), detectedCurrency, 6));
+            Object.assign(itemShares, allocateSharedAmount(sharedAmount));
+          } else if (newSharedPeople.length) {
+            Object.assign(itemShares, allocateSharedAmount(item.total));
           } else if (canUseActualUnits && actualTotal > 0) {
             const remainingQty = Math.max(0, totalQty - actualTotal);
             const groupShares = allocateCurrencyAmount(item.total, { actual: actualTotal, shared: remainingQty }, detectedCurrency, 6);
             Object.assign(itemShares, allocateCurrencyAmount(groupShares.actual || 0,
               Object.fromEntries(actualPeople.map(person => [person, Number(personClaims[person][item.id]) || 0])), detectedCurrency, 6));
-            if (shareTotal > 0) {
-              Object.assign(itemShares, allocateCurrencyAmount(groupShares.shared || 0,
-                Object.fromEntries(sharePeople.map(person => [person, Number(personClaims[person][item.id]) || 0])), detectedCurrency, 6));
-            }
+            if (shareTotal > 0 && !itemNeedsReconciliation) Object.assign(itemShares, allocateCurrencyAmount(groupShares.shared || 0,
+              Object.fromEntries(sharePeople.map(person => [person, Number(personClaims[person][item.id]) || 0])), detectedCurrency, 6));
           } else {
             itemShares = allocateCurrencyAmount(item.total,
               Object.fromEntries(claimants.map(person => [person, Number(personClaims[person][item.id]) || 0])), detectedCurrency, 6);
@@ -4161,9 +4266,11 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
             if (claimedQty <= 0) return;
             const enteredUnit = claimUnits[person]?.[item.id] || '';
             const isActualUnit = canUseActualUnits && Boolean(enteredUnit);
-            const allocationTotal = isActualUnit ? totalQty : (actualTotal > 0 ? shareTotal : totalClaimed);
+            const explicitMode = claimModes[person]?.[item.id] === 'shared';
+            const allocationTotal = isActualUnit ? totalQty : explicitMode ? newSharedPeople.length : (actualTotal > 0 ? shareTotal : totalClaimed);
             const cost = itemShares[person] || 0;
-            personTotals[person].items.push({ name: item.name, nameEn: item.nameEn || '', original: item.original || '', ja: item.ja || '', id: item.id, amount: cost, qty: claimedQty, totalClaimed, unit: enteredUnit, unitName: item.unit || '', allocationTotal, isActualUnit });
+            personTotals[person].items.push({ name: item.name, nameEn: item.nameEn || '', original: item.original || '', ja: item.ja || '', id: item.id, amount: cost, qty: claimedQty, totalClaimed, unit: enteredUnit, unitName: item.unit || '', allocationTotal, isActualUnit,
+              claimMode: explicitMode ? 'shared' : '', shareExplicit: explicitMode && shareExplicit[person]?.[item.id] === true });
             personTotals[person].subtotal = roundSplitAmount(personTotals[person].subtotal + cost);
             totalItemsCost = roundSplitAmount(totalItemsCost + cost);
           });

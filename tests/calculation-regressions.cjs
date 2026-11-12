@@ -484,9 +484,109 @@ async function readSavedResults(page) {
     assert.equal(await oldDraft.page.evaluate(() => document.querySelector('[data-live-app] main')?.dataset.currentStep), '3', 'the reviewed legacy draft can proceed');
     await oldDraft.context.close();
 
+    const milkTea = await openCalculator(browser, {
+      items: [{ id: '01', name: '合成奶茶', price: 50, total: 150, totalQty: 3, unit: '杯' }],
+      friendsReplies: '姓名：按單位\n01 合成奶茶：實際數量 = 2 杯\n姓名：甲\n01 合成奶茶：共享\n姓名：乙\n01 合成奶茶：共享',
+      payer: '主辦人', taxAmount: '0', discountAmount: '0', reconciliation: null
+    });
+    await milkTea.page.getByTestId('calculate-split').click();
+    await milkTea.page.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '4', null, { timeout: 20000 });
+    const milkResults = await readSavedResults(milkTea.page);
+    assert.equal(milkResults.personTotals['按單位'].items[0].amount, 100);
+    assert.equal(milkResults.personTotals['甲'].items[0].amount, 25);
+    assert.equal(milkResults.personTotals['乙'].items[0].amount, 25);
+    console.log('PASS milk tea: actual unit claims pay first; only the two shared friends split the remainder');
+    await milkTea.context.close();
+
+    const pizza = await openCalculator(browser, {
+      items: [{ id: '01', name: '合成披薩', price: 10, total: 60, totalQty: 6, unit: '份' }],
+      friendsReplies: '姓名：甲\n01 合成披薩：共享份數 = 2\n姓名：乙\n01 合成披薩：共享\n姓名：丙\n01 合成披薩：共享\n姓名：丁\n01 合成披薩：共享\n姓名：戊\n01 合成披薩：共享\n姓名：己\n01 合成披薩：共享',
+      payer: '主辦人', taxAmount: '0', discountAmount: '0', reconciliation: null
+    });
+    await pizza.page.getByTestId('calculate-split').click();
+    await pizza.page.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '4', null, { timeout: 20000 });
+    const pizzaResults = await readSavedResults(pizza.page);
+    assert.equal(pizzaResults.personTotals['甲'].items[0].amount, 20);
+    for (const name of ['乙', '丙', '丁', '戊', '己']) assert.equal(pizzaResults.personTotals[name].items[0].amount, 8);
+    console.log('PASS pizza: 2/6 is charged first; the other five split the remaining 4/6 equally');
+    await pizza.context.close();
+
+    const fraction = await openCalculator(browser, {
+      items: [{ id: '01', name: '合成飲品', price: 25, total: 50, totalQty: 2, unit: '杯' }],
+      friendsReplies: '姓名：半杯\n01 合成飲品：實際數量 = 1/2 杯\n姓名：共享朋友\n01 合成飲品：共享',
+      payer: '主辦人', taxAmount: '0', discountAmount: '0', reconciliation: null
+    });
+    await fraction.page.getByTestId('calculate-split').click();
+    await fraction.page.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '4', null, { timeout: 20000 });
+    const fractionResults = await readSavedResults(fraction.page);
+    assert.equal(fractionResults.personTotals['半杯'].items[0].amount, 12.5);
+    assert.equal(fractionResults.personTotals['共享朋友'].items[0].amount, 37.5);
+    console.log('PASS manually entered 1/2 actual quantity is parsed and leaves the remaining amount to the sharer');
+    await fraction.context.close();
+
+    const decimalShare = await openCalculator(browser, {
+      items: [{ id: '01', name: '合成共享項', price: 60, total: 60, totalQty: null, unit: '' }],
+      friendsReplies: '姓名：半份\n01 合成共享項：共享份數 = 0.5\n姓名：其餘\n01 合成共享項：共享',
+      payer: '主辦人', taxAmount: '0', discountAmount: '0', reconciliation: null
+    });
+    await decimalShare.page.getByTestId('calculate-split').click();
+    await decimalShare.page.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '4', null, { timeout: 20000 });
+    const decimalResults = await readSavedResults(decimalShare.page);
+    assert.equal(decimalResults.personTotals['半份'].items[0].amount, 15);
+    assert.equal(decimalResults.personTotals['其餘'].items[0].amount, 45);
+    console.log('PASS a manually entered decimal share pays its fraction first and leaves the remainder to the blank sharer');
+    await decimalShare.context.close();
+
+    const notOrdered = await openCalculator(browser, {
+      items: [{ id: '01', name: '合成小食', price: 24, total: 24, totalQty: null, unit: '' }],
+      friendsReplies: '姓名：沒叫\n01 合成小食：冇叫\n姓名：共享者\n01 合成小食：共享',
+      payer: '主辦人', taxAmount: '0', discountAmount: '0', reconciliation: null
+    });
+    await notOrdered.page.getByTestId('calculate-split').click();
+    await notOrdered.page.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '4', null, { timeout: 20000 });
+    const notOrderedResults = await readSavedResults(notOrdered.page);
+    assert.equal(notOrderedResults.personTotals['共享者'].items[0].amount, 24);
+    assert.equal(notOrderedResults.personTotals['沒叫'], undefined, 'a not-ordered selection is not charged and is not a claimant');
+    console.log('PASS not-ordered person is excluded while the shared participant pays the full remainder');
+    await notOrdered.context.close();
+
+    const excessiveShare = await openCalculator(browser, {
+      items: [{ id: '01', name: '合成超份項', price: 30, total: 30, totalQty: null, unit: '' }],
+      friendsReplies: '姓名：甲\n01 合成超份項：共享份數 = 2', payer: '主辦人', taxAmount: '0', discountAmount: '0', reconciliation: null
+    });
+    await excessiveShare.page.getByTestId('calculate-split').click();
+    await excessiveShare.page.getByTestId('step-error').waitFor({ state: 'visible' });
+    assert.match(await excessiveShare.page.getByTestId('step-error').innerText(), /超過 1 位共享者/);
+    assert.equal(await excessiveShare.page.evaluate(() => JSON.parse(localStorage.getItem('billSplitterActiveDraftV1')).data.results), null);
+    console.log('PASS shared portions above the number of sharers are blocked with a correction prompt');
+    await excessiveShare.context.close();
+
+    const sharedShortfall = await openCalculator(browser, {
+      items: [{ id: '01', name: '合成未分項', price: 60, total: 60, totalQty: null, unit: '' }],
+      friendsReplies: '姓名：甲\n01 合成未分項：共享份數 = 0.5\n姓名：乙\n01 合成未分項：共享份數 = 0.5',
+      payer: '主辦人', taxAmount: '0', discountAmount: '0', reconciliation: null
+    });
+    await sharedShortfall.page.getByTestId('calculate-split').click();
+    await sharedShortfall.page.getByTestId('step-error').waitFor({ state: 'visible' });
+    assert.match(await sharedShortfall.page.getByTestId('step-error').innerText(), /尚有共享餘額未分配/);
+    assert.equal(await sharedShortfall.page.evaluate(() => JSON.parse(localStorage.getItem('billSplitterActiveDraftV1')).data.results), null);
+    console.log('PASS unallocated shared remainder cannot be silently spread when nobody left a blank share');
+    await sharedShortfall.context.close();
+
+    const noSharedCover = await openCalculator(browser, {
+      items: [{ id: '01', name: '合成未認項', price: 20, total: 20, totalQty: 2, unit: '件' }],
+      friendsReplies: '姓名：實物認領\n01 合成未認項：實際數量 = 1 件', payer: '主辦人', taxAmount: '0', discountAmount: '0', reconciliation: null
+    });
+    await noSharedCover.page.getByTestId('calculate-split').click();
+    await noSharedCover.page.getByTestId('unit-quantity-reconciliation').waitFor({ state: 'visible' });
+    assert.equal(await noSharedCover.page.evaluate(() => JSON.parse(localStorage.getItem('billSplitterActiveDraftV1')).data.results), null);
+    assert.match(await noSharedCover.page.getByTestId('step-error').innerText(), /選擇剩餘數量由誰承擔/);
+    console.log('PASS remaining physical quantity with no shared claimant requires an explicit allocation choice');
+    await noSharedCover.context.close();
+
     assert.equal(interceptedBusinessRequests, 0, 'all business APIs remain untouched');
     assert.deepEqual(failures, [], 'no browser exceptions occur');
-    console.log(JSON.stringify({ tests: 19, passed: 19, interceptedBusinessRequests, browserErrors: failures.length }));
+    console.log(JSON.stringify({ tests: 24, passed: 24, interceptedBusinessRequests, browserErrors: failures.length }));
   } finally {
     await browser.close();
   }

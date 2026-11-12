@@ -186,6 +186,19 @@
       padding: 16px; border: 1px solid #91afd0; border-radius: 14px;
       background: #fff; box-shadow: 0 2px 0 rgba(50, 111, 174, .06);
     }
+    .claim-mode-fieldset { margin: 13px 0 12px; }
+    .claim-mode-fieldset legend { margin-bottom: 7px; color: var(--muted); font-size: 13px; }
+    .claim-mode-switch { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; }
+    .claim-mode-option { min-height: 44px; padding: 8px 5px; border: 1px solid #6f94bf; border-radius: 10px; color: #234f80; background: #fff; font-size: 14px; font-weight: 750; cursor: pointer; }
+    .claim-mode-option[aria-pressed="true"] { border-color: #234f80; color: #fff; background: #326fae; box-shadow: inset 0 0 0 1px #234f80; }
+    .claim-mode-option:focus-visible, .claim-examples summary:focus-visible { outline: 3px solid rgba(50,111,174,.35); outline-offset: 2px; }
+    .claim-mode-hint { min-height: 20px; margin: 7px 0 0; color: var(--muted); font-size: 13px; line-height: 1.45; }
+    .claim-examples { margin: 0 0 13px; padding: 11px 13px; border: 1px solid #789ab9; border-radius: 12px; background: #fff; color: var(--ink); }
+    .claim-examples summary { min-height: 24px; color: #234f80; font-size: 14px; font-weight: 800; cursor: pointer; }
+    .claim-examples-content { padding-top: 7px; font-size: 13px; line-height: 1.55; }
+    .claim-examples-content p { margin: 0 0 8px; }
+    .claim-examples-content p:last-child { margin-bottom: 0; }
+    .qty-input:disabled, .unit-select:disabled { color: #5e6b73; background: #e9eef2; opacity: 1; }
     .item-heading { gap: 12px; }
     .item-id {
       width: 38px; height: 38px; border: 1px solid var(--green-dark);
@@ -450,6 +463,13 @@
             <span id="item-count" class="count"></span>
           </div>
           <p id="session-note" class="session-note" hidden>填好後請保留此連結；主辦人計完帳，同一條連結會顯示結果。</p>
+          <details id="claim-examples" class="claim-examples">
+            <summary id="claim-examples-title">例子</summary>
+            <div class="claim-examples-content">
+              <p id="claim-example-unit"></p>
+              <p id="claim-example-shared"></p>
+            </div>
+          </details>
           <section id="item-list" class="item-list" aria-label="賬單項目"></section>
           <p id="form-feedback" class="form-feedback" role="status" aria-live="polite"></p>
 
@@ -559,7 +579,7 @@
       const firstFeedback = document.getElementById('first-identity-status');
       const normalizeName = value => String(value || '').normalize('NFC').replace(/\s+/g, ' ').trim();
       const validRecognitionCode = value => value === '' || (value.length === 4 && /^[!-~]{4}$/.test(value));
-      const quantityPickerValues = ['0.5', ...Array.from({ length: 50 }, (_, index) => String(index + 1))];
+      const quantityPickerValues = Array.from({ length: 50 }, (_, index) => String(index + 1));
       const unitOptions = [
         { id: 'portion', zh: '份', en: 'portions', aliases: ['份', 'portion', 'portions', 'share', 'shares', 'serving', 'servings', 'serving(s)'] },
         { id: 'cup', zh: '杯', en: 'cups', aliases: ['杯', 'cup', 'cups', 'cup(s)'] },
@@ -587,7 +607,15 @@
           daysUnit: '日', hoursUnit: '小時', minutesUnit: '分', lessThanMinute: '少於 1 分鐘',
           errorTitle: '打不開認帳表', errorDescription: '連結無效，請索取新連結。',
           personLabel: '你的姓名', namePlaceholder: '例如：阿明', nameHint: '填發起人認得的名字。',
-          items: '賬單項目', sharingRule: '冇單位大家分，有單位自己付。', preview: '認帳回覆預覽', previewSubtitle: '提交未成功可用。',
+          items: '賬單項目', preview: '認帳回覆預覽', previewSubtitle: '提交未成功可用。',
+          modeLabel: '點樣分？', modes: { personal: '按單位', shared: '共享', none: '冇叫' },
+          personalHint: '選單位後填實際數量；留空數量按 1 單位。單位和數量都留空就不收費。',
+          sharedHint: '留空會由共享者平分；填份數會先計你的一份，餘額只由其他共享者分。', noCallHint: '此項不收費。',
+          qtyPlaceholder: mode => mode === 'shared' ? '留空＝平分' : '留空＝1 單位', qtyLabel: mode => mode === 'shared' ? '共享份數（可留空）' : '數量',
+          chooseUnit: '請先選實際單位，或改選共享。', sharedZero: '共享份數請填大於 0 的數字；留空會平均分，冇叫請選「冇叫」。', sharedNoUnit: '共享不需要單位，請只填份數。',
+          personalUnavailable: '此項沒有已核對的實際數量，請選「共享」或先補上單位資料。',
+          examplesTitle: '例子', exampleUnit: '奶茶共 3 杯，每杯 HK$50：一人按單位認 2 杯，付 HK$100；另外 2 人選共享，平分餘下 HK$50，各付 HK$25。',
+          exampleShared: '披薩共 6 份、HK$60，6 人選共享；一人填 2 份，先付 HK$20，餘下 HK$40 由另外 5 人平分，各付 HK$8。',
           unitField: '單位', sessionNote: '填好後請保留此連結；主辦人計完帳，同一條連結會顯示結果。',
           previewPlaceholder: '填姓名和數量後，回覆會顯示於此。', previewLabel: '認帳回覆文字預覽',
           or: '或', share: '分享回覆', copy: '複製回覆文字', shareHelp: 'WhatsApp 開啟後請按傳送。',
@@ -607,13 +635,10 @@
           noRoom: '此連結不能提交，請索取新連結或用 WhatsApp。',
           noCrypto: '請用 HTTPS 開啟連結。',
           itemCount: n => `${n} 項`, original: text => `單據原文：${text}`, total: (n, unit) => `單據共 ${n} ${unit}`,
-          unitLabel: '可選單位', noUnit: '不選單位', qtyLabel: '認帳份數', qtyPlaceholder: '輸入數量', qtyAria: (id, name) => `${id} ${name} 認帳份數`,
-          qtyHint: (item) => item.totalQty && item.unit
-            ? `填份數；選「${unitLabel(item.unit)}」可輸入實際數量。留空或 0＝不認帳。`
-            : '填份數比例；留空或 0＝不認帳。',
+          unitLabel: '單位', noUnit: '選擇單位', qtyAria: (id, name) => `${id} ${name} 數量`,
           needName: '請先填寫你的姓名。', badName: '姓名請勿包含冒號或等號。',
-          invalidNumber: name => `「${name}」請輸入數字，例如 0.5、1 或 2。`, negative: '數量不能是負數，請檢查輸入。',
-          digitsOnly: name => `「${name}」請只填數字份數。`, wrongUnit: (name, unit) => `「${name}」的單位請填「${unit}」，或只填數字代表份數。`,
+          invalidNumber: name => `「${name}」請輸入正數、小數或分數，例如 1、0.5 或 1/2。`, negative: '數量不能是負數，請檢查輸入。',
+          wrongUnit: (name, unit) => `「${name}」的單位請填「${unit}」，或只填數字代表份數。`,
           needClaim: '至少填一項數量。', copied: '已複製，請貼到 WhatsApp 傳回。', copyFail: '複製失敗，請選取預覽文字。',
           copyToWhatsapp: '已複製，請貼到 WhatsApp 傳回。', noShare: '此瀏覽器不支援分享；請複製回覆。', shareCancelled: '分享已取消，可複製回覆。',
           replyTitle: '認帳回覆', name: '姓名', claimed: '認帳項目', quantity: '認帳份數', actual: '實際數量', done: '已填妥，請傳給發起人。',
@@ -629,7 +654,15 @@
           daysUnit: 'd', hoursUnit: 'h', minutesUnit: 'm', lessThanMinute: 'less than 1 minute',
           errorTitle: 'This page could not be opened', errorDescription: 'Invalid link. Ask for a new one.',
           personLabel: 'Your name', namePlaceholder: 'For example: Alex', nameHint: 'Use a name the organizer recognizes.',
-          items: 'Bill items', sharingRule: 'No unit: everyone shares. With a unit: the person claiming it pays.', preview: 'Reply preview', previewSubtitle: 'Use if submission fails.',
+          items: 'Bill items', preview: 'Reply preview', previewSubtitle: 'Use if submission fails.',
+          modeLabel: 'How to split?', modes: { personal: 'By unit', shared: 'Shared', none: 'Didn’t order' },
+          personalHint: 'Choose a unit and enter the amount; blank means 1 unit. Leaving both blank costs nothing.',
+          sharedHint: 'Blank means an equal split among sharers. Enter a share to pay that part first; only other sharers split the rest.', noCallHint: 'No charge for this item.',
+          qtyPlaceholder: mode => mode === 'shared' ? 'Blank = equal' : 'Blank = 1 unit', qtyLabel: mode => mode === 'shared' ? 'Shares (optional)' : 'Quantity',
+          chooseUnit: 'Choose an actual unit, or switch to Shared.', sharedZero: 'Enter a positive share, or leave it blank for an equal split. Choose Didn’t order to pay nothing.', sharedNoUnit: 'Shared claims do not use a unit; enter a share only.',
+          personalUnavailable: 'No checked physical quantity is available. Choose Shared or add unit details first.',
+          examplesTitle: 'Examples', exampleUnit: '3 milk teas at HK$50 each: one person claims 2 cups by unit and pays HK$100; 2 others share the remaining HK$50, HK$25 each.',
+          exampleShared: 'A 6-portion pizza costs HK$60 and 6 people share it. One enters 2 portions and pays HK$20 first; the other 5 split HK$40, HK$8 each.',
           unitField: 'Unit', sessionNote: 'Keep this link after submitting. The organizer’s final result will appear here on the same link.',
           previewPlaceholder: 'Enter your name and quantities to see the reply here.', previewLabel: 'Reply preview',
           or: 'or', share: 'Share reply', copy: 'Copy reply text', shareHelp: 'Tap Send in WhatsApp.',
@@ -649,13 +682,10 @@
           noRoom: 'This link cannot submit. Ask for a new link or use WhatsApp.',
           noCrypto: 'Open the link over HTTPS.',
           itemCount: n => `${n} ${n === 1 ? 'item' : 'items'}`, original: text => `Receipt text: ${text}`, total: (n, unit) => `Receipt total ${n} ${unit}`,
-          unitLabel: 'Optional unit', noUnit: 'No unit', qtyLabel: 'Your share', qtyPlaceholder: 'Enter quantity', qtyAria: (id, name) => `${id} ${name} share`,
-          qtyHint: item => item.totalQty && item.unit
-            ? `Enter a share, or choose ${unitLabel(item.unit)} for an actual quantity. Blank or 0 means skip.`
-            : 'Enter a share. Blank or 0 means skip.',
+          unitLabel: 'Unit', noUnit: 'Choose a unit', qtyAria: (id, name) => `${id} ${name} quantity`,
           needName: 'Please enter your name first.', badName: 'Your name cannot contain a colon or equals sign.',
-          invalidNumber: name => `Enter a number for “${name}”, such as 0.5, 1, or 2.`, negative: 'Quantity cannot be negative. Please check your entry.',
-          digitsOnly: name => `Enter a number of portions only for “${name}”.`, wrongUnit: (name, unit) => `For “${name}”, enter “${unit}” as the unit or enter a number of portions only.`,
+          invalidNumber: name => `Enter a positive number, decimal, or fraction for “${name}”, such as 1, 0.5, or 1/2.`, negative: 'Quantity cannot be negative. Please check your entry.',
+          wrongUnit: (name, unit) => `For “${name}”, enter “${unit}” as the unit.`,
           needClaim: 'Enter at least one quantity.', copied: 'Copied. Paste into WhatsApp to send.', copyFail: 'Copy failed. Select the preview text.',
           copyToWhatsapp: 'Copied. Paste into WhatsApp to send.', noShare: 'Sharing is not supported; copy the reply below.', shareCancelled: 'Share cancelled. Copy the reply instead.',
           replyTitle: 'Share reply', name: 'Name', claimed: 'Items', quantity: 'Share', actual: 'Actual quantity', done: 'Complete. Send this to the organizer.',
@@ -732,7 +762,8 @@
         const fields = { name: nameInput.value, values: Array.from(itemList.querySelectorAll('.item-card'), card => ({
           id: items[Number(card.querySelector('.qty-input').dataset.itemIndex)]?.id,
           quantity: card.querySelector('.qty-input').value,
-          unit: card.querySelector('.unit-select').value
+          unit: card.querySelector('.unit-select').value,
+          mode: card.dataset.claimMode || 'personal'
         })) };
         try {
           // Only item payloads/drafts are persisted, never codes, passwords or edit tokens.
@@ -769,8 +800,11 @@
             const option = Array.from(select.options).find(entry => entry.value === value.unit && !entry.disabled);
             select.value = option ? option.value : '';
             select.classList.toggle('has-unit', Boolean(select.value));
+            const mode = ['personal', 'shared', 'none'].includes(value.mode) ? value.mode : 'personal';
+            card.dataset.claimMode = mode;
+            syncItemMode(card);
           });
-          if (submittedClaim) lastSubmittedSignature = JSON.stringify({ person: submittedClaim.name, claims: submittedClaim.claims });
+          if (submittedClaim) lastSubmittedSignature = claimPayloadSignature(submittedClaim);
         } catch (_) { /* A corrupt/missing optional draft cannot invalidate the link. */ }
       }
 
@@ -936,6 +970,9 @@
         document.getElementById('person-hint').textContent = text.nameHint;
         document.getElementById('items-title').textContent = text.items;
         document.getElementById('session-note').textContent = text.sessionNote;
+        document.getElementById('claim-examples-title').textContent = text.examplesTitle;
+        document.getElementById('claim-example-unit').textContent = text.exampleUnit;
+        document.getElementById('claim-example-shared').textContent = text.exampleShared;
         document.getElementById('item-list').setAttribute('aria-label', text.items);
         document.getElementById('preview-title').textContent = text.preview;
         document.getElementById('preview-subtitle').textContent = text.previewSubtitle;
@@ -956,6 +993,7 @@
       function renderItems() {
         const savedValues = Array.from(itemList.querySelectorAll('.qty-input'), input => input.value);
         const savedUnits = Array.from(itemList.querySelectorAll('.unit-select'), select => select.value);
+        const savedModes = Array.from(itemList.querySelectorAll('.item-card'), card => card.dataset.claimMode || 'personal');
         itemList.replaceChildren();
         const text = messages[language];
         itemCount.textContent = text.itemCount(items.length);
@@ -973,16 +1011,32 @@
             card.append(makeElement('p', 'item-meta', text.total(item.totalQty, unitLabel(item.unit))));
           }
 
+          card.dataset.claimMode = ['personal', 'shared', 'none'].includes(savedModes[index]) ? savedModes[index] : 'personal';
+          const modeFieldset = makeElement('fieldset', 'claim-mode-fieldset');
+          modeFieldset.append(makeElement('legend', '', text.modeLabel));
+          const modeSwitch = makeElement('div', 'claim-mode-switch');
+          modeSwitch.setAttribute('role', 'group');
+          modeSwitch.setAttribute('aria-label', text.modeLabel);
+          Object.entries(text.modes).forEach(([mode, label]) => {
+            const option = makeElement('button', 'claim-mode-option', label);
+            option.type = 'button';
+            option.dataset.claimMode = mode;
+            option.setAttribute('aria-pressed', String(card.dataset.claimMode === mode));
+            modeSwitch.append(option);
+          });
+          modeFieldset.append(modeSwitch);
+          card.append(modeFieldset);
+
           const fieldLabels = makeElement('div', 'quantity-unit-labels');
-          const qtyLabel = makeElement('label', 'field-label', text.qtyLabel);
+          const qtyLabel = makeElement('label', 'field-label qty-label', text.qtyLabel(card.dataset.claimMode));
           qtyLabel.htmlFor = `qty-${index}`;
           fieldLabels.append(qtyLabel, makeElement('label', 'field-label', text.unitField));
           const fieldGrid = makeElement('div', 'quantity-unit-fields');
           const qtyRow = makeElement('div', 'qty-row');
           const qtyInput = document.createElement('input');
           qtyInput.className = 'qty-input'; qtyInput.id = `qty-${index}`;
-          qtyInput.type = 'text'; qtyInput.inputMode = 'decimal'; qtyInput.autocomplete = 'off';
-          qtyInput.maxLength = 24; qtyInput.placeholder = text.qtyPlaceholder;
+          qtyInput.type = 'text'; qtyInput.inputMode = 'text'; qtyInput.autocomplete = 'off';
+          qtyInput.maxLength = 24; qtyInput.placeholder = text.qtyPlaceholder(card.dataset.claimMode);
           qtyInput.setAttribute('aria-label', text.qtyAria(item.id, displayName));
           qtyInput.dataset.itemIndex = String(index);
           qtyInput.value = savedValues[index] ?? '';
@@ -1020,10 +1074,10 @@
             const option = makeElement('option', '', definition[language === 'en' ? 'en' : 'zh']);
             option.value = definition.id;
             // Never offer a mismatched physical unit for a known receipt total.
-            option.disabled = Boolean(item.totalQty && item.unit && definition.id !== 'portion' && definition.id !== receiptDefinition?.id);
+            option.disabled = !item.totalQty || !item.unit || definition.id !== receiptDefinition?.id;
             unitSelect.append(option);
           });
-          if (item.unit && !receiptDefinition) {
+          if (item.totalQty && item.unit && !receiptDefinition) {
             const option = makeElement('option', '', item.unit);
             option.value = 'receipt'; unitSelect.append(option);
           }
@@ -1033,10 +1087,27 @@
           qtyRow.append(unitSelect);
           fieldGrid.append(fieldLabels, qtyRow);
           card.append(fieldGrid);
-          card.append(makeElement('p', 'hint', text.sharingRule));
-          card.append(makeElement('p', 'hint', text.qtyHint(item)));
+          card.append(makeElement('p', 'claim-mode-hint', ''));
           itemList.append(card);
+          syncItemMode(card);
         });
+      }
+
+      function syncItemMode(card) {
+        const mode = ['personal', 'shared', 'none'].includes(card.dataset.claimMode) ? card.dataset.claimMode : 'personal';
+        const text = messages[language];
+        const input = card.querySelector('.qty-input');
+        const unitSelect = card.querySelector('.unit-select');
+        const item = items[Number(input.dataset.itemIndex)];
+        card.querySelectorAll('.claim-mode-option').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.claimMode === mode)));
+        card.querySelector('.qty-label').textContent = text.qtyLabel(mode);
+        input.placeholder = text.qtyPlaceholder(mode);
+        input.disabled = mode === 'none';
+        unitSelect.disabled = mode !== 'personal';
+        const pickerTrigger = card.querySelector('.qty-picker-trigger');
+        pickerTrigger.disabled = mode === 'none';
+        const hint = card.querySelector('.claim-mode-hint');
+        hint.textContent = mode === 'shared' ? text.sharedHint : mode === 'none' ? text.noCallHint : item.totalQty && item.unit ? text.personalHint : text.personalUnavailable;
       }
 
       function syncResultFrameLayout() {
@@ -1094,7 +1165,9 @@
         if (!name || name.length > 60 || /[:：=＝\r\n]/.test(name)) return;
         authGeneration += 1;
         editToken = ''; authorizedName = ''; editTokenExpiresAt = 0;
-        const hasUnsentValues = Array.from(itemList.querySelectorAll('.qty-input, .unit-select')).some(input => input.value.trim() !== '');
+        const hasUnsentValues = Array.from(itemList.querySelectorAll('.item-card')).some(card =>
+          card.dataset.claimMode !== 'personal' || Array.from(card.querySelectorAll('.qty-input, .unit-select')).some(input => input.value.trim() !== '')
+        );
         restoredEditIntent = normalizeName(nameInput.value) === name && (editingClaim || restoredEditIntent || ((!content.hidden || fillingAnotherName) && hasUnsentValues));
         authOpen = true; authBusy = false; authStatus = null; authResetMode = false; authLegacyMode = false;
         authName.value = name; authPassword.value = ''; authCode.value = ''; authFeedback.textContent = '';
@@ -1158,7 +1231,13 @@
         firstFeedback.textContent = clearItems ? messages[language].anotherNameHint : '';
         document.getElementById('first-code-row').open = false;
         document.getElementById('first-forgot-code').setAttribute('aria-expanded', 'false');
-        if (clearItems) itemList.querySelectorAll('.qty-input, .unit-select').forEach(input => { input.value = ''; input.classList.remove('has-unit'); });
+        if (clearItems) itemList.querySelectorAll('.item-card').forEach(card => {
+          card.dataset.claimMode = 'personal';
+          card.querySelector('.qty-input').value = '';
+          const select = card.querySelector('.unit-select');
+          select.value = ''; select.classList.remove('has-unit');
+          syncItemMode(card);
+        });
         // A fresh nickname never deletes or edits the existing submitted/pending payload.
         clearSubmitStatus(); updateClaimView(); updatePreview(); saveFriendState();
         nameInput.focus({ preventScroll: true }); window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1207,17 +1286,19 @@
             const byId = new Map(payload.claims.map(claim => [claim.id, claim]));
             itemList.querySelectorAll('.item-card').forEach((card, index) => {
               const claim = byId.get(items[index].id);
-              card.querySelector('.qty-input').value = claim ? String(claim.qty) : '';
+              card.dataset.claimMode = claim?.mode === 'shared' ? 'shared' : 'personal';
+              card.querySelector('.qty-input').value = claim?.mode === 'shared' && claim.shareExplicit !== true ? '' : claim ? String(claim.qty) : '';
               const select = card.querySelector('.unit-select');
               const physical = claim?.unit || claim?.displayUnit || '';
               const definition = unitDefinition(physical);
               select.value = physical ? (definition?.id || 'receipt') : '';
               select.classList.toggle('has-unit', Boolean(select.value));
+              syncItemMode(card);
             });
           }
           submittedClaim = payload; lockedClaimName = payload.name; authorizedName = payload.name;
           nameInput.value = payload.name; editToken = unlocked.editToken; editTokenExpiresAt = Date.parse(unlocked.tokenExpiresAt);
-          lastSubmittedSignature = JSON.stringify({ person: payload.name, claims: payload.claims });
+          lastSubmittedSignature = claimPayloadSignature(payload);
           authPassword.value = ''; authCode.value = ''; authOpen = false; editingClaim = true;
           fillingAnotherName = false;
           restoredEditIntent = false; clearSubmitStatus(); updatePreview(); updateClaimView(); saveFriendState();
@@ -1296,75 +1377,105 @@
         const lines = language === 'en'
           ? [`Name: ${person}`, 'Items:']
           : [`姓名：${person}`, '認帳項目：'];
-        let claims = 0;
+        let responseRows = 0;
+        let payableClaims = 0;
         const structured = [];
         for (const card of itemList.querySelectorAll('.item-card')) {
           const input = card.querySelector('.qty-input');
           const raw = input.value.trim();
-          if (!raw) continue;
-          const parsedValue = raw.match(/^(\d+(?:\.\d*)?|\.\d+)\s*(.*)$/);
-          if (!parsedValue) {
-            const item = items[Number(input.dataset.itemIndex)];
-            const itemName = language === 'en' && item.nameEn ? item.nameEn : item.name;
-            return { text: '', error: text.invalidNumber(itemName), complete: false };
-          }
-          const value = Number(parsedValue[1]);
-          if (!Number.isFinite(value) || value < 0) {
-            return { text: '', error: text.negative, complete: false };
-          }
           const index = Number(input.dataset.itemIndex);
           const item = items[index];
           const displayName = language === 'en' && item.nameEn ? item.nameEn : item.name;
-          const typedUnit = parsedValue[2].trim();
-          const selectedId = card.querySelector('.unit-select').value;
+          const safeDisplayName = displayName.replace(/[\r\n=＝]/g, ' ').replace(/\s+/g, ' ').trim();
+          const mode = card.dataset.claimMode || 'personal';
+          const unitSelect = card.querySelector('.unit-select');
+          const selectedId = unitSelect.value;
           const selectedDefinition = unitOptions.find(option => option.id === selectedId);
           const selectedUnit = selectedId === 'receipt' ? item.unit : (selectedDefinition?.zh || '');
           const receiptDefinition = unitDefinition(item.unit);
-          const typedDefinition = unitDefinition(typedUnit);
-          if (typedUnit && (!item.totalQty || !item.unit)) {
-            return { text: '', error: text.digitsOnly(displayName), complete: false };
+          if (mode === 'none') {
+            lines.push(`${item.id} ${safeDisplayName}：${language === 'en' ? 'Didn’t order' : '冇叫'}`);
+            structured.push({ id: item.id, qty: 0, unit: '', mode: 'none', shareExplicit: false });
+            responseRows++;
+            continue;
           }
-          if (typedUnit && typedUnit !== item.unit && (!typedDefinition || typedDefinition.id !== receiptDefinition?.id)) {
-            return { text: '', error: text.wrongUnit(displayName, unitLabel(item.unit)), complete: false };
+          if (mode === 'shared' && !raw) {
+            lines.push(`${item.id} ${safeDisplayName}：${language === 'en' ? 'Shared' : '共享'}`);
+            structured.push({ id: item.id, qty: 0, unit: '', mode: 'shared', shareExplicit: false });
+            responseRows++; payableClaims++;
+            continue;
           }
-          if (typedUnit && selectedId && (selectedId === 'portion' || (selectedId !== 'receipt' && selectedId !== typedDefinition?.id))) {
-            return { text: '', error: text.wrongUnit(displayName, unitLabel(item.unit)), complete: false };
+          if (mode === 'personal' && !raw && !selectedId) continue;
+
+          let value = 1;
+          let normalized = '1';
+          let typedUnit = '';
+          if (raw) {
+            const parsedValue = raw.match(/^([+-]?(?:\d+\s*\/\s*\d+|\d+(?:\.\d*)?|\.\d+))\s*(.*)$/);
+            if (!parsedValue) return { text: '', error: text.invalidNumber(displayName), complete: false };
+            normalized = parsedValue[1].replace(/\s+/g, '').replace(/^0+(?=\d)/, '').replace(/^\./, '0.').replace(/\.$/, '');
+            typedUnit = parsedValue[2].trim();
+            if (normalized.includes('/')) {
+              const [numerator, denominator] = normalized.split('/').map(Number);
+              if (!Number.isFinite(numerator) || !Number.isFinite(denominator) || denominator <= 0) return { text: '', error: text.invalidNumber(displayName), complete: false };
+              value = numerator / denominator;
+            } else value = Number(normalized);
           }
-          const selectedActualUnit = selectedId && selectedId !== 'portion' && item.totalQty && item.unit;
-          const enteredUnit = typedUnit || (selectedActualUnit ? selectedUnit : '');
-          if (selectedActualUnit && selectedId !== 'receipt' && selectedId !== receiptDefinition?.id) {
-            return { text: '', error: text.wrongUnit(displayName, unitLabel(item.unit)), complete: false };
+          if (!Number.isFinite(value) || value < 0) return { text: '', error: text.negative, complete: false };
+          if (mode === 'shared' && typedUnit) return { text: '', error: text.sharedNoUnit, complete: false };
+          if (mode === 'shared' && value === 0) return { text: '', error: text.sharedZero, complete: false };
+
+          if (mode === 'personal') {
+            if (!item.totalQty || !item.unit) return { text: '', error: text.personalUnavailable, complete: false };
+            const typedDefinition = unitDefinition(typedUnit);
+            if (typedUnit && typedUnit !== item.unit && (!typedDefinition || typedDefinition.id !== receiptDefinition?.id)) {
+              return { text: '', error: text.wrongUnit(displayName, unitLabel(item.unit)), complete: false };
+            }
+            if (typedUnit && selectedId && (selectedId !== 'receipt' && selectedId !== typedDefinition?.id)) {
+              return { text: '', error: text.wrongUnit(displayName, unitLabel(item.unit)), complete: false };
+            }
+            const selectedActualUnit = selectedId && item.totalQty && item.unit && (selectedId === 'receipt' || selectedId === receiptDefinition?.id);
+            if (!typedUnit && !selectedActualUnit) return { text: '', error: text.chooseUnit, complete: false };
+            if (selectedId && !selectedActualUnit) return { text: '', error: text.wrongUnit(displayName, unitLabel(item.unit)), complete: false };
+            if (value === 0) continue;
           }
-          // Cosmetic units without a receipt total, and portions, keep the original share arithmetic.
-          const displayOnlyUnit = !enteredUnit && selectedUnit ? unitLabel(selectedUnit) : '';
-          if (value === 0) continue;
-          const normalized = parsedValue[1].replace(/^0+(?=\d)/, '').replace(/^(?=\.)/, '0').replace(/\.$/, '');
-          const safeDisplayName = displayName.replace(/[\r\n=＝]/g, ' ').replace(/\s+/g, ' ').trim();
-          const quantity = language === 'en'
-            ? `Quantity${displayOnlyUnit ? ` (${displayOnlyUnit})` : ''}=${normalized}${enteredUnit ? ` ${unitLabel(item.unit)}` : ''}`
-            : enteredUnit
-              ? `實際數量 = ${normalized} ${item.unit}`
-              : `認帳份數${displayOnlyUnit ? `（${displayOnlyUnit}）` : ''} = ${normalized}`;
-          lines.push(`${item.id} ${safeDisplayName}：${quantity}`);
-          structured.push({
-            id: item.id,
-            qty: Number(normalized),
-            unit: enteredUnit ? String(item.unit || '') : '',
-            displayUnit: !enteredUnit && displayOnlyUnit ? displayOnlyUnit : ''
-          });
-          claims++;
+
+          if (mode === 'shared') {
+            lines.push(`${item.id} ${safeDisplayName}：${language === 'en' ? `Shared shares = ${normalized}` : `共享份數 = ${normalized}`}`);
+            structured.push({ id: item.id, qty: value, unit: '', mode: 'shared', shareExplicit: true });
+          } else {
+            const quantity = language === 'en' ? `Actual quantity = ${normalized} ${unitLabel(item.unit)}` : `實際數量 = ${normalized} ${item.unit}`;
+            lines.push(`${item.id} ${safeDisplayName}：${quantity}`);
+            structured.push({ id: item.id, qty: value, unit: String(item.unit || '') });
+          }
+          responseRows++; payableClaims++;
         }
-        if (!claims && submittedClaim?.name !== person) return { text: '', error: text.needClaim, complete: false };
-        if (!claims) lines.push(text.clearClaim);
+        if (!responseRows && submittedClaim?.name !== person) return { text: '', error: text.needClaim, complete: false };
+        if (!payableClaims) lines.push(text.clearClaim);
         lines.push('', language === 'en'
           ? 'Complete. Send this to the organizer.'
           : '已填妥，請傳給發起人。');
-        return { text: lines.join('\n'), error: '', complete: true, person, claims: structured, clear: !claims };
+        return { text: lines.join('\n'), error: '', complete: true, person, claims: structured, clear: !payableClaims };
       }
 
       function replySignature(result) {
         if (!result?.complete) return '';
-        return JSON.stringify({ person: result.person, claims: result.claims });
+        return JSON.stringify({ person: result.person, claims: canonicalReplyClaims(result.claims) });
+      }
+
+      function claimPayloadSignature(payload) {
+        return JSON.stringify({ person: payload?.name || '', claims: canonicalReplyClaims(payload?.claims) });
+      }
+
+      function canonicalReplyClaims(claims) {
+        return (Array.isArray(claims) ? claims : [])
+          .filter(claim => claim && claim.mode !== 'none')
+          .map(claim => {
+            const canonical = { id: String(claim.id || ''), qty: Number(claim.qty), unit: String(claim.unit || '').trim() };
+            if (claim.mode === 'shared') { canonical.mode = 'shared'; canonical.shareExplicit = claim.shareExplicit === true; }
+            return canonical;
+          })
+          .sort((left, right) => left.id.localeCompare(right.id));
       }
 
       function updatePreview() {
@@ -1470,6 +1581,20 @@
         itemList.querySelectorAll('.qty-control.picker-open').forEach(control => control.classList.remove('picker-open'));
       };
       itemList.addEventListener('click', event => {
+        const modeOption = event.target.closest('.claim-mode-option');
+        if (modeOption) {
+          const card = modeOption.closest('.item-card');
+          const nextMode = modeOption.dataset.claimMode;
+          if (card.dataset.claimMode !== nextMode) {
+            card.dataset.claimMode = nextMode;
+            card.querySelector('.qty-input').value = '';
+            const select = card.querySelector('.unit-select');
+            select.value = ''; select.classList.remove('has-unit');
+            syncItemMode(card);
+            clearSubmitStatus(); updatePreview(); saveFriendState();
+          }
+          return;
+        }
         const trigger = event.target.closest('.qty-picker-trigger');
         if (trigger) {
           event.preventDefault();
@@ -1562,7 +1687,8 @@
         submitButton.textContent = text.submitting;
         submitStatus.textContent = '';
         try {
-          const payload = { v: 1, name: result.person, claims: result.claims, ...(result.clear ? { clear: true } : {}) };
+          const activeClaims = result.claims.filter(claim => claim.mode !== 'none');
+          const payload = { v: 1, name: result.person, claims: activeClaims, ...(!activeClaims.length ? { clear: true } : {}) };
           const isRevision = editingClaim || submittedClaim?.name === result.person;
           const credentials = editingClaim ? { editToken } : { ...(legacy ? { password: firstPassword.value } : { recognitionCode: firstPassword.value }), ...(reset ? { setupCode: firstCode.value.trim() } : {}) };
           const accepted = await window.BillShareApi.submitSecureClaim(sessionId, { ...payload, ...credentials });

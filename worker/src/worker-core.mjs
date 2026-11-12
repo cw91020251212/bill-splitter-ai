@@ -123,7 +123,9 @@ function normalizeShareData(input) {
         unit: cleanText(share?.unit, 80),
         amount: cleanNumber(share?.amount),
         allocationTotal: cleanNumber(share?.allocationTotal),
-        isActualUnit: share?.isActualUnit === true
+        isActualUnit: share?.isActualUnit === true,
+        claimMode: share?.claimMode === 'shared' ? 'shared' : '',
+        shareExplicit: share?.shareExplicit === true
       })) : []
     })),
     adjustments: Array.isArray(input.adjustments) ? input.adjustments.slice(0, 5000).map(entry => ({

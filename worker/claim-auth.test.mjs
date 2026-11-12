@@ -76,7 +76,9 @@ function shareData(entries = [seed()], payer = 'Organizer') {
   const items = new Map();
   for (const entry of entries) for (const c of entry.claims) {
     if (!items.has(c.id)) items.set(c.id, { id: c.id, number: c.id, name: 'Tea', quantity: 10, unit: '杯', sourceAmount: 100, shares: [] });
-    items.get(c.id).shares.push({ person: entry.name, quantity: c.qty, unit: c.unit || '份', isActualUnit: Boolean(c.unit), amount: 10 });
+    items.get(c.id).shares.push({ person: entry.name, quantity: c.mode === 'shared' && c.shareExplicit !== true ? 0 : c.qty,
+      unit: c.mode === 'shared' ? '' : c.unit || '份', isActualUnit: Boolean(c.unit), amount: 10,
+      claimMode: c.mode === 'shared' ? 'shared' : '', shareExplicit: c.shareExplicit === true });
   }
   return { version: 2, bill: { payer, currency: 'HKD', billTotal: 10 }, participants: entries.map(entry => ({ name: entry.name, total: entry.claims.length ? 10 : 0 })), items: [...items.values()], adjustments: [], images: [] };
 }
@@ -184,6 +186,31 @@ test('names, passwords and claim bounds are strict and errors do not reserve nam
   assert.equal((await post(env, id, 'submit', { ...input('Alice', 1, { password: PASSWORD }), clear: true })).status, 400);
   assert.equal(members(env, id).length, 0);
   assert.equal((await post(env, id, 'submit', { name: 'Alice', claims: [], clear: true, password: '🔒'.repeat(8) })).status, 200);
+});
+
+test('shared blank and explicit claims survive submission and published-result verification', async () => {
+  for (const sharedClaim of [
+    { id: '01', qty: 0, unit: '', displayUnit: '', mode: 'shared', shareExplicit: false },
+    { id: '01', qty: 1, unit: '', displayUnit: '', mode: 'shared', shareExplicit: true }
+  ]) {
+    const { env, id, writeToken } = await session();
+    const submitted = await post(env, id, 'submit', { name: 'Alice', claims: [sharedClaim], password: PASSWORD });
+    assert.equal(submitted.status, 200);
+    assert.equal(submitted.body.payload.claims[0].mode, 'shared');
+    assert.equal(submitted.body.payload.claims[0].shareExplicit, sharedClaim.shareExplicit);
+    const published = await api(env, id, '', { method: 'PUT', body: shareData([submitted.body.payload]), owner: writeToken, now: env.now + 2000 });
+    assert.equal(published.status, 200, JSON.stringify(published.body));
+    assert.deepEqual((await inbox(env, id, writeToken)).body.updates[0].claims, submitted.body.payload.claims);
+  }
+  const { env, id } = await session();
+  for (const bad of [
+    { id: '01', qty: 0, unit: '', mode: 'shared' },
+    { id: '01', qty: 0, unit: '', mode: 'shared', shareExplicit: true },
+    { id: '01', qty: 1, unit: '', mode: 'shared', shareExplicit: false },
+    { id: '01', qty: 1, unit: '杯', mode: 'shared', shareExplicit: true }
+  ]) {
+    assert.equal((await post(env, id, 'submit', { name: 'Alice', claims: [bad], password: PASSWORD })).status, 400);
+  }
 });
 
 test('five failures persist across browsers and block both name+IP and overall session IP', async () => {

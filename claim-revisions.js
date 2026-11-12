@@ -8,16 +8,25 @@
   'use strict';
   function canonicalClaims(claims) {
     return (Array.isArray(claims) ? claims : [])
-      .filter(claim => claim && /^\d{2}$/.test(String(claim.id || '')) && Number.isFinite(Number(claim.qty)) && Number(claim.qty) > 0)
-      .map(claim => ({ id: String(claim.id), qty: Number(claim.qty), unit: String(claim.unit || '').trim() }))
+      .filter(claim => claim && /^\d{2}$/.test(String(claim.id || '')) && Number.isFinite(Number(claim.qty)) &&
+        (claim.mode === 'shared' ? claim.shareExplicit === true ? Number(claim.qty) > 0 : claim.shareExplicit === false && Number(claim.qty) === 0 : Number(claim.qty) > 0))
+      .map(claim => ({
+        id: String(claim.id), qty: Number(claim.qty), unit: String(claim.unit || '').trim(),
+        ...(claim.mode === 'shared' ? { mode: 'shared', shareExplicit: claim.shareExplicit === true } : {})
+      }))
       .sort((left, right) => left.id.localeCompare(right.id));
   }
   function resultClaims(data, name) {
     const claims = [];
     for (const item of Array.isArray(data?.items) ? data.items : []) {
       const share = (Array.isArray(item.shares) ? item.shares : []).find(entry => entry.person === name);
-      if (!share || !(Number(share.quantity) > 0)) continue;
-      claims.push({ id: String(item.id || item.number || ''), qty: Number(share.quantity), unit: share.isActualUnit === true ? String(share.unit || item.unit || '') : '' });
+      if (!share) continue;
+      if (share.claimMode === 'shared') {
+        if (share.shareExplicit !== true && share.shareExplicit !== false) continue;
+        claims.push({ id: String(item.id || item.number || ''), qty: share.shareExplicit ? Number(share.quantity) : 0, unit: '', mode: 'shared', shareExplicit: share.shareExplicit });
+      } else if (Number(share.quantity) > 0) {
+        claims.push({ id: String(item.id || item.number || ''), qty: Number(share.quantity), unit: share.isActualUnit === true ? String(share.unit || item.unit || '') : '' });
+      }
     }
     return canonicalClaims(claims);
   }

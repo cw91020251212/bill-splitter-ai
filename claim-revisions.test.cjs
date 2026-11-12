@@ -79,6 +79,19 @@ test('small precise revisions cannot match a rounded old result', () => {
   assert.equal(revisions.matchesResult(changed, data), true);
 });
 
+test('shared blank and explicit portions remain distinct during result matching', () => {
+  const blank = { v: 1, name: '阿明', claims: [{ id: '02', qty: 0, unit: '', mode: 'shared', shareExplicit: false }] };
+  assert.deepEqual(revisions.canonicalClaims(blank.claims), [{ id: '02', qty: 0, unit: '', mode: 'shared', shareExplicit: false }]);
+  const data = result();
+  data.items.find(item => item.id === '01').shares = data.items.find(item => item.id === '01').shares.filter(share => share.person !== '阿明');
+  data.items.find(item => item.id === '02').shares = [{ person: '阿明', quantity: 0, unit: '', amount: 10, claimMode: 'shared', shareExplicit: false }];
+  assert.equal(revisions.matchesResult(blank, data), true);
+  const explicit = { v: 1, name: '阿明', claims: [{ id: '02', qty: 0.5, unit: '', mode: 'shared', shareExplicit: true }] };
+  data.items.find(item => item.id === '02').shares[0] = { person: '阿明', quantity: 0.5, unit: '', amount: 5, claimMode: 'shared', shareExplicit: true };
+  assert.equal(revisions.matchesResult(explicit, data), true);
+  assert.equal(revisions.matchesResult(blank, data), false, 'changing from an equal blank split to an explicit share is a revision');
+});
+
 test('all-zero clear waits until no positive person allocations remain, even when the person disappears', () => {
   const clear = { v: 1, name: '阿明', claims: [], clear: true };
   assert.equal(revisions.matchesResult(clear, result()), false);

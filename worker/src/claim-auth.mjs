@@ -75,10 +75,20 @@ function payload(input) {
   if ((input.clear === true && input.claims.length !== 0) || (input.claims.length === 0 && input.clear !== true)) fail(400, 'invalid_claims');
   const ids = new Set();
   const claims = input.claims.map(claim => {
+    const shared = claim?.mode === 'shared';
+    const shareExplicit = shared && claim?.shareExplicit === true;
     if (!claim || typeof claim.id !== 'string' || !/^\d{2}$/.test(claim.id) || ids.has(claim.id) ||
-        typeof claim.qty !== 'number' || !Number.isFinite(claim.qty) || claim.qty <= 0 || claim.qty > 1000000) fail(400, 'invalid_claims');
+        typeof claim.qty !== 'number' || !Number.isFinite(claim.qty) || claim.qty < 0 || claim.qty > 1000000 ||
+        (claim.mode && !shared) || (shared && claim.shareExplicit !== true && claim.shareExplicit !== false) ||
+        (shared && shareExplicit && claim.qty <= 0) || (shared && !shareExplicit && claim.qty !== 0) || (!shared && claim.qty <= 0)) fail(400, 'invalid_claims');
     ids.add(claim.id);
-    return { id: claim.id, qty: claim.qty, unit: unit(claim.unit), displayUnit: unit(claim.displayUnit) };
+    const cleanClaim = { id: claim.id, qty: claim.qty, unit: unit(claim.unit), displayUnit: unit(claim.displayUnit) };
+    if (shared) {
+      if (cleanClaim.unit || cleanClaim.displayUnit) fail(400, 'invalid_claims');
+      cleanClaim.mode = 'shared';
+      cleanClaim.shareExplicit = shareExplicit;
+    }
+    return cleanClaim;
   });
   return { v: 1, name, claims, ...(input.clear === true ? { clear: true } : {}) };
 }
@@ -104,11 +114,18 @@ function resultMembers(data) {
     for (const share of item.shares || []) {
       const entry = get(share.person);
       if (!Number.isFinite(share.quantity) || share.quantity < 0) fail(409, 'claims_outdated');
-      if (share.quantity === 0) continue;
+      const shared = share.claimMode === 'shared';
+      if (share.claimMode && !shared) fail(409, 'claims_outdated');
+      const shareExplicit = share.shareExplicit === true;
+      if (shared && (share.shareExplicit !== true && share.shareExplicit !== false)) fail(409, 'claims_outdated');
+      if (shared && shareExplicit !== (share.quantity > 0)) fail(409, 'claims_outdated');
+      if (share.quantity === 0 && !(shared && !shareExplicit)) continue;
       delete entry.clear;
       const actualUnit = share.isActualUnit === true ? unit(share.unit || item.unit || '') : '';
-      if (share.isActualUnit === true && !actualUnit) fail(409, 'claims_outdated');
-      entry.claims.push({ id: itemId(item), qty: share.quantity, unit: actualUnit, displayUnit: '' });
+      if (share.isActualUnit === true && (!actualUnit || shared)) fail(409, 'claims_outdated');
+      const claim = { id: itemId(item), qty: share.quantity, unit: actualUnit, displayUnit: '' };
+      if (shared) { claim.mode = 'shared'; claim.shareExplicit = shareExplicit; }
+      entry.claims.push(claim);
     }
   }
   return [...byName.values()].map(payload);
@@ -347,7 +364,9 @@ export class ClaimAuth {
       const expected = new Map(members.map(member => [member.payload.name, member.payload]));
       const actual = new Map(published.map(entry => [entry.name, entry]));
       const payer = e.input?.data?.bill?.payer;
-      const canonical = entry => JSON.stringify((entry?.claims || []).map(claim => ({ id: claim.id, qty: claim.qty, unit: claim.unit })).sort((a, b) => a.id.localeCompare(b.id)));
+      const canonical = entry => JSON.stringify((entry?.claims || []).map(claim => ({ id: claim.id, qty: claim.qty, unit: claim.unit,
+        ...(claim.mode === 'shared' ? { mode: 'shared', shareExplicit: claim.shareExplicit === true } : {})
+      })).sort((a, b) => a.id.localeCompare(b.id)));
       for (const entry of published) {
         if (!expected.has(entry.name)) {
           if (entry.name !== payer || entry.claims.length) fail(409, 'claims_outdated');

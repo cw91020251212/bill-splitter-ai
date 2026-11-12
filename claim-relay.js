@@ -122,6 +122,7 @@
     if (!name || name.length > 60 || /[:：=＝]/.test(name)) return null;
     if (!Array.isArray(obj.claims) || obj.claims.length > 200) return null;
     if (obj.claims.length === 0) return obj.clear === true ? { v: 1, name, claims: [], clear: true } : null;
+    if (obj.clear === true) return null;
     const claims = [];
     const ids = new Set();
     for (const claim of obj.claims) {
@@ -129,13 +130,22 @@
       if (!/^\d{2}$/.test(id) || ids.has(id)) return null;
       ids.add(id);
       const qty = Number(claim.qty);
-      if (!Number.isFinite(qty) || qty <= 0 || qty > 1000000) return null;
-      claims.push({
+      const shared = claim.mode === 'shared';
+      const shareExplicit = shared && claim.shareExplicit === true;
+      if (!Number.isFinite(qty) || qty < 0 || qty > 1000000 || (shared && (claim.shareExplicit !== true && claim.shareExplicit !== false)) ||
+          (shared && shareExplicit && qty <= 0) || (shared && !shareExplicit && qty !== 0) || (!shared && qty <= 0) || (claim.mode && !shared)) return null;
+      const cleanClaim = {
         id,
         qty,
         unit: cleanText(claim.unit, 30),
         displayUnit: cleanText(claim.displayUnit, 30)
-      });
+      };
+      if (shared) {
+        if (cleanClaim.unit || cleanClaim.displayUnit) return null;
+        cleanClaim.mode = 'shared';
+        cleanClaim.shareExplicit = shareExplicit;
+      }
+      claims.push(cleanClaim);
     }
     return { v: 1, name, claims };
   }
@@ -185,7 +195,9 @@
       const item = byId.get(claim.id);
       const name = cleanText((item && item.name) || '項目', 200) || '項目';
       const qty = formatQty(claim.qty);
-      let quantity = '認帳份數 = ' + qty;
+      let quantity = claim.mode === 'shared'
+        ? claim.shareExplicit ? '共享份數 = ' + qty : '共享'
+        : '認帳份數 = ' + qty;
       if (claim.unit) quantity = '實際數量 = ' + qty + ' ' + claim.unit;
       else if (claim.displayUnit) quantity = '認帳份數（' + claim.displayUnit + '） = ' + qty;
       lines.push(claim.id + ' ' + name + '：' + quantity);

@@ -98,6 +98,23 @@ test('rejects names and quantities the organizer parser cannot trust', () => {
   assert.equal(relay.readRoomFromHash('#data=abc'), null);
 });
 
+test('shared claims preserve blank equal splits and explicit fractions through encryption and formatting', async () => {
+  const room = relay.createRoom();
+  const payload = { v: 1, name: '阿明', claims: [
+    { id: '01', qty: 0, unit: '', displayUnit: '', mode: 'shared', shareExplicit: false },
+    { id: '02', qty: 0.5, unit: '', displayUnit: '', mode: 'shared', shareExplicit: true }
+  ] };
+  const message = await relay.encryptPayload(room.key, payload);
+  const decoded = await relay.decryptPayload(room.key, message);
+  assert.equal(decoded.claims[0].qty, 0);
+  assert.equal(decoded.claims[0].shareExplicit, false);
+  assert.equal(decoded.claims[1].qty, 0.5);
+  assert.match(relay.formatClaimReply(decoded, sampleItems()), /01 燒賣：共享/);
+  assert.match(relay.formatClaimReply(decoded, sampleItems()), /02 奶茶：共享份數 = 0\.5/);
+  assert.equal(relay.sanitizePayload({ v: 1, name: '阿明', claims: [{ id: '01', qty: 0, mode: 'shared', shareExplicit: true }] }), null);
+  assert.equal(relay.sanitizePayload({ v: 1, name: '阿明', claims: [{ id: '01', qty: 1, unit: '杯', mode: 'shared', shareExplicit: true }] }), null);
+});
+
 test('claimsFromMessages applies each ntfy id once', async () => {
   const room = relay.createRoom();
   const message = await relay.encryptPayload(room.key, {
