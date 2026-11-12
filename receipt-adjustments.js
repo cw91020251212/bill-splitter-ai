@@ -79,6 +79,13 @@
     const numeric = Number(difference);
     return Number.isFinite(numeric) && toMinorUnits(Math.abs(numeric), currency) === 0;
   };
+  const hasAmbiguousDollarSAmount = value => {
+    const text = String(value ?? '').normalize('NFKC').trim();
+    if (!text) return false;
+    const leadingS = /(?:^|[^A-Za-z$])S(?!\$)\s*\d(?:[\d,]*\d)?(?:[.,]\d+)?(?=$|[^A-Za-z])/i;
+    const trailingS = /(?:^|[^\d])\d(?:[\d,]*\d)?(?:[.,]\d+)?\s+S(?=$|[^A-Za-z])/i;
+    return leadingS.test(text) || trailingS.test(text);
+  };
   const formatMoney = (amount, currency = 'HKD', symbol = '') => {
     const numeric = amount === null || amount === undefined || amount === '' ? 0 : Number(amount);
     return `${symbol}${roundMoney(numeric, currency).toFixed(currencyDecimals(currency))}`;
@@ -347,5 +354,5 @@
     };
   }
 
-  return { extractPayload, parseMoney, parseRatePercent, normalizeAdjustment, resolveReceiptAdjustments, summarizeAppliedReceiptRows, currencyDecimals, toMinorUnits, roundMoney, formatMoney, moneyEquals, withinRoundingTolerance, isDiscountWithinSubtotal };
+  return { extractPayload, parseMoney, parseRatePercent, normalizeAdjustment, resolveReceiptAdjustments, summarizeAppliedReceiptRows, currencyDecimals, toMinorUnits, roundMoney, formatMoney, moneyEquals, withinRoundingTolerance, hasAmbiguousDollarSAmount, isDiscountWithinSubtotal };
 });

@@ -31,7 +31,9 @@ const ambiguousJsonPayload = {
     { name: '牛肉餃8S55', price: 55, qty: 8, totalQty: null, unit: '' },
     { name: '牛肉餃8S55（列總額）', price: 55, qty: 8, total: 55, totalQty: null, unit: '' },
     { name: '八件明確總額', price: 55, qty: 8, total: 440, totalQty: null, unit: '' },
-    { name: '用途不確定商品', qty: 1, amountUncertain: true, totalQty: null, unit: '' }
+    { name: '用途不確定商品', qty: 1, amountUncertain: true, totalQty: null, unit: '' },
+    { name: '原始單價含 S', price: 'S12.50', qty: 1, total: 12.5, totalQty: null, unit: '' },
+    { name: '原始行總額含 S', price: 12.5, qty: 1, total: 'S12.50', totalQty: null, unit: '' }
   ],
   adjustments: [], taxTotal: 0, taxNote: '', currency: 'HKD', date: null, receiptTotal: null
 };
@@ -136,6 +138,8 @@ const ensureAIImportOpen = async page => {
     assert.match(copiedPrompt, /不能建立可下載附件/);
     assert.match(copiedPrompt, /一次輸出完整 JSON/);
     assert.match(copiedPrompt, /amountUncertain: true/);
+    assert.match(copiedPrompt, /amountText/);
+    assert.match(copiedPrompt, /S12\.50/);
 
     await noKeyPage.evaluate(() => localStorage.setItem('billSplitterLanguage', 'en'));
     await noKeyPage.reload();
@@ -152,6 +156,8 @@ const ensureAIImportOpen = async page => {
     assert.match(copiedEnglishPrompt, /cannot create downloadable attachments/);
     assert.match(copiedEnglishPrompt, /complete JSON once in one contiguous, copyable reply/);
     assert.match(copiedEnglishPrompt, /amountUncertain: true/);
+    assert.match(copiedEnglishPrompt, /amountText/);
+    assert.match(copiedEnglishPrompt, /S12\.50/);
 
     await noKeyPage.evaluate(() => localStorage.setItem('billSplitterLanguage', 'zh-HK'));
     await noKeyPage.reload();
@@ -283,8 +289,8 @@ const ensureAIImportOpen = async page => {
     await noKeyPage.getByTestId('receipt-text-draft').fill(JSON.stringify(ambiguousJsonPayload));
     await noKeyPage.getByTestId('submit-receipt-text').click();
     await noKeyPage.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '2', null, { timeout: 30000 });
-    assert.equal(await noKeyPage.getByTestId('verify-item').count(), 5, 'synthetic ambiguous-amount JSON reaches the normal review step');
-    assert.equal(await noKeyPage.getByTestId('item-amount-review').count(), 3, 'missing total, explicit mismatch, and AI uncertainty are all blocked for review');
+    assert.equal(await noKeyPage.getByTestId('verify-item').count(), 7, 'synthetic ambiguous-amount JSON reaches the normal review step');
+    assert.equal(await noKeyPage.getByTestId('item-amount-review').count(), 5, 'missing total, explicit mismatch, AI uncertainty, and raw S-containing amount fields are all blocked for review');
     const amountRows = await noKeyPage.getByTestId('verify-item').allInnerTexts();
     assert.match(amountRows[1], /(?:單價 .*55\.00 × 計價數量 8|Unit price .*55\.00 × priced quantity 8)/);
     assert.match(amountRows[1], /(?:單據總量未知|Bill quantity unknown)/);
@@ -292,6 +298,9 @@ const ensureAIImportOpen = async page => {
     assert.match(amountRows[2], /(?:行總額 .*55\.00.*不符|Line total .*55\.00 differs .*440\.00)/);
     assert.equal(await noKeyPage.getByTestId('verify-item').nth(3).getByTestId('item-amount-review').count(), 0, 'a clearly supplied 55 × 8 = 440 total remains accepted');
     assert.match(amountRows[4], /(?:金額待核對|Amount to verify)/, 'an AI-marked row with no readable amount is not presented as $0');
+    assert.match(amountRows[5], /(?:金額待核對|Amount to verify)/, 'an S-prefixed raw unit price is not normalized into a verified amount');
+    assert.match(amountRows[5], /(?:S 可能是 \$ 被誤認|S.*may be a misread \$)/);
+    assert.match(amountRows[6], /(?:金額待核對|Amount to verify)/, 'an S-prefixed raw line total is not normalized into a verified amount');
     await noKeyPage.getByTestId('go-to-payer').click();
     assert.equal(await noKeyPage.locator('[data-live-app] main').getAttribute('data-current-step'), '2', 'unresolved amounts cannot pass to payer or settlement');
     assert.match(await noKeyPage.getByTestId('step-error').innerText(), /(?:行總額未核對|line total .*has not been checked)/i);
@@ -299,20 +308,24 @@ const ensureAIImportOpen = async page => {
     assert.match(await noKeyPage.getByTestId('item-pricing-quantity').innerText(), /(?:計價數量 8|priced quantity 8)/);
     assert.equal(await noKeyPage.getByTestId('item-amount-review-editor').count(), 1, 'the expanded editor repeats the review warning');
     const verifiedTotals = noKeyPage.getByTestId('item-line-total');
-    assert.equal(await verifiedTotals.count(), 3, 'each flagged row offers a direct line-total field');
-    await verifiedTotals.nth(0).fill('55');
-    await verifiedTotals.nth(1).fill('55');
-    await verifiedTotals.nth(2).fill('12');
+    assert.equal(await verifiedTotals.count(), 5, 'each flagged row offers a direct line-total field');
+    const reviewedTotals = ['55', '55', '12', '12.5', '12.5'];
+    for (let index = reviewedTotals.length - 1; index >= 0; index -= 1) {
+      await verifiedTotals.nth(index).fill(reviewedTotals[index]);
+    }
+    await noKeyPage.waitForFunction(() => document.querySelectorAll('[data-testid="item-amount-review"]').length === 0, null, { timeout: 10000 });
     assert.equal(await noKeyPage.getByTestId('item-amount-review').count(), 0, 'entering reviewed row totals clears the warning');
     await noKeyPage.getByTestId('go-to-payer').click();
     await noKeyPage.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '3', null, { timeout: 15000 });
     await noKeyPage.waitForFunction(() => {
       const draft = JSON.parse(localStorage.getItem('billSplitterActiveDraftV1') || 'null');
       const items = draft?.data?.items;
-      return Array.isArray(items) && items.length === 5
+      return Array.isArray(items) && items.length === 7
         && Number(items[1].total) === 55 && items[1].needsAmountReview === false
         && Number(items[2].total) === 55 && Number(items[3].total) === 440
-        && Number(items[4].total) === 12;
+        && Number(items[4].total) === 12
+        && Number(items[5].total) === 12.5 && items[5].needsAmountReview === false
+        && Number(items[6].total) === 12.5 && items[6].needsAmountReview === false;
     }, null, { timeout: 15000 });
     assert.equal(noKeyRequests, 0, 'the amount-review flow is entirely local for JSON imports');
 
@@ -373,6 +386,8 @@ const ensureAIImportOpen = async page => {
     assert.match(capturedText, /芒果糯米飯 1 份 65 泰銖/);
     assert.equal(capturedImageCount, 0, 'text-only requests contain no image payload');
     assert.match(capturedText, /amountUncertain/);
+    assert.match(capturedText, /amountText/);
+    assert.match(capturedText, /S12\.50/);
     assert.match(await modelPage.getByTestId('verify-item').first().innerText(), /芒果糯米飯/);
     assert.match(await modelPage.getByTestId('verify-summary').innerText(), /^1項/);
     assert.equal(await modelPage.getByTestId('ai-import-bill-photo-reminder').isVisible(), true, 'AI-structured text without a photo also asks for the original bill');

@@ -258,11 +258,11 @@
     const PAID_AI_JPEG_QUALITY = 0.72;
 
     const LOCAL_PADDLE_MODEL_ID = 'local/paddleocr-js';
-    const RECEIPT_JSON_IMPORT_PROMPT_ZH = `請讀取我附上的收據相片（如有多張，合併成同一張收據），辨認商品、金額並翻譯成香港繁體中文，再整理成一個有效 JSON 物件。優先把結果附成一個可下載的 UTF-8 JSON 檔，檔名 bill.json，檔案只包含該 JSON 物件；支援附件時不要只在聊天中顯示文字或改成 .txt，也不要拆成多個檔案。若此介面不能建立可下載附件，請在同一則回覆一次輸出完整 JSON，方便整段複製，不要分段、省略欄位或加其他文字。商品 name 用香港繁體中文，original 保留收據原文。只把實際商品放在 items；稅、服務費、折扣放在 adjustments；小計、合計、應付及找零不可放入 items。看不清或沒有印出的欄位用 null 或空字串，勿估算、勿捏造。
-格式：{"items":[{"name":"拉麵","nameEn":"","original":"ラーメン","ja":"","price":100,"qty":1,"totalQty":null,"unit":"碗","total":100}],"adjustments":[{"label":"消費税","kind":"tax","ratePercent":8,"amount":null,"baseAmount":null,"application":"separate","scope":"receipt","itemIndex":null,"order":0}],"taxTotal":null,"taxNote":"","currency":"JPY","date":"2026-03-14","receiptTotal":108}
+    const RECEIPT_JSON_IMPORT_PROMPT_ZH = `請讀取我附上的收據相片（如有多張，合併成同一張收據），辨認商品、金額並翻譯成香港繁體中文，再整理成一個有效 JSON 物件。優先把結果附成一個可下載的 UTF-8 JSON 檔，檔名 bill.json，檔案只包含該 JSON 物件；支援附件時不要只在聊天中顯示文字或改成 .txt，也不要拆成多個檔案。若此介面不能建立可下載附件，請在同一則回覆一次輸出完整 JSON，方便整段複製，不要分段、省略欄位或加其他文字。商品 name 用香港繁體中文，original 保留收據原文。只把實際商品放在 items；稅、服務費、折扣放在 adjustments；小計、合計、應付及找零不可放入 items。amountText 必須逐字保留商品印出的金額原文及符號；若看不清，填空字串並設 amountUncertain:true。若原文可能把 $ 誤讀成 S（例如 S12.50），必須設 amountUncertain:true；不可靜默改符號或把正規化後的數字當作已核實。其他看不清或沒有印出的欄位用 null 或空字串，勿估算、勿捏造。
+格式：{"items":[{"name":"拉麵","nameEn":"","original":"ラーメン","ja":"","price":100,"qty":1,"totalQty":null,"unit":"碗","total":100,"amountText":"100"}],"adjustments":[{"label":"消費税","kind":"tax","ratePercent":8,"amount":null,"baseAmount":null,"application":"separate","scope":"receipt","itemIndex":null,"order":0}],"taxTotal":null,"taxNote":"","currency":"JPY","date":"2026-03-14","receiptTotal":108}
 沒有稅費時 adjustments 必須為 []。currency 用 ISO 三位碼；不確定的 date 或 receiptTotal 用 null。`;
-    const RECEIPT_JSON_IMPORT_PROMPT_EN = `Read the receipt photo(s) I attach (combine multiple photos if they belong to the same receipt), identify the items and amounts, translate item names into Hong Kong Traditional Chinese, and return one valid JSON object. Prefer to attach the result as one downloadable UTF-8 JSON file named bill.json, containing only that object. When attachments are supported, do not just display chat text, substitute a .txt file, or split the result across files. If this interface cannot create downloadable attachments, output the complete JSON once in one contiguous, copyable reply, without splitting it, omitting fields, or adding other text. Preserve the printed text in original. Put actual purchased goods in items only; put tax, service fees, and discounts in adjustments. Never list subtotal, total due, payment, or change as an item. Use null or an empty string for fields that are unclear or not printed; do not estimate or invent anything.
-Format: {"items":[{"name":"拉麵","nameEn":"ramen","original":"ラーメン","ja":"","price":100,"qty":1,"totalQty":null,"unit":"bowl","total":100}],"adjustments":[{"label":"消費税","kind":"tax","ratePercent":8,"amount":null,"baseAmount":null,"application":"separate","scope":"receipt","itemIndex":null,"order":0}],"taxTotal":null,"taxNote":"","currency":"JPY","date":"2026-03-14","receiptTotal":108}
+    const RECEIPT_JSON_IMPORT_PROMPT_EN = `Read the receipt photo(s) I attach (combine multiple photos if they belong to the same receipt), identify the items and amounts, translate item names into Hong Kong Traditional Chinese, and return one valid JSON object. Prefer to attach the result as one downloadable UTF-8 JSON file named bill.json, containing only that object. When attachments are supported, do not just display chat text, substitute a .txt file, or split the result across files. If this interface cannot create downloadable attachments, output the complete JSON once in one contiguous, copyable reply, without splitting it, omitting fields, or adding other text. Preserve the printed text in original. Put actual purchased goods in items only; put tax, service fees, and discounts in adjustments. Never list subtotal, total due, payment, or change as an item. Set amountText to the exact source amount including symbols; if unreadable, use an empty string and set amountUncertain:true. If $ may have been misread as S (for example S12.50), set amountUncertain:true; never silently change the glyph or treat the normalized number as verified. Use null or an empty string for other unclear or unprinted fields; do not estimate or invent anything.
+Format: {"items":[{"name":"拉麵","nameEn":"ramen","original":"ラーメン","ja":"","price":100,"qty":1,"totalQty":null,"unit":"bowl","total":100,"amountText":"100"}],"adjustments":[{"label":"消費税","kind":"tax","ratePercent":8,"amount":null,"baseAmount":null,"application":"separate","scope":"receipt","itemIndex":null,"order":0}],"taxTotal":null,"taxNote":"","currency":"JPY","date":"2026-03-14","receiptTotal":108}
 Use an empty adjustments array if there are no fees or discounts. Use a three-letter ISO currency code; use null for an unknown date or receiptTotal.`;
     const recognitionModelLabel = modelId => {
       const value = String(modelId || '');
@@ -1128,6 +1128,9 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
       const [taxInputError, setTaxInputError] = useState(false);
       const [discountAmount, setDiscountAmount] = useState('');
       const [taxNote, setTaxNote] = useState('');
+      const [receiptTotalCheck, setReceiptTotalCheck] = useState(null);
+      const [receiptTotalAcknowledgement, setReceiptTotalAcknowledgement] = useState('');
+      const [receiptTotalReview, setReceiptTotalReview] = useState(null);
       const [receiptAdjustmentDetails, setReceiptAdjustmentDetails] = useState(null);
       const [friendsReplies, setFriendsReplies] = useState('');
       const [manualClaimsEnabled, setManualClaimsEnabled] = useState(false);
@@ -1409,7 +1412,7 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
         ready: draftReady, hasWork: hasDraftWork, schema: 1,
         assetRevision: draftAssets.revision, hasAssets: hasDraftAssets || draftAssets.unavailable,
         data: { step, items, nextClaimItemId, claimItemIdVersion: legacyClaimReviewRequired ? 1 : 2, legacyClaimReviewRequired,
-          taxAmount, discountAmount, taxNote, receiptAdjustmentDetails, friendsReplies, manualClaimsEnabled, receiptTextDraft, showReceiptTextImport, payer, detectedCurrency, currency,
+          taxAmount, discountAmount, taxNote, receiptAdjustmentDetails, receiptTotalCheck, friendsReplies, manualClaimsEnabled, receiptTextDraft, showReceiptTextImport, payer, detectedCurrency, currency,
           taxSplitMethod, paymentMethods, results, reconciliation, isSaved,
           claimRoom, claimActivityName, claimExpiryDays, claimLinkMeta, claimSession, claimInboxSeen, claimSecureCursor, readReceipt, lastRecognitionModel, claimLinkShared: claimLinkSharedRef.current }
       };
@@ -1483,6 +1486,13 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
             setManualClaimsEnabled(data.manualClaimsEnabled === true);
             setReceiptAdjustmentDetails(data.receiptAdjustmentDetails && Array.isArray(data.receiptAdjustmentDetails.rows)
               ? data.receiptAdjustmentDetails : null);
+            const savedTotalCheck = data.receiptTotalCheck && (data.receiptTotalCheck.amount === null || Number.isFinite(Number(data.receiptTotalCheck.amount)))
+              ? { amount: data.receiptTotalCheck.amount === null ? null : Number(data.receiptTotalCheck.amount), currency: String(data.receiptTotalCheck.currency || data.detectedCurrency || 'HKD').toUpperCase(), legacyMismatch: data.receiptTotalCheck.legacyMismatch === true }
+              : data.receiptAdjustmentDetails?.receiptTotalMatches === false
+                ? { amount: data.receiptAdjustmentDetails.receiptTotal === null || data.receiptAdjustmentDetails.receiptTotal === undefined ? null : Number(data.receiptAdjustmentDetails.receiptTotal), currency: String(data.receiptAdjustmentDetails.currency || data.detectedCurrency || 'HKD').toUpperCase(), legacyMismatch: true }
+                : null;
+            setReceiptTotalCheck(savedTotalCheck);
+            setReceiptTotalAcknowledgement(''); setReceiptTotalReview(null);
             setCurrency(typeof data.currency === 'string' ? data.currency : 'HKD');
             setDetectedCurrency(typeof data.detectedCurrency === 'string' ? data.detectedCurrency : 'HKD');
             setTaxSplitMethod(['equal', 'proportional'].includes(data.taxSplitMethod) ? data.taxSplitMethod : 'proportional');
@@ -1567,7 +1577,7 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
       useEffect(() => {
         if (tutorialDemo || !draftReady) return;
         persistActiveDraft();
-      }, [draftReady, step, items, readReceipt, taxAmount, discountAmount, taxNote, receiptAdjustmentDetails, friendsReplies, manualClaimsEnabled, receiptTextDraft, showReceiptTextImport, legacyClaimReviewRequired, payer, detectedCurrency, currency,
+      }, [draftReady, step, items, readReceipt, taxAmount, discountAmount, taxNote, receiptAdjustmentDetails, receiptTotalCheck, friendsReplies, manualClaimsEnabled, receiptTextDraft, showReceiptTextImport, legacyClaimReviewRequired, payer, detectedCurrency, currency,
         taxSplitMethod, paymentMethods, results, reconciliation, isSaved, draftAssets, claimRoom, claimActivityName, claimExpiryDays, claimLinkMeta, claimSession, claimInboxSeen, claimSecureCursor, claimLinkShared, lastRecognitionModel]);
 
       useEffect(() => {
@@ -2667,6 +2677,7 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
         setReceiptTextDraft(''); setShowReceiptTextImport(readUiDisclosure('receipt-ai-import-r133', true)); setLegacyClaimReviewRequired(false);
         setIsAnalyzing(false); setProgress(0); setProgressText('');
         setIsSaved(false); setLastImageData([]); setLastRecognitionModel(''); setTaxAmount(''); setDiscountAmount(''); setTaxNote(''); setReceiptAdjustmentDetails(null);
+        setReceiptTotalCheck(null); setReceiptTotalAcknowledgement(''); setReceiptTotalReview(null);
         setClaimAttachments([]); setClaimInfo(null); setShowClaimShareDialog(false);
         inboxGenerationRef.current += 1;
         claimRoomRef.current = null; claimInboxSeenRef.current = [];
@@ -3244,7 +3255,7 @@ name 必須係香港繁體中文，俾唔識日文／韓文嘅人直接睇。這
 正確：{"name":"拉麵","nameEn":"","original":"ラーメン","ja":""}
 錯誤：{"name":"ラーメン","original":"ラーメン"}（name 仍然係日文，唔算翻譯）
 
-每項欄位：name, nameEn, original, ja, price, qty, totalQty（無則 null）, unit（無則 ""，用繁體，如件／杯／碗）, total（照單據列出的該項行金額）。稅、服務費、折扣獨立行不可當成品項，亦不可把獨立調整重複加進 total。
+每項欄位：name, nameEn, original, ja, price, qty, totalQty（無則 null）, unit（無則 ""，用繁體，如件／杯／碗）, total（照單據列出的該項行金額）, amountText（必填，逐字保留該項印出的金額原文，包括貨幣符號、字母和標點；無法辨讀時填空字串並設 amountUncertain:true）。若原文可能把 $ 誤讀成字母 S（例如 S12.50），amountUncertain 必須設 true。稅、服務費、折扣獨立行不可當成品項，亦不可把獨立調整重複加進 total。
 跨國收據請辨識不同語言／位置的稅費與優惠行，包括 VAT、GST、消費税、各種稅率、服務費、折扣、優惠券、割引等；百分比可寫成 10%、10％、10 percent 或本地格式。只抄單據明確印出的百分比，絕不可由固定金額猜百分比。
 每個稅／服務費／折扣行各輸出一次到 adjustments；kind 只用 tax 或 discount；ratePercent 用數字百分比（10 代表 10%），amount 只填單據印出的金額（正數），未印金額就 null；baseAmount 只填單據明確印出的計算基數，否則 null。若同時印百分比和金額，兩者都填，程式會以印出的金額為準。
 label 只寫收據上與該項稅／服務費／折扣直接相關的那一行，保持簡短；不要寫商場或店名、付款方式、交通卡餘額、地址、找續或其他無關 OCR 內容，也不要把整段收據塞進 label。taxNote 是舊格式欄位，留空即可，絕不可放整段收據文字。
@@ -3253,12 +3264,13 @@ application 必須是 separate（確認在品項金額之外另加／另減）�
 
 額外核對規則（仍只輸出指定 JSON）：
 - amountUncertain（選填）：若同一行數字可能代表不同意思（例如數量、單價或商品名稱／規格的一部分），無法確認 price、qty 或 total 時設 true；不要猜 qty，也不要用 price × qty 製造 total。英文同義規則：If the meaning of a number on the same row is ambiguous, set amountUncertain to true; do not guess qty or derive total from price × qty.
+- amountText（必填）：逐字保留商品金額原文中的符號、字母和標點；若無法辨讀，填 "" 並設 amountUncertain:true。If the source amount might show a dollar sign misread as the letter S (for example S12.50), set amountUncertain:true and preserve the exact source text. Do not silently delete S, replace it with $, or treat the normalized number as verified.
 - items 只可有實際商品。商品名換行或單價／數量排在下一行時，合併成同一 item；但每個新的商品名稱若有自己的右欄金額，就是另一項，必須分開，不能與上一項合併。
 - 單價×數量括號行併回該商品：price 填單價、qty 填數量、total 填行總額；括號／續行不可另開 item。
 - 若收據印有「小計 22點」等件數，最後核對商品 qty 合計等於該件數；不要把 22 點當成 22 個不同商品，也不要為湊件數捏造、刪除或合併有獨立價格的商品。
 - 小計、合計、內稅對象額、內稅額、收款額及找零均不是商品，絕不可放入 items；小計／合計／收款／找零也不可放入 adjustments。標明「內稅」的稅額已包含，application 必須是 included。
 - 常見日文商品詞：巾着＝束口袋／小袋，ペンケース＝筆袋，コインケース＝零錢包，ポーチ＝收納袋，シール＝貼紙。name 不可把袋翻成毛巾、鞋套或印章；保留角色／圖案名，不清楚的專名按原文音譯或保留，不要猜。
-格式：{"items":[{"name":"拉麵","nameEn":"","original":"ラーメン","ja":"","price":100,"qty":1,"totalQty":null,"unit":"碗","total":100}],"adjustments":[{"label":"消費税","kind":"tax","ratePercent":8,"amount":null,"baseAmount":null,"application":"separate","scope":"receipt","itemIndex":null,"order":0}],"taxTotal":null,"taxNote":"","currency":"JPY","date":"2026-03-14","receiptTotal":108}
+格式：{"items":[{"name":"拉麵","nameEn":"","original":"ラーメン","ja":"","price":100,"qty":1,"totalQty":null,"unit":"碗","total":100,"amountText":"100"}],"adjustments":[{"label":"消費税","kind":"tax","ratePercent":8,"amount":null,"baseAmount":null,"application":"separate","scope":"receipt","itemIndex":null,"order":0}],"taxTotal":null,"taxNote":"","currency":"JPY","date":"2026-03-14","receiptTotal":108}
 ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）。' : `這裡有 ${files.length} 張單據。`}`;
 
           let parsedItems = [];
@@ -3473,14 +3485,16 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
             const rawTotal = item.total ?? item.amount;
             const parsedTotal = rawTotal === null || rawTotal === undefined || rawTotal === '' ? null : ReceiptMath.parseMoney(rawTotal, parsedCurrency);
             const parsedQty = item.qty === null || item.qty === undefined || item.qty === '' ? 1 : ReceiptMath.parseMoney(item.qty, parsedCurrency);
-            const amountReviewRequired = item.amountUncertain === true || (parsedQty > 1 && parsedPrice > 0
+            const ambiguousCurrencyGlyph = [item.amountText, item.rawAmountText, item.price, item.total, item.amount]
+              .some(value => typeof value === 'string' && ReceiptMath.hasAmbiguousDollarSAmount(value));
+            const amountReviewRequired = item.amountUncertain === true || ambiguousCurrencyGlyph || (parsedQty > 1 && parsedPrice > 0
               && (parsedTotal === null || !ReceiptMath.moneyEquals(parsedTotal, parsedPrice * parsedQty, parsedCurrency)));
             return {
               id: preservedId || allocateImportedClaimId(), name: names.name || '項目', nameEn: names.nameEn, original: names.original, ja: names.ja,
               price: parsedPrice, qty: parsedQty, totalQty: item.totalQty === null || item.totalQty === undefined || item.totalQty === '' ? null : ReceiptMath.parseMoney(item.totalQty, parsedCurrency), unit: String(item.unit || '').trim(), total: parsedTotal === null ? parsedPrice * parsedQty : parsedTotal,
-              amountUncertain: item.amountUncertain === true, amountReviewRequired, needsAmountReview: amountReviewRequired,
+              amountUncertain: item.amountUncertain === true || ambiguousCurrencyGlyph, amountCurrencyGlyphUncertain: ambiguousCurrencyGlyph, amountReviewRequired, needsAmountReview: amountReviewRequired,
               amountPreviewAvailable: parsedTotal !== null || parsedPrice > 0,
-              amountReviewReason: amountReviewRequired ? (item.amountUncertain === true ? 'ai-uncertain' : parsedTotal === null ? 'missing-total' : 'mismatch') : ''
+              amountReviewReason: amountReviewRequired ? (ambiguousCurrencyGlyph ? 'currency-symbol' : item.amountUncertain === true ? 'ai-uncertain' : parsedTotal === null ? 'missing-total' : 'mismatch') : ''
             };
           });
           const resolvedAdjustments = ReceiptMath.resolveReceiptAdjustments({
@@ -3500,7 +3514,9 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
             rows: ReceiptMath.summarizeAppliedReceiptRows(resolvedAdjustments, formattedItems),
             currency: parsedCurrency,
             doubleApplicationPrevented: resolvedAdjustments.doubleApplicationPrevented,
-            receiptTotalMatches: resolvedAdjustments.receiptTotalMatches
+            receiptTotalMatches: resolvedAdjustments.receiptTotalMatches,
+            receiptTotal: resolvedAdjustments.receiptTotal,
+            expectedTotal: resolvedAdjustments.expectedTotal
           };
 
           setProgress(0);
@@ -3525,6 +3541,8 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
             setDiscountAmount(parsedDiscount > 0 ? String(ReceiptMath.roundMoney(parsedDiscount, parsedCurrency)) : '');
             setTaxNote('');
             setReceiptAdjustmentDetails(parsedAdjustmentDetails);
+            setReceiptTotalCheck(resolvedAdjustments.receiptTotal === null ? null : { amount: resolvedAdjustments.receiptTotal, currency: parsedCurrency, legacyMismatch: false });
+            setReceiptTotalAcknowledgement(''); setReceiptTotalReview(null);
             const appliedToastParts = [];
             if (parsedTax > 0) appliedToastParts.push(`${bi('稅／服務費', 'tax / fees')} ${formatMoney(parsedTax, parsedCurrency)}`);
             if (resolvedAdjustments.discountAmount > 0) appliedToastParts.push(`${bi('折扣', 'discount')} −${formatMoney(resolvedAdjustments.discountAmount, parsedCurrency)}`);
@@ -3619,6 +3637,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
 
       const addItem = () => {
         setReceiptAdjustmentDetails(null);
+        setReceiptTotalReview(null);
         const reservedIds = new Set(itemsRef.current.map(item => String(item.id)));
         let candidate = nextClaimItemIdRef.current;
         while (candidate <= 99 && reservedIds.has(formatClaimItemId(candidate))) candidate += 1;
@@ -3639,6 +3658,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
       };
       const updateItem = (index, field, value) => {
         setReceiptAdjustmentDetails(null);
+        setReceiptTotalReview(null);
         const newItems = [...items]; newItems[index] = { ...newItems[index], [field]: value };
         if (field === 'nameEn') newItems[index].nameEnEdited = true;
         if (field === 'total' && newItems[index].amountReviewRequired === true) {
@@ -3664,6 +3684,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
       };
       const removeItem = (index) => {
         setReceiptAdjustmentDetails(null);
+        setReceiptTotalReview(null);
         const newItems = items.filter((_, i) => i !== index);
         setItems(newItems);
         const next = {};
@@ -4058,20 +4079,32 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
           if (totalQty <= 0 || toNum(item.total) <= 0) return null;
           const actualPeople = claimants.filter(person => claimUnits[person]?.[item.id] && (personClaims[person][item.id] || 0) > 0);
           const sharePeople = claimants.filter(person => !claimUnits[person]?.[item.id] && (personClaims[person][item.id] || 0) > 0);
-          if (!actualPeople.length || sharePeople.length) return null;
           const claimedQty = actualPeople.reduce((sum, person) => sum + personClaims[person][item.id], 0);
           const difference = totalQty - claimedQty;
-          if (Math.abs(difference) < 0.0001) return null;
+          if (!sharePeople.length && Math.abs(difference) < 0.0001) return null;
           const allocation = allocateCurrencyAmount(item.total, { claimed: Math.max(0, claimedQty), remaining: Math.max(0, difference) }, detectedCurrency, 6);
-          return { itemId: item.id, name: item.name, unit: item.unit || '單位', totalQty, claimedQty, difference, amount: allocation.remaining || 0 };
+          return { itemId: item.id, name: item.name, unit: item.unit || '單位', totalQty, claimedQty, difference, amount: allocation.remaining || 0,
+            shareClaimCount: sharePeople.length, shareClaimTotal: sharePeople.reduce((sum, person) => sum + (Number(personClaims[person][item.id]) || 0), 0),
+            claimantKeys: [...new Set([...actualPeople, ...sharePeople])].sort(),
+            requiresClaimCorrection: sharePeople.length > 0 && Math.abs(difference) < 0.0001 };
         }).filter(Boolean);
+        const reconciliationSignature = JSON.stringify(reconciliationIssues.map(issue => ({ itemId: issue.itemId, unit: issue.unit, totalQty: issue.totalQty, claimedQty: issue.claimedQty, difference: issue.difference, shareClaimCount: issue.shareClaimCount, shareClaimTotal: issue.shareClaimTotal, claimantKeys: issue.claimantKeys })));
+        const previousReconciliationSignature = reconciliation?.issues
+          ? JSON.stringify(reconciliation.issues.map(issue => ({ itemId: issue.itemId, unit: issue.unit, totalQty: issue.totalQty, claimedQty: issue.claimedQty, difference: issue.difference, shareClaimCount: issue.shareClaimCount, shareClaimTotal: issue.shareClaimTotal, claimantKeys: issue.claimantKeys })))
+          : '';
+        const selectedReconciliationPolicy = reconciliationSignature === previousReconciliationSignature ? reconciliation?.policy || '' : '';
         const hasOverClaim = reconciliationIssues.some(issue => issue.difference < 0);
         if (hasOverClaim) {
           setReconciliation({ issues: reconciliationIssues, policy: '' });
           setStepError('⚠️ 有項目認帳數量超過單據總量，請返回修改後再計算。');
           return;
         }
-        if (reconciliationIssues.length && !reconciliation?.policy) {
+        if (reconciliationIssues.some(issue => issue.requiresClaimCorrection)) {
+          setReconciliation({ issues: reconciliationIssues, policy: '' });
+          setStepError(bi('已認實物數量已達單據總量，但仍有人只填「份數」；請先修正朋友回覆或單據總量，不能把份數當成額外件數。', 'The counted physical quantity already reaches the receipt total, but someone entered a share without a unit. Correct the reply or receipt quantity first; a share is not an extra item.'));
+          return false;
+        }
+        if (reconciliationIssues.length && !selectedReconciliationPolicy) {
           setReconciliation({ issues: reconciliationIssues, policy: '' });
           setStepError('⚠️ 有實際單位尚未完成數量核對，請選擇剩餘數量由誰承擔。');
           return;
@@ -4091,7 +4124,14 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
           const actualTotal = actualPeople.reduce((sum, person) => sum + (Number(personClaims[person][item.id]) || 0), 0);
           const shareTotal = sharePeople.reduce((sum, person) => sum + (Number(personClaims[person][item.id]) || 0), 0);
           let itemShares = {};
-          if (canUseActualUnits && actualTotal > 0) {
+          const itemNeedsReconciliation = reconciliationIssues.some(issue => issue.itemId === item.id);
+          if (canUseActualUnits && itemNeedsReconciliation) {
+            const reconciledActualQty = Math.max(0, Math.min(totalQty, actualTotal));
+            const remainingQty = Math.max(0, totalQty - reconciledActualQty);
+            const groupShares = allocateCurrencyAmount(item.total, { actual: reconciledActualQty, shared: remainingQty }, detectedCurrency, 6);
+            if (actualTotal > 0) Object.assign(itemShares, allocateCurrencyAmount(groupShares.actual || 0,
+              Object.fromEntries(actualPeople.map(person => [person, Number(personClaims[person][item.id]) || 0])), detectedCurrency, 6));
+          } else if (canUseActualUnits && actualTotal > 0) {
             const remainingQty = Math.max(0, totalQty - actualTotal);
             const groupShares = allocateCurrencyAmount(item.total, { actual: actualTotal, shared: remainingQty }, detectedCurrency, 6);
             Object.assign(itemShares, allocateCurrencyAmount(groupShares.actual || 0,
@@ -4118,7 +4158,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
         });
 
         reconciliationIssues.forEach(issue => {
-          const policy = reconciliation?.policy;
+          const policy = selectedReconciliationPolicy;
           const item = calculationItems.find(candidate => candidate.id === issue.itemId);
           const amount = roundSplitAmount(issue.amount);
           if (policy === 'payer') {
@@ -4143,7 +4183,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
             totalItemsCost = roundSplitAmount(totalItemsCost + amount);
           }
         });
-        const reconciliationAllocations = reconciliationIssues.map(issue => ({ ...issue, policy: reconciliation?.policy }));
+        const reconciliationAllocations = reconciliationIssues.map(issue => ({ ...issue, policy: selectedReconciliationPolicy }));
 
         const discountNum = ReceiptMath.roundMoney(toNum(discountAmount), detectedCurrency);
         if (discountNum < 0 || !ReceiptMath.isDiscountWithinSubtotal(discountNum, totalItemsCost, detectedCurrency)) {
@@ -4172,6 +4212,25 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
         });
 
         const sourceBillTotal = ReceiptMath.roundMoney(totalItemsCost + taxNum, detectedCurrency);
+        const receiptTotalMismatch = Boolean(receiptTotalCheck) && (
+          receiptTotalCheck.legacyMismatch === true
+          || String(receiptTotalCheck.currency || '').toUpperCase() !== String(detectedCurrency || '').toUpperCase()
+          || receiptTotalCheck.amount === null
+          || !ReceiptMath.moneyEquals(receiptTotalCheck.amount, sourceBillTotal, detectedCurrency)
+        );
+        const receiptTotalReviewSignature = JSON.stringify({ printedAmount: receiptTotalCheck?.amount ?? null, printedCurrency: receiptTotalCheck?.currency || '', legacyMismatch: receiptTotalCheck?.legacyMismatch === true, calculatedAmount: sourceBillTotal, calculatedCurrency: detectedCurrency });
+        if (receiptTotalMismatch && receiptTotalAcknowledgement !== receiptTotalReviewSignature) {
+          setReceiptTotalReview({
+            signature: receiptTotalReviewSignature,
+            printedAmount: receiptTotalCheck.amount,
+            printedCurrency: receiptTotalCheck.currency || detectedCurrency,
+            calculatedAmount: sourceBillTotal,
+            calculatedCurrency: detectedCurrency,
+            legacyMismatch: receiptTotalCheck.legacyMismatch === true
+          });
+          setStepError('');
+          return false;
+        }
         const sourceAmounts = Object.fromEntries(Object.entries(personTotals).map(([person, summary]) => [person, summary.sourceTotal]));
         let convertedTotals;
         try {
@@ -4186,7 +4245,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
           personTotals[person].settlementRoundingAdjustment = ReceiptMath.roundMoney(amount - individualRounded, currency);
         });
         const billTotal = convertedTotals.total;
-        const calculatedResults = { calculationVersion: 3, personTotals, totalItemsCost, itemsSubtotal: preDiscountItemsCost, discountAmount: discountNum, taxAmount: taxNum, sourceBillTotal, settlementRoundingAdjustmentUnits: convertedTotals.roundingAdjustmentUnits, billTotal, sourceCurrency: detectedCurrency, sourceTotal, exchangeRate: conversionRate, exchangeRateDate: exchangeRate.date || null, exchangeProvider: exchangeRate.provider || 'Frankfurter', reconciliationAllocations, date: new Date().toISOString().split('T')[0], currency };
+        const calculatedResults = { calculationVersion: 3, personTotals, totalItemsCost, itemsSubtotal: preDiscountItemsCost, discountAmount: discountNum, taxAmount: taxNum, sourceBillTotal, receiptTotalReview: receiptTotalMismatch ? { acknowledged: true, printedAmount: receiptTotalCheck.amount, printedCurrency: receiptTotalCheck.currency || detectedCurrency, calculatedAmount: sourceBillTotal, calculatedCurrency: detectedCurrency } : null, settlementRoundingAdjustmentUnits: convertedTotals.roundingAdjustmentUnits, billTotal, sourceCurrency: detectedCurrency, sourceTotal, exchangeRate: conversionRate, exchangeRateDate: exchangeRate.date || null, exchangeProvider: exchangeRate.provider || 'Frankfurter', reconciliationAllocations, date: new Date().toISOString().split('T')[0], currency };
         autoPublishResultRef.current = !tutorialDemo && claimSessionRef.current?.link ? calculatedResults : null;
         setResults(calculatedResults);
         setIsSaved(false); setIsSavingRecord(false); setStep(4);
@@ -4248,9 +4307,9 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
       };
 
       const getReceiptAdjustmentNote = (language = uiLang) => {
-        if (!receiptAdjustmentDetails) return '';
+        if (!receiptAdjustmentDetails && !results?.receiptTotalReview?.acknowledged) return '';
         const english = String(language).toLowerCase().startsWith('en');
-        const rows = Array.isArray(receiptAdjustmentDetails.rows) ? receiptAdjustmentDetails.rows : [];
+        const rows = Array.isArray(receiptAdjustmentDetails?.rows) ? receiptAdjustmentDetails.rows : [];
         const lines = [];
         if (rows.length) {
           lines.push(english ? 'Receipt rows used in this calculation:' : '本次計算只用到以下收據行：');
@@ -4268,12 +4327,12 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
             lines.push(`• ${itemPrefix}${row.label}${rateLabel} ${sign}${rowAmount}`);
           });
         }
-        if (receiptAdjustmentDetails.doubleApplicationPrevented) {
+        if (receiptAdjustmentDetails?.doubleApplicationPrevented) {
           lines.push(english
             ? 'The receipt total already includes the relevant adjustment; it was not counted twice.'
             : '收據應付總額已反映相關調整，今次沒有重複計算。');
         }
-        if (receiptAdjustmentDetails.receiptTotalMatches === false) {
+        if (receiptAdjustmentDetails?.receiptTotalMatches === false || results?.receiptTotalReview?.acknowledged === true) {
           lines.push(english
             ? 'Calculated total differs from the receipt; check the items and relevant tax/discount row.'
             : '總額不符，請核對項目、稅費和折扣。');
@@ -5080,9 +5139,11 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                           <div className="min-w-0">
                             <p className="text-base font-semibold text-slate-800">{item.id} {displayItemName(item)}</p>
                             {(item.original || item.ja) && <div className="mt-1 text-xs font-normal text-slate-500 italic truncate" title={item.original || item.ja}>{tr("原文：")}{item.original || item.ja}</div>}
-                            <p className="mt-1 text-base font-semibold text-slate-800">{item.needsAmountReview === true && item.amountPreviewAvailable === false ? bi('金額待核對', 'Amount to verify') : formatMoney(itemAmount(item), detectedCurrency)}{pricingQtyLabel ? ` · ${pricingQtyLabel}` : ''}{billQtyLabel ? ` · ${billQtyLabel}` : ''}</p>
+                            <p className="mt-1 text-base font-semibold text-slate-800">{item.needsAmountReview === true ? bi('金額待核對', 'Amount to verify') : formatMoney(itemAmount(item), detectedCurrency)}{pricingQtyLabel ? ` · ${pricingQtyLabel}` : ''}{billQtyLabel ? ` · ${billQtyLabel}` : ''}</p>
                             {item.needsAmountReview === true && <p data-testid="item-amount-review" role="alert" className="mt-2 rounded-lg border border-amber-500 bg-amber-50 p-2 text-sm font-semibold leading-relaxed text-amber-950">{item.amountReviewReason === 'ai-uncertain'
                               ? bi('AI 標示此行金額用途不確定；核對收據並填寫行總額後才可結算。', 'AI marked this row amount as uncertain. Verify the receipt and enter its line total before settling.')
+                              : item.amountReviewReason === 'currency-symbol'
+                                ? bi('金額原文中的 S 可能是 $ 被誤認；請核對收據並填寫行總額，系統不會自動猜符號。', 'The S in the source amount may be a misread $. Verify the receipt and enter the line total; the app will not guess the symbol.')
                               : item.amountReviewReason === 'missing-total'
                                 ? bi(`未提供行總額；暫按 ${formatMoney(item.price, detectedCurrency)} × ${new Intl.NumberFormat('zh-HK', { maximumFractionDigits: 3 }).format(pricingQty)} 暫算 ${formatMoney(itemAmount(item), detectedCurrency)}。請核對並填寫行總額。`, `No line total was provided; ${formatMoney(item.price, detectedCurrency)} × ${new Intl.NumberFormat('en-HK', { maximumFractionDigits: 3 }).format(pricingQty)} is a provisional ${formatMoney(itemAmount(item), detectedCurrency)}. Verify and enter the printed line total.`)
                                 : bi(`行總額 ${formatMoney(item.total, detectedCurrency)} 與 ${formatMoney(item.price, detectedCurrency)} × ${new Intl.NumberFormat('zh-HK', { maximumFractionDigits: 3 }).format(pricingQty)} = ${expectedLineTotal} 不符；請核對並填寫行總額。`, `Line total ${formatMoney(item.total, detectedCurrency)} differs from ${formatMoney(item.price, detectedCurrency)} × ${new Intl.NumberFormat('en-HK', { maximumFractionDigits: 3 }).format(pricingQty)} = ${expectedLineTotal}. Verify and enter the printed line total.`)}</p>}
@@ -5102,7 +5163,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                           {(item.original || item.ja) && <div className="mt-1 text-xs font-normal text-slate-500 italic truncate" title={item.original || item.ja}>{tr("原文：")}{item.original || item.ja}</div>}
                         </div>
                         {pricingQty > 1 && <p data-testid="item-pricing-quantity" className="text-sm font-semibold leading-relaxed text-slate-700">{pricingQtyLabel}{billQtyLabel ? ` · ${billQtyLabel}` : ''}{item.amountReviewReason === 'missing-total' ? ` · ${bi('暫算', 'Provisional')} ${formatMoney(itemAmount(item), detectedCurrency)}` : ''}</p>}
-                        {item.needsAmountReview === true && <p data-testid="item-amount-review-editor" role="alert" className="rounded-lg border border-amber-500 bg-amber-50 p-2 text-sm font-semibold leading-relaxed text-amber-950">{bi('這項行總額仍未核對；請按收據填寫行總額後才可結算。', 'This line total is still unverified. Enter the amount printed on the receipt before settling.')}</p>}
+                        {item.needsAmountReview === true && <p data-testid="item-amount-review-editor" role="alert" className="rounded-lg border border-amber-500 bg-amber-50 p-2 text-sm font-semibold leading-relaxed text-amber-950">{item.amountReviewReason === 'currency-symbol' ? bi('金額原文中的 S 可能是 $ 被誤認；請核對收據並填寫行總額。', 'The S in the source amount may be a misread $. Verify the receipt and enter the printed line total.') : bi('這項行總額仍未核對；請按收據填寫行總額後才可結算。', 'This line total is still unverified. Enter the amount printed on the receipt before settling.')}</p>}
                         <div data-tutorial-target={idx === 0 ? "item-fields" : undefined} className="item-price-quantity-row flex gap-4">
                           <div className="min-w-0 flex-1">
                             <label htmlFor={itemFieldId('price')} className="text-base font-bold text-slate-700 uppercase tracking-wider mb-1.5 block">{tr("單價")}</label>
@@ -5160,7 +5221,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                       </div>
                       <div className="field-round flex items-center w-36 shrink-0 overflow-hidden shadow-sm">
                         <span className="pl-3 pr-1 text-slate-600 font-bold border-r border-slate-500 py-2">{getCurrencySymbol(detectedCurrency)}</span>
-                        <input id={taxAmountInputId} type="number" inputMode="decimal" min="0" step={Math.pow(10, -ReceiptMath.currencyDecimals(detectedCurrency))} placeholder="0" value={taxAmount} data-testid="tax-amount" aria-invalid={taxInputError ? 'true' : undefined} aria-describedby={`${taxAmountHintId}${taxInputError ? ` ${taxAmountErrorId}` : ''}`} ref={el => fieldRefs.current['tax-amount'] = el} onChange={(e) => { setTaxAmount(e.target.value); setTaxInputError(false); setStepError(''); setReceiptAdjustmentDetails(null); }} onBlur={() => { if (String(taxAmount ?? '').trim() !== '') validateTaxAmount(false); }} className="w-full text-base font-bold text-slate-800 text-right outline-none shadow-none" />
+                        <input id={taxAmountInputId} type="number" inputMode="decimal" min="0" step={Math.pow(10, -ReceiptMath.currencyDecimals(detectedCurrency))} placeholder="0" value={taxAmount} data-testid="tax-amount" aria-invalid={taxInputError ? 'true' : undefined} aria-describedby={`${taxAmountHintId}${taxInputError ? ` ${taxAmountErrorId}` : ''}`} ref={el => fieldRefs.current['tax-amount'] = el} onChange={(e) => { setTaxAmount(e.target.value); setTaxInputError(false); setStepError(''); setReceiptAdjustmentDetails(null); setReceiptTotalReview(null); }} onBlur={() => { if (String(taxAmount ?? '').trim() !== '') validateTaxAmount(false); }} className="w-full text-base font-bold text-slate-800 text-right outline-none shadow-none" />
                       </div>
                     </div>
                     {taxInputError && <p id={taxAmountErrorId} data-testid="tax-input-error" role="alert" className="-mt-2 text-sm font-semibold text-red-800">{bi('⚠️ 稅費／服務費不可為負數，請輸入 0 或以上。', '⚠️ Tax / service fee cannot be negative. Enter 0 or more.')}</p>}
@@ -5171,7 +5232,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                       </div>
                       <div className="field-round flex items-center w-36 shrink-0 overflow-hidden shadow-sm">
                         <span className="pl-3 pr-1 text-slate-600 font-bold border-r border-slate-500 py-2">{getCurrencySymbol(detectedCurrency)}</span>
-                        <input id={discountAmountInputId} type="number" inputMode="decimal" min="0" step={Math.pow(10, -ReceiptMath.currencyDecimals(detectedCurrency))} placeholder="0" value={discountAmount} data-testid="discount-amount" aria-describedby={discountAmountHintId} ref={el => fieldRefs.current['discount-amount'] = el} onChange={(e) => { setDiscountAmount(e.target.value); setReceiptAdjustmentDetails(null); }} className="w-full text-base font-bold text-slate-800 text-right outline-none shadow-none" />
+                        <input id={discountAmountInputId} type="number" inputMode="decimal" min="0" step={Math.pow(10, -ReceiptMath.currencyDecimals(detectedCurrency))} placeholder="0" value={discountAmount} data-testid="discount-amount" aria-describedby={discountAmountHintId} ref={el => fieldRefs.current['discount-amount'] = el} onChange={(e) => { setDiscountAmount(e.target.value); setReceiptAdjustmentDetails(null); setReceiptTotalReview(null); }} className="w-full text-base font-bold text-slate-800 text-right outline-none shadow-none" />
                       </div>
                     </div>
                   </div>
@@ -5328,22 +5389,45 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
 
                 {stepError && <div role="alert" data-testid="step-error" className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm font-semibold text-amber-900">{stepError}</div>}
 
+                {receiptTotalReview && (
+                  <Card data-testid="receipt-total-review" role="alert" className="border-amber-600 bg-amber-50 space-y-3">
+                    <h3 className="text-lg font-extrabold text-amber-950">{bi('⚠️ 收據總額與計算總額不符', '⚠️ Receipt total does not match')}</h3>
+                    <p className="text-sm leading-relaxed text-amber-950">{receiptTotalReview.legacyMismatch && receiptTotalReview.printedAmount === null
+                      ? bi('舊草稿已標記總額不符，但沒有保存印刷總額；請回看單據核對。', 'An older draft flagged a mismatch but did not save the printed total. Check the receipt.')
+                      : <>{bi('收據印刷總額：', 'Printed receipt total: ')}{formatSourceMoney(receiptTotalReview.printedAmount, receiptTotalReview.printedCurrency)} {receiptTotalReview.printedCurrency}</>}</p>
+                    <p className="text-sm leading-relaxed text-amber-950">{bi('目前品項＋稅費－折扣：', 'Current items + tax − discounts: ')}{formatSourceMoney(receiptTotalReview.calculatedAmount, receiptTotalReview.calculatedCurrency)} {receiptTotalReview.calculatedCurrency}</p>
+                    <p className="text-sm leading-relaxed text-amber-900">{bi('請修正項目／稅費／折扣，或按下方明確確認差異；未確認前不會產生分帳報告。', 'Correct the items, tax or discounts, or explicitly acknowledge the difference below. No settlement report is created until you confirm.')}</p>
+                    <div className="grid gap-2">
+                      <Button data-testid="edit-receipt-total" variant="secondary" className="w-full" onClick={() => { setReceiptTotalReview(null); setStep(2); }}>{bi('返回核對項目及金額', 'Review items and amounts')}</Button>
+                      <Button data-testid="acknowledge-receipt-total" variant="primary" className="w-full" onClick={() => { setReceiptTotalAcknowledgement(receiptTotalReview.signature); setReceiptTotalReview(null); setStepError(''); }}>{bi('我已核對差異，仍要繼續', 'I checked the difference; continue')}</Button>
+                    </div>
+                  </Card>
+                )}
+
                 {reconciliation?.issues?.length > 0 && (
-                  <Card className="border-amber-500 bg-amber-50 space-y-4">
+                  <Card data-testid="unit-quantity-reconciliation" className="border-amber-500 bg-amber-50 space-y-4">
                     <div>
                       <h3 className="font-bold text-amber-900 text-lg">{tr("⚠️ 實際數量未完全核對")}</h3>
-                      <p className="text-sm text-amber-800 mt-1">{tr("只填單位嘅項目必須同單據總量對得上；未認帳數量唔會無故消失。")}</p>
+                      <p className="text-sm text-amber-800 mt-1">{reconciliation.issues.some(issue => issue.shareClaimCount > 0)
+                        ? bi('單據已知實物總量時，只填「份數」不等於件數；未核實的數量／金額不會自動分給其他認帳人。', 'When a receipt has a known physical quantity, a share without a unit is not a counted item. Unverified quantities or amounts will not be silently assigned to other claimants.')
+                        : tr("只填單位嘅項目必須同單據總量對得上；未認帳數量唔會無故消失。")}</p>
                     </div>
                     <div className="space-y-2">
                       {reconciliation.issues.map(issue => (
                         <div key={issue.itemId} className="bg-white border border-amber-300 rounded-lg p-3 text-sm text-slate-700">
                           <strong>{issue.itemId} {displayItemName(items.find(item => item.id === issue.itemId) || issue)}</strong>{tr("：單據 ")}{issue.totalQty} {unitDisplay(issue.unit)}{tr("，已認帳 ")}{issue.claimedQty} {unitDisplay(issue.unit)}{' '}
-                          {issue.difference > 0 ? <span className="font-bold text-amber-700">{tr("（尚欠 ")}{issue.difference} {unitDisplay(issue.unit)}{tr("，約 ")}{formatSourceMoney(issue.amount, detectedCurrency)}）</span> : <span className="font-bold text-red-700">{tr("（超出 ")}{-issue.difference} {unitDisplay(issue.unit)}）</span>}
+                          {issue.difference > 0 ? <span className="font-bold text-amber-700">{tr("（尚欠 ")}{issue.difference} {unitDisplay(issue.unit)}{tr("，約 ")}{formatSourceMoney(issue.amount, detectedCurrency)}）</span> : issue.difference < 0 ? <span className="font-bold text-red-700">{tr("（超出 ")}{-issue.difference} {unitDisplay(issue.unit)}）</span> : <span className="font-bold text-blue-800">{bi('（已認帳數量相符）', '(counted quantity matches)')}</span>}
+                          {issue.shareClaimCount > 0 && <p className="mt-2 font-semibold text-amber-900">{bi(`另有 ${issue.shareClaimCount} 位朋友只填份數（共 ${issue.shareClaimTotal} 份），沒有選實際單位；不能推定為 ${issue.unit}。`, `${issue.shareClaimCount} claimant(s) entered shares (${issue.shareClaimTotal} total) without a physical unit; these cannot be assumed to be ${issue.unit}.`)}</p>}
                         </div>
                       ))}
                     </div>
                     {reconciliation.issues.some(issue => issue.difference < 0) ? (
                       <Button variant="secondary" className="w-full border-red-500 text-red-700" onClick={() => { setReconciliation(null); focusField('replies'); }}>{bi('修改認帳數量', 'Edit claimed quantities')}</Button>
+                    ) : reconciliation.issues.some(issue => issue.requiresClaimCorrection) ? (
+                      <div className="space-y-2">
+                        <p className="text-sm font-semibold text-red-800">{bi('實物件數已全部認領，另有未選單位的份數，沒有可安全分配的剩餘件數。請先修正朋友回覆或單據總量。', 'The physical quantity is already fully claimed, with additional shares lacking units. There is no safe remaining quantity to allocate. Correct the reply or receipt total first.')}</p>
+                        <Button data-testid="edit-unitless-claims" variant="secondary" className="w-full border-red-500 text-red-700" onClick={() => { setReconciliation(null); setStep(2); window.setTimeout(() => focusField('replies'), 120); }}>{bi('返回修正朋友回覆／單據總量', 'Edit claims or receipt quantity')}</Button>
+                      </div>
                     ) : (
                       <div>
                         <Label required={!reconciliation.policy} className="text-base">{tr("剩餘數量由誰承擔？")} <span className="text-xs font-normal">{bi('（擇一）', '(choose one)')}</span></Label>
@@ -5369,7 +5453,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
 
                   <div data-testid="receipt-currency-control" className="space-y-2">
                     <Label htmlFor="source-currency-select" className="text-lg">{bi('單據原幣', 'Receipt currency')}</Label>
-                    <select id="source-currency-select" data-testid="source-currency" value={detectedCurrency} onChange={event => { setDetectedCurrency(event.target.value); setReceiptAdjustmentDetails(null); setReconciliation(null); setStepError(''); setResults(null); setIsSaved(false); }} className="w-full rounded-xl border border-slate-400 bg-white p-3.5 text-base font-semibold text-slate-800">
+                    <select id="source-currency-select" data-testid="source-currency" value={detectedCurrency} onChange={event => { setDetectedCurrency(event.target.value); setReceiptAdjustmentDetails(null); setReceiptTotalReview(null); setReconciliation(null); setStepError(''); setResults(null); setIsSaved(false); }} className="w-full rounded-xl border border-slate-400 bg-white p-3.5 text-base font-semibold text-slate-800">
                       {sourceCurrencyOptions.map(code => <option key={code} value={code}>{getCurrencyName(code)}</option>)}
                     </select>
                     <p className="text-xs text-slate-600">{bi('項目、稅費和折扣均以此貨幣輸入。', 'Items, tax and discounts use this currency.')}</p>
@@ -5478,6 +5562,15 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                     ))}
                   </ul>
                 </Card>
+
+                {results.receiptTotalReview?.acknowledged === true && (
+                  <Card data-testid="receipt-total-confirmed" role="status" className="border-amber-600 bg-amber-50 !p-4">
+                    <h3 className="font-extrabold text-amber-950">{bi('已明確核對收據總額差異', 'Receipt total difference acknowledged')}</h3>
+                    {results.receiptTotalReview.printedAmount === null
+                      ? <p className="mt-1 text-sm leading-relaxed text-amber-950">{bi('舊草稿未保存印刷總額；請保留收據以便複查。', 'The older draft did not save the printed total. Keep the receipt for reference.')}</p>
+                      : <p className="mt-1 text-sm leading-relaxed text-amber-950">{bi('印刷總額', 'Printed total')}: {formatMoney(results.receiptTotalReview.printedAmount, results.receiptTotalReview.printedCurrency)} {results.receiptTotalReview.printedCurrency} · {bi('計算總額', 'Calculated total')}: {formatMoney(results.receiptTotalReview.calculatedAmount, results.receiptTotalReview.calculatedCurrency)} {results.receiptTotalReview.calculatedCurrency}</p>}
+                  </Card>
+                )}
 
                 {claimSession?.link && <div data-testid="same-link-sync-status" role="status" className={`rounded-xl border p-3 text-sm font-semibold leading-relaxed ${friendShareStatus === 'error' ? 'border-red-400 bg-red-50 text-red-800' : 'border-emerald-400 bg-emerald-50 text-emerald-900'}`}>
                   {friendShareStatus === 'uploading' ? bi('同步中…', 'Syncing…')

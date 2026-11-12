@@ -317,6 +317,23 @@ test('uses less than one minor unit as the report rounding tolerance', () => {
   assert.equal(receipt.withinRoundingTolerance(0.5, 'JPY'), false);
 });
 
+test('flags a bare S beside a source amount without rewriting it as a dollar sign', () => {
+  assert.equal(receipt.hasAmbiguousDollarSAmount('S12.50'), true);
+  assert.equal(receipt.hasAmbiguousDollarSAmount('S 1,234.50'), true);
+  assert.equal(receipt.hasAmbiguousDollarSAmount('12.50 S'), true);
+  assert.equal(receipt.hasAmbiguousDollarSAmount('$12.50'), false);
+  assert.equal(receipt.hasAmbiguousDollarSAmount('S$12.50'), false);
+  assert.equal(receipt.hasAmbiguousDollarSAmount('12.50 SGD'), false);
+  assert.equal(receipt.hasAmbiguousDollarSAmount('Service 12.50'), false);
+});
+
+test('flags raw S source text before localized number parsing can strip the glyph', () => {
+  assert.equal(receipt.parseMoney('S12.50', 'HKD'), 12.5, 'the generic amount parser strips non-numeric glyphs');
+  assert.equal(receipt.hasAmbiguousDollarSAmount('S12.50'), true, 'the raw source must be checked before using that normalized number');
+  assert.equal(receipt.parseMoney('$12.50', 'HKD'), 12.5);
+  assert.equal(receipt.hasAmbiguousDollarSAmount('$12.50'), false, 'an explicit dollar sign stays valid');
+});
+
 test('enforces the discount cap at the currency-rounded subtotal boundary', () => {
   assert.equal(receipt.isDiscountWithinSubtotal(100, 100, 'HKD'), true);
   assert.equal(receipt.isDiscountWithinSubtotal(100.01, 100, 'HKD'), false);

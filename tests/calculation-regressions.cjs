@@ -106,9 +106,10 @@ async function readSavedResults(page) {
     const averageTax = await openCalculator(browser, {
       items: [{ id: '01', name: '咖啡', nameEn: 'Coffee', price: 20, qty: 1, total: 20, totalQty: 2, unit: '件' }],
       friendsReplies: '姓名：阿明\n01 = 1件',
-      payer: '主辦人', taxAmount: '3', discountAmount: '0',
-      reconciliation: { issues: [{ itemId: '01', name: '咖啡', unit: '件', totalQty: 2, claimedQty: 1, difference: 1, amount: 10 }], policy: 'payer' }
+      payer: '主辦人', taxAmount: '3', discountAmount: '0', reconciliation: null
     });
+    await averageTax.page.getByTestId('calculate-split').click();
+    await averageTax.page.locator('input[name="reconciliationPolicy"]').first().check();
     await averageTax.page.getByTestId('calculate-split').click();
     await averageTax.page.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '4', null, { timeout: 20000 });
     const averageResults = await readSavedResults(averageTax.page);
@@ -237,8 +238,10 @@ async function readSavedResults(page) {
         { id: '02', name: '另一項', price: 1, total: 1, totalQty: null, unit: '' }
       ],
       friendsReplies: '姓名：阿明\n01 = 1件\n姓名：小美\n01 = 1件\n姓名：Peter\n02 = 1',
-      payer: '主辦人', taxAmount: '0', discountAmount: '0', reconciliation: { issues: [], policy: 'equal' }
+      payer: '主辦人', taxAmount: '0', discountAmount: '0', reconciliation: null
     });
+    await remainder.page.getByTestId('calculate-split').click();
+    await remainder.page.locator('input[name="reconciliationPolicy"]').nth(1).check();
     await remainder.page.getByTestId('calculate-split').click();
     await remainder.page.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '4', null, { timeout: 20000 });
     const remainderResults = await readSavedResults(remainder.page);
@@ -246,6 +249,91 @@ async function readSavedResults(page) {
     assert.equal(remainderResults.personTotals['小美'].adjustments[0].qty, 2);
     console.log('PASS actual-unit remainder division counts only people who claimed that item');
     await remainder.context.close();
+
+    const suspiciousAmount = await openCalculator(browser, {
+      step: 2,
+      items: [{ id: '01', name: '合成咖啡', price: 12.5, total: 12.5, totalQty: null, unit: '', amountText: 'S12.50', amountCurrencyGlyphUncertain: true, amountReviewRequired: true, needsAmountReview: true, amountReviewReason: 'currency-symbol' }],
+      friendsReplies: '姓名：阿明\n01 = 1', payer: '主辦人'
+    }, { expectCalculateEnabled: false });
+    const suspiciousRow = suspiciousAmount.page.getByTestId('verify-item');
+    assert.match(await suspiciousRow.innerText(), /金額待核對/, 'an S/$ ambiguous amount is not presented as a verified numeric amount');
+    assert.doesNotMatch(await suspiciousRow.innerText(), /12\.50/, 'the provisional numeric OCR value is hidden from the review summary');
+    assert.match(await suspiciousAmount.page.getByTestId('item-amount-review').innerText(), /S 可能是 \$ 被誤認/);
+    await suspiciousAmount.page.getByTestId('go-to-payer').click();
+    assert.equal(await suspiciousAmount.page.locator('[data-live-app] main').getAttribute('data-current-step'), '2', 'an unverified ambiguous currency glyph blocks leaving Step 2');
+    await suspiciousAmount.context.close();
+    console.log('PASS suspicious S/$ amount stays visibly unverified and blocks settlement');
+
+    const unitlessClaim = await openCalculator(browser, {
+      items: [{ id: '01', name: '合成點心', price: 20, total: 20, totalQty: 2, unit: '件' }],
+      friendsReplies: '姓名：阿明\n01 = 1件\n姓名：小美\n01 = 1',
+      payer: '主辦人', taxAmount: '0', discountAmount: '0', reconciliation: null
+    });
+    await unitlessClaim.page.getByTestId('calculate-split').click();
+    const unitlessCard = unitlessClaim.page.getByTestId('unit-quantity-reconciliation');
+    await unitlessCard.waitFor({ state: 'visible' });
+    assert.match(await unitlessCard.innerText(), /只填「份數」不等於件數/);
+    assert.match(await unitlessCard.innerText(), /1 位朋友只填份數（共 1 份）/);
+    await unitlessClaim.page.locator('input[name="reconciliationPolicy"]').nth(1).check();
+    await unitlessClaim.page.getByTestId('calculate-split').click();
+    await unitlessClaim.page.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '4', null, { timeout: 20000 });
+    const unitlessResults = await readSavedResults(unitlessClaim.page);
+    assert.equal(unitlessResults.reconciliationAllocations[0].shareClaimCount, 1, 'the missing-unit share remains separately disclosed in the persisted reconciliation');
+    assert.equal(unitlessResults.reconciliationAllocations[0].policy, 'equal', 'the remaining quantity is assigned only after an explicit policy choice');
+    assert.equal(unitlessResults.sourceBillTotal, 20, 'the known bill total remains fully reconciled');
+    console.log('PASS unitless claim quantities are surfaced and require an explicit remainder policy');
+    await unitlessClaim.context.close();
+
+    const excessUnitless = await openCalculator(browser, {
+      items: [{ id: '01', name: '合成餅乾', price: 20, total: 20, totalQty: 2, unit: '件' }],
+      friendsReplies: '姓名：阿明\n01 = 2件\n姓名：小美\n01 = 1',
+      payer: '主辦人', taxAmount: '0', discountAmount: '0', reconciliation: null
+    });
+    await excessUnitless.page.getByTestId('calculate-split').click();
+    await excessUnitless.page.getByTestId('edit-unitless-claims').waitFor({ state: 'visible' });
+    assert.match(await excessUnitless.page.getByTestId('unit-quantity-reconciliation').innerText(), /已認帳數量相符/);
+    assert.equal(await excessUnitless.page.evaluate(() => JSON.parse(localStorage.getItem('billSplitterActiveDraftV1')).data.results), null, 'an extra unitless claim cannot be silently counted on top of all physical units');
+    await excessUnitless.context.close();
+    console.log('PASS fully claimed physical quantity plus an extra unitless share is blocked for correction');
+
+    const totalCorrection = await openCalculator(browser, {
+      items: [{ id: '01', name: '合成飲品', price: 20, total: 20, totalQty: null, unit: '' }],
+      friendsReplies: '姓名：阿明\n01 = 1', payer: '主辦人', taxAmount: '0', discountAmount: '0',
+      receiptTotalCheck: { amount: 30, currency: 'HKD', legacyMismatch: false }, reconciliation: null
+    });
+    await totalCorrection.page.getByTestId('calculate-split').click();
+    const correctionReview = totalCorrection.page.getByTestId('receipt-total-review');
+    await correctionReview.waitFor({ state: 'visible' });
+    assert.match(await correctionReview.innerText(), /30\.00/);
+    assert.match(await correctionReview.innerText(), /20\.00/);
+    assert.equal(await totalCorrection.page.evaluate(() => JSON.parse(localStorage.getItem('billSplitterActiveDraftV1')).data.results), null, 'mismatched totals do not produce results before correction or acknowledgement');
+    await totalCorrection.page.getByTestId('edit-receipt-total').click();
+    await totalCorrection.page.getByTestId('tax-amount').fill('10');
+    await totalCorrection.page.getByTestId('go-to-payer').click();
+    await totalCorrection.page.getByTestId('calculate-split').click();
+    await totalCorrection.page.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '4', null, { timeout: 20000 });
+    const correctedResults = await readSavedResults(totalCorrection.page);
+    assert.equal(correctedResults.sourceBillTotal, 30, 'correcting tax to match the printed total allows calculation');
+    assert.equal(correctedResults.receiptTotalReview, null, 'a corrected total does not carry an acknowledgement warning');
+    console.log('PASS receipt-total mismatch can be corrected before settlement');
+    await totalCorrection.context.close();
+
+    const totalAcknowledgement = await openCalculator(browser, {
+      items: [{ id: '01', name: '合成湯品', price: 20, total: 20, totalQty: null, unit: '' }],
+      friendsReplies: '姓名：阿明\n01 = 1', payer: '主辦人', taxAmount: '0', discountAmount: '0',
+      receiptTotalCheck: { amount: 30, currency: 'HKD', legacyMismatch: false }, reconciliation: null
+    });
+    await totalAcknowledgement.page.getByTestId('calculate-split').click();
+    await totalAcknowledgement.page.getByTestId('receipt-total-review').waitFor({ state: 'visible' });
+    await totalAcknowledgement.page.getByTestId('acknowledge-receipt-total').click();
+    await totalAcknowledgement.page.getByTestId('calculate-split').click();
+    await totalAcknowledgement.page.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '4', null, { timeout: 20000 });
+    const acknowledgedResults = await readSavedResults(totalAcknowledgement.page);
+    assert.equal(acknowledgedResults.receiptTotalReview.acknowledged, true, 'continuing with a mismatch records an explicit acknowledgement');
+    await totalAcknowledgement.page.getByTestId('receipt-total-confirmed').waitFor({ state: 'visible' });
+    assert.match(await totalAcknowledgement.page.getByTestId('receipt-total-confirmed').innerText(), /30\.00.*20\.00/);
+    console.log('PASS receipt-total mismatch requires explicit acknowledgement and remains visible in results');
+    await totalAcknowledgement.context.close();
 
     const converted = await openCalculator(browser, {
       items: [{ id: '01', name: '三分項目', price: 0.03, total: 0.03, totalQty: null, unit: '' }],
@@ -398,7 +486,7 @@ async function readSavedResults(page) {
 
     assert.equal(interceptedBusinessRequests, 0, 'all business APIs remain untouched');
     assert.deepEqual(failures, [], 'no browser exceptions occur');
-    console.log(JSON.stringify({ tests: 14, passed: 14, interceptedBusinessRequests, browserErrors: failures.length }));
+    console.log(JSON.stringify({ tests: 19, passed: 19, interceptedBusinessRequests, browserErrors: failures.length }));
   } finally {
     await browser.close();
   }
