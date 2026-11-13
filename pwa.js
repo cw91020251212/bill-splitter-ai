@@ -40,7 +40,7 @@
     window.navigator.standalone === true;
 
   /* ---------------------------------------------------------- service worker */
-  var RELEASE_VERSION = 'v139-one-click-copy-json-20261113';
+  var RELEASE_VERSION = 'v139-open-gemini-copy-prompt-20261113';
   var waitingWorker = null;
   var registrationPromise = null;
   var reloadRequested = false;

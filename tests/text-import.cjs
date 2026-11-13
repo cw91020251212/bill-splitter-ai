@@ -80,6 +80,8 @@ const ensureAIImportOpen = async page => {
     const noKeyPage = await noKeyContext.newPage();
     noKeyPage.on('pageerror', error => failures.push(error.message));
     await noKeyPage.addInitScript(() => {
+      window.__openedUrls = [];
+      window.open = (...args) => { window.__openedUrls.push(args); return null; };
       document.execCommand = command => {
         if (command === 'copy') window.__copiedPrompt = document.activeElement?.value || '';
         return true;
@@ -98,6 +100,12 @@ const ensureAIImportOpen = async page => {
     assert.equal(await noKeyPage.getByTestId('receipt-text-import-title').getAttribute('aria-label'), '其他 AI 翻譯');
     assert.match(await noKeyPage.getByTestId('receipt-text-import').innerText(), /提示詞＋賬單＝專用翻譯檔（\.json）/);
     assert.equal(await noKeyPage.getByTestId('external-ai-provider-examples').innerText(), '（Google AI 模式、豆包等）');
+    const googleAIButton = noKeyPage.getByTestId('copy-prompt-open-google-ai');
+    assert.equal(await googleAIButton.isVisible(), true, 'the combined copy-and-open action is available');
+    await googleAIButton.click();
+    assert.equal(await noKeyPage.evaluate(() => window.__openedUrls[0]?.[0]), 'https://gemini.google.com/app', 'the combined action opens Google Gemini in a new tab');
+    assert.match(await noKeyPage.evaluate(() => window.__copiedPrompt || ''), /一個 Markdown JSON 程式碼區塊/, 'the same action copies the receipt prompt');
+    assert.match(await noKeyPage.getByTestId('receipt-text-import').innerText(), /手動附上帳單圖片/ , 'the UI explains that the user attaches the image manually');
     assert.equal(await noKeyPage.getByTestId('receipt-text-import').evaluate(node => node.previousElementSibling?.getAttribute('data-testid') === 'choice-divider'), true, 'the receipt OCR and external AI import paths are separated by “or”');
     await noKeyPage.getByTestId('start-manual').click();
     await noKeyPage.getByTestId('item-name').first().fill('測試項目');
@@ -162,6 +170,9 @@ const ensureAIImportOpen = async page => {
     assert.match(copiedEnglishPrompt, /amountText/);
     assert.match(copiedEnglishPrompt, /"amountUncertain":false/);
     assert.match(copiedEnglishPrompt, /S12\.50/);
+    await noKeyPage.getByTestId('copy-prompt-open-google-ai').click();
+    assert.equal(await noKeyPage.evaluate(() => window.__openedUrls.at(-1)?.[0]), 'https://gemini.google.com/app', 'the combined action also opens Google Gemini in English mode');
+    assert.match(await noKeyPage.evaluate(() => window.__copiedPrompt || ''), /exactly one Markdown JSON code block/);
 
     await noKeyPage.evaluate(() => localStorage.setItem('billSplitterLanguage', 'zh-HK'));
     await noKeyPage.reload();
