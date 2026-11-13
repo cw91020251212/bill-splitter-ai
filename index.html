@@ -85,11 +85,11 @@
   ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
   ::-webkit-scrollbar-thumb:hover { background: #64748b; }
   </style>
-  <link rel="stylesheet" href="./theme.css?v=v139-receipt-json-prompt-response-first-20261113">
+  <link rel="stylesheet" href="./theme.css?v=v139-one-click-copy-json-20261113">
   <link rel="stylesheet" href="./tutorial.css?v=v86-free-models-only">
   <!-- R139: update the compact AI provider examples. -->
-  <meta name="bill-app-release" content="v139-receipt-json-prompt-response-first-20261113">
-  <script defer src="./pwa.js?v=v139-receipt-json-prompt-response-first-20261113"></script>
+  <meta name="bill-app-release" content="v139-one-click-copy-json-20261113">
+  <script defer src="./pwa.js?v=v139-one-click-copy-json-20261113"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
@@ -104,7 +104,7 @@
   <script src="./card-redaction.js?v=v97-card-number-redaction"></script>
   <script src="./card-share-review.js?v=v97-card-number-redaction"></script>
   <script src="./exchange-rates.js?v=v90-cross-currency-settlement"></script>
-    <script src="./tutorial.js?v=v139-receipt-json-prompt-response-first-20261113"></script>
+    <script src="./tutorial.js?v=v139-one-click-copy-json-20261113"></script>
   <script type="text/babel">
     const { useState, useRef, useEffect, useLayoutEffect, useMemo } = React;
     const tr = value => window.BillI18n.t(value);
@@ -259,7 +259,7 @@
     const LOCAL_PADDLE_MODEL_ID = 'local/paddleocr-js';
     const RECEIPT_JSON_IMPORT_PROMPT_ZH = `請辨認我附上的收據圖片，將商品名稱翻譯成香港繁體中文，並依照下方固定格式輸出一個有效 JSON 物件。多張圖片只有在屬於同一張收據（例如不同角度或續頁）時才合併；若明顯是不同收據，不要混在一起。
 
-為避免平台不支援附件而沒有回覆，請務必先在聊天回覆完整 JSON。若平台支援附件，可另外附上 UTF-8 編碼、檔名為 bill.json 的 JSON 檔，內容須與聊天中的 JSON 完全相同；若不能建立可下載附件，請仍一次輸出完整 JSON，不要等待附件功能，也不可只給附件、改成 .txt、拆成多個檔案或加上其他文字。聊天回覆只放 JSON，不要加標題、說明或 Markdown 程式碼框。
+輸出方式：只回覆一個 Markdown JSON 程式碼區塊（以 \`\`\`json 開始、以 \`\`\` 結束），讓聊天介面顯示「複製」按鈕，方便一鍵複製整份內容。程式碼區塊內只放完整 JSON 物件；不要建立或要求下載附件，不要在區塊外加標題、說明或其他文字，不要分段或拆成多個區塊。
 
 辨認規則：
 - 只把實際購買的商品放在 items；稅、服務費及折扣各自放在 adjustments。小計、合計、應付金額、付款額及找零不可放入 items 或 adjustments。
@@ -274,7 +274,7 @@
 {"items":[{"name":"拉麵","nameEn":"","original":"ラーメン","ja":"","price":100,"qty":1,"totalQty":null,"unit":"碗","total":100,"amountText":"100","amountUncertain":false}],"adjustments":[{"label":"消費税","kind":"tax","ratePercent":8,"amount":null,"baseAmount":null,"application":"separate","scope":"receipt","itemIndex":null,"order":0}],"taxTotal":null,"taxNote":"","currency":"JPY","date":"2026-03-14","receiptTotal":108}`;
     const RECEIPT_JSON_IMPORT_PROMPT_EN = `Read the receipt image(s) I attach, translate item names into Hong Kong Traditional Chinese, and return one valid JSON object using the exact structure below. Combine multiple images only when they show the same receipt (for example, different angles or continuation pages); do not mix clearly separate receipts.
 
-To avoid getting stuck when this platform cannot create attachments, always return the complete JSON in the chat first. If downloadable attachments are supported, you may also attach a UTF-8 JSON file named bill.json containing exactly the same object; if this interface cannot create downloadable attachments, still output the complete JSON once in one contiguous, copyable reply. Do not wait for file creation, return only an attachment, substitute a .txt file, split the output across files, or add other text. The chat reply must contain only JSON, with no title, explanation, or Markdown code fence.
+Output format: Reply with exactly one Markdown JSON code block (starting with \`\`\`json and ending with \`\`\`) so the chat interface can show its one-click Copy button for the complete content. Put only the complete JSON object inside the code block. Do not create or request a downloadable attachment, and do not add a title, explanation, or any other text outside the block. Do not split the response or use multiple blocks.
 
 Recognition rules:
 - Put actual purchased goods in items only. Put tax, service fees, and discounts in adjustments. Never put subtotal, total, amount due, payment, or change in items or adjustments.
@@ -2691,7 +2691,7 @@ Format (keep every field; items may contain multiple entries, and adjustments mu
         const storageKey = 'billSplitterDetailTablePreviewV1';
         try {
           localStorage.setItem(storageKey, JSON.stringify(previewData));
-          const previewWindow = window.open('./detailed-view.html?v=v139-receipt-json-prompt-response-first-20261113', '_blank');
+          const previewWindow = window.open('./detailed-view.html?v=v139-one-click-copy-json-20261113', '_blank');
           if (!previewWindow) {
             localStorage.removeItem(storageKey);
             toast(bi('允許彈窗', 'Allow pop-ups'), 'error');
@@ -3963,7 +3963,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
         const metadata = getClaimLinkMetadata();
         const link = new URL('./claim.html', window.location.href);
         link.searchParams.set('lang', lang === 'en' ? 'en' : 'zh-HK');
-        link.searchParams.set('v', 'v139-receipt-json-prompt-response-first-20261113');
+        link.searchParams.set('v', 'v139-one-click-copy-json-20261113');
         link.searchParams.set('session', session.id);
         link.hash = window.ClaimRelay
           ? window.ClaimRelay.buildHash(encodeClaimLinkPayload(payload), room, metadata)
@@ -4083,11 +4083,9 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
       };
 
       const copyReceiptJsonImportPrompt = () => copyToClipboard(
-        `${uiLang === 'en' ? RECEIPT_JSON_IMPORT_PROMPT_EN : RECEIPT_JSON_IMPORT_PROMPT_ZH}\n\n${uiLang === 'en'
-          ? 'If a number on one receipt row could mean more than one thing (for example quantity, unit price, or part of a product name), do not guess. Set amountUncertain: true and leave total null unless the printed line total is clear.'
-          : '如果同一行的數字可能有多種意思（例如數量、單價或商品名稱的一部分），不要猜。請設 amountUncertain: true；除非收據清楚印出行總額，否則 total 留 null。'}`,
+        uiLang === 'en' ? RECEIPT_JSON_IMPORT_PROMPT_EN : RECEIPT_JSON_IMPORT_PROMPT_ZH,
         bi('讀圖提示詞', 'image-reading prompt'),
-        bi('✅ 提示詞已複製；要求 bill.json，不能附檔就複製整段回覆。', '✅ Prompt copied; it requests bill.json, or a full reply to copy if attachments are unavailable.')
+        bi('✅ 提示詞已複製；要求輸出單一 JSON 區塊，方便一鍵複製。', '✅ Prompt copied; it requests one JSON code block with a one-click Copy button.')
       );
 
       const renderTextImportReceiptAttachmentCard = (shareMode = false, remindBillPhoto = false) => (
