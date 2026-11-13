@@ -85,11 +85,11 @@
   ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
   ::-webkit-scrollbar-thumb:hover { background: #64748b; }
   </style>
-  <link rel="stylesheet" href="./theme.css?v=v139-google-ai-mode-copy-20261111">
+  <link rel="stylesheet" href="./theme.css?v=v139-receipt-json-prompt-response-first-20261113">
   <link rel="stylesheet" href="./tutorial.css?v=v86-free-models-only">
   <!-- R139: update the compact AI provider examples. -->
-  <meta name="bill-app-release" content="v139-google-ai-mode-copy-20261111">
-  <script defer src="./pwa.js?v=v139-google-ai-mode-copy-20261111"></script>
+  <meta name="bill-app-release" content="v139-receipt-json-prompt-response-first-20261113">
+  <script defer src="./pwa.js?v=v139-receipt-json-prompt-response-first-20261113"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
@@ -104,7 +104,7 @@
   <script src="./card-redaction.js?v=v97-card-number-redaction"></script>
   <script src="./card-share-review.js?v=v97-card-number-redaction"></script>
   <script src="./exchange-rates.js?v=v90-cross-currency-settlement"></script>
-    <script src="./tutorial.js?v=v139-google-ai-mode-copy-20261111"></script>
+    <script src="./tutorial.js?v=v139-receipt-json-prompt-response-first-20261113"></script>
   <script type="text/babel">
     const { useState, useRef, useEffect, useLayoutEffect, useMemo } = React;
     const tr = value => window.BillI18n.t(value);
@@ -256,14 +256,37 @@
     const FREE_AI_JPEG_QUALITY = 0.6;
     const PAID_AI_MAX_EDGE = 1600;
     const PAID_AI_JPEG_QUALITY = 0.72;
-
     const LOCAL_PADDLE_MODEL_ID = 'local/paddleocr-js';
-    const RECEIPT_JSON_IMPORT_PROMPT_ZH = `請讀取我附上的收據相片（如有多張，合併成同一張收據），辨認商品、金額並翻譯成香港繁體中文，再整理成一個有效 JSON 物件。優先把結果附成一個可下載的 UTF-8 JSON 檔，檔名 bill.json，檔案只包含該 JSON 物件；支援附件時不要只在聊天中顯示文字或改成 .txt，也不要拆成多個檔案。若此介面不能建立可下載附件，請在同一則回覆一次輸出完整 JSON，方便整段複製，不要分段、省略欄位或加其他文字。商品 name 用香港繁體中文，original 保留收據原文。只把實際商品放在 items；稅、服務費、折扣放在 adjustments；小計、合計、應付及找零不可放入 items。amountText 必須逐字保留商品印出的金額原文及符號；若看不清，填空字串並設 amountUncertain:true。若原文可能把 $ 誤讀成 S（例如 S12.50），必須設 amountUncertain:true；不可靜默改符號或把正規化後的數字當作已核實。其他看不清或沒有印出的欄位用 null 或空字串，勿估算、勿捏造。
-格式：{"items":[{"name":"拉麵","nameEn":"","original":"ラーメン","ja":"","price":100,"qty":1,"totalQty":null,"unit":"碗","total":100,"amountText":"100"}],"adjustments":[{"label":"消費税","kind":"tax","ratePercent":8,"amount":null,"baseAmount":null,"application":"separate","scope":"receipt","itemIndex":null,"order":0}],"taxTotal":null,"taxNote":"","currency":"JPY","date":"2026-03-14","receiptTotal":108}
-沒有稅費時 adjustments 必須為 []。currency 用 ISO 三位碼；不確定的 date 或 receiptTotal 用 null。`;
-    const RECEIPT_JSON_IMPORT_PROMPT_EN = `Read the receipt photo(s) I attach (combine multiple photos if they belong to the same receipt), identify the items and amounts, translate item names into Hong Kong Traditional Chinese, and return one valid JSON object. Prefer to attach the result as one downloadable UTF-8 JSON file named bill.json, containing only that object. When attachments are supported, do not just display chat text, substitute a .txt file, or split the result across files. If this interface cannot create downloadable attachments, output the complete JSON once in one contiguous, copyable reply, without splitting it, omitting fields, or adding other text. Preserve the printed text in original. Put actual purchased goods in items only; put tax, service fees, and discounts in adjustments. Never list subtotal, total due, payment, or change as an item. Set amountText to the exact source amount including symbols; if unreadable, use an empty string and set amountUncertain:true. If $ may have been misread as S (for example S12.50), set amountUncertain:true; never silently change the glyph or treat the normalized number as verified. Use null or an empty string for other unclear or unprinted fields; do not estimate or invent anything.
-Format: {"items":[{"name":"拉麵","nameEn":"ramen","original":"ラーメン","ja":"","price":100,"qty":1,"totalQty":null,"unit":"bowl","total":100,"amountText":"100"}],"adjustments":[{"label":"消費税","kind":"tax","ratePercent":8,"amount":null,"baseAmount":null,"application":"separate","scope":"receipt","itemIndex":null,"order":0}],"taxTotal":null,"taxNote":"","currency":"JPY","date":"2026-03-14","receiptTotal":108}
-Use an empty adjustments array if there are no fees or discounts. Use a three-letter ISO currency code; use null for an unknown date or receiptTotal.`;
+    const RECEIPT_JSON_IMPORT_PROMPT_ZH = `請辨認我附上的收據圖片，將商品名稱翻譯成香港繁體中文，並依照下方固定格式輸出一個有效 JSON 物件。多張圖片只有在屬於同一張收據（例如不同角度或續頁）時才合併；若明顯是不同收據，不要混在一起。
+
+為避免平台不支援附件而沒有回覆，請務必先在聊天回覆完整 JSON。若平台支援附件，可另外附上 UTF-8 編碼、檔名為 bill.json 的 JSON 檔，內容須與聊天中的 JSON 完全相同；若不能建立可下載附件，請仍一次輸出完整 JSON，不要等待附件功能，也不可只給附件、改成 .txt、拆成多個檔案或加上其他文字。聊天回覆只放 JSON，不要加標題、說明或 Markdown 程式碼框。
+
+辨認規則：
+- 只把實際購買的商品放在 items；稅、服務費及折扣各自放在 adjustments。小計、合計、應付金額、付款額及找零不可放入 items 或 adjustments。
+- name 必須是香港繁體中文商品名稱；original 逐字保留收據上的商品原文。nameEn 只填清楚可確認的英文名稱，否則填空字串；ja 只填收據上清楚可確認的日文名稱，否則填空字串。
+- price、qty、total 只在收據清楚印出且意思明確時填數字；total 只填清楚印出的商品行總額，不要用單價乘數量推算。未印出或看不清的數值填 null；totalQty 未明確印出時填 null；unit 未印出時填空字串。
+- amountText 逐字保留該商品行印出的金額原文，包括貨幣符號、字母及標點；看不清時填空字串並設 amountUncertain 為 true。若原文可能把 $ 誤讀成 S（例如 S12.50），保留所見原文並設 amountUncertain 為 true；不可靜默改符號，也不可把正規化後的數字當成已核實。
+- 若同一行的數字可能有多種意思（例如數量、單價或商品名稱／規格的一部分），不要猜；相關數值填 null，amountUncertain 設為 true。只有金額清楚可確認時 amountUncertain 才填 false。
+- adjustments.kind 只用 tax 或 discount；服務費歸類為 tax，並在 label 保留收據上的服務費字樣。只抄收據明確印出的稅率、金額及計算基數；金額填正數，未印出或不確定時填 null。application 用 separate、included 或 unknown；scope 用 receipt 或 item；itemIndex 使用 items 中從 0 開始的索引，否則填 null；order 按收據上的調整項次序從 0 開始。
+- 沒有調整項時 adjustments 必須是空陣列 []。currency 使用 ISO 4217 三位碼；無法確認時填 null。date 使用 YYYY-MM-DD；無法確認時填 null。receiptTotal 只填清楚印出的最終應付總額，否則填 null。其他未印出或看不清的文字欄位填空字串，不要估算或捏造。
+
+格式（每個欄位都必須保留；items 可有多項，adjustments 沒有時用 []）：
+{"items":[{"name":"拉麵","nameEn":"","original":"ラーメン","ja":"","price":100,"qty":1,"totalQty":null,"unit":"碗","total":100,"amountText":"100","amountUncertain":false}],"adjustments":[{"label":"消費税","kind":"tax","ratePercent":8,"amount":null,"baseAmount":null,"application":"separate","scope":"receipt","itemIndex":null,"order":0}],"taxTotal":null,"taxNote":"","currency":"JPY","date":"2026-03-14","receiptTotal":108}`;
+    const RECEIPT_JSON_IMPORT_PROMPT_EN = `Read the receipt image(s) I attach, translate item names into Hong Kong Traditional Chinese, and return one valid JSON object using the exact structure below. Combine multiple images only when they show the same receipt (for example, different angles or continuation pages); do not mix clearly separate receipts.
+
+To avoid getting stuck when this platform cannot create attachments, always return the complete JSON in the chat first. If downloadable attachments are supported, you may also attach a UTF-8 JSON file named bill.json containing exactly the same object; if this interface cannot create downloadable attachments, still output the complete JSON once in one contiguous, copyable reply. Do not wait for file creation, return only an attachment, substitute a .txt file, split the output across files, or add other text. The chat reply must contain only JSON, with no title, explanation, or Markdown code fence.
+
+Recognition rules:
+- Put actual purchased goods in items only. Put tax, service fees, and discounts in adjustments. Never put subtotal, total, amount due, payment, or change in items or adjustments.
+- name must be the item name in Hong Kong Traditional Chinese; original must preserve the printed item text exactly. Set nameEn only to a clearly identifiable English name, otherwise use an empty string. Set ja only to a clearly identifiable Japanese name printed on the receipt, otherwise use an empty string.
+- Set price, qty, and total to numbers only when clearly printed and unambiguous. total must be the clearly printed line total; do not calculate it from unit price × quantity. Use null for unprinted or unclear numeric values; use null for totalQty unless the total quantity is explicitly printed; use an empty string for an unprinted unit.
+- amountText must preserve the exact printed amount text for that item line, including currency symbols, letters, and punctuation. If unreadable, use an empty string and set amountUncertain to true. If $ may have been misread as S (for example S12.50), preserve what is visible and set amountUncertain to true; never silently change the glyph or treat a normalized number as verified.
+- If a number on one row could mean more than one thing (for example quantity, unit price, or part of an item name/specification), do not guess; set related numeric fields to null and amountUncertain to true. Set amountUncertain to false only when the amount is clearly confirmed.
+- Use only tax or discount for adjustments.kind; classify service fees as tax and preserve the service-fee wording in label. Copy only tax rates, amounts, and bases that are explicitly printed; amounts must be positive, and use null when unprinted or uncertain. Use separate, included, or unknown for application; use receipt or item for scope; itemIndex is the zero-based index in items or null; order follows the adjustment lines on the receipt, starting at 0.
+- If there are no adjustments, adjustments must be []. Use a three-letter ISO 4217 currency code, or null if unknown. Use YYYY-MM-DD for date, or null if unknown. Set receiptTotal only to the clearly printed final amount due; otherwise use null. For all other unprinted or unclear fields, use an empty string; never estimate or invent values.
+
+Format (keep every field; items may contain multiple entries, and adjustments must be [] when absent):
+{"items":[{"name":"拉麵","nameEn":"ramen","original":"ラーメン","ja":"","price":100,"qty":1,"totalQty":null,"unit":"bowl","total":100,"amountText":"100","amountUncertain":false}],"adjustments":[{"label":"消費税","kind":"tax","ratePercent":8,"amount":null,"baseAmount":null,"application":"separate","scope":"receipt","itemIndex":null,"order":0}],"taxTotal":null,"taxNote":"","currency":"JPY","date":"2026-03-14","receiptTotal":108}`;
     const recognitionModelLabel = modelId => {
       const value = String(modelId || '');
       if (value === 'local-json-import') return bi('上次：JSON 檔（本機匯入）', 'Previous input: text JSON (local import)');
@@ -2668,7 +2691,7 @@ Use an empty adjustments array if there are no fees or discounts. Use a three-le
         const storageKey = 'billSplitterDetailTablePreviewV1';
         try {
           localStorage.setItem(storageKey, JSON.stringify(previewData));
-          const previewWindow = window.open('./detailed-view.html?v=v139-google-ai-mode-copy-20261111', '_blank');
+          const previewWindow = window.open('./detailed-view.html?v=v139-receipt-json-prompt-response-first-20261113', '_blank');
           if (!previewWindow) {
             localStorage.removeItem(storageKey);
             toast(bi('允許彈窗', 'Allow pop-ups'), 'error');
@@ -3940,7 +3963,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
         const metadata = getClaimLinkMetadata();
         const link = new URL('./claim.html', window.location.href);
         link.searchParams.set('lang', lang === 'en' ? 'en' : 'zh-HK');
-        link.searchParams.set('v', 'v139-google-ai-mode-copy-20261111');
+        link.searchParams.set('v', 'v139-receipt-json-prompt-response-first-20261113');
         link.searchParams.set('session', session.id);
         link.hash = window.ClaimRelay
           ? window.ClaimRelay.buildHash(encodeClaimLinkPayload(payload), room, metadata)

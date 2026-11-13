@@ -131,14 +131,16 @@ const ensureAIImportOpen = async page => {
     assert.match(zhImportHelp, /貼上其他 AI 的 JSON 或翻譯文字/);
     await noKeyPage.getByTestId('copy-receipt-json-prompt').click();
     const copiedPrompt = await noKeyPage.evaluate(() => window.__copiedPrompt || '');
-    assert.match(copiedPrompt, /附上的收據相片/);
+    assert.match(copiedPrompt, /附上的收據圖片/);
     assert.match(copiedPrompt, /"items"/);
     assert.match(copiedPrompt, /"receiptTotal"/);
-    assert.match(copiedPrompt, /可下載的 UTF-8 JSON 檔，檔名 bill\.json/);
+    assert.match(copiedPrompt, /先在聊天回覆完整 JSON/);
+    assert.match(copiedPrompt, /UTF-8 編碼、檔名為 bill\.json/);
     assert.match(copiedPrompt, /不能建立可下載附件/);
     assert.match(copiedPrompt, /一次輸出完整 JSON/);
     assert.match(copiedPrompt, /amountUncertain: true/);
     assert.match(copiedPrompt, /amountText/);
+    assert.match(copiedPrompt, /"amountUncertain":false/);
     assert.match(copiedPrompt, /S12\.50/);
 
     await noKeyPage.evaluate(() => localStorage.setItem('billSplitterLanguage', 'en'));
@@ -150,13 +152,15 @@ const ensureAIImportOpen = async page => {
     assert.match(enImportHelp, /Prompt \+ bill = ready-to-import \.json file/);
     await noKeyPage.getByTestId('copy-receipt-json-prompt').click();
     const copiedEnglishPrompt = await noKeyPage.evaluate(() => window.__copiedPrompt || '');
-    assert.match(copiedEnglishPrompt, /Read the receipt photo/);
+    assert.match(copiedEnglishPrompt, /Read the receipt image/);
     assert.match(copiedEnglishPrompt, /receiptTotal/);
-    assert.match(copiedEnglishPrompt, /one downloadable UTF-8 JSON file named bill\.json/);
+    assert.match(copiedEnglishPrompt, /always return the complete JSON in the chat first/);
+    assert.match(copiedEnglishPrompt, /UTF-8 JSON file named bill\.json/);
     assert.match(copiedEnglishPrompt, /cannot create downloadable attachments/);
     assert.match(copiedEnglishPrompt, /complete JSON once in one contiguous, copyable reply/);
     assert.match(copiedEnglishPrompt, /amountUncertain: true/);
     assert.match(copiedEnglishPrompt, /amountText/);
+    assert.match(copiedEnglishPrompt, /"amountUncertain":false/);
     assert.match(copiedEnglishPrompt, /S12\.50/);
 
     await noKeyPage.evaluate(() => localStorage.setItem('billSplitterLanguage', 'zh-HK'));
