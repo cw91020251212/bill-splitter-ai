@@ -85,11 +85,11 @@
   ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
   ::-webkit-scrollbar-thumb:hover { background: #64748b; }
   </style>
-  <link rel="stylesheet" href="./theme.css?v=v139-open-gemini-copy-prompt-20261113">
+  <link rel="stylesheet" href="./theme.css?v=v139-gemini-button-order-20261113">
   <link rel="stylesheet" href="./tutorial.css?v=v86-free-models-only">
   <!-- R139: update the compact AI provider examples. -->
-  <meta name="bill-app-release" content="v139-open-gemini-copy-prompt-20261113">
-  <script defer src="./pwa.js?v=v139-open-gemini-copy-prompt-20261113"></script>
+  <meta name="bill-app-release" content="v139-gemini-button-order-20261113">
+  <script defer src="./pwa.js?v=v139-gemini-button-order-20261113"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
@@ -104,7 +104,7 @@
   <script src="./card-redaction.js?v=v97-card-number-redaction"></script>
   <script src="./card-share-review.js?v=v97-card-number-redaction"></script>
   <script src="./exchange-rates.js?v=v90-cross-currency-settlement"></script>
-    <script src="./tutorial.js?v=v139-open-gemini-copy-prompt-20261113"></script>
+    <script src="./tutorial.js?v=v139-gemini-button-order-20261113"></script>
   <script type="text/babel">
     const { useState, useRef, useEffect, useLayoutEffect, useMemo } = React;
     const tr = value => window.BillI18n.t(value);
@@ -2691,7 +2691,7 @@ Format (keep every field; items may contain multiple entries, and adjustments mu
         const storageKey = 'billSplitterDetailTablePreviewV1';
         try {
           localStorage.setItem(storageKey, JSON.stringify(previewData));
-          const previewWindow = window.open('./detailed-view.html?v=v139-open-gemini-copy-prompt-20261113', '_blank');
+          const previewWindow = window.open('./detailed-view.html?v=v139-gemini-button-order-20261113', '_blank');
           if (!previewWindow) {
             localStorage.removeItem(storageKey);
             toast(bi('允許彈窗', 'Allow pop-ups'), 'error');
@@ -3963,7 +3963,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
         const metadata = getClaimLinkMetadata();
         const link = new URL('./claim.html', window.location.href);
         link.searchParams.set('lang', lang === 'en' ? 'en' : 'zh-HK');
-        link.searchParams.set('v', 'v139-open-gemini-copy-prompt-20261113');
+        link.searchParams.set('v', 'v139-gemini-button-order-20261113');
         link.searchParams.set('session', session.id);
         link.hash = window.ClaimRelay
           ? window.ClaimRelay.buildHash(encodeClaimLinkPayload(payload), room, metadata)
@@ -5150,7 +5150,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                 <ChoiceDivider />
 
                 <Card data-testid="receipt-text-import" className="border-slate-400 bg-white">
-                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(13rem,15rem)] sm:items-center">
                     <button type="button" data-testid="toggle-receipt-text-import" aria-controls="receipt-text-import-content" aria-expanded={showReceiptTextImport} onClick={() => { const nextOpen = !showReceiptTextImport; setShowReceiptTextImport(nextOpen); if (!tutorialDemo) writeUiDisclosure('receipt-ai-import-r133', nextOpen); }} className="relative -mx-5 w-[calc(100%+1.25rem)] sm:mx-0 sm:w-full min-h-[44px] flex items-center justify-between gap-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700">
                       <span className="min-w-0 flex-1 pl-3 sm:pl-0">
                         <span data-testid="receipt-text-import-title-row" className="flex min-w-0 flex-nowrap items-baseline justify-between gap-0">
@@ -5163,14 +5163,14 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                       </span>
                       <span aria-hidden="true" data-testid="receipt-text-import-toggle-icon" data-direction={showReceiptTextImport ? 'up' : 'down'} className="absolute -top-5 right-0 z-10 sm:-right-4"><Icon path={showReceiptTextImport ? icons.chevronUp : icons.chevronDown} size={20} className="text-slate-600"/></span>
                     </button>
-                    <Button data-testid="copy-receipt-json-prompt" variant="outline" className="w-full border-slate-400 bg-white sm:w-auto" disabled={tutorialDemo || isAnalyzing} onClick={copyReceiptJsonImportPrompt}><Icon path={icons.copy} size={18}/>{bi('複製讀圖提示詞', 'Copy photo-reading prompt')}</Button>
+                    <div className="grid grid-cols-1 gap-2">
+                      <Button data-testid="copy-prompt-open-google-ai" variant="primary" className="w-full" disabled={tutorialDemo || isAnalyzing} onClick={copyPromptAndOpenGoogleAI}><Icon path={icons.send} size={18}/>{bi('複製提示詞並開啟 Google AI', 'Copy prompt & open Google AI')}</Button>
+                      <Button data-testid="copy-receipt-json-prompt" variant="outline" className="w-full border-slate-400 bg-white" disabled={tutorialDemo || isAnalyzing} onClick={copyReceiptJsonImportPrompt}><Icon path={icons.copy} size={18}/>{bi('複製讀圖提示詞', 'Copy photo-reading prompt')}</Button>
+                    </div>
                   </div>
                   {showReceiptTextImport && (
                     <div id="receipt-text-import-content" data-testid="receipt-text-import-content" className="mt-4 space-y-3">
-                      <div className="space-y-1">
-                        <Button data-testid="copy-prompt-open-google-ai" variant="primary" className="w-full" disabled={tutorialDemo || isAnalyzing} onClick={copyPromptAndOpenGoogleAI}><Icon path={icons.send} size={18}/>{bi('複製提示詞並開啟 Google AI', 'Copy prompt & open Google AI')}</Button>
-                        <p className="text-xs leading-relaxed text-slate-600">{bi('開啟 Gemini 後，請手動附上帳單圖片並按送出；此按鈕不會上載圖片。', 'In Gemini, manually attach the receipt and press Send; this button does not upload images.')}</p>
-                      </div>
+                      <p className="text-xs leading-relaxed text-slate-600">{bi('開啟 Gemini 後，請手動附上帳單圖片並按送出；此按鈕不會上載圖片。', 'In Gemini, manually attach the receipt and press Send; this button does not upload images.')}</p>
                       <ol data-testid="external-ai-steps" className="list-decimal space-y-1 rounded-lg border border-slate-300 bg-slate-50 p-3 pl-8 text-sm leading-relaxed text-slate-700">
                         <li>{bi('按上方按鈕複製提示詞並開啟 Google AI，再手動附上賬單圖片及送出。', 'Use the button above to copy the prompt and open Google AI, then manually attach the receipt and send.')}</li>
                         <li>{bi('在下方輸入欄貼上其他 AI 產生的 JSON 或純文字。', 'Paste the AI JSON; the selected model processes plain text.')}</li>
