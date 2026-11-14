@@ -947,8 +947,9 @@ body.bg-slate-50 { background: var(--page-grey); color: var(--ink); }
   #root .upload-dropzone.upload-dropzone-compact [data-testid="receipt-source-actions"] { gap: 4px; }
 }
 
-/* R140 host accents. Stage border colors stay the existing step markers.
-   Green is the logo and one primary action. Other fills shrink to an edge or a pill. */
+/* R140 host accents, kept in R141. Stage border colors stay the existing step markers.
+   Green is the logo and host-primary actions, including the Google AI prompt button.
+   Other fills shrink to an edge or a pill. */
 #root button.host-primary.green-action:not(.green-action-dark):not(:disabled) {
   background-image: linear-gradient(to top right, #248a5a 0%, #2f9d68 55%, #3aaf76 100%) !important;
   background-color: #2f9d68 !important;

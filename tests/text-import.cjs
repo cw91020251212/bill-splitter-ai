@@ -81,11 +81,36 @@ const ensureAIImportOpen = async page => {
     noKeyPage.on('pageerror', error => failures.push(error.message));
     await noKeyPage.addInitScript(() => {
       window.__openedUrls = [];
-      window.open = (...args) => { window.__openedUrls.push(args); return null; };
-      document.execCommand = command => {
-        if (command === 'copy') window.__copiedPrompt = document.activeElement?.value || '';
-        return true;
+      window.__copyTrace = [];
+      window.__copiedPrompt = '';
+      window.__clipboardText = '';
+      window.open = (...args) => {
+        window.__copyTrace.push({ type: 'open', url: String(args[0] || '') });
+        window.__openedUrls.push(args);
+        return null;
       };
+      document.execCommand = command => {
+        if (command !== 'copy') return false;
+        const active = document.activeElement;
+        const value = active && typeof active.value === 'string' ? active.value : '';
+        window.__copyTrace.push({ type: 'exec', value, failed: window.__failExecCopy === true });
+        if (value) window.__copiedPrompt = value;
+        return window.__failExecCopy !== true;
+      };
+      try {
+        Object.defineProperty(navigator, 'clipboard', {
+          configurable: true,
+          value: {
+            writeText(text) {
+              const copied = String(text || '');
+              window.__copyTrace.push({ type: 'clipboard', text: copied, failed: window.__failClipboard === true });
+              if (window.__failClipboard === true) return Promise.reject(new Error('clipboard denied'));
+              window.__clipboardText = copied;
+              return Promise.resolve();
+            }
+          }
+        });
+      } catch (error) {}
     });
     await noKeyPage.route('https://openrouter.ai/api/v1/chat/completions', async route => {
       noKeyRequests += 1;
@@ -107,8 +132,47 @@ const ensureAIImportOpen = async page => {
     assert.equal(await noKeyPage.getByTestId('external-ai-provider-examples').innerText(), '（Google AI 模式、豆包等）');
     const googleAIButton = noKeyPage.getByTestId('copy-prompt-open-google-ai');
     assert.equal(await googleAIButton.isVisible(), true, 'the combined copy-and-open action is available');
+    assert.equal(await noKeyPage.locator('meta[name="bill-app-release"]').getAttribute('content'), 'v141-google-ai-green-copy-20261114');
+    assert.equal((await noKeyPage.getByTestId('app-version-label').innerText()).trim(), 'R141');
+    const buttonPaint = async locator => locator.evaluate(button => {
+      const style = getComputedStyle(button);
+      return {
+        className: button.className,
+        disabled: button.disabled,
+        backgroundColor: style.backgroundColor,
+        backgroundImage: style.backgroundImage,
+        color: style.color,
+        boxShadow: style.boxShadow
+      };
+    });
+    const googlePaint = await buttonPaint(googleAIButton);
+    const cameraPaint = await buttonPaint(noKeyPage.getByTestId('receipt-camera'));
+    assert.equal(googlePaint.disabled, false, 'the Google AI button is enabled on a fresh visit');
+    assert.match(googlePaint.className, /\bhost-primary\b/, 'the Google AI button opts into the green host-primary fill');
+    assert.match(googlePaint.className, /\bgreen-action\b/);
+    assert.equal(googlePaint.backgroundColor, 'rgb(47, 157, 104)', 'the default enabled fill is green, not the R140 white accent');
+    assert.match(googlePaint.backgroundImage, /linear-gradient/);
+    assert.equal(googlePaint.backgroundColor, cameraPaint.backgroundColor, 'the Google AI button uses the same green as the Step 1 photo action');
+    assert.equal(googlePaint.boxShadow, 'none');
     const copyPromptButton = noKeyPage.getByTestId('copy-receipt-json-prompt');
     assert.equal(await copyPromptButton.isVisible(), true, 'the regular copy action remains visible below the combined action');
+    const outlinePaint = await buttonPaint(copyPromptButton);
+    assert.doesNotMatch(outlinePaint.className, /\bhost-primary\b/);
+    assert.doesNotMatch(outlinePaint.className, /\bgreen-action\b/);
+    assert.notEqual(outlinePaint.backgroundColor, 'rgb(47, 157, 104)', 'the outline prompt button stays a secondary control');
+    assert.equal(outlinePaint.backgroundImage, 'none');
+    await noKeyPage.getByTestId('receipt-text-draft').fill('x');
+    await noKeyPage.waitForFunction(() => {
+      const button = document.querySelector('[data-testid="submit-receipt-text"]');
+      return Boolean(button) && button.disabled === false && getComputedStyle(button).backgroundColor === 'rgb(255, 255, 255)';
+    });
+    const submitPaint = await buttonPaint(noKeyPage.getByTestId('submit-receipt-text'));
+    assert.equal(submitPaint.disabled, false);
+    assert.doesNotMatch(submitPaint.className, /\bhost-primary\b/);
+    assert.match(submitPaint.className, /\bgreen-action\b/);
+    assert.equal(submitPaint.backgroundColor, 'rgb(255, 255, 255)', 'other primary buttons in the step keep the white edge accent');
+    assert.match(submitPaint.boxShadow, /inset/);
+    await noKeyPage.getByTestId('receipt-text-draft').fill('');
     const initialGoogleBox = await googleAIButton.boundingBox();
     const initialCopyBox = await copyPromptButton.boundingBox();
     assert.ok(initialGoogleBox.y < initialCopyBox.y, 'the green Google AI button is above the white copy button');
@@ -123,9 +187,61 @@ const ensureAIImportOpen = async page => {
     assert.ok(narrowGoogleBox.y < narrowCopyBox.y, 'the green Google AI button remains above the white button on a narrow viewport');
     assert.ok(narrowGoogleBox.y >= 0 && narrowGoogleBox.y + narrowGoogleBox.height <= 640, 'the green Google AI button remains fully visible when the white button is brought into view');
     assert.ok(narrowCopyBox.y >= 0 && narrowCopyBox.y + narrowCopyBox.height <= 640, 'the white button remains fully visible in the narrow viewport');
+    const traceFrom = async () => noKeyPage.evaluate(() => window.__copyTrace.length);
+    const assertCopiedBeforeOpen = async (start, label) => {
+      const events = await noKeyPage.evaluate(from => window.__copyTrace.slice(from), start);
+      const openAt = events.findIndex(event => event.type === 'open');
+      assert.ok(openAt > 0, `${label}: opens Gemini`);
+      assert.equal(events[openAt].url, 'https://gemini.google.com/app');
+      assert.ok(events.slice(0, openAt).some(event => event.type === 'clipboard'), `${label}: clipboard write starts before the new tab`);
+      assert.ok(events.slice(0, openAt).some(event => event.type === 'exec'), `${label}: execCommand fallback runs before the new tab`);
+      assert.equal(events.slice(openAt + 1).some(event => event.type === 'clipboard' || event.type === 'exec'), false, `${label}: no copy attempt is left until after the tab opens`);
+      return events;
+    };
+    const clearToasts = () => noKeyPage.evaluate(() => document.querySelectorAll('[data-testid="app-toast"]').forEach(node => node.remove()));
+    let traceStart = await traceFrom();
     await googleAIButton.click();
+    const successEvents = await assertCopiedBeforeOpen(traceStart, 'fresh visit');
+    const attemptedPrompt = successEvents.find(event => event.type === 'clipboard').text;
+    assert.ok(attemptedPrompt.length > 400, 'the copied prompt is the full receipt JSON import prompt');
+    assert.match(attemptedPrompt, /一個 Markdown JSON 程式碼區塊/);
+    assert.match(attemptedPrompt, /"receiptTotal"/);
+    assert.equal(await noKeyPage.evaluate(() => window.__clipboardText), attemptedPrompt);
+    assert.equal(await noKeyPage.evaluate(() => window.__copiedPrompt), attemptedPrompt);
     assert.equal(await noKeyPage.evaluate(() => window.__openedUrls[0]?.[0]), 'https://gemini.google.com/app', 'the combined action opens Google Gemini in a new tab');
     assert.match(await noKeyPage.evaluate(() => window.__copiedPrompt || ''), /一個 Markdown JSON 程式碼區塊/, 'the same action copies the receipt prompt');
+    await noKeyPage.waitForFunction(() => [...document.querySelectorAll('[data-testid="app-toast"]')].some(node => node.dataset.toastType === 'success' && /提示詞已複製/.test(node.textContent)));
+    assert.equal(noKeyRequests, 0, 'copying the prompt does not upload the receipt or call OpenRouter');
+
+    await clearToasts();
+    await noKeyPage.evaluate(() => { window.__failClipboard = true; window.__failExecCopy = true; });
+    traceStart = await traceFrom();
+    await googleAIButton.click();
+    await assertCopiedBeforeOpen(traceStart, 'both copy methods refused');
+    await noKeyPage.waitForFunction(() => [...document.querySelectorAll('[data-testid="app-toast"]')].some(node => node.dataset.toastType === 'error' && /未能複製提示詞/.test(node.textContent)));
+    const failureToast = await noKeyPage.locator('[data-testid="app-toast"]').last().innerText();
+    assert.match(failureToast, /未能複製提示詞/);
+    assert.doesNotMatch(failureToast, /提示詞已複製/);
+    assert.match(failureToast, /不會上載帳單圖片/);
+    assert.equal(await noKeyPage.evaluate(() => window.__openedUrls.at(-1)?.[0]), 'https://gemini.google.com/app', 'a failed copy still opens Google AI');
+
+    await clearToasts();
+    await noKeyPage.evaluate(() => { window.__failClipboard = true; window.__failExecCopy = false; window.__copiedPrompt = ''; });
+    traceStart = await traceFrom();
+    await googleAIButton.click();
+    await assertCopiedBeforeOpen(traceStart, 'clipboard API refused');
+    await noKeyPage.waitForFunction(() => [...document.querySelectorAll('[data-testid="app-toast"]')].some(node => node.dataset.toastType === 'success' && /提示詞已複製/.test(node.textContent)));
+    assert.match(await noKeyPage.evaluate(() => window.__copiedPrompt), /一個 Markdown JSON 程式碼區塊/, 'execCommand still copies the prompt when the Clipboard API fails');
+
+    await clearToasts();
+    await noKeyPage.evaluate(() => { window.__failClipboard = false; window.__failExecCopy = true; window.__clipboardText = ''; window.__copiedPrompt = ''; });
+    traceStart = await traceFrom();
+    await googleAIButton.click();
+    await assertCopiedBeforeOpen(traceStart, 'execCommand refused');
+    await noKeyPage.waitForFunction(() => [...document.querySelectorAll('[data-testid="app-toast"]')].some(node => node.dataset.toastType === 'success' && /提示詞已複製/.test(node.textContent)));
+    assert.match(await noKeyPage.evaluate(() => window.__clipboardText), /一個 Markdown JSON 程式碼區塊/, 'the Clipboard API still copies the prompt when execCommand fails');
+    await noKeyPage.evaluate(() => { window.__failClipboard = false; window.__failExecCopy = false; });
+    await clearToasts();
     assert.match(await noKeyPage.getByTestId('receipt-text-import').innerText(), /手動附上帳單圖片/ , 'the UI explains that the user attaches the image manually');
     assert.equal(await noKeyPage.getByTestId('receipt-text-import').evaluate(node => node.previousElementSibling?.getAttribute('data-testid') === 'choice-divider'), true, 'the receipt OCR and external AI import paths are separated by “or”');
     await noKeyPage.getByTestId('start-manual').click();
@@ -191,9 +307,24 @@ const ensureAIImportOpen = async page => {
     assert.match(copiedEnglishPrompt, /amountText/);
     assert.match(copiedEnglishPrompt, /"amountUncertain":false/);
     assert.match(copiedEnglishPrompt, /S12\.50/);
+    traceStart = await traceFrom();
     await noKeyPage.getByTestId('copy-prompt-open-google-ai').click();
+    const englishEvents = await assertCopiedBeforeOpen(traceStart, 'English mode');
     assert.equal(await noKeyPage.evaluate(() => window.__openedUrls.at(-1)?.[0]), 'https://gemini.google.com/app', 'the combined action also opens Google Gemini in English mode');
+    assert.match(englishEvents.find(event => event.type === 'clipboard').text, /exactly one Markdown JSON code block/);
     assert.match(await noKeyPage.evaluate(() => window.__copiedPrompt || ''), /exactly one Markdown JSON code block/);
+    await noKeyPage.waitForFunction(() => [...document.querySelectorAll('[data-testid="app-toast"]')].some(node => node.dataset.toastType === 'success' && /Prompt copied/.test(node.textContent)));
+    await clearToasts();
+    await noKeyPage.evaluate(() => { window.__failClipboard = true; window.__failExecCopy = true; });
+    traceStart = await traceFrom();
+    await noKeyPage.getByTestId('copy-prompt-open-google-ai').click();
+    await assertCopiedBeforeOpen(traceStart, 'English copy failure');
+    await noKeyPage.waitForFunction(() => [...document.querySelectorAll('[data-testid="app-toast"]')].some(node => node.dataset.toastType === 'error' && /Could not copy the prompt/.test(node.textContent)));
+    const englishFailure = await noKeyPage.locator('[data-testid="app-toast"]').last().innerText();
+    assert.match(englishFailure, /Could not copy the prompt/);
+    assert.doesNotMatch(englishFailure, /Prompt copied/);
+    await noKeyPage.evaluate(() => { window.__failClipboard = false; window.__failExecCopy = false; });
+    await clearToasts();
 
     await noKeyPage.evaluate(() => localStorage.setItem('billSplitterLanguage', 'zh-HK'));
     await noKeyPage.reload();
@@ -431,6 +562,37 @@ const ensureAIImportOpen = async page => {
     assert.equal(await modelPage.locator('[data-testid="items-step"] [data-testid="last-recognition-model"]').count(), 0);
     assert.deepEqual(failures, [], failures.join('\n'));
     await modelContext.close();
+
+    const liveContext = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' });
+    await liveContext.grantPermissions(['clipboard-read', 'clipboard-write']);
+    await liveContext.route('https://gemini.google.com/**', route => route.abort());
+    const livePage = await liveContext.newPage();
+    livePage.on('pageerror', error => failures.push(`live clipboard: ${error.message}`));
+    await initStorage(livePage, null);
+    await ensureAIImportOpen(livePage);
+    const liveButton = livePage.getByTestId('copy-prompt-open-google-ai');
+    await liveButton.scrollIntoViewIfNeeded();
+    const livePaint = await liveButton.evaluate(button => getComputedStyle(button).backgroundColor);
+    assert.equal(livePaint, 'rgb(47, 157, 104)', 'a fresh host page paints the Google AI button green before the first tap');
+    if (process.env.SCREENSHOT_DIR) {
+      fs.mkdirSync(process.env.SCREENSHOT_DIR, { recursive: true });
+      await livePage.screenshot({ path: path.join(process.env.SCREENSHOT_DIR, 'google-ai-button-green.png') });
+    }
+    const popupPromise = livePage.waitForEvent('popup', { timeout: 8000 });
+    await liveButton.click();
+    const popup = await popupPromise;
+    await livePage.waitForFunction(async () => {
+      try { return (await navigator.clipboard.readText()).includes('一個 Markdown JSON 程式碼區塊'); }
+      catch (error) { return false; }
+    }, null, { timeout: 5000 });
+    const liveCopied = await livePage.evaluate(() => navigator.clipboard.readText());
+    assert.ok(liveCopied.length > 400, 'the real clipboard holds the full prompt');
+    assert.match(liveCopied, /"receiptTotal"/);
+    await livePage.waitForFunction(() => [...document.querySelectorAll('[data-testid="app-toast"]')].some(node => node.dataset.toastType === 'success' && /提示詞已複製/.test(node.textContent)));
+    if (process.env.SCREENSHOT_DIR) await livePage.screenshot({ path: path.join(process.env.SCREENSHOT_DIR, 'google-ai-copy-toast.png') });
+    await popup.close();
+    assert.deepEqual(failures, [], failures.join('\n'));
+    await liveContext.close();
 
     console.log('PASS: copied photo-reading JSON prompt; pasted/.txt JSON import, invalid JSON isolation, private unsent-text restore, negative item rejection; missing-bill reminder bilingual; attachment remains local.');
   } finally {

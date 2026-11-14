@@ -207,3 +207,6 @@ R119 漏人指引：`friend-recognition.cjs` 驗證結果卡預設收起、向�
 
 ## R140：AI 翻譯標題同列與輸入標籤
 `mobile-layout.cjs` 在 320px、390px 及桌面檢查「其他 AI 翻譯」與右側例子維持同一行，右對齊、不裁切、不遮住箭嘴且沒有水平溢位；320px 使用較緊湊的標題與例子字級。`text-import.cjs` 確認輸入標籤改為「貼上其他 AI 的 JSON 或翻譯文字」，提示詞與 JSON 匯入保持正常。
+
+## R141：Google AI 按鈕綠色與先複製再開啟
+`text-import.cjs` 在全新載入的主辦人頁檢查「複製提示詞並開啟 Google AI」預設為綠色 `host-primary`（與「直接影相」相同），旁邊的「複製讀圖提示詞」維持外框按鈕，已啟用的「整理這段文字」仍是白底左邊線。同一測試確認按下後先呼叫剪貼簿再 `window.open` Gemini、成功時提示詞非空，以及剪貼簿與 `execCommand` 都失敗時顯示「未能複製」而不會當成已複製。`tests/google-ai-button.test.cjs` 鎖定按鈕 class、複製先於開啟，以及 `claim.html`／`detailed-view.html` 不載入主辦人樣式。可見版本為 R141。
