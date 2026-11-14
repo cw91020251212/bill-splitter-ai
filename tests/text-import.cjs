@@ -123,7 +123,8 @@ const ensureAIImportOpen = async page => {
     assert.equal(await noKeyPage.getByTestId('scan-model-select').inputValue(), 'local/paddleocr-js', 'fresh installs use local PaddleOCR + Dots by default');
     assert.equal(await noKeyPage.getByTestId('toggle-receipt-text-import').getAttribute('aria-expanded'), 'false', 'other-AI translation starts collapsed under the upload');
     assert.equal(await noKeyPage.getByTestId('receipt-text-import-toggle-icon').getAttribute('data-direction'), 'down', 'a collapsed import panel uses the down chevron');
-    assert.equal(await noKeyPage.getByTestId('copy-receipt-json-prompt').count(), 0, 'prompt actions stay inside the collapsed other-AI section');
+    assert.equal(await noKeyPage.getByTestId('copy-prompt-open-google-ai').isVisible(), true, 'the green Google AI action remains visible when the other-AI section is collapsed');
+    assert.equal(await noKeyPage.getByTestId('copy-receipt-json-prompt').count(), 0, 'secondary prompt actions stay inside the collapsed other-AI section');
     await ensureAIImportOpen(noKeyPage);
     assert.equal(await noKeyPage.getByTestId('copy-receipt-json-prompt').isVisible(), true, 'opening other-AI translation reveals the prompt-copy action');
     assert.equal(await noKeyPage.getByTestId('receipt-text-import-toggle-icon').getAttribute('data-direction'), 'up', 'an expanded import panel uses the shared up chevron');

@@ -5300,10 +5300,12 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                       </span>
                       <span aria-hidden="true" data-testid="receipt-text-import-toggle-icon" data-direction={showReceiptTextImport ? 'up' : 'down'} className="absolute -top-5 right-0 z-10 sm:-right-4"><Icon path={showReceiptTextImport ? icons.chevronUp : icons.chevronDown} size={20} className="text-slate-600"/></span>
                     </button>
+                  <div className="mt-4 space-y-3">
+                    <Button data-testid="copy-prompt-open-google-ai" variant="primary" className="host-primary w-full" disabled={tutorialDemo || isAnalyzing} onClick={copyPromptAndOpenGoogleAI}><Icon path={icons.send} size={18}/><span className="google-ai-label"><span className="google-ai-lead">{bi('複製提示詞並開啟 ', 'Copy prompt & open ')}</span><span className="google-ai-brand"><span className="gw gw-blue">G</span><span className="gw gw-red">o</span><span className="gw gw-yellow">o</span><span className="gw gw-blue">g</span><span className="gw gw-green">l</span><span className="gw gw-red">e</span><span className="gw gw-ai"> AI</span></span></span></Button>
+                  </div>
                   {showReceiptTextImport && (
-                    <div id="receipt-text-import-content" data-testid="receipt-text-import-content" className="mt-4 space-y-3">
+                    <div id="receipt-text-import-content" data-testid="receipt-text-import-content" className="space-y-3">
                       <div className="grid grid-cols-1 gap-2">
-                        <Button data-testid="copy-prompt-open-google-ai" variant="primary" className="host-primary w-full" disabled={tutorialDemo || isAnalyzing} onClick={copyPromptAndOpenGoogleAI}><Icon path={icons.send} size={18}/><span className="google-ai-label"><span className="google-ai-lead">{bi('複製提示詞並開啟 ', 'Copy prompt & open ')}</span><span className="google-ai-brand"><span className="gw gw-blue">G</span><span className="gw gw-red">o</span><span className="gw gw-yellow">o</span><span className="gw gw-blue">g</span><span className="gw gw-green">l</span><span className="gw gw-red">e</span><span className="gw gw-ai"> AI</span></span></span></Button>
                         <Button data-testid="copy-receipt-json-prompt" variant="outline" className="w-full border-slate-400 bg-white" disabled={tutorialDemo || isAnalyzing} onClick={copyReceiptJsonImportPrompt}><Icon path={icons.copy} size={18}/>{bi('複製讀圖提示詞', 'Copy photo-reading prompt')}</Button>
                       </div>
                       <p className="text-xs leading-relaxed text-slate-600">{bi('開啟 Gemini 後，請手動附上帳單圖片並按送出；此按鈕不會上載圖片。', 'In Gemini, manually attach the receipt and press Send; this button does not upload images.')}</p>
