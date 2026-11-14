@@ -132,34 +132,49 @@ const ensureAIImportOpen = async page => {
     assert.equal(await noKeyPage.getByTestId('external-ai-provider-examples').innerText(), '（Google AI 模式、豆包等）');
     const googleAIButton = noKeyPage.getByTestId('copy-prompt-open-google-ai');
     assert.equal(await googleAIButton.isVisible(), true, 'the combined copy-and-open action is available');
-    assert.equal(await noKeyPage.locator('meta[name="bill-app-release"]').getAttribute('content'), 'v141-google-ai-green-copy-20261114');
-    assert.equal((await noKeyPage.getByTestId('app-version-label').innerText()).trim(), 'R141');
+    assert.equal(await noKeyPage.locator('meta[name="bill-app-release"]').getAttribute('content'), 'v142-dark-green-white-label-20261114');
+    assert.equal((await noKeyPage.getByTestId('app-version-label').innerText()).trim(), 'R142');
     const buttonPaint = async locator => locator.evaluate(button => {
       const style = getComputedStyle(button);
+      const icon = button.querySelector('svg');
       return {
         className: button.className,
         disabled: button.disabled,
         backgroundColor: style.backgroundColor,
         backgroundImage: style.backgroundImage,
         color: style.color,
-        boxShadow: style.boxShadow
+        textShadow: style.textShadow,
+        boxShadow: style.boxShadow,
+        iconColor: icon ? getComputedStyle(icon).color : ''
       };
     });
     const googlePaint = await buttonPaint(googleAIButton);
     const cameraPaint = await buttonPaint(noKeyPage.getByTestId('receipt-camera'));
+    const menuPaint = await buttonPaint(noKeyPage.getByTestId('header-action-menu-toggle'));
+    const uploadPaint = await buttonPaint(noKeyPage.getByTestId('receipt-upload'));
     assert.equal(googlePaint.disabled, false, 'the Google AI button is enabled on a fresh visit');
     assert.match(googlePaint.className, /\bhost-primary\b/, 'the Google AI button opts into the green host-primary fill');
     assert.match(googlePaint.className, /\bgreen-action\b/);
-    assert.equal(googlePaint.backgroundColor, 'rgb(47, 157, 104)', 'the default enabled fill is green, not the R140 white accent');
+    assert.equal(googlePaint.backgroundColor, 'rgb(29, 115, 73)', 'the default enabled fill is the darker brand green, not the R140 white accent');
     assert.match(googlePaint.backgroundImage, /linear-gradient/);
+    assert.equal(googlePaint.color, 'rgb(255, 255, 255)', 'the Google AI label is white on the dark green fill');
+    assert.match(googlePaint.textShadow, /0px 1px 1px/, 'the Google AI label keeps a subtle text shadow');
+    assert.equal(googlePaint.iconColor, 'rgb(255, 255, 255)', 'the Google AI icon is white');
+    assert.equal(cameraPaint.color, 'rgb(255, 255, 255)', '直接影相 uses white text');
+    assert.equal(cameraPaint.iconColor, 'rgb(255, 255, 255)', '直接影相 uses a white icon');
     assert.equal(googlePaint.backgroundColor, cameraPaint.backgroundColor, 'the Google AI button uses the same green as the Step 1 photo action');
     assert.equal(googlePaint.boxShadow, 'none');
+    assert.equal(menuPaint.color, 'rgb(255, 255, 255)', 'the header menu toggle uses white text on its dark green fill');
+    assert.notEqual(menuPaint.backgroundColor, 'rgb(255, 255, 255)');
+    assert.notEqual(uploadPaint.color, 'rgb(255, 255, 255)', 'the light photo-picker button keeps dark text');
+    assert.notEqual(uploadPaint.backgroundColor, 'rgb(29, 115, 73)');
     const copyPromptButton = noKeyPage.getByTestId('copy-receipt-json-prompt');
     assert.equal(await copyPromptButton.isVisible(), true, 'the regular copy action remains visible below the combined action');
     const outlinePaint = await buttonPaint(copyPromptButton);
     assert.doesNotMatch(outlinePaint.className, /\bhost-primary\b/);
     assert.doesNotMatch(outlinePaint.className, /\bgreen-action\b/);
-    assert.notEqual(outlinePaint.backgroundColor, 'rgb(47, 157, 104)', 'the outline prompt button stays a secondary control');
+    assert.notEqual(outlinePaint.color, 'rgb(255, 255, 255)', 'the outline prompt button keeps dark text');
+    assert.notEqual(outlinePaint.backgroundColor, 'rgb(29, 115, 73)', 'the outline prompt button stays a secondary control');
     assert.equal(outlinePaint.backgroundImage, 'none');
     await noKeyPage.getByTestId('receipt-text-draft').fill('x');
     await noKeyPage.waitForFunction(() => {
@@ -171,6 +186,7 @@ const ensureAIImportOpen = async page => {
     assert.doesNotMatch(submitPaint.className, /\bhost-primary\b/);
     assert.match(submitPaint.className, /\bgreen-action\b/);
     assert.equal(submitPaint.backgroundColor, 'rgb(255, 255, 255)', 'other primary buttons in the step keep the white edge accent');
+    assert.notEqual(submitPaint.color, 'rgb(255, 255, 255)', 'the white edge action is not white-on-white');
     assert.match(submitPaint.boxShadow, /inset/);
     await noKeyPage.getByTestId('receipt-text-draft').fill('');
     const initialGoogleBox = await googleAIButton.boundingBox();
@@ -573,7 +589,7 @@ const ensureAIImportOpen = async page => {
     const liveButton = livePage.getByTestId('copy-prompt-open-google-ai');
     await liveButton.scrollIntoViewIfNeeded();
     const livePaint = await liveButton.evaluate(button => getComputedStyle(button).backgroundColor);
-    assert.equal(livePaint, 'rgb(47, 157, 104)', 'a fresh host page paints the Google AI button green before the first tap');
+    assert.equal(livePaint, 'rgb(29, 115, 73)', 'a fresh host page paints the Google AI button green before the first tap');
     if (process.env.SCREENSHOT_DIR) {
       fs.mkdirSync(process.env.SCREENSHOT_DIR, { recursive: true });
       await livePage.screenshot({ path: path.join(process.env.SCREENSHOT_DIR, 'google-ai-button-green.png') });

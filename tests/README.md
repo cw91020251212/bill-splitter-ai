@@ -22,7 +22,7 @@ R115 將認帳收件箱及「朋友交返的認帳」欄移回第二步；`frien
 
 R112 的 `friend-recognition.cjs` 驗證計算按鈕有中英動作提示、網頁分享卡先於後備文字版、超長朋友網址僅縮短顯示且 href 保持完整、簡單／詳細版預設收起並可展開。`cross-currency-ui.cjs` 會先展開後備區再測試文字版操作。
 
-`friend-recognition.cjs` 驗證第二步活動名稱／期限區的按鈕顯示「下一步」，不再自動跳至分享控制；外部 AI JSON 匯入後保留在第二步頂端、先顯示原收據附圖區，按下頂端「下一步」後以慢速動畫移至底部綠色按鈕。活動名稱仍可在建立連結前修改，結算 CTA 主文字與提示文字均無 text-shadow/drop-shadow。
+`friend-recognition.cjs` 驗證第二步活動名稱／期限區的按鈕顯示「下一步」，不再自動跳至分享控制；外部 AI JSON 匯入後保留在第二步頂端、先顯示原收據附圖區，按下頂端「下一步」後以慢速動畫移至底部綠色按鈕。活動名稱仍可在建立連結前修改。啟用的結算 CTA 主文字與提示為白字並帶淡 text-shadow，提示沒有 drop-shadow filter。
 
 R114/R115 的 `tutorial-ui.cjs` 驗證雙語 18 階段教學、第二步分享及核對回覆、第三步設定後計算、第四步 Web-first 及預設收合後備、示例試算、退出還原及 Step 1–4 重啟；`tutorial-safety.cjs` 驗證不觸發真實分享、剪貼簿、相機或 API。兩段示範影片均保持 R114 前原始資產。`settings-free-models.cjs` 驗證左上角只顯示 `R114`、舊 OpenRouter 預設遷移到 PaddleOCR.js＋Dots3-Note、首頁與設定頁兩個模型選單的選項和值同步、切換方向互通、說明逐路由一致，且不覆蓋 OpenRouter key。`recognition-retry-ui.cjs` 驗證 Dots3-Note 與兩個固定模型的 cascade；`ocr-cascade.test.cjs` 驗證隨機路由只在明確選取時執行，不會自動進入固定 cascade。`friend-whatsapp-details.cjs` 以不同新舊菜名重現 OCR 更新，驗證新 hash 帶入最新項目名稱，同時保留 session、加密回覆 room 和活動 metadata。
 
@@ -209,4 +209,7 @@ R119 漏人指引：`friend-recognition.cjs` 驗證結果卡預設收起、向�
 `mobile-layout.cjs` 在 320px、390px 及桌面檢查「其他 AI 翻譯」與右側例子維持同一行，右對齊、不裁切、不遮住箭嘴且沒有水平溢位；320px 使用較緊湊的標題與例子字級。`text-import.cjs` 確認輸入標籤改為「貼上其他 AI 的 JSON 或翻譯文字」，提示詞與 JSON 匯入保持正常。
 
 ## R141：Google AI 按鈕綠色與先複製再開啟
-`text-import.cjs` 在全新載入的主辦人頁檢查「複製提示詞並開啟 Google AI」預設為綠色 `host-primary`（與「直接影相」相同），旁邊的「複製讀圖提示詞」維持外框按鈕，已啟用的「整理這段文字」仍是白底左邊線。同一測試確認按下後先呼叫剪貼簿再 `window.open` Gemini、成功時提示詞非空，以及剪貼簿與 `execCommand` 都失敗時顯示「未能複製」而不會當成已複製。`tests/google-ai-button.test.cjs` 鎖定按鈕 class、複製先於開啟，以及 `claim.html`／`detailed-view.html` 不載入主辦人樣式。可見版本為 R141。
+`text-import.cjs` 在全新載入的主辦人頁檢查「複製提示詞並開啟 Google AI」預設為綠色 `host-primary`（與「直接影相」相同），旁邊的「複製讀圖提示詞」維持外框按鈕，已啟用的「整理這段文字」仍是白底左邊線。同一測試確認按下後先呼叫剪貼簿再 `window.open` Gemini、成功時提示詞非空，以及剪貼簿與 `execCommand` 都失敗時顯示「未能複製」而不會當成已複製。`tests/google-ai-button.test.cjs` 鎖定按鈕 class、複製先於開啟，以及 `claim.html`／`detailed-view.html` 不載入主辦人樣式。
+
+## R142：深綠實心按鈕改白字
+`text-import.cjs` 檢查「直接影相」、Google AI 按鈕與「選單」為白字白圖示，外框「複製讀圖提示詞」、白底「選擇圖片」和「整理這段文字」維持深色字。`google-ai-button.test.cjs` 鎖定 host-primary 每個綠色色標對白字至少 4.5:1，提示字為白，停用提示維持灰色。`friend-recognition.cjs` 檢查啟用的「產生分帳報告」及其提示為白字。可見版本為 R142。
