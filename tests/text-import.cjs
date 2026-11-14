@@ -132,8 +132,8 @@ const ensureAIImportOpen = async page => {
     assert.equal(await noKeyPage.getByTestId('external-ai-provider-examples').innerText(), '（Google AI 模式、豆包等）');
     const googleAIButton = noKeyPage.getByTestId('copy-prompt-open-google-ai');
     assert.equal(await googleAIButton.isVisible(), true, 'the combined copy-and-open action is available');
-    assert.equal(await noKeyPage.locator('meta[name="bill-app-release"]').getAttribute('content'), 'v142-dark-green-white-label-20261114');
-    assert.equal((await noKeyPage.getByTestId('app-version-label').innerText()).trim(), 'R142');
+    assert.equal(await noKeyPage.locator('meta[name="bill-app-release"]').getAttribute('content'), 'v143-yellow-bold-refresh-20261114');
+    assert.equal((await noKeyPage.getByTestId('app-version-label').innerText()).trim(), 'R143');
     const buttonPaint = async locator => locator.evaluate(button => {
       const style = getComputedStyle(button);
       const icon = button.querySelector('svg');
@@ -157,11 +157,35 @@ const ensureAIImportOpen = async page => {
     assert.match(googlePaint.className, /\bgreen-action\b/);
     assert.equal(googlePaint.backgroundColor, 'rgb(29, 115, 73)', 'the default enabled fill is the darker brand green, not the R140 white accent');
     assert.match(googlePaint.backgroundImage, /linear-gradient/);
-    assert.equal(googlePaint.color, 'rgb(255, 255, 255)', 'the Google AI label is white on the dark green fill');
+    assert.equal(googlePaint.color, 'rgb(255, 255, 255)', 'the Google AI button keeps white for the lead line');
     assert.match(googlePaint.textShadow, /0px 1px 1px/, 'the Google AI label keeps a subtle text shadow');
-    assert.equal(googlePaint.iconColor, 'rgb(255, 255, 255)', 'the Google AI icon is white');
-    assert.equal(cameraPaint.color, 'rgb(255, 255, 255)', '直接影相 uses white text');
-    assert.equal(cameraPaint.iconColor, 'rgb(255, 255, 255)', '直接影相 uses a white icon');
+    assert.equal(googlePaint.iconColor, 'rgb(255, 229, 102)', 'the Google AI paper-plane icon is yellow');
+    const googleBrand = await googleAIButton.evaluate(button => {
+      const paint = selector => {
+        const node = button.querySelector(selector);
+        const style = getComputedStyle(node);
+        return { color: style.color, fill: style.webkitTextFillColor };
+      };
+      return {
+        lead: paint('.google-ai-lead').color,
+        blue: paint('.gw-blue').color,
+        red: paint('.gw-red').color,
+        yellow: paint('.gw-yellow').color,
+        green: paint('.gw-green').color,
+        ai: paint('.gw-ai').color,
+        leadWeight: getComputedStyle(button.querySelector('.google-ai-lead')).fontWeight
+      };
+    });
+    assert.equal(googleBrand.lead, 'rgb(255, 255, 255)', '「複製提示詞並開啟」 stays white');
+    assert.equal(googleBrand.blue, 'rgb(66, 133, 244)', 'Google G and g use official blue #4285F4');
+    assert.equal(googleBrand.red, 'rgb(234, 67, 53)', 'Google o and e use official red #EA4335');
+    assert.equal(googleBrand.yellow, 'rgb(251, 188, 5)', 'the second o uses official yellow #FBBC05');
+    assert.equal(googleBrand.green, 'rgb(52, 168, 83)', 'Google l uses official green #34A853');
+    assert.equal(googleBrand.ai, 'rgb(255, 255, 255)', 'AI stays white');
+    assert.equal(googleBrand.leadWeight, '700', 'the Google AI action label is bold');
+    assert.equal(cameraPaint.color, 'rgb(255, 229, 102)', '直接影相 uses the shared yellow label');
+    assert.equal(cameraPaint.iconColor, 'rgb(255, 229, 102)', '直接影相 uses a yellow camera icon');
+    assert.equal(await noKeyPage.getByTestId('receipt-camera').evaluate(button => getComputedStyle(button).fontWeight), '700', '直接影相 label is bold');
     assert.equal(googlePaint.backgroundColor, cameraPaint.backgroundColor, 'the Google AI button uses the same green as the Step 1 photo action');
     assert.equal(googlePaint.boxShadow, 'none');
     assert.equal(menuPaint.color, 'rgb(255, 255, 255)', 'the header menu toggle uses white text on its dark green fill');
@@ -176,6 +200,22 @@ const ensureAIImportOpen = async page => {
     assert.notEqual(outlinePaint.color, 'rgb(255, 255, 255)', 'the outline prompt button keeps dark text');
     assert.notEqual(outlinePaint.backgroundColor, 'rgb(29, 115, 73)', 'the outline prompt button stays a secondary control');
     assert.equal(outlinePaint.backgroundImage, 'none');
+    const submitDisabled = await buttonPaint(noKeyPage.getByTestId('submit-receipt-text'));
+    assert.equal(submitDisabled.disabled, true, '整理這段文字 stays disabled until text is pasted');
+    assert.equal(submitDisabled.backgroundColor, 'rgb(231, 235, 232)', 'the empty submit button uses a light gray fill');
+    assert.equal(submitDisabled.color, 'rgb(154, 163, 157)', 'the empty submit label is light gray, not black');
+    assert.equal(await noKeyPage.getByTestId('submit-receipt-text').evaluate(button => getComputedStyle(button).borderTopColor), 'rgb(210, 216, 212)', 'the empty submit button uses a light gray outline');
+    const fileLabel = await noKeyPage.getByTestId('choose-receipt-text-file').evaluate(button => {
+      const aside = button.querySelector('.btn-aside');
+      return {
+        weight: getComputedStyle(button).fontWeight,
+        asideWeight: aside ? getComputedStyle(aside).fontWeight : '',
+        manual: getComputedStyle(document.querySelector('[data-testid="start-manual"]')).fontWeight
+      };
+    });
+    assert.equal(fileLabel.weight, '700', '上載文字檔 is bold');
+    assert.equal(fileLabel.asideWeight, '400', 'the file-size hint stays regular');
+    assert.equal(fileLabel.manual, '700', '手動輸入項目 is bold');
     await noKeyPage.getByTestId('receipt-text-draft').fill('x');
     await noKeyPage.waitForFunction(() => {
       const button = document.querySelector('[data-testid="submit-receipt-text"]');
@@ -187,6 +227,7 @@ const ensureAIImportOpen = async page => {
     assert.match(submitPaint.className, /\bgreen-action\b/);
     assert.equal(submitPaint.backgroundColor, 'rgb(255, 255, 255)', 'other primary buttons in the step keep the white edge accent');
     assert.notEqual(submitPaint.color, 'rgb(255, 255, 255)', 'the white edge action is not white-on-white');
+    assert.equal(await noKeyPage.getByTestId('submit-receipt-text').evaluate(button => getComputedStyle(button).fontWeight), '700', 'the enabled submit label is bold');
     assert.match(submitPaint.boxShadow, /inset/);
     await noKeyPage.getByTestId('receipt-text-draft').fill('');
     const initialGoogleBox = await googleAIButton.boundingBox();

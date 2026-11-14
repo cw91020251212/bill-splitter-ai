@@ -84,7 +84,7 @@ async function closeSettingsAndAssertMatch(page, scanSelect, settingsSelect, lab
     const firstVisitSelect = firstVisitPage.getByTestId('scan-model-select');
     await firstVisitSelect.waitFor({ state: 'visible' });
     assert.equal(await firstVisitSelect.inputValue(), localPaddleModel, 'first visit defaults to PaddleOCR.js local + Dots3-Note');
-    assert.equal((await firstVisitPage.getByTestId('app-version-label').innerText()).trim(), 'R142');
+    assert.equal((await firstVisitPage.getByTestId('app-version-label').innerText()).trim(), 'R143');
     console.log('PASS first-visit default is PaddleOCR.js local + Dots3-Note');
 
     await assertRouteDescription(firstVisitPage, '不送去 OpenRouter', 'local route keeps the image on-device');
@@ -189,7 +189,7 @@ async function closeSettingsAndAssertMatch(page, scanSelect, settingsSelect, lab
       await page.waitForFunction(model => JSON.parse(localStorage.getItem('billSplitterApiConfig') || 'null')?.model === model, freeModel);
       const menuTrigger = page.getByTestId('header-action-menu-toggle');
       await menuTrigger.waitFor({ state: 'visible' });
-      assert.equal((await page.getByTestId('app-version-label').innerText()).trim(), 'R142');
+      assert.equal((await page.getByTestId('app-version-label').innerText()).trim(), 'R143');
       await menuTrigger.click();
       const menu = page.locator('#header-action-menu');
       await menu.waitFor({ state: 'visible' });
@@ -215,6 +215,17 @@ async function closeSettingsAndAssertMatch(page, scanSelect, settingsSelect, lab
       const largeText = page.getByTestId('app-text-size-large');
       assert.equal(await fontControl.isVisible(), true, 'font-size setting is available inside the main menu');
       assert.equal(await normalText.getAttribute('aria-pressed'), 'true', 'standard size is the default selection');
+      const textSizeFaces = await fontControl.evaluate(node => ['app-text-size-small', 'app-text-size-normal', 'app-text-size-large'].map(id => {
+        const button = node.querySelector(`[data-testid="${id}"]`);
+        const face = button.querySelector('.text-size-face');
+        const faceBox = face.getBoundingClientRect();
+        const hit = button.getBoundingClientRect();
+        return { faceW: faceBox.width, faceH: faceBox.height, hitW: hit.width, hitH: hit.height, font: parseFloat(getComputedStyle(face).fontSize) };
+      }));
+      assert(textSizeFaces[0].faceW < textSizeFaces[1].faceW && textSizeFaces[1].faceW < textSizeFaces[2].faceW, `font-size faces grow in width: ${JSON.stringify(textSizeFaces)}`);
+      assert(textSizeFaces[0].faceH < textSizeFaces[1].faceH && textSizeFaces[1].faceH < textSizeFaces[2].faceH, `font-size faces grow in height: ${JSON.stringify(textSizeFaces)}`);
+      assert(textSizeFaces[0].font < textSizeFaces[1].font && textSizeFaces[1].font < textSizeFaces[2].font, `font-size glyphs grow: ${JSON.stringify(textSizeFaces)}`);
+      assert(textSizeFaces.every(face => face.hitW >= 44 && face.hitH >= 44), `font-size hit targets stay at least 44px: ${JSON.stringify(textSizeFaces)}`);
       const standardHeaderSize = Number.parseFloat(await page.locator('.app-header-row h1').evaluate(node => getComputedStyle(node).fontSize));
       await smallText.click();
       assert.equal(await page.locator('html').getAttribute('data-app-text-size'), 'small');

@@ -367,12 +367,12 @@ async function hostSettle(fixture, qty, initial = false, names = [A, B], claimsA
       iconColor: icon ? getComputedStyle(icon).color : ''
     };
   });
-  assert.equal(ctaStyles.color, 'rgb(255, 255, 255)', 'active primary button uses white text');
-  assert.match(ctaStyles.textShadow, /0px 1px 1px/, 'white button text keeps a subtle shadow');
-  assert.equal(ctaStyles.hintColor, 'rgb(255, 255, 255)', 'CTA hint uses white text');
+  assert.equal(ctaStyles.color, 'rgb(255, 229, 102)', 'active report title uses the shared yellow');
+  assert.match(ctaStyles.textShadow, /0px 1px 1px/, 'yellow title keeps a subtle shadow');
+  assert.equal(ctaStyles.hintColor, 'rgb(255, 255, 255)', 'CTA hint stays white');
   assert.match(ctaStyles.hintTextShadow, /0px 1px 1px/, 'CTA hint keeps a subtle text shadow');
   assert.equal(ctaStyles.hintFilter, 'none', 'CTA hint text has no drop-shadow filter');
-  assert.equal(ctaStyles.iconColor, 'rgb(255, 255, 255)', 'CTA icon is white');
+  assert.equal(ctaStyles.iconColor, 'rgb(255, 229, 102)', 'CTA check icon uses the same yellow as the title');
   const payer = host.getByPlaceholder('輸入姓名', { exact: true }); if (await payer.inputValue() !== A) await payer.fill(A);
   const before = harness.requests.length;
   await host.getByTestId('calculate-split').click();
