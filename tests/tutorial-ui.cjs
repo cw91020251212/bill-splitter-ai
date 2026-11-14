@@ -9,12 +9,12 @@ const base = process.env.BASE_URL || 'http://127.0.0.1:4178/';
 if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?\//.test(base)) throw new Error('This state-writing test is local-only.');
 const out = process.env.TEST_OUTPUT_DIR || '/tmp/bill-tutorial-qa';
 fs.mkdirSync(out, { recursive: true });
-const stages = ['upload', 'manual', 'verify', 'items', 'fee', 'share', 'share-options', 'replies', 'payer', 'currency', 'payment', 'tax-method', 'calculate', 'report', 'report-web', 'report-fallback', 'report-share', 'detail'];
-const steps = [1, 1, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4];
+const stages = ['upload', 'manual', 'verify', 'items', 'fee', 'share', 'replies', 'payer', 'currency', 'payment', 'tax-method', 'calculate', 'report', 'report-web', 'report-fallback', 'report-share', 'detail'];
+const steps = [1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4];
 const selectors = [
   '[data-testid="receipt-source-actions"]', '[data-testid="start-manual"]', '[data-testid="verify-item"]',
   '[data-tutorial-target="item-fields"]', '[data-tutorial-target="fee"]', '[data-tutorial-target="open-claim-share"]',
-  '[data-tutorial-target="send-claim-link"]', '[data-testid="claim-replies"]',
+  '[data-testid="claim-replies"]',
   '[data-tutorial-target="calculation-settings"]', '[data-tutorial-target="currency"]', '[data-testid="payment-methods"]',
   '[data-tutorial-target="tax-method"]', '[data-testid="calculate-split"]', '[data-testid="friend-web-preferred-badge"]',
   '[data-testid="friend-web-intro"]', '[data-testid="report-fallback-toggle"]',
@@ -165,24 +165,19 @@ async function begin(page, before, label) {
 }
 async function clickShareOpener(page) {
   await target(page, 5).click();
-  await waitStage(page, 'share-options');
-}
-async function clickSendClaim(page) {
-  await target(page, 6).click();
   await waitStage(page, 'replies');
 }
 async function advance(page, index) {
   if (index === 5) return clickShareOpener(page);
-  if (index === 6) return clickSendClaim(page);
-  if (index === 8) await target(page, 8).locator('input').first().fill('阿明');
-  if (index === 12) {
-    await target(page, 12).click();
+  if (index === 7) await target(page, 7).locator('input').first().fill('阿明');
+  if (index === 11) {
+    await target(page, 11).click();
     await waitStage(page, 'report');
     return;
   }
-  if (index === 15) {
-    assert.equal(await target(page, 15).getAttribute('aria-expanded'), 'false', 'backup options should start collapsed');
-    await target(page, 15).click();
+  if (index === 14) {
+    assert.equal(await target(page, 14).getAttribute('aria-expanded'), 'false', 'backup options should start collapsed');
+    await target(page, 14).click();
     await waitStage(page, 'report-share');
     return;
   }
@@ -225,22 +220,21 @@ async function runEditedSample(page, language) {
   assert.equal(await billDiscount.inputValue(), '30', 'sample bill-wide discount did not stick');
   await page.getByTestId('tutorial-next').click(); await waitStage(page, 'share');
   await clickShareOpener(page);
-  await clickSendClaim(page);
-  await target(page, 7).fill('姓名：阿明\n01 = 2\n\n姓名：Cathy\n01 = 1');
+  await target(page, 6).fill('姓名：阿明\n01 = 2\n\n姓名：Cathy\n01 = 1');
   await page.getByTestId('tutorial-next').click(); await waitStage(page, 'payer');
-  const payerInput = target(page, 8).locator('input').first();
+  const payerInput = target(page, 7).locator('input').first();
   if (await payerInput.count()) await payerInput.fill('Cathy');
-  for (const [index, nextStage] of [[8, 'currency'], [9, 'payment'], [10, 'tax-method']]) {
+  for (const nextStage of ['currency', 'payment', 'tax-method']) {
     await page.getByTestId('tutorial-next').click(); await waitStage(page, nextStage);
   }
-  const taxRadios = target(page, 11).locator('input[type="radio"]');
+  const taxRadios = target(page, 10).locator('input[type="radio"]');
   assert(await taxRadios.count() >= 2, language + ': missing fee split choices');
   await taxRadios.nth(0).check(); // after a $30 bill-wide discount, the $150 item base becomes $120; with $15 tax Cathy owes $45.
   await page.getByTestId('tutorial-next').click(); await waitStage(page, 'calculate');
-  await target(page, 12).click(); await waitStage(page, 'report');
+  await target(page, 11).click(); await waitStage(page, 'report');
   await page.getByTestId('tutorial-next').click(); await waitStage(page, 'report-web');
   await page.getByTestId('tutorial-next').click(); await waitStage(page, 'report-fallback');
-  await target(page, 15).click(); await waitStage(page, 'report-share');
+  await target(page, 14).click(); await waitStage(page, 'report-share');
   const report = await page.getByTestId('final-summary-preview').innerText();
   assert.match(report, language === 'en' ? /Payee：Cathy/ : /收款人：Cathy/, language + ': edited payer must be Cathy');
   const owedAmount = text => text.match(/(?:Owes|應付) \$([\d,]+\.\d{2})/)?.[1] || null;
@@ -252,10 +246,10 @@ async function runEditedSample(page, language) {
   }
   await taxRadios.nth(1).check();
   await page.getByTestId('tutorial-next').click(); await waitStage(page, 'calculate');
-  await target(page, 12).click(); await waitStage(page, 'report');
+  await target(page, 11).click(); await waitStage(page, 'report');
   await page.getByTestId('tutorial-next').click(); await waitStage(page, 'report-web');
   await page.getByTestId('tutorial-next').click(); await waitStage(page, 'report-fallback');
-  await target(page, 15).click(); await waitStage(page, 'report-share');
+  await target(page, 14).click(); await waitStage(page, 'report-share');
   const equalReport = await page.getByTestId('final-summary-preview').innerText();
   assert.match(equalReport, language === 'en' ? /Payee：Cathy/ : /收款人：Cathy/, language + ': equal fee split must retain edited payer');
   assert.notEqual(owedAmount(equalReport), owedAmount(report), language + ': changing fee split must update the amount owed');
@@ -279,21 +273,21 @@ async function runPayerRecovery(page, before, label) {
   for (const stage of ['manual', 'verify', 'items', 'fee', 'share']) {
     await page.getByTestId('tutorial-next').click(); await waitStage(page, stage);
   }
-  await clickShareOpener(page); await clickSendClaim(page);
+  await clickShareOpener(page);
   await page.getByTestId('tutorial-next').click(); await waitStage(page, 'payer');
-  const payer = target(page, 8).locator('input').first();
+  const payer = target(page, 7).locator('input').first();
   await payer.fill('');
   for (const stage of ['currency', 'payment', 'tax-method', 'calculate']) {
     await page.getByTestId('tutorial-next').click(); await waitStage(page, stage);
   }
-  await target(page, 12).click(); await waitStage(page, 'payer');
+  await target(page, 11).click(); await waitStage(page, 'payer');
   await page.getByTestId('tutorial-feedback').waitFor({ state: 'visible' });
   await payer.fill('阿明');
   for (const stage of ['currency', 'payment', 'tax-method', 'calculate']) {
     await page.getByTestId('tutorial-next').click(); await waitStage(page, stage);
   }
-  await target(page, 12).click(); await waitStage(page, 'report');
-  await target(page, 13).waitFor({ state: 'visible' });
+  await target(page, 11).click(); await waitStage(page, 'report');
+  await target(page, 12).waitFor({ state: 'visible' });
   await page.getByTestId('tutorial-close').click();
   await assertRestored(page, before, label);
 }
@@ -398,16 +392,16 @@ async function runKeyStatusHintSmoke(browser) {
         assert.equal(await demo(page).locator('main').getAttribute('data-current-step'), String(steps[i]), label + '-' + stages[i] + ': underlying App step mismatch');
         await checkGeometry(page, label + '-' + stages[i]);
         await assertGated(page, i, label + '-' + stages[i]);
-        if (stages[i] === 'share-options') assert.equal(await page.locator('[data-tutorial-demo] dialog[open]').count(), 1, label + ': share panel should be open');
-        if (stages[i] === 'report') assert.match(await target(page, 13).innerText(), /首選|PREFERRED/i);
-        if (stages[i] === 'report-web' || stages[i] === 'report-fallback') assert.equal(await target(page, 15).getAttribute('aria-expanded'), 'false', label + ': text backups must start collapsed');
+        assert.equal(await page.locator('dialog[aria-labelledby="claim-share-title"]').count(), 0, label + ': the claim attachment modal stays closed');
+        if (stages[i] === 'report') assert.match(await target(page, 12).innerText(), /首選|PREFERRED/i);
+        if (stages[i] === 'report-web' || stages[i] === 'report-fallback') assert.equal(await target(page, 14).getAttribute('aria-expanded'), 'false', label + ': text backups must start collapsed');
         if (viewport.width === 390 && language === 'zh-HK') await page.screenshot({ path: path.join(out, `tutorial-${stages[i]}.png`) });
         await advance(page, i);
       }
       await assertRestored(page, before, label);
       assert.deepEqual(errors, [], label + ': browser exceptions');
       assert.deepEqual(businessRequests, [], label + ': tutorial made a business network request');
-      results.push({ label, passed: true, checks: '18 contextual stops, four underlying steps, target/card gating, non-modal compact geometry, sample calculation, complete restoration, no storage/network side effects' });
+      results.push({ label, passed: true, checks: '17 contextual stops, four underlying steps, target/card gating, non-modal compact geometry, sample calculation, complete restoration, no storage/network side effects' });
       console.log('PASS', label); await context.close();
       }
     }
@@ -424,18 +418,18 @@ async function runKeyStatusHintSmoke(browser) {
       await runEditedSample(page, language);
       await page.getByTestId('tutorial-next').click(); await waitStage(page, 'report-web');
       await page.getByTestId('tutorial-next').click(); await waitStage(page, 'report-fallback');
-      if (await target(page, 15).getAttribute('aria-expanded') === 'false') {
-        await target(page, 15).click(); await waitStage(page, 'report-share');
+      if (await target(page, 14).getAttribute('aria-expanded') === 'false') {
+        await target(page, 14).click(); await waitStage(page, 'report-share');
       } else {
         await page.getByTestId('tutorial-next').click(); await waitStage(page, 'report-share');
       }
       assert.match(await page.getByTestId('final-summary-preview').innerText(), language === 'en' ? /Payee：Cathy/ : /收款人：Cathy/);
-      const summaryButtons = target(page, 16).locator('button:not([disabled])');
-      assert(await summaryButtons.count() > 0, stages[16] + ': no action buttons to exercise');
+      const summaryButtons = target(page, 15).locator('button:not([disabled])');
+      assert(await summaryButtons.count() > 0, stages[15] + ': no action buttons to exercise');
       for (let i = 0; i < await summaryButtons.count(); i++) { await summaryButtons.nth(i).click(); await page.getByTestId('tutorial-feedback').waitFor({ state: 'visible' }); }
       await page.getByTestId('tutorial-next').click(); await waitStage(page, 'detail');
-      const detailButtons = target(page, 17).locator('button:not([disabled])');
-      assert(await detailButtons.count() > 0, stages[17] + ': no action buttons to exercise');
+      const detailButtons = target(page, 16).locator('button:not([disabled])');
+      assert(await detailButtons.count() > 0, stages[16] + ': no action buttons to exercise');
       for (let i = 0; i < await detailButtons.count(); i++) { await detailButtons.nth(i).click(); await page.getByTestId('tutorial-feedback').waitFor({ state: 'visible' }); }
       assert.deepEqual(await page.evaluate(() => window.__tutorialSideEffects), [], language + ': report action invoked share/clipboard/camera');
       assert.deepEqual(fileChoosers, [], language + ': tutorial opened a file chooser');

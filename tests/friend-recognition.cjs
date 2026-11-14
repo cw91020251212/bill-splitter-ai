@@ -235,6 +235,13 @@ async function hostFixture() {
   await host.waitForFunction(() => document.querySelector('[data-testid="activity-settings-next"]')?.textContent.includes('前往結算區'));
   await host.getByTestId('header-action-menu-toggle').click();
   await nextSettings.scrollIntoViewIfNeeded();
+  const settlementPaint = await nextSettings.evaluate(button => {
+    const style = getComputedStyle(button);
+    return { color: style.color, backgroundColor: style.backgroundColor, weight: style.fontWeight };
+  });
+  assert.equal(settlementPaint.color, 'rgb(255, 255, 255)', '前往結算區 uses white text');
+  assert.equal(settlementPaint.backgroundColor, 'rgb(29, 115, 73)', '前往結算區 uses the green host fill');
+  assert.equal(settlementPaint.weight, '700', '前往結算區 label is bold');
   await host.evaluate(() => {
     window.__stepNextScrollFrames = [];
     const nativeScrollTo = window.scrollTo.bind(window);
@@ -247,20 +254,26 @@ async function hostFixture() {
   const beforeNextScroll = await host.evaluate(() => window.scrollY);
   await nextSettings.click();
   await host.waitForFunction(() => {
-    const target = document.querySelector('[data-testid="go-to-payer"]');
-    if (!target) return false;
-    const rect = target.getBoundingClientRect();
+    const actions = document.querySelector('[data-testid="claim-link-actions"]');
+    const step = document.querySelector('[data-live-app] main')?.dataset.currentStep;
+    if (!actions || step !== '2') return false;
+    const rect = actions.getBoundingClientRect();
+    const headerBottom = document.querySelector('header')?.getBoundingClientRect().bottom || 0;
     const statusTop = document.querySelector('div.fixed.bottom-0[role="status"]')?.getBoundingClientRect().top || innerHeight;
-    return rect.top >= 0 && rect.bottom <= statusTop - 8;
+    return rect.top >= headerBottom && rect.bottom <= statusTop - 8;
   }, null, { timeout: 8000 });
   await host.waitForTimeout(2000);
   const nextScrollMetrics = await host.evaluate(() => ({
     scrollY: window.scrollY,
-    frames: window.__stepNextScrollFrames
+    frames: window.__stepNextScrollFrames,
+    step: document.querySelector('[data-live-app] main')?.dataset.currentStep
   }));
-  assert(nextScrollMetrics.scrollY > beforeNextScroll, 'activity next moves down to the original green step-2 next action');
+  assert.equal(nextScrollMetrics.step, '2', '前往結算區 stays on Step 2');
+  assert(nextScrollMetrics.scrollY > beforeNextScroll, '前往結算區 scrolls down to the share and copy actions');
   assert(nextScrollMetrics.frames.length > 2, 'activity next uses an animated scroll rather than a jump');
   assert(nextScrollMetrics.frames.at(-1).time - nextScrollMetrics.frames[0].time >= 1600, 'step-2 downward movement is deliberately slow');
+  assert.equal((await host.getByTestId('copy-friend-claim-link').innerText()).trim(), '複製連結給朋友');
+  assert.equal((await host.getByTestId('open-claim-share-button').innerText()).trim(), '分享認帳連結（可加附件）');
   assert.equal(await host.getByTestId('go-to-payer').innerText().then(text => text.trim().startsWith('下一步')), true, 'the original green next-step CTA remains available and is not activated automatically');
   assert.equal(await host.getByTestId('claim-activity-name').isDisabled(), false, 'activity name remains editable until a link is actually shared');
   assert.equal(await host.getByTestId('claim-inbox').isVisible(), true, 'claim inbox is on Step 2');
@@ -302,27 +315,35 @@ async function hostFixture() {
   await host.getByTestId('copy-friend-claim-link').click(); await host.waitForFunction(() => Boolean(document.querySelector('[data-testid="claim-link-actions"]')?.dataset.claimLink));
   const link = await host.getByTestId('claim-link-actions').evaluate(n => n.dataset.claimLink), c = remember(harness.requests.slice(before).find(r => r.path === '/api/shares/sessions' && r.status === 201)?.output);
   assert(c, 'actual host creates real session'); assert.equal(c.claimSecurity, 'password'); assert.equal(new URL(link).searchParams.get('session'), c.id); secretFree(link);
+  await host.evaluate(() => {
+    window.__shareCalls = [];
+    Object.defineProperty(navigator, 'share', {
+      configurable: true,
+      writable: true,
+      value: data => {
+        window.__shareCalls.push({ title: data && data.title || '', text: data && data.text || '', fileCount: data && data.files ? data.files.length : 0 });
+        return Promise.resolve();
+      }
+    });
+  });
   await host.getByTestId('open-claim-share-button').click();
-  const shareDialog = host.locator('dialog[aria-labelledby="claim-share-title"]');
-  await shareDialog.waitFor({ state: 'visible' });
-  assert.equal((await host.locator('#claim-share-title').innerText()).trim(), '分享認帳連結（附件可選）');
-  assert.equal((await host.getByTestId('claim-attachments-empty-state').innerText()).trim(), '未選附件，只會分享認帳連結。');
-  await host.locator('#claim-share-files').setInputFiles({ name: 'qa-note.txt', mimeType: 'text/plain', buffer: Buffer.from('Attachment UI test only') });
-  await host.getByTestId('claim-attachments-count').waitFor({ state: 'visible' });
-  assert.match(await host.getByTestId('claim-attachments-count').innerText(), /已選\s*1\s*個附件/);
-  assert.equal(await host.getByTestId('claim-attachments-empty-state').count(), 0, 'selected attachments replace the link-only empty state');
-  await host.getByTestId('clear-claim-attachments').click();
-  await host.getByTestId('claim-attachments-empty-state').waitFor({ state: 'visible' });
-  await host.getByTestId('close-claim-share-dialog').click();
+  await host.waitForFunction(() => window.__shareCalls && window.__shareCalls.length === 1);
+  const shared = await host.evaluate(() => window.__shareCalls[0]);
+  assert.equal(await host.locator('dialog[aria-labelledby="claim-share-title"]').count(), 0, 'the attachment modal does not open');
+  assert.equal(await host.locator('[data-live-app] main').getAttribute('data-current-step'), '2', 'sharing the claim link stays on Step 2');
+  assert.match(shared.text, /請打開呢條連結填認帳/);
+  assert.match(shared.text, new RegExp(c.id));
+  assert.equal(shared.fileCount, 0, 'the direct share sends the link text through the system share sheet');
   await host.getByTestId('header-action-menu-toggle').click();
   await host.getByTestId('header-language-toggle').click();
   await host.waitForFunction(() => document.querySelector('[data-testid="open-claim-share-button"]')?.textContent.includes('Share claim link'));
   assert.equal((await host.getByTestId('open-claim-share-button').innerText()).trim(), 'Share claim link (attachments optional)');
   await host.getByTestId('open-claim-share-button').click();
-  await shareDialog.waitFor({ state: 'visible' });
-  assert.equal((await host.locator('#claim-share-title').innerText()).trim(), 'Share claim link (attachments optional)');
-  assert.equal((await host.getByTestId('claim-attachments-empty-state').innerText()).trim(), 'No attachments selected; only the claim link will be shared.');
-  await host.getByTestId('close-claim-share-dialog').click();
+  await host.waitForFunction(() => window.__shareCalls && window.__shareCalls.length === 2);
+  const sharedEn = await host.evaluate(() => window.__shareCalls[1]);
+  assert.equal(await host.locator('dialog[aria-labelledby="claim-share-title"]').count(), 0, 'the English share action also skips the attachment modal');
+  assert.match(sharedEn.text, /Open this link to enter your shares/);
+  assert.equal(sharedEn.title, 'Share link');
   const languageToggle = host.getByTestId('header-language-toggle');
   if (!(await languageToggle.isVisible())) {
     await host.getByTestId('header-action-menu-toggle').click();

@@ -7,12 +7,12 @@ const base = process.env.BASE_URL || 'http://127.0.0.1:4178/';
 if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?\//.test(base)) throw new Error('Local-only test.');
 const out = process.env.TEST_OUTPUT_DIR || '/tmp/bill-tutorial-qa';
 const results = [];
-const stages = ['upload', 'manual', 'verify', 'items', 'fee', 'share', 'share-options', 'replies', 'payer', 'currency', 'payment', 'tax-method', 'calculate', 'report', 'report-web', 'report-fallback', 'report-share', 'detail'];
-const steps = [1, 1, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4];
+const stages = ['upload', 'manual', 'verify', 'items', 'fee', 'share', 'replies', 'payer', 'currency', 'payment', 'tax-method', 'calculate', 'report', 'report-web', 'report-fallback', 'report-share', 'detail'];
+const steps = [1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4];
 const selectors = [
   '[data-testid="receipt-source-actions"]', '[data-testid="start-manual"]', '[data-testid="verify-item"]',
   '[data-tutorial-target="item-fields"]', '[data-tutorial-target="fee"]', '[data-tutorial-target="open-claim-share"]',
-  '[data-tutorial-target="send-claim-link"]', '[data-testid="claim-replies"]',
+  '[data-testid="claim-replies"]',
   '[data-tutorial-target="calculation-settings"]', '[data-tutorial-target="currency"]', '[data-testid="payment-methods"]',
   '[data-tutorial-target="tax-method"]', '[data-testid="calculate-split"]', '[data-testid="friend-web-preferred-badge"]',
   '[data-testid="friend-web-intro"]', '[data-testid="report-fallback-toggle"]',
@@ -49,12 +49,11 @@ async function waitForTutorialButton(page) {
   }, null, { timeout: 30000 });
 }
 async function advance(page, i) {
-  if (i === 5) { await target(page, 5).click(); await waitStage(page, 'share-options'); }
-  else if (i === 6) { await target(page, 6).click(); await waitStage(page, 'replies'); }
-  else if (i === 12) { await target(page, 12).click(); await waitStage(page, 'report'); }
-  else if (i === 15) { await target(page, 15).click(); await waitStage(page, 'report-share'); }
+  if (i === 5) { await target(page, 5).click(); await waitStage(page, 'replies'); }
+  else if (i === 11) { await target(page, 11).click(); await waitStage(page, 'report'); }
+  else if (i === 14) { await target(page, 14).click(); await waitStage(page, 'report-share'); }
   else {
-    if (i === 8) await target(page, 8).locator('input').first().fill('阿明');
+    if (i === 7) await target(page, 7).locator('input').first().fill('阿明');
     await page.getByTestId('tutorial-next').click();
     if (i < stages.length - 1) await waitStage(page, stages[i + 1]);
   }
@@ -81,11 +80,11 @@ async function walkTutorial(page, label) {
     assert.equal(await page.getByTestId('tutorial-card').getAttribute('aria-modal'), 'false', label + ': tutorial must be non-modal');
     assert.equal(await demo(page).evaluate(e => e.inert), false, label + ': demo must not be inert');
     assert(await page.getByTestId('tutorial-card').evaluate(e => e.getBoundingClientRect().width <= 340), label + ': tutorial card too wide');
-    if (stages[i] === 'report-web' || stages[i] === 'report-fallback') assert.equal(await target(page, 15).getAttribute('aria-expanded'), 'false', label + ': text backups must be collapsed initially');
+    if (stages[i] === 'report-web' || stages[i] === 'report-fallback') assert.equal(await target(page, 14).getAttribute('aria-expanded'), 'false', label + ': text backups must be collapsed initially');
     const jumpButtons = await page.getByTestId('tutorial-card').locator('button').evaluateAll(bs => bs.filter(b => /(?:step\s*[1-4]|第\s*[一二三四1-4]\s*步)/i.test(b.textContent + ' ' + b.getAttribute('aria-label'))).map(b => b.textContent.trim()));
     assert.deepEqual(jumpButtons, [], label + ': duplicate four-step jump controls');
     await assertTargetGating(page, i, label + '-' + stages[i]);
-    if ([0, 7, 11].includes(i)) {
+    if ([0, 6, 10].includes(i)) {
       for (const key of ['Tab', 'Tab', 'Tab', 'Tab', 'Tab', 'Shift+Tab']) {
         await page.keyboard.press(key);
         assert(await page.evaluate(selector => {
@@ -111,7 +110,7 @@ async function walkTutorial(page, label) {
     assert.deepEqual(await page.evaluate(() => Object.fromEntries(Object.keys(localStorage).map(k => [k, localStorage.getItem(k)]))), before, 'tutorial changed localStorage');
     assert.equal(await page.locator('[data-live-app] main').getAttribute('data-current-step'), '1');
     assert.deepEqual(requests, [], 'tutorial made a business network request'); assert.deepEqual(errors, [], 'browser exceptions');
-    results.push({ label: 'empty-bill-18-stop-gating-nonmodal', passed: true }); console.log('PASS empty-bill-18-stop-gating-nonmodal');
+    results.push({ label: 'empty-bill-17-stop-gating-nonmodal', passed: true }); console.log('PASS empty-bill-17-stop-gating-nonmodal');
     await context.close();
 
     // Tutorial scripts and OpenRouter screenshots must survive runtime-cache removal.

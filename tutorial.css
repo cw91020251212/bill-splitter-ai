@@ -10,13 +10,6 @@
 .bt-demo [data-tutorial-target="currency"],
 .bt-demo [data-testid="payment-methods"],
 .bt-demo [data-tutorial-target="tax-method"] { max-height: 30dvh; overflow: auto; }
-.bt-demo dialog[aria-labelledby="claim-share-title"] {
-  position: fixed;
-  z-index: 60;
-  inset: 0;
-  margin: auto;
-  max-height: calc(100dvh - 24px) !important;
-}
 .bt-layer { position: fixed; z-index: 90; pointer-events: none; overflow: hidden; }
 .bt-mask { position: absolute; background: rgba(27, 39, 35, .65); pointer-events: auto; touch-action: none; }
 .bt-highlight {

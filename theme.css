@@ -974,6 +974,16 @@ body.bg-slate-50 { background: var(--page-grey); color: var(--ink); }
   stroke: #fff !important;
   filter: none !important;
 }
+#root button.host-primary.green-action.host-label-white:disabled {
+  background-image: none !important;
+  background-color: #e7ebe8 !important;
+  border-color: #d2d8d4 !important;
+  color: #9aa39d !important;
+  -webkit-text-fill-color: #9aa39d !important;
+  text-shadow: none !important;
+  box-shadow: none !important;
+  opacity: 1 !important;
+}
 #root main button.green-action:not(.host-primary):not(:disabled) {
   background-image: none !important;
   background-color: #fff !important;
@@ -1203,6 +1213,19 @@ html[lang="en"] #root [data-testid="open-free-key-settings"] span {
 #root button.host-primary.green-action:not(:disabled):not([data-testid="copy-prompt-open-google-ai"]) svg {
   color: #ffe566 !important;
   stroke: #ffe566 !important;
+  filter: none !important;
+}
+/* R144: only the stacked title+description actions keep a yellow title.
+   Short labels that opt into host-label-white stay white on the same green fill.
+   產生分帳報告 has no host-label-white class, so its title stays yellow. */
+#root button.host-primary.green-action.host-label-white:not(:disabled) {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, .35) !important;
+}
+#root button.host-primary.green-action.host-label-white:not(:disabled) svg {
+  color: #fff !important;
+  stroke: #fff !important;
   filter: none !important;
 }
 #root button.host-primary.green-action:not(:disabled) .host-action-hint {

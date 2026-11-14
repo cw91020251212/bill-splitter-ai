@@ -132,8 +132,8 @@ const ensureAIImportOpen = async page => {
     assert.equal(await noKeyPage.getByTestId('external-ai-provider-examples').innerText(), '（Google AI 模式、豆包等）');
     const googleAIButton = noKeyPage.getByTestId('copy-prompt-open-google-ai');
     assert.equal(await googleAIButton.isVisible(), true, 'the combined copy-and-open action is available');
-    assert.equal(await noKeyPage.locator('meta[name="bill-app-release"]').getAttribute('content'), 'v143-yellow-bold-refresh-20261114');
-    assert.equal((await noKeyPage.getByTestId('app-version-label').innerText()).trim(), 'R143');
+    assert.equal(await noKeyPage.locator('meta[name="bill-app-release"]').getAttribute('content'), 'v144-white-label-direct-share-20261114');
+    assert.equal((await noKeyPage.getByTestId('app-version-label').innerText()).trim(), 'R144');
     const buttonPaint = async locator => locator.evaluate(button => {
       const style = getComputedStyle(button);
       const icon = button.querySelector('svg');
@@ -183,8 +183,9 @@ const ensureAIImportOpen = async page => {
     assert.equal(googleBrand.green, 'rgb(52, 168, 83)', 'Google l uses official green #34A853');
     assert.equal(googleBrand.ai, 'rgb(255, 255, 255)', 'AI stays white');
     assert.equal(googleBrand.leadWeight, '700', 'the Google AI action label is bold');
-    assert.equal(cameraPaint.color, 'rgb(255, 229, 102)', '直接影相 uses the shared yellow label');
-    assert.equal(cameraPaint.iconColor, 'rgb(255, 229, 102)', '直接影相 uses a yellow camera icon');
+    assert.equal(cameraPaint.color, 'rgb(255, 255, 255)', '直接影相 uses white text');
+    assert.equal(cameraPaint.iconColor, 'rgb(255, 255, 255)', '直接影相 uses a white camera icon');
+    assert.match(cameraPaint.textShadow, /0px 1px 1px/, '直接影相 keeps the white-on-green text shadow');
     assert.equal(await noKeyPage.getByTestId('receipt-camera').evaluate(button => getComputedStyle(button).fontWeight), '700', '直接影相 label is bold');
     assert.equal(googlePaint.backgroundColor, cameraPaint.backgroundColor, 'the Google AI button uses the same green as the Step 1 photo action');
     assert.equal(googlePaint.boxShadow, 'none');
@@ -219,17 +220,27 @@ const ensureAIImportOpen = async page => {
     await noKeyPage.getByTestId('receipt-text-draft').fill('x');
     await noKeyPage.waitForFunction(() => {
       const button = document.querySelector('[data-testid="submit-receipt-text"]');
-      return Boolean(button) && button.disabled === false && getComputedStyle(button).backgroundColor === 'rgb(255, 255, 255)';
+      return Boolean(button) && button.disabled === false && getComputedStyle(button).backgroundColor === 'rgb(29, 115, 73)';
     });
     const submitPaint = await buttonPaint(noKeyPage.getByTestId('submit-receipt-text'));
     assert.equal(submitPaint.disabled, false);
-    assert.doesNotMatch(submitPaint.className, /\bhost-primary\b/);
+    assert.match(submitPaint.className, /\bhost-primary\b/);
+    assert.match(submitPaint.className, /\bhost-label-white\b/);
     assert.match(submitPaint.className, /\bgreen-action\b/);
-    assert.equal(submitPaint.backgroundColor, 'rgb(255, 255, 255)', 'other primary buttons in the step keep the white edge accent');
-    assert.notEqual(submitPaint.color, 'rgb(255, 255, 255)', 'the white edge action is not white-on-white');
+    assert.equal(submitPaint.backgroundColor, 'rgb(29, 115, 73)', 'enabled 整理這段文字 uses the green host fill');
+    assert.equal(submitPaint.color, 'rgb(255, 255, 255)', 'enabled 整理這段文字 uses white text');
+    assert.match(submitPaint.textShadow, /0px 1px 1px/);
     assert.equal(await noKeyPage.getByTestId('submit-receipt-text').evaluate(button => getComputedStyle(button).fontWeight), '700', 'the enabled submit label is bold');
-    assert.match(submitPaint.boxShadow, /inset/);
+    assert.equal(submitPaint.boxShadow, 'none');
     await noKeyPage.getByTestId('receipt-text-draft').fill('');
+    await noKeyPage.waitForFunction(() => {
+      const button = document.querySelector('[data-testid="submit-receipt-text"]');
+      return Boolean(button) && button.disabled === true && !button.classList.contains('host-primary') && getComputedStyle(button).backgroundColor === 'rgb(231, 235, 232)';
+    });
+    const submitCleared = await buttonPaint(noKeyPage.getByTestId('submit-receipt-text'));
+    assert.equal(submitCleared.disabled, true, 'clearing the textarea disables 整理這段文字 again');
+    assert.equal(submitCleared.backgroundColor, 'rgb(231, 235, 232)', 'the cleared submit button returns to the light gray fill');
+    assert.equal(submitCleared.color, 'rgb(154, 163, 157)', 'the cleared submit label returns to light gray');
     const initialGoogleBox = await googleAIButton.boundingBox();
     const initialCopyBox = await copyPromptButton.boundingBox();
     assert.ok(initialGoogleBox.y < initialCopyBox.y, 'the green Google AI button is above the white copy button');
@@ -475,6 +486,8 @@ const ensureAIImportOpen = async page => {
     assert.equal(await noKeyPage.getByTestId('ai-import-bill-photo-reminder').count(), 0, 'the hidden reminder stays hidden after the English reload');
     assert.match(await noKeyPage.getByTestId('attach-receipt-image').innerText(), /Add photo/);
     await noKeyPage.getByTestId('attach-receipt-image').click();
+    await noKeyPage.getByTestId('source-receipt-dialog').waitFor({ state: 'visible' });
+    await noKeyPage.getByRole('button', { name: /Close receipt photo|關閉收據圖片/ }).click();
     await noKeyPage.getByTestId('receipt-attachment-input').setInputFiles({
       name: 'synthetic-receipt-second.png', mimeType: 'image/png', buffer: syntheticReceipt
     });
@@ -485,11 +498,27 @@ const ensureAIImportOpen = async page => {
     assert.equal(noKeyRequests, 0, 'the English attachment-only flow also makes no API request');
     await noKeyPage.evaluate(() => {
       delete window.showOpenFilePicker;
+      window.__receiptPickerCalls = [];
       const input = document.querySelector('[data-testid="receipt-attachment-input"]');
       window.__fallbackPickerCalls = 0;
       input.click = () => { window.__fallbackPickerCalls += 1; };
     });
+    await noKeyPage.waitForFunction(() => getComputedStyle(document.querySelector('[data-testid="attach-receipt-image"]')).backgroundColor === 'rgb(29, 115, 73)');
+    const attachedPaint = await noKeyPage.getByTestId('attach-receipt-image').evaluate(button => ({
+      color: getComputedStyle(button).color,
+      backgroundColor: getComputedStyle(button).backgroundColor,
+      weight: getComputedStyle(button).fontWeight,
+      icon: getComputedStyle(button.querySelector('svg')).color
+    }));
+    assert.equal(attachedPaint.color, 'rgb(255, 255, 255)', '後加圖片 label is white');
+    assert.equal(attachedPaint.backgroundColor, 'rgb(29, 115, 73)', '後加圖片 fill is the host green');
+    assert.equal(attachedPaint.weight, '700', '後加圖片 label is bold');
+    assert.equal(attachedPaint.icon, 'rgb(255, 255, 255)', '後加圖片 icon is white');
     await noKeyPage.getByTestId('attach-receipt-image').click();
+    await noKeyPage.getByTestId('source-receipt-dialog').waitFor({ state: 'visible' });
+    assert.equal(await noKeyPage.evaluate(() => window.__fallbackPickerCalls), 0, 'a known receipt opens in the app instead of the folder picker');
+    await noKeyPage.getByRole('button', { name: /Close receipt photo|關閉收據圖片/ }).click();
+    await noKeyPage.getByTestId('pick-other-bill-image').click();
     await noKeyPage.waitForFunction(() => window.__fallbackPickerCalls === 1);
     assert.equal(await noKeyPage.getByTestId('receipt-attachment-input').getAttribute('accept'), null, 'the fallback input can browse Downloads instead of forcing an image-only media picker');
     await noKeyPage.evaluate(() => localStorage.setItem('billSplitterLanguage', 'zh-HK'));

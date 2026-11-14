@@ -5,7 +5,7 @@ const path = require('node:path');
 
 const root = path.join(__dirname, '..');
 const read = name => fs.readFileSync(path.join(root, name), 'utf8');
-const release = 'v143-yellow-bold-refresh-20261114';
+const release = 'v144-white-label-direct-share-20261114';
 
 function linearize(channel) {
   const value = channel / 255;
@@ -51,9 +51,12 @@ test('Google AI button keeps a green host-primary default without repainting eve
   assert.match(outline, /variant="outline"/);
   assert.doesNotMatch(outline, /\bhost-primary\b/);
   assert.doesNotMatch(outline, /\btext-white\b/);
-  assert.doesNotMatch(submit, /\bhost-primary\b/);
+  assert.match(submit, /receiptTextDraft\.trim\(\) && !tutorialDemo && !isAnalyzing \? 'host-primary host-label-white' : ''/);
+  assert.match(submit, /disabled=\{tutorialDemo \|\| isAnalyzing \|\| !receiptTextDraft\.trim\(\)\}/);
   assert.match(camera, /\bhost-primary\b/);
+  assert.match(camera, /\bhost-label-white\b/);
   assert.match(report, /\bhost-primary\b/);
+  assert.doesNotMatch(report, /\bhost-label-white\b/);
   assert.match(hint, /\btext-white\b/);
   assert.doesNotMatch(hint, /text-white\/95|textShadow:\s*'none'/);
   assert.match(menu, /\bgreen-action-dark\b/);
@@ -109,19 +112,19 @@ test('Google AI copies the receipt prompt before opening Gemini and does not cla
   assert.ok(prompt.length > 400);
 });
 
-test('R143 cache epoch is on the host shell and does not leak into friend pages', () => {
+test('R144 cache epoch is on the host shell and does not leak into friend pages', () => {
   const index = read('index.html');
   const sw = read('sw.js');
   const pwa = read('pwa.js');
   assert.match(index, new RegExp(`theme\\.css\\?v=${release}`));
   assert.match(index, new RegExp(`pwa\\.js\\?v=${release}`));
   assert.match(index, new RegExp(`name="bill-app-release" content="${release}"`));
-  assert.match(index, />R143</);
-  assert.doesNotMatch(index, /v142-dark-green-white-label-20261114/);
-  assert.doesNotMatch(index, />R142</);
+  assert.match(index, />R144</);
+  assert.doesNotMatch(index, /v143-yellow-bold-refresh-20261114/);
+  assert.doesNotMatch(index, />R143</);
   assert.match(sw, new RegExp(`const CACHE_VERSION = '${release}'`));
   assert.match(pwa, new RegExp(`var RELEASE_VERSION = '${release}'`));
-  assert.match(pwa, /version: 'R143'/);
+  assert.match(pwa, /version: 'R144'/);
   for (const name of ['claim.html', 'detailed-view.html']) {
     const text = read(name);
     assert.equal(text.includes('theme.css'), false, `${name} must not load host theme.css`);
@@ -195,4 +198,18 @@ test('R143 yellow labels, refresh icon, Google wordmark, and bold action labels 
   assert.match(shareLabel, /text-shadow:\s*0 1px 1px rgba\(0,\s*0,\s*0,\s*\.35\)\s*!important/);
   assert.match(shareIcon, /color:\s*#ffe566\s*!important/);
   assert.doesNotMatch(shareLabel, /#ffe566/);
+  assert.doesNotMatch(shareClaim, /\bhost-label-white\b/);
+  assert.match(shareClaim, /onClick=\{shareFriendClaimLink\}/);
+  assert.doesNotMatch(copyClaim, /\bhost-primary\b/);
+  const whiteLabel = ruleBlock(css, '#root button.host-primary.green-action.host-label-white:not(:disabled) {');
+  const whiteIcon = ruleBlock(css, '#root button.host-primary.green-action.host-label-white:not(:disabled) svg');
+  assert.match(whiteLabel, /color:\s*#fff\s*!important/);
+  assert.match(whiteLabel, /text-shadow:\s*0 1px 1px rgba\(0,\s*0,\s*0,\s*\.35\)\s*!important/);
+  assert.match(whiteIcon, /color:\s*#fff\s*!important/);
+  assert.match(index, /data-testid="open-ai-scan"[^>]*host-label-white/);
+  assert.match(index, /data-testid="activity-settings-next"[^>]*host-primary host-label-white/);
+  assert.match(index, /querySelector\('\[data-testid="claim-link-actions"\]'\)/);
+  assert.doesNotMatch(index, /openClaimShareDialog|showClaimShareDialog|claim-share-title|shareClaimAttachments/);
+  const scrollFn = index.slice(index.indexOf('const scrollToStep2Next'), index.indexOf('useEffect(() => () => step2NextScrollCancelRef'));
+  assert.doesNotMatch(scrollFn, /go-to-payer|setStep\(/);
 });

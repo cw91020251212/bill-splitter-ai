@@ -142,11 +142,11 @@
   ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
   ::-webkit-scrollbar-thumb:hover { background: #64748b; }
   </style>
-  <link rel="stylesheet" href="./theme.css?v=v143-yellow-bold-refresh-20261114">
+  <link rel="stylesheet" href="./theme.css?v=v144-white-label-direct-share-20261114">
   <link rel="stylesheet" href="./tutorial.css?v=v86-free-models-only">
-  <!-- R143: yellow labels on dark green host actions, refresh icon, bold button labels. Google AI still copies the prompt before opening Gemini. -->
-  <meta name="bill-app-release" content="v143-yellow-bold-refresh-20261114">
-  <script defer src="./pwa.js?v=v143-yellow-bold-refresh-20261114"></script>
+  <!-- R144: white labels on the short green actions, enabled text import is green, 前往結算區 stays on the Step 2 share links, and the claim share button opens the system share sheet directly. -->
+  <meta name="bill-app-release" content="v144-white-label-direct-share-20261114">
+  <script defer src="./pwa.js?v=v144-white-label-direct-share-20261114"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
@@ -1273,6 +1273,9 @@ Format (keep every field; items may contain multiple entries, and adjustments mu
       const [uploadError, setUploadError] = useState('');
       const [receiptTextDraft, setReceiptTextDraft] = useState('');
       const [lastImageData, setLastImageData] = useState([]);
+      const lastImageDataRef = useRef([]);
+      const [knownBillImages, setKnownBillImages] = useState([]);
+      const [knownBillOfferOpen, setKnownBillOfferOpen] = useState(false);
       const [reviewReceiptImageIndex, setReviewReceiptImageIndex] = useState(null);
       const receiptReviewDialogRef = useRef(null);
       const [friendShareInfo, setFriendShareInfo] = useState(null);
@@ -1288,6 +1291,10 @@ Format (keep every field; items may contain multiple entries, and adjustments mu
       const [showKeyGuidance, setShowKeyGuidance] = useState(() => readUiDisclosure('key-guidance-r133', false));
       const [lastRecognitionModel, setLastRecognitionModel] = useState('');
       const isTextImportResult = lastRecognitionModel === 'local-json-import' || String(lastRecognitionModel || '').startsWith('text-input|');
+      // 「其他 AI 翻譯」 only: pasted JSON, or text produced outside this app.
+      // Manual items and in-app OCR/local reading keep their own photos and do not show 後加圖片.
+      const externalAiImport = isTextImportResult;
+      lastImageDataRef.current = lastImageData;
       const [showRedaction, setShowRedaction] = useState(false);
       const [pendingRedactionImages, setPendingRedactionImages] = useState([]);
       const [redactionMasks, setRedactionMasks] = useState([]);
@@ -1471,9 +1478,6 @@ Format (keep every field; items may contain multiple entries, and adjustments mu
       const itemsRef = useRef([]);
       const pullClaimsRef = useRef(async () => {});
       const [claimAttachments, setClaimAttachments] = useState([]);
-      const claimAttachmentInputRef = useRef(null);
-      const [showClaimShareDialog, setShowClaimShareDialog] = useState(false);
-      const claimShareDialogRef = useRef(null);
       const claimFollowupRef = useRef(null);
       const claimLinkSharedRef = useRef(false);
       const pendingStep2EntryRef = useRef(false);
@@ -1484,18 +1488,6 @@ Format (keep every field; items may contain multiple entries, and adjustments mu
         tutorialVideoJumpRef.current = false;
         requestAnimationFrame(() => document.getElementById('openrouter-key-video')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
       }, [showTutorial]);
-      useEffect(() => {
-        if (tutorialDemo || !showClaimShareDialog) return;
-        const dialog = claimShareDialogRef.current;
-        if (!dialog) return;
-        const previousOverflow = document.body.style.overflow;
-        document.body.style.overflow = 'hidden';
-        dialog.showModal();
-        return () => {
-          if (dialog.open) dialog.close();
-          document.body.style.overflow = previousOverflow;
-        };
-      }, [showClaimShareDialog]);
       const [reconciliation, setReconciliation] = useState(null);
       const fieldRefs = useRef({});
       const [pendingItemRemoval, setPendingItemRemoval] = useState(null);
@@ -1996,7 +1988,7 @@ Format (keep every field; items may contain multiple entries, and adjustments mu
       };
 
       const scrollToStep2Next = () => {
-        const target = document.querySelector('[data-testid="go-to-payer"]');
+        const target = document.querySelector('[data-testid="claim-link-actions"]');
         if (!target) return;
         const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
         if (reducedMotion) {
@@ -2007,7 +1999,7 @@ Format (keep every field; items may contain multiple entries, and adjustments mu
         const rect = target.getBoundingClientRect();
         const visibleTop = stickyHeaderBottom() + 12;
         const visibleBottom = Math.max(visibleTop + rect.height + 24, visibleScrollBottom() - 12);
-        const desiredTop = Math.max(visibleTop, visibleBottom - rect.height - 24);
+        const desiredTop = Math.max(visibleTop, visibleBottom - rect.height - 72);
         const maxScroll = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
         const endY = Math.min(maxScroll, Math.max(startY, startY + rect.top - desiredTop));
         if (endY <= startY + 8) return;
@@ -2830,9 +2822,9 @@ Format (keep every field; items may contain multiple entries, and adjustments mu
         setStepError(''); setUploadError(''); setItems([]); nextClaimItemIdRef.current = 1; setNextClaimItemId(1); setFriendsReplies(''); setManualClaimsEnabled(false); setResults(null);
         setReceiptTextDraft(''); setShowReceiptTextImport(readUiDisclosure('receipt-ai-import-r133', false)); setLegacyClaimReviewRequired(false);
         setIsAnalyzing(false); setProgress(0); setProgressText('');
-        setIsSaved(false); setLastImageData([]); setLastRecognitionModel(''); setTaxAmount(''); setDiscountAmount(''); setTaxNote(''); setReceiptAdjustmentDetails(null);
+        setIsSaved(false); setLastImageData([]); lastImageDataRef.current = []; setKnownBillImages([]); setKnownBillOfferOpen(false); setLastRecognitionModel(''); setTaxAmount(''); setDiscountAmount(''); setTaxNote(''); setReceiptAdjustmentDetails(null);
         setReceiptTotalCheck(null); setReceiptTotalAcknowledgement(''); setReceiptTotalReview(null);
-        setClaimAttachments([]); setClaimInfo(null); setShowClaimShareDialog(false);
+        setClaimAttachments([]); setClaimInfo(null);
         inboxGenerationRef.current += 1;
         claimRoomRef.current = null; claimInboxSeenRef.current = [];
         claimLinkMetaRef.current = null;
@@ -2844,7 +2836,7 @@ Format (keep every field; items may contain multiple entries, and adjustments mu
         setClaimActivityName(''); setClaimExpiryDays('14'); setClaimLinkMeta(null);
         setClaimSession(null);
         setClaimRoom(null); setClaimInboxSeen([]); setInboxPhase('idle'); setInboxNote('');
-        [fileInputRef, cameraInputRef, claimAttachmentInputRef].forEach(ref => { if (ref.current) ref.current.value = ''; });
+        [fileInputRef, cameraInputRef].forEach(ref => { if (ref.current) ref.current.value = ''; });
         closeCamera(); setRedactionDrawingMode(false); setShowRedaction(false);
         setPendingRedactionImages([]); setRedactionMasks([]); setRedactionIndex(0);
         setIsPreparingRedacted(false); setRedactionImageLoadedVersion(0);
@@ -3327,6 +3319,10 @@ Format (keep every field; items may contain multiple entries, and adjustments mu
           let directJsonPayload = null;
           let directJsonImport = false;
           if (isTextInput) {
+            const remembered = lastImageDataRef.current;
+            if (remembered.length) setKnownBillImages(remembered.map(image => ({ mimeType: image.mimeType || 'image/jpeg', data: image.data })));
+            setKnownBillOfferOpen(false);
+            lastImageDataRef.current = [];
             setLastImageData([]);
             setIsSaved(false);
             const looksLikeJson = /^\s*(?:```(?:json)?\s*)?[\[{]/i.test(textContent);
@@ -4079,31 +4075,6 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
         } catch (error) { if (error?.name !== 'AbortError') setStepError(`⚠️ ${error?.message || '未能建立共用認帳連結。'}`); }
       };
 
-      const handleClaimAttachmentSelection = (event) => {
-        if (tutorialDemo) return;
-        const input = event.target;
-        const selectedFiles = Array.from(input.files || []);
-        input.value = '';
-        if (!selectedFiles.length) return;
-        const nextFiles = [...claimAttachments, ...selectedFiles];
-        if (nextFiles.length > 10) { toast('⚠️ 一次最多可選擇 10 個附件。', 'error'); return; }
-        if (nextFiles.reduce((sum, file) => sum + file.size, 0) > 20 * 1024 * 1024) {
-          toast('⚠️ 附件總容量不可超過 20 MB，請移除部分檔案後再試。', 'error');
-          return;
-        }
-        setClaimAttachments(nextFiles);
-        toast(`✅ 已加入 ${selectedFiles.length} 個附件`);
-      };
-
-      const openClaimShareDialog = async () => {
-        if (tutorialDemo) { setShowClaimShareDialog(true); onTutorialAction?.('share-open'); return; }
-        try {
-          if (!await prepareFriendClaimLink()) return;
-          markClaimLinkShared();
-          setShowClaimShareDialog(true);
-        } catch (error) { if (error?.name !== 'AbortError') setStepError(`⚠️ ${error?.message || '未能建立共用認帳連結。'}`); }
-      };
-
       const shareFriendClaimLink = async () => {
         if (tutorialDemo) { onTutorialAction?.('shared'); return; }
         try {
@@ -4115,13 +4086,6 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
             : `請打開呢條連結填認帳；主辦人計算後，再開返同一條連結睇結果：\n${link}`;
           shareTextWithFiles(message, [], tr('認帳連結'));
         } catch (error) { if (error?.name !== 'AbortError') setStepError(`⚠️ ${error?.message || '未能建立共用認帳連結。'}`); }
-      };
-
-      const shareClaimAttachments = () => {
-        if (tutorialDemo) return;
-        if (!claimAttachments.length) return;
-        if (!ensureDraftSavedForSharing()) return;
-        shareTextWithFiles('', claimAttachments, '');
       };
 
       const copyToClipboard = (text, btnLabel, successMessage = '') => {
@@ -4236,6 +4200,34 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
         else clipboardPromise.then(report);
       };
 
+      const filesFromBillImages = images => images.map((image, index) => {
+        const binary = atob(image.data || '');
+        const bytes = Uint8Array.from(binary, character => character.charCodeAt(0));
+        const type = image.mimeType || 'image/jpeg';
+        const ext = type === 'image/png' ? 'png' : type === 'image/webp' ? 'webp' : 'jpg';
+        return new File([bytes], `known-bill-${index + 1}.${ext}`, { type });
+      });
+      const revealKnownBillImage = () => {
+        if (lastImageData.length) {
+          document.querySelector('[data-testid="source-receipt-card"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          setReviewReceiptImageIndex(0);
+          return;
+        }
+        if (knownBillImages.length) {
+          setKnownBillOfferOpen(true);
+          window.setTimeout(() => document.querySelector('[data-testid="known-bill-image-offer"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 40);
+          return;
+        }
+        openReceiptImagePicker(receiptAttachmentInputRef);
+      };
+      const useKnownBillImages = () => {
+        if (!knownBillImages.length) {
+          openReceiptImagePicker(receiptAttachmentInputRef);
+          return;
+        }
+        setKnownBillOfferOpen(false);
+        handleReceiptImageAttachmentUpload({ target: { files: filesFromBillImages(knownBillImages), value: '' } });
+      };
       const renderTextImportReceiptAttachmentCard = (shareMode = false, remindBillPhoto = false) => (
         <Card data-testid="imported-receipt-attachment-card" className={`!p-2 border-slate-400 bg-white ${remindBillPhoto ? '!border-amber-500 !bg-amber-50' : ''}`}>
           {remindBillPhoto && <div data-testid="ai-import-bill-photo-reminder" role="status" aria-live="polite" className="mb-2 space-y-1 text-sm leading-relaxed text-amber-950">
@@ -4244,10 +4236,21 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
             <p className="text-xs">{bi('卡號會先在本機遮蓋；核對後才加入。', 'Card numbers are masked locally; review before adding.')}</p>
           </div>}
           <div className="space-y-1">
-            <Button data-testid="attach-receipt-image" variant="secondary" className={`!w-full !py-2 ${shareMode ? '!h-[44px] !min-h-[44px] !py-1 !border-blue-500 !bg-white !text-blue-900 !text-sm !shadow-none' : remindBillPhoto ? '!h-[44px] !min-h-[44px] !py-1 !border-amber-600 !bg-white !text-amber-950 !text-sm !shadow-none' : ''}`} style={shareMode ? { height: '44px', minHeight: '44px', backgroundColor: '#fff', color: '#1e3a8a', borderColor: '#3b82f6', boxShadow: 'none' } : remindBillPhoto ? { height: '44px', minHeight: '44px', backgroundColor: '#fff', color: '#78350f', borderColor: '#d97706', boxShadow: 'none' } : undefined} disabled={tutorialDemo || isAnalyzing || isPreparingRedacted} onClick={() => openReceiptImagePicker(receiptAttachmentInputRef)}>
+            <Button data-testid="attach-receipt-image" variant={shareMode || remindBillPhoto ? 'secondary' : 'primary'} className={`!w-full !py-2 ${shareMode ? '!h-[44px] !min-h-[44px] !py-1 !border-blue-500 !bg-white !text-blue-900 !text-sm !shadow-none' : remindBillPhoto ? '!h-[44px] !min-h-[44px] !py-1 !border-amber-600 !bg-white !text-amber-950 !text-sm !shadow-none' : 'host-primary host-label-white'}`} style={shareMode ? { height: '44px', minHeight: '44px', backgroundColor: '#fff', color: '#1e3a8a', borderColor: '#3b82f6', boxShadow: 'none' } : remindBillPhoto ? { height: '44px', minHeight: '44px', backgroundColor: '#fff', color: '#78350f', borderColor: '#d97706', boxShadow: 'none' } : undefined} disabled={tutorialDemo || isAnalyzing || isPreparingRedacted} onClick={() => { if (!shareMode) { revealKnownBillImage(); return; } openReceiptImagePicker(receiptAttachmentInputRef); }}>
               <Icon path={icons.fileImage} size={18}/>{bi(remindBillPhoto ? '補貼原帳單' : shareMode ? (lastImageData.length > 0 ? '再加帳單圖' : '加入帳單圖') : '後加圖片', remindBillPhoto ? 'Attach original bill' : shareMode ? (lastImageData.length > 0 ? 'Add another bill photo' : 'Add bill photo') : 'Add photo')}
             </Button>
-            {lastImageData.length > 0 && !shareMode && <p data-testid="receipt-attachment-status" className="text-center text-xs text-slate-600" role="status" aria-live="polite">{bi(`已加${lastImageData.length}張`, `${lastImageData.length} added`)}</p>}
+            {lastImageData.length > 0 && !shareMode && <p data-testid="receipt-attachment-status" className="text-center text-xs font-normal text-slate-600" role="status" aria-live="polite">{bi(`已加${lastImageData.length}張`, `${lastImageData.length} added`)}</p>}
+            {!shareMode && !remindBillPhoto && lastImageData.length > 0 && <Button data-testid="pick-other-bill-image" variant="secondary" className="!w-full !py-2" onClick={() => openReceiptImagePicker(receiptAttachmentInputRef)}>{bi('改選其他圖片', 'Choose a different image')}</Button>}
+            {!shareMode && knownBillOfferOpen && !lastImageData.length && knownBillImages.length > 0 && (
+              <div data-testid="known-bill-image-offer" className="space-y-2 rounded-xl border border-brand-600 bg-white p-2">
+                <p className="text-sm font-normal leading-relaxed text-slate-700">{bi('這是之前的單據圖片，一按就能用，不用再找檔案。', 'This is the receipt already in the app. One tap uses it; no folder search.')}</p>
+                {knownBillImages.map((image, index) => (
+                  <img key={`${index}-${image.mimeType}`} data-testid={`known-bill-image-${index}`} src={`data:${image.mimeType || 'image/jpeg'};base64,${image.data}`} alt={bi(`之前的單據 ${index + 1}`, `Earlier receipt ${index + 1}`)} className="block max-h-[220px] w-full rounded-lg border border-slate-300 object-contain" />
+                ))}
+                <Button data-testid="use-known-bill-image" variant="primary" className="host-primary host-label-white !w-full !py-2" onClick={useKnownBillImages}>{bi(knownBillImages.length > 1 ? '用這些單據' : '用這張單據', knownBillImages.length > 1 ? 'Use these receipts' : 'Use this receipt')}</Button>
+                <Button data-testid="pick-other-bill-image" variant="secondary" className="!w-full !py-2" onClick={() => openReceiptImagePicker(receiptAttachmentInputRef)}>{bi('改選其他圖片', 'Choose a different image')}</Button>
+              </div>
+            )}
           </div>
         </Card>
       );
@@ -4891,7 +4894,6 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
       useLayoutEffect(() => {
         if (!tutorialDemo) return;
         // Prepare the relevant real controls, without replacing the editable sample.
-        setShowClaimShareDialog(tutorialStage === 'share-options');
         const shared = ['payer', 'currency', 'payment', 'tax-method', 'replies', 'calculate', 'report', 'report-web', 'report-fallback', 'report-share', 'detail'].includes(tutorialStage);
         claimLinkSharedRef.current = shared;
         setClaimLinkShared(shared);
@@ -4960,7 +4962,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                 <div className="flex items-center gap-2 sm:gap-3 shrink-0">
                   <img src="./icons/icon.svg" alt="" width="48" height="48" className="app-brand-icon shrink-0" />
                   <div>
-                  <h1 className="text-xl font-extrabold text-slate-800 tracking-tight"><span className="app-brand-name block sm:inline whitespace-nowrap">{tr("分帳管家")}</span><span className="inline-flex items-baseline gap-1 sm:ml-1 whitespace-nowrap"><span data-testid="app-pro-label" className="text-brand-600 font-black">Pro</span><span data-testid="app-version-label" className="text-[10px] leading-3 font-semibold tracking-normal text-brand-700">R143</span></span></h1>
+                  <h1 className="text-xl font-extrabold text-slate-800 tracking-tight"><span className="app-brand-name block sm:inline whitespace-nowrap">{tr("分帳管家")}</span><span className="inline-flex items-baseline gap-1 sm:ml-1 whitespace-nowrap"><span data-testid="app-pro-label" className="text-brand-600 font-black">Pro</span><span data-testid="app-version-label" className="text-[10px] leading-3 font-semibold tracking-normal text-brand-700">R144</span></span></h1>
                   </div>
               </div>
               <div className="header-actions relative flex items-center gap-1.5 sm:gap-2">
@@ -5185,7 +5187,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                         lastImageData.length > 0 && <p className="text-base font-medium text-slate-600 mt-1 sm:hidden">{bi('可重試或拍新單。', 'Retry or take a new receipt.')}</p>
                       )}
                       <div data-testid="receipt-source-actions" className="receipt-source-actions mt-3 grid w-full max-w-sm grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-stretch gap-1.5 sm:mt-5 sm:flex sm:flex-row sm:gap-3">
-                        <Button data-testid="receipt-camera" variant="primary" className="host-primary w-full min-w-0 flex-1 !px-1 !py-2 leading-tight sm:!px-5 sm:!py-3 sm:leading-normal" onClick={triggerCamera}><Icon path={'<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3Z"/><circle cx="12" cy="13" r="4"/>'} size={20}/>{tr("📷 直接影相").replace("📷", "").trim()}</Button>
+                        <Button data-testid="receipt-camera" variant="primary" className="host-primary host-label-white w-full min-w-0 flex-1 !px-1 !py-2 leading-tight sm:!px-5 sm:!py-3 sm:leading-normal" onClick={triggerCamera}><Icon path={'<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3Z"/><circle cx="12" cy="13" r="4"/>'} size={20}/>{tr("📷 直接影相").replace("📷", "").trim()}</Button>
                         <ChoiceDivider inline />
                         <span data-testid="receipt-image-choice-or" aria-hidden="true" className="flex items-center justify-center px-0.5 text-sm font-semibold text-slate-700 sm:hidden">{tr('或')}</span>
                         <Button data-testid="receipt-upload" aria-haspopup="dialog" aria-expanded={showImageActionMenu} variant="secondary" className="w-full min-w-0 flex-1 !px-1 !py-2 leading-tight sm:!px-5 sm:!py-3 sm:leading-normal" onClick={() => tutorialDemo ? onTutorialAction?.('receipt') : setShowImageActionMenu(true)}><Icon path={icons.fileImage} size={18}/>{tr(" 選擇圖片")}</Button>
@@ -5317,7 +5319,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                       <input ref={receiptTextFileInputRef} data-testid="receipt-text-file" type="file" accept=".txt,.md,.csv,.json,text/plain,text/csv,application/json" className="hidden" onChange={handleReceiptTextFileUpload} />
                       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                         <Button data-testid="choose-receipt-text-file" variant="secondary" disabled={tutorialDemo || isAnalyzing} onClick={() => receiptTextFileInputRef.current?.click()}><Icon path={icons.fileImage} size={18}/><span className="inline-flex items-baseline gap-0.5"><span>{bi('上載文字檔', 'Upload text file')}</span><span className="btn-aside">{bi('（≤1 MB）', '(≤1 MB)')}</span></span></Button>
-                        <Button data-testid="submit-receipt-text" variant="primary" disabled={tutorialDemo || isAnalyzing || !receiptTextDraft.trim()} onClick={submitReceiptTextImport}>{isAnalyzing ? bi('整理中…', 'Processing…') : bi('整理這段文字', 'Process this text')}</Button>
+                        <Button data-testid="submit-receipt-text" variant="primary" className={receiptTextDraft.trim() && !tutorialDemo && !isAnalyzing ? 'host-primary host-label-white' : ''} disabled={tutorialDemo || isAnalyzing || !receiptTextDraft.trim()} onClick={submitReceiptTextImport}>{isAnalyzing ? bi('整理中…', 'Processing…') : bi('整理這段文字', 'Process this text')}</Button>
                       </div>
                       {uploadError && <p data-testid="receipt-text-import-error" role="alert" className="rounded-lg border border-amber-400 bg-amber-50 p-2 text-sm text-amber-900">{typeof uploadError === 'string' ? tr(uploadError) : tr(uploadError.sub || uploadError.main || '讀取失敗')}</p>}
                     </div>
@@ -5387,7 +5389,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                   </div>
                 )}
                 {items.length === 0 && <p className="text-base text-slate-700 leading-relaxed">{bi('有項目之後，先會出現認帳連結。', 'The share link appears once there is an item.')}</p>}
-                {isTextImportResult && renderTextImportReceiptAttachmentCard(false, lastImageData.length === 0)}
+                {externalAiImport && renderTextImportReceiptAttachmentCard(false, lastImageData.length === 0)}
 
                 <Card data-testid="activity-settings" className="!p-4 space-y-3">
                   <div>
@@ -5414,7 +5416,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                   </div>
                   {claimSession?.link && <p className="text-xs font-semibold text-emerald-800">{bi('連結已建立；名稱和期限不能改。', 'Link created; name and expiry cannot be changed.')}</p>}
                   {items.length > 0 && <div className="flex justify-end pt-1">
-                    <Button data-testid="activity-settings-next" variant="primary" className="!w-auto min-w-24 text-sm" onClick={scrollToStep2Next}>{bi('前往結算區', 'Go to settlement')}</Button>
+                    <Button data-testid="activity-settings-next" variant="primary" className="host-primary host-label-white !w-auto min-w-24 text-sm" onClick={scrollToStep2Next}>{bi('前往結算區', 'Go to settlement')}</Button>
                   </div>}
                 </Card>
 
@@ -5432,7 +5434,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                     <Card data-testid="manual-empty-state" className="text-center !py-8">
                       <h3 className="text-lg font-bold text-slate-800">{bi('未有項目', 'No items yet')}</h3>
                       <p className="text-base text-slate-700 mt-2 leading-relaxed">{bi('影相讀單，或手動加項目。', 'Scan a receipt, or add items manually.')}</p>
-                      <Button data-testid="open-ai-scan" variant="primary" className="host-primary w-full mt-4" onClick={openAiScan}>{bi('返回影相讀單', 'Back to photo scan')}</Button>
+                      <Button data-testid="open-ai-scan" variant="primary" className="host-primary host-label-white w-full mt-4" onClick={openAiScan}>{bi('返回影相讀單', 'Back to photo scan')}</Button>
                       <ChoiceDivider />
                       <Button data-testid="add-item-primary" variant="secondary" className="w-full mt-3 border-slate-500" onClick={addItemAndFocus}><Icon path={icons.plus} size={18}/>{bi('手動新增項目', 'Add an item manually')}</Button>
                     </Card>
@@ -5569,51 +5571,9 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                       <Button data-testid="copy-friend-claim-link" variant="secondary" onClick={generateFriendClaimLink} className="!w-full text-sm bg-white hover:bg-slate-50 border-slate-500">
                         <Icon path={icons.copy} size={18} className="text-slate-600"/>{tr(" 複製連結給朋友")}</Button>
                       <ChoiceDivider />
-                        <Button data-testid="open-claim-share-button" data-tutorial-target="open-claim-share" variant="primary" onClick={openClaimShareDialog} className="host-primary !w-full text-sm">
+                        <Button data-testid="open-claim-share-button" data-tutorial-target="open-claim-share" variant="primary" onClick={shareFriendClaimLink} className="host-primary !w-full text-sm">
                         <Icon path={icons.share} size={18}/><span>{bi('分享認帳連結', 'Share claim link')}<span className="btn-aside">{bi('（可加附件）', ' (attachments optional)')}</span></span></Button>
                     </div>
-                    {showClaimShareDialog && (
-                    <dialog open={tutorialDemo ? true : undefined} ref={claimShareDialogRef} onCancel={() => setShowClaimShareDialog(false)} aria-labelledby="claim-share-title" className="m-auto max-w-lg rounded-2xl border border-slate-400 bg-white p-4 text-slate-800 shadow-xl overflow-y-auto backdrop:bg-slate-950/60" style={{ width: 'calc(100% - 2rem)', maxHeight: '85dvh' }}>
-                      <div className="flex items-center justify-between gap-2 mb-3">
-                        <h2 id="claim-share-title" className="font-bold text-base">{bi('分享認帳連結（附件可選）', 'Share claim link (attachments optional)')}</h2>
-                        <button type="button" data-testid="close-claim-share-dialog" aria-label={tr("關閉分享視窗")} onClick={() => setShowClaimShareDialog(false)} className="shrink-0 rounded-lg p-2 hover:bg-slate-100"><Icon path={icons.x} size={20}/></button>
-                      </div>
-                      <label htmlFor="claim-share-files" className="block text-sm font-semibold mb-2">{tr("單據圖片／其他附件（可選）")}</label>
-                      {claimAttachments.length === 0 && <p data-testid="claim-attachments-empty-state" role="status" className="mb-3 border-l-4 border-brand-700 bg-brand-50 px-3 py-2 text-sm leading-relaxed text-slate-800">{bi('未選附件，只會分享認帳連結。', 'No attachments selected; only the claim link will be shared.')}</p>}
-                      <input
-                        id="claim-share-files"
-                        type="file"
-                        multiple
-                        accept="image/*,.pdf,.txt,.md,.rtf,.doc,.docx,.odt,.csv,.xls,.xlsx,.ppt,.pptx"
-                        className="block w-full min-w-0 rounded-lg border border-slate-400 bg-slate-50 p-2 text-sm file:mr-2 file:rounded-lg file:border-0 file:bg-slate-200 file:px-3 file:py-2 file:text-slate-800"
-                        ref={claimAttachmentInputRef}
-                        onChange={handleClaimAttachmentSelection}
-                      />
-                      <p className="text-xs text-slate-500 mt-2 leading-relaxed">{bi('附件上限：10 個，總共 20 MB。', 'Attachments: up to 10 files, 20 MB total.')}</p>
-                      {claimAttachments.length > 0 && (
-                        <div className="mt-3 border-t border-slate-300 pt-3">
-                          <div className="flex items-center justify-between gap-2 mb-2">
-                            <p data-testid="claim-attachments-count" className="text-sm font-bold text-slate-700">{tr("已選 ")}{claimAttachments.length}{tr(" 個附件（")}{(claimAttachments.reduce((sum, file) => sum + file.size, 0) / (1024 * 1024)).toFixed(1)} MB）</p>
-                            <button type="button" data-testid="clear-claim-attachments" onClick={() => { setClaimAttachments([]); if (claimAttachmentInputRef.current) claimAttachmentInputRef.current.value = ''; }} className="text-xs font-semibold text-red-700 hover:underline shrink-0">{tr("清除全部")}</button>
-                          </div>
-                          <ul className="space-y-1.5">
-                            {claimAttachments.map((file, index) => (
-                              <li key={`${file.name}-${file.size}-${file.lastModified}-${index}`} className="flex items-center gap-2 text-xs text-slate-600">
-                                <span className="min-w-0 flex-1 truncate" title={file.name}>{file.name}</span>
-                                <span className="shrink-0">{file.size < 1024 * 1024 ? `${Math.max(1, Math.round(file.size / 1024))} KB` : `${(file.size / (1024 * 1024)).toFixed(1)} MB`}</span>
-                                <button type="button" aria-label={tf("移除附件 {0}", [file.name])} onClick={() => setClaimAttachments(current => current.filter((_, itemIndex) => itemIndex !== index))} className="px-2 py-1 rounded border border-slate-400 bg-white text-slate-500 hover:text-red-700 hover:border-red-500">{tr("移除")}</button>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                      {draftAssetStatus === 'saving' && hasDraftAssets && <p className="mt-3 text-xs text-slate-600">{tr("正在儲存草稿附件，請稍候…")}</p>}
-                      <Button data-tutorial-target="send-claim-link" variant="primary" onClick={shareFriendClaimLink} disabled={hasDraftAssets && draftAssetStatus === 'saving'} className="!w-full mt-4 text-sm"><Icon path={icons.share} size={18}/>{tr(" 第 1 步：分享認帳連結")}</Button>
-                      {claimAttachments.length > 0 && (
-                        <Button variant="outline" onClick={shareClaimAttachments} disabled={hasDraftAssets && draftAssetStatus === 'saving'} className="!w-full mt-3 text-sm"><Icon path={icons.share} size={18}/>{tr(" 第 2 步：另分享附件（")}{claimAttachments.length}{tr(" 個）")}</Button>
-                      )}
-                    </dialog>
-                    )}
                   </div>
                 {!tutorialDemo && !manualClaimsEnabled && !claimLinkShared && !claimSession && !claimRoom && !hasInboundClaim && (
                   <Card data-testid="manual-claim-entry-option" className="!p-4 mb-4 border-slate-400 bg-slate-50 !shadow-none">
