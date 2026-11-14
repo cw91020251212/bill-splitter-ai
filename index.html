@@ -86,11 +86,11 @@
   ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
   ::-webkit-scrollbar-thumb:hover { background: #64748b; }
   </style>
-  <link rel="stylesheet" href="./theme.css?v=v140-host-accent-step1-20261114">
+  <link rel="stylesheet" href="./theme.css?v=v141-google-ai-green-copy-20261114">
   <link rel="stylesheet" href="./tutorial.css?v=v86-free-models-only">
-  <!-- R140: precious green, point accents, Step 1 upload hero. -->
-  <meta name="bill-app-release" content="v140-host-accent-step1-20261114">
-  <script defer src="./pwa.js?v=v140-host-accent-step1-20261114"></script>
+  <!-- R141: Google AI prompt button stays green and copies before opening Gemini. -->
+  <meta name="bill-app-release" content="v141-google-ai-green-copy-20261114">
+  <script defer src="./pwa.js?v=v141-google-ai-green-copy-20261114"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
@@ -2228,6 +2228,9 @@ Format (keep every field; items may contain multiple entries, and adjustments mu
       const toast = (text, type = 'success') => {
         const msg = document.createElement('div');
         const color = type === 'error' ? '#dc2626' : '#29835f';
+        msg.setAttribute('role', type === 'error' ? 'alert' : 'status');
+        msg.setAttribute('data-testid', 'app-toast');
+        msg.dataset.toastType = type === 'error' ? 'error' : 'success';
         msg.style.cssText = `position:fixed;top:24px;left:50%;transform:translateX(-50%);background:${color};color:white;padding:12px 24px;border-radius:12px;z-index:9999;font-weight:600;font-size:calc(14px * var(--app-font-scale, 1));box-shadow:0 10px 25px -5px rgba(0,0,0,0.15);max-width:90vw;text-align:center;animation:fade-in-down 0.3s ease-out;`;
         msg.textContent = tr(text);
         document.body.appendChild(msg);
@@ -4072,6 +4075,78 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
         document.body.removeChild(textArea);
       };
 
+      // Start the async Clipboard API during the click, before any focus change.
+      // A rejected write does not clear text already placed by execCommand.
+      const startClipboardWrite = (text) => {
+        const value = String(text || '');
+        if (!value) return Promise.resolve(false);
+        try {
+          if (!navigator.clipboard || window.isSecureContext !== true || typeof navigator.clipboard.writeText !== 'function') return Promise.resolve(false);
+          return Promise.resolve(navigator.clipboard.writeText(value)).then(() => true, () => false);
+        } catch (error) {
+          return Promise.resolve(false);
+        }
+      };
+      const removeCopyNodeSoon = (node) => { window.setTimeout(() => { try { node.remove(); } catch (error) {} }, 1500); };
+      const copyWithTextarea = (text) => {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.setAttribute('readonly', '');
+        textarea.setAttribute('aria-hidden', 'true');
+        textarea.setAttribute('autocomplete', 'off');
+        textarea.setAttribute('autocorrect', 'off');
+        textarea.setAttribute('autocapitalize', 'off');
+        textarea.setAttribute('spellcheck', 'false');
+        textarea.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;padding:0;margin:0;border:0;outline:none;box-shadow:none;background:transparent;font-size:16px;opacity:0';
+        document.body.appendChild(textarea);
+        let copied = false;
+        try {
+          textarea.focus({ preventScroll: true });
+          textarea.select();
+          textarea.setSelectionRange(0, text.length);
+          const selected = textarea.value.slice(textarea.selectionStart, textarea.selectionEnd);
+          if (selected === text && typeof document.execCommand === 'function') copied = document.execCommand('copy') === true;
+        } catch (error) {
+          copied = false;
+        }
+        removeCopyNodeSoon(textarea);
+        return copied;
+      };
+      const copyWithSelectionSpan = (text) => {
+        const span = document.createElement('span');
+        span.textContent = text;
+        span.setAttribute('aria-hidden', 'true');
+        span.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;overflow:hidden;white-space:pre;font-size:16px;opacity:0;user-select:text;-webkit-user-select:text';
+        document.body.appendChild(span);
+        const selection = document.getSelection();
+        const saved = [];
+        if (selection) {
+          for (let index = 0; index < selection.rangeCount; index += 1) saved.push(selection.getRangeAt(index));
+          selection.removeAllRanges();
+        }
+        let copied = false;
+        try {
+          const range = document.createRange();
+          range.selectNodeContents(span);
+          selection?.addRange(range);
+          if (selection?.toString() === text && typeof document.execCommand === 'function') copied = document.execCommand('copy') === true;
+        } catch (error) {
+          copied = false;
+        }
+        if (selection) {
+          selection.removeAllRanges();
+          saved.forEach(range => { try { selection.addRange(range); } catch (error) {} });
+        }
+        removeCopyNodeSoon(span);
+        return copied;
+      };
+      const copyTextForGoogleAI = (text) => {
+        const value = String(text || '');
+        if (!value) return false;
+        if (copyWithTextarea(value)) return true;
+        return copyWithSelectionSpan(value);
+      };
+
       const openLatePersonStep = (section, receive = false) => {
         setStepError('');
         setStep(2);
@@ -4090,13 +4165,18 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
       );
       const copyPromptAndOpenGoogleAI = () => {
         if (tutorialDemo) return;
-        window.open('https://gemini.google.com/app', '_blank', 'noopener,noreferrer');
         const prompt = uiLang === 'en' ? RECEIPT_JSON_IMPORT_PROMPT_EN : RECEIPT_JSON_IMPORT_PROMPT_ZH;
-        copyToClipboard(
-          prompt,
-          bi('讀圖提示詞', 'image-reading prompt'),
-          bi('提示詞已複製，已嘗試開啟 Google AI。請在新分頁手動附上帳單並按送出；網站不會代你上載。若新分頁未開啟，請允許彈出視窗。', 'Prompt copied and Google AI was opened. Manually attach the receipt and press Send; this site does not upload it. If no tab opened, allow pop-ups.')
-        );
+        // Copy in this click, then open. Opening Gemini first spends the user
+        // gesture on mobile Safari/Chrome and leaves the clipboard empty.
+        // window.open stays synchronous so the browser still allows the tab.
+        const clipboardPromise = startClipboardWrite(prompt);
+        const copiedSync = copyTextForGoogleAI(prompt);
+        window.open('https://gemini.google.com/app', '_blank', 'noopener,noreferrer');
+        const successMessage = bi('提示詞已複製，已嘗試開啟 Google AI。請在新分頁手動附上帳單並按送出；網站不會代你上載。若新分頁未開啟，請允許彈出視窗。', 'Prompt copied and Google AI was opened. Manually attach the receipt and press Send; this site does not upload it. If no tab opened, allow pop-ups.');
+        const failureMessage = bi('未能複製提示詞。請再按一次，或改用「複製讀圖提示詞」。已嘗試開啟 Google AI；此按鈕不會上載帳單圖片。', 'Could not copy the prompt. Tap again, or use “Copy photo-reading prompt”. Google AI was opened if pop-ups are allowed; this button does not upload the receipt.');
+        const report = (copied) => toast(copied ? successMessage : failureMessage, copied ? 'success' : 'error');
+        if (copiedSync) report(true);
+        else clipboardPromise.then(report);
       };
 
       const renderTextImportReceiptAttachmentCard = (shareMode = false, remindBillPhoto = false) => (
@@ -4823,7 +4903,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                 <div className="flex items-center gap-2 sm:gap-3 shrink-0">
                   <img src="./icons/icon.svg" alt="" width="48" height="48" className="app-brand-icon shrink-0" />
                   <div>
-                  <h1 className="text-xl font-extrabold text-slate-800 tracking-tight"><span className="app-brand-name block sm:inline whitespace-nowrap">{tr("分帳管家")}</span><span className="inline-flex items-baseline gap-1 sm:ml-1 whitespace-nowrap"><span data-testid="app-pro-label" className="text-brand-600 font-black">Pro</span><span data-testid="app-version-label" className="text-[10px] leading-3 font-semibold tracking-normal text-brand-700">R140</span></span></h1>
+                  <h1 className="text-xl font-extrabold text-slate-800 tracking-tight"><span className="app-brand-name block sm:inline whitespace-nowrap">{tr("分帳管家")}</span><span className="inline-flex items-baseline gap-1 sm:ml-1 whitespace-nowrap"><span data-testid="app-pro-label" className="text-brand-600 font-black">Pro</span><span data-testid="app-version-label" className="text-[10px] leading-3 font-semibold tracking-normal text-brand-700">R141</span></span></h1>
                   </div>
               </div>
               <div className="header-actions relative flex items-center gap-1.5 sm:gap-2">
@@ -5166,7 +5246,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                   {showReceiptTextImport && (
                     <div id="receipt-text-import-content" data-testid="receipt-text-import-content" className="mt-4 space-y-3">
                       <div className="grid grid-cols-1 gap-2">
-                        <Button data-testid="copy-prompt-open-google-ai" variant="primary" className="w-full" disabled={tutorialDemo || isAnalyzing} onClick={copyPromptAndOpenGoogleAI}><Icon path={icons.send} size={18}/>{bi('複製提示詞並開啟 Google AI', 'Copy prompt & open Google AI')}</Button>
+                        <Button data-testid="copy-prompt-open-google-ai" variant="primary" className="host-primary w-full" disabled={tutorialDemo || isAnalyzing} onClick={copyPromptAndOpenGoogleAI}><Icon path={icons.send} size={18}/>{bi('複製提示詞並開啟 Google AI', 'Copy prompt & open Google AI')}</Button>
                         <Button data-testid="copy-receipt-json-prompt" variant="outline" className="w-full border-slate-400 bg-white" disabled={tutorialDemo || isAnalyzing} onClick={copyReceiptJsonImportPrompt}><Icon path={icons.copy} size={18}/>{bi('複製讀圖提示詞', 'Copy photo-reading prompt')}</Button>
                       </div>
                       <p className="text-xs leading-relaxed text-slate-600">{bi('開啟 Gemini 後，請手動附上帳單圖片並按送出；此按鈕不會上載圖片。', 'In Gemini, manually attach the receipt and press Send; this button does not upload images.')}</p>
