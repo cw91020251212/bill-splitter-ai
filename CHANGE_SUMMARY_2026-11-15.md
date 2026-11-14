@@ -1,5 +1,13 @@
 # Change summary — 2026-11-15
 
+## R148: show the copied prompt in the Gemini guide
+
+The Gemini guide now contains a prefilled, read-only text area displaying the complete prompt that was copied to the clipboard. The dialog remains scrollable on short screens, and the cache/version identifiers are bumped to R148.
+
+## Verification
+
+- `node tests/google-ai-button.test.cjs` — passed.
+
 ## R147: Gemini guidance and clipboard import
 
 The Google AI action now copies the prompt and displays a short step-by-step dialog before opening Gemini. The user opens Gemini only after choosing “Next: open Gemini.” When “Process this text” is clicked with an empty text box, the page reads the copied Gemini response from the clipboard and processes it directly; if clipboard access is denied or empty, the page explains that the answer can be pasted manually. Cache and app release identifiers are bumped to R147.

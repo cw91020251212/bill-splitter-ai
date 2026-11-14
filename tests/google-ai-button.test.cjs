@@ -5,7 +5,7 @@ const path = require('node:path');
 
 const root = path.join(__dirname, '..');
 const read = name => fs.readFileSync(path.join(root, name), 'utf8');
-const release = 'v147-gemini-guide-clipboard-import-20261115';
+const release = 'v148-gemini-prompt-preview-20261115';
 
 function linearize(channel) {
   const value = channel / 255;
@@ -97,6 +97,8 @@ test('Google AI copies the receipt prompt before opening Gemini and does not cla
   assert.ok(fn.indexOf('startClipboardWrite(prompt)') >= 0 && fn.indexOf('copyTextForGoogleAI(prompt)') > fn.indexOf('startClipboardWrite(prompt)'), 'prompt copy is initiated before showing the guide');
   assert.match(fn, /setShowGoogleAiGuide\(true\)/);
   assert.match(html, /data-testid=\"google-ai-guide-continue\"/);
+  assert.match(html, /data-testid=\"google-ai-guide-prompt\"[^>]*readOnly/);
+  assert.match(html, /value=\{uiLang === 'en' \? RECEIPT_JSON_IMPORT_PROMPT_EN : RECEIPT_JSON_IMPORT_PROMPT_ZH\}/);
   assert.equal(fn.slice(0, fn.indexOf('const continueToGoogleAI')).includes('window.open('), false, 'the first action does not leave the page');
   assert.equal(fn.includes('copyToClipboard('), false, 'the combined action does not use the toast-on-attempt helper');
   assert.match(html, /提示詞未能複製/);
@@ -113,20 +115,21 @@ test('Google AI copies the receipt prompt before opening Gemini and does not cla
   assert.ok(prompt.length > 400);
 });
 
-test('R147 cache epoch is on the host shell and does not leak into friend pages', () => {
+test('R148 cache epoch is on the host shell and does not leak into friend pages', () => {
   const index = read('index.html');
   const sw = read('sw.js');
   const pwa = read('pwa.js');
   assert.match(index, new RegExp(`theme\\.css\\?v=${release}`));
   assert.match(index, new RegExp(`pwa\\.js\\?v=${release}`));
   assert.match(index, new RegExp(`name="bill-app-release" content="${release}"`));
-  assert.match(index, />R147</);
+  assert.match(index, />R148</);
   assert.doesNotMatch(index, /v142-dark-green-white-label-20261114/);
+  assert.doesNotMatch(index, />R147</);
   assert.doesNotMatch(index, />R146</);
   assert.doesNotMatch(index, />R142</);
   assert.match(sw, new RegExp(`const CACHE_VERSION = '${release}'`));
   assert.match(pwa, new RegExp(`var RELEASE_VERSION = '${release}'`));
-  assert.match(pwa, /version: 'R147'/);
+  assert.match(pwa, /version: 'R148'/);
   for (const name of ['claim.html', 'detailed-view.html']) {
     const text = read(name);
     assert.equal(text.includes('theme.css'), false, `${name} must not load host theme.css`);
