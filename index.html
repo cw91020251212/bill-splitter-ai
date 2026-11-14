@@ -142,11 +142,11 @@
   ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
   ::-webkit-scrollbar-thumb:hover { background: #64748b; }
   </style>
-  <link rel="stylesheet" href="./theme.css?v=v143-white-action-labels-20261115">
+  <link rel="stylesheet" href="./theme.css?v=v144-added-photo-remove-share-scroll-20261115">
   <link rel="stylesheet" href="./tutorial.css?v=v86-free-models-only">
-  <!-- R143: white labels on green actions, yellow action icons, bold button labels. -->
-  <meta name="bill-app-release" content="v143-white-action-labels-20261115">
-  <script defer src="./pwa.js?v=v143-white-action-labels-20261115"></script>
+  <!-- R144: removable added receipt photos and direct scroll to claim sharing. -->
+  <meta name="bill-app-release" content="v144-added-photo-remove-share-scroll-20261115">
+  <script defer src="./pwa.js?v=v144-added-photo-remove-share-scroll-20261115"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
@@ -2025,7 +2025,7 @@ Format (keep every field; items may contain multiple entries, and adjustments mu
       };
 
       const scrollToStep2Next = () => {
-        const target = document.querySelector('[data-testid="go-to-payer"]');
+        const target = document.querySelector('[data-testid="open-claim-share-button"]');
         if (!target) return;
         const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
         if (reducedMotion) {
@@ -4308,6 +4308,19 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
               <Icon path={icons.fileImage} size={18}/>{bi(remindBillPhoto ? '補貼原帳單' : shareMode ? (lastImageData.length > 0 ? '再加帳單圖' : '加入帳單圖') : '後加圖片', remindBillPhoto ? 'Attach original bill' : shareMode ? (lastImageData.length > 0 ? 'Add another bill photo' : 'Add bill photo') : 'Add photo')}
             </Button>
             {lastImageData.length > 0 && !shareMode && <p data-testid="receipt-attachment-status" className="text-center text-xs text-slate-600" role="status" aria-live="polite">{bi(`已加${lastImageData.length}張`, `${lastImageData.length} added`)}</p>}
+            {lastImageData.length > 0 && !shareMode && <div data-testid="added-receipt-images" className="grid grid-cols-2 gap-2 pt-2">
+              {lastImageData.map((image, index) => <div key={`${index}-${image.mimeType}`} className="relative overflow-hidden rounded-xl border border-slate-300 bg-slate-50">
+                <img src={`data:${image.mimeType || 'image/jpeg'};base64,${image.data}`} alt={bi(`後加的單據圖片 ${index + 1}`, `Added receipt photo ${index + 1}`)} className="block h-32 w-full object-contain" />
+                <button type="button" data-testid={`remove-added-receipt-${index}`} aria-label={bi(`刪除後加圖片 ${index + 1}`, `Delete added photo ${index + 1}`)} title={bi('刪除圖片', 'Delete photo')} onClick={() => {
+                  setLastImageData(current => current.filter((_, imageIndex) => imageIndex !== index));
+                  setReviewReceiptImageIndex(null);
+                  setIsSaved(false);
+                  if (results && claimSessionRef.current?.link) setReceiptImageSharePending(true);
+                }} className="absolute right-2 top-2 flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-full border border-slate-400 bg-white text-slate-700 shadow-sm transition-colors hover:border-red-700 hover:bg-red-50 hover:text-red-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700">
+                  <Icon path={icons.trash} size={18}/>
+                </button>
+              </div>)}
+            </div>}
           </div>
         </Card>
       );
@@ -5020,7 +5033,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                 <div className="flex items-center gap-2 sm:gap-3 shrink-0">
                   <img src="./icons/icon.svg" alt="" width="48" height="48" className="app-brand-icon shrink-0" />
                   <div>
-                  <h1 className="text-xl font-extrabold text-slate-800 tracking-tight"><span className="app-brand-name block sm:inline whitespace-nowrap">{tr("分帳管家")}</span><span className="inline-flex items-baseline gap-1 sm:ml-1 whitespace-nowrap"><span data-testid="app-pro-label" className="text-brand-600 font-black">Pro</span><span data-testid="app-version-label" className="text-[10px] leading-3 font-semibold tracking-normal text-brand-700">R143</span></span></h1>
+                  <h1 className="text-xl font-extrabold text-slate-800 tracking-tight"><span className="app-brand-name block sm:inline whitespace-nowrap">{tr("分帳管家")}</span><span className="inline-flex items-baseline gap-1 sm:ml-1 whitespace-nowrap"><span data-testid="app-pro-label" className="text-brand-600 font-black">Pro</span><span data-testid="app-version-label" className="text-[10px] leading-3 font-semibold tracking-normal text-brand-700">R144</span></span></h1>
                   </div>
               </div>
               <div className="header-actions relative flex items-center gap-1.5 sm:gap-2">

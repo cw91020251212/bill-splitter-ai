@@ -247,7 +247,7 @@ async function hostFixture() {
   const beforeNextScroll = await host.evaluate(() => window.scrollY);
   await nextSettings.click();
   await host.waitForFunction(() => {
-    const target = document.querySelector('[data-testid="go-to-payer"]');
+    const target = document.querySelector('[data-testid="open-claim-share-button"]');
     if (!target) return false;
     const rect = target.getBoundingClientRect();
     const statusTop = document.querySelector('div.fixed.bottom-0[role="status"]')?.getBoundingClientRect().top || innerHeight;
@@ -258,7 +258,7 @@ async function hostFixture() {
     scrollY: window.scrollY,
     frames: window.__stepNextScrollFrames
   }));
-  assert(nextScrollMetrics.scrollY > beforeNextScroll, 'activity next moves down to the original green step-2 next action');
+  assert(nextScrollMetrics.scrollY > beforeNextScroll, 'activity next moves directly to the share-claim-link action');
   assert(nextScrollMetrics.frames.length > 2, 'activity next uses an animated scroll rather than a jump');
   assert(nextScrollMetrics.frames.at(-1).time - nextScrollMetrics.frames[0].time >= 1600, 'step-2 downward movement is deliberately slow');
   assert.equal(await host.getByTestId('go-to-payer').innerText().then(text => text.trim().startsWith('下一步')), true, 'the original green next-step CTA remains available and is not activated automatically');

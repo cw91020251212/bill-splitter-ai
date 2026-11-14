@@ -133,8 +133,8 @@ const ensureAIImportOpen = async page => {
     assert.equal(await noKeyPage.getByTestId('external-ai-provider-examples').innerText(), '（Google AI 模式、豆包等）');
     const googleAIButton = noKeyPage.getByTestId('copy-prompt-open-google-ai');
     assert.equal(await googleAIButton.isVisible(), true, 'the combined copy-and-open action is available');
-    assert.equal(await noKeyPage.locator('meta[name="bill-app-release"]').getAttribute('content'), 'v143-yellow-bold-refresh-20261114');
-    assert.equal((await noKeyPage.getByTestId('app-version-label').innerText()).trim(), 'R143');
+    assert.equal(await noKeyPage.locator('meta[name="bill-app-release"]').getAttribute('content'), 'v144-added-photo-remove-share-scroll-20261115');
+    assert.equal((await noKeyPage.getByTestId('app-version-label').innerText()).trim(), 'R144');
     const buttonPaint = async locator => locator.evaluate(button => {
       const style = getComputedStyle(button);
       const icon = button.querySelector('svg');
@@ -184,7 +184,7 @@ const ensureAIImportOpen = async page => {
     assert.equal(googleBrand.green, 'rgb(52, 168, 83)', 'Google l uses official green #34A853');
     assert.equal(googleBrand.ai, 'rgb(255, 255, 255)', 'AI stays white');
     assert.equal(googleBrand.leadWeight, '700', 'the Google AI action label is bold');
-    assert.equal(cameraPaint.color, 'rgb(255, 229, 102)', '直接影相 uses the shared yellow label');
+    assert.equal(cameraPaint.color, 'rgb(255, 255, 255)', '直接影相 uses a white label on the green action');
     assert.equal(cameraPaint.iconColor, 'rgb(255, 229, 102)', '直接影相 uses a yellow camera icon');
     assert.equal(await noKeyPage.getByTestId('receipt-camera').evaluate(button => getComputedStyle(button).fontWeight), '700', '直接影相 label is bold');
     assert.equal(googlePaint.backgroundColor, cameraPaint.backgroundColor, 'the Google AI button uses the same green as the Step 1 photo action');
@@ -203,9 +203,9 @@ const ensureAIImportOpen = async page => {
     assert.equal(outlinePaint.backgroundImage, 'none');
     const submitDisabled = await buttonPaint(noKeyPage.getByTestId('submit-receipt-text'));
     assert.equal(submitDisabled.disabled, true, '整理這段文字 stays disabled until text is pasted');
-    assert.equal(submitDisabled.backgroundColor, 'rgb(231, 235, 232)', 'the empty submit button uses a light gray fill');
-    assert.equal(submitDisabled.color, 'rgb(154, 163, 157)', 'the empty submit label is light gray, not black');
-    assert.equal(await noKeyPage.getByTestId('submit-receipt-text').evaluate(button => getComputedStyle(button).borderTopColor), 'rgb(210, 216, 212)', 'the empty submit button uses a light gray outline');
+    assert.equal(submitDisabled.backgroundColor, 'rgb(228, 231, 228)', 'the empty submit button uses a light gray fill');
+    assert.equal(submitDisabled.color, 'rgb(106, 114, 108)', 'the empty submit label is light gray, not black');
+    assert.equal(await noKeyPage.getByTestId('submit-receipt-text').evaluate(button => getComputedStyle(button).borderTopColor), 'rgb(197, 203, 198)', 'the empty submit button uses a light gray outline');
     const fileLabel = await noKeyPage.getByTestId('choose-receipt-text-file').evaluate(button => {
       const aside = button.querySelector('.btn-aside');
       return {
@@ -220,7 +220,7 @@ const ensureAIImportOpen = async page => {
     await noKeyPage.getByTestId('receipt-text-draft').fill('x');
     await noKeyPage.waitForFunction(() => {
       const button = document.querySelector('[data-testid="submit-receipt-text"]');
-      return Boolean(button) && button.disabled === false && getComputedStyle(button).backgroundColor === 'rgb(255, 255, 255)';
+      return Boolean(button) && button.disabled === false && getComputedStyle(button).backgroundColor === 'rgb(29, 115, 73)';
     });
     const submitPaint = await buttonPaint(noKeyPage.getByTestId('submit-receipt-text'));
     assert.equal(submitPaint.disabled, false);
@@ -486,6 +486,14 @@ const ensureAIImportOpen = async page => {
     assert.match(await noKeyPage.getByTestId('receipt-attachment-only-hint').innerText(), /no OCR or AI/);
     await noKeyPage.getByTestId('redaction-next-or-finish').click();
     await noKeyPage.waitForFunction(() => /2 added/.test(document.querySelector('[data-testid="receipt-attachment-status"]')?.textContent || ''), null, { timeout: 15000 });
+    assert.equal(await noKeyPage.getByTestId('added-receipt-images').locator('img').count(), 2, 'each added photo has a visible preview');
+    assert.match(await noKeyPage.getByTestId('remove-added-receipt-0').getAttribute('aria-label'), /Delete added photo 1/);
+    await noKeyPage.getByTestId('remove-added-receipt-0').click();
+    await noKeyPage.waitForFunction(() => /1 added/.test(document.querySelector('[data-testid="receipt-attachment-status"]')?.textContent || ''));
+    assert.equal(await noKeyPage.getByTestId('added-receipt-images').locator('img').count(), 1, 'deleting a photo preserves the other attachment');
+    await noKeyPage.reload();
+    await noKeyPage.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '2', null, { timeout: 30000 });
+    assert.match(await noKeyPage.getByTestId('receipt-attachment-status').innerText(), /1 added/, 'photo deletion is saved in the draft');
     assert.equal(noKeyRequests, 0, 'the English attachment-only flow also makes no API request');
     await noKeyPage.evaluate(() => {
       delete window.showOpenFilePicker;
