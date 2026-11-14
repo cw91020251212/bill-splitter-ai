@@ -5372,7 +5372,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                       <input ref={receiptTextFileInputRef} data-testid="receipt-text-file" type="file" accept=".txt,.md,.csv,.json,text/plain,text/csv,application/json" className="hidden" onChange={handleReceiptTextFileUpload} />
                       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                         <Button data-testid="choose-receipt-text-file" variant="secondary" disabled={tutorialDemo || isAnalyzing} onClick={() => receiptTextFileInputRef.current?.click()}><Icon path={icons.fileImage} size={18}/><span className="inline-flex items-baseline gap-0.5"><span>{bi('上載文字檔', 'Upload text file')}</span><span className="btn-aside">{bi('（≤1 MB）', '(≤1 MB)')}</span></span></Button>
-                        <Button data-testid="submit-receipt-text" variant="primary" disabled={tutorialDemo || isAnalyzing || !receiptTextDraft.trim()} onClick={submitReceiptTextImport}>{isAnalyzing ? bi('整理中…', 'Processing…') : bi('整理這段文字', 'Process this text')}</Button>
+                        <Button data-testid="submit-receipt-text" variant="primary" className="host-primary" disabled={tutorialDemo || isAnalyzing || !receiptTextDraft.trim()} onClick={submitReceiptTextImport}>{isAnalyzing ? bi('整理中…', 'Processing…') : bi('整理這段文字', 'Process this text')}</Button>
                       </div>
                       {uploadError && <p data-testid="receipt-text-import-error" role="alert" className="rounded-lg border border-amber-400 bg-amber-50 p-2 text-sm text-amber-900">{typeof uploadError === 'string' ? tr(uploadError) : tr(uploadError.sub || uploadError.main || '讀取失敗')}</p>}
                     </div>

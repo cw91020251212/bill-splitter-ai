@@ -224,12 +224,12 @@ const ensureAIImportOpen = async page => {
     });
     const submitPaint = await buttonPaint(noKeyPage.getByTestId('submit-receipt-text'));
     assert.equal(submitPaint.disabled, false);
-    assert.doesNotMatch(submitPaint.className, /\bhost-primary\b/);
+    assert.match(submitPaint.className, /\bhost-primary\b/);
     assert.match(submitPaint.className, /\bgreen-action\b/);
-    assert.equal(submitPaint.backgroundColor, 'rgb(255, 255, 255)', 'other primary buttons in the step keep the white edge accent');
-    assert.notEqual(submitPaint.color, 'rgb(255, 255, 255)', 'the white edge action is not white-on-white');
+    assert.equal(submitPaint.backgroundColor, 'rgb(29, 115, 73)', 'the enabled text-import action uses the host green fill');
+    assert.equal(submitPaint.color, 'rgb(255, 255, 255)', 'the enabled text-import action uses white text');
+    assert.match(submitPaint.textShadow, /rgba\(0, 0, 0, 0\.35\)/, 'the enabled text-import action keeps the white-label text shadow');
     assert.equal(await noKeyPage.getByTestId('submit-receipt-text').evaluate(button => getComputedStyle(button).fontWeight), '700', 'the enabled submit label is bold');
-    assert.match(submitPaint.boxShadow, /inset/);
     await noKeyPage.getByTestId('receipt-text-draft').fill('');
     const initialGoogleBox = await googleAIButton.boundingBox();
     const initialCopyBox = await copyPromptButton.boundingBox();
