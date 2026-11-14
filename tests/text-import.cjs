@@ -93,9 +93,14 @@ const ensureAIImportOpen = async page => {
     });
     await initStorage(noKeyPage, null);
 
+    const keyToggle = noKeyPage.getByTestId('toggle-key-guidance');
+    if (await keyToggle.getAttribute('aria-expanded') !== 'true') await keyToggle.click();
     assert.equal(await noKeyPage.getByTestId('scan-model-select').inputValue(), 'local/paddleocr-js', 'fresh installs use local PaddleOCR + Dots by default');
-    assert.equal(await noKeyPage.getByTestId('copy-receipt-json-prompt').isVisible(), true, 'the prompt-copy action is visible without opening the details');
-    assert.equal(await noKeyPage.getByTestId('toggle-receipt-text-import').getAttribute('aria-expanded'), 'true', 'first-use AI translation guide starts open');
+    assert.equal(await noKeyPage.getByTestId('toggle-receipt-text-import').getAttribute('aria-expanded'), 'false', 'other-AI translation starts collapsed under the upload');
+    assert.equal(await noKeyPage.getByTestId('receipt-text-import-toggle-icon').getAttribute('data-direction'), 'down', 'a collapsed import panel uses the down chevron');
+    assert.equal(await noKeyPage.getByTestId('copy-receipt-json-prompt').count(), 0, 'prompt actions stay inside the collapsed other-AI section');
+    await ensureAIImportOpen(noKeyPage);
+    assert.equal(await noKeyPage.getByTestId('copy-receipt-json-prompt').isVisible(), true, 'opening other-AI translation reveals the prompt-copy action');
     assert.equal(await noKeyPage.getByTestId('receipt-text-import-toggle-icon').getAttribute('data-direction'), 'up', 'an expanded import panel uses the shared up chevron');
     assert.equal(await noKeyPage.getByTestId('receipt-text-import-title').getAttribute('aria-label'), '其他 AI 翻譯');
     assert.match(await noKeyPage.getByTestId('receipt-text-import').innerText(), /提示詞＋賬單＝專用翻譯檔（\.json）/);
