@@ -24,7 +24,8 @@ async function readModelDescription(page, scope) {
 async function assertRouteDescription(page, expectedText, label, scope = 'scan') {
   const toggle = page.getByTestId(`toggle-${scope}-model-description`);
   const description = page.getByTestId(`${scope}-model-description`);
-  assert.equal(await toggle.getAttribute('aria-expanded'), 'true', `${label}: first-use model details are open`);
+  if (await toggle.getAttribute('aria-expanded') !== 'true') await toggle.click();
+  assert.equal(await toggle.getAttribute('aria-expanded'), 'true', `${label}: model details open on request`);
   await description.waitFor({ state: 'visible' });
   assert.equal(await page.getByTestId(`${scope}-model-description-icon`).getAttribute('data-direction'), 'up', `${label}: expanded chevron points up`);
   const actual = await description.innerText();
@@ -77,10 +78,13 @@ async function closeSettingsAndAssertMatch(page, scanSelect, settingsSelect, lab
       localStorage.setItem('billSplitterHistory', '[]');
     });
     await firstVisitPage.goto(base.toString(), { waitUntil: 'networkidle' });
+    const firstVisitKey = firstVisitPage.getByTestId('toggle-key-guidance');
+    assert.equal(await firstVisitKey.getAttribute('aria-expanded'), 'false', 'key and model options start collapsed so the upload stays first');
+    await firstVisitKey.click();
     const firstVisitSelect = firstVisitPage.getByTestId('scan-model-select');
     await firstVisitSelect.waitFor({ state: 'visible' });
     assert.equal(await firstVisitSelect.inputValue(), localPaddleModel, 'first visit defaults to PaddleOCR.js local + Dots3-Note');
-    assert.equal((await firstVisitPage.getByTestId('app-version-label').innerText()).trim(), 'R139');
+    assert.equal((await firstVisitPage.getByTestId('app-version-label').innerText()).trim(), 'R140');
     console.log('PASS first-visit default is PaddleOCR.js local + Dots3-Note');
 
     await assertRouteDescription(firstVisitPage, '不送去 OpenRouter', 'local route keeps the image on-device');
@@ -185,7 +189,7 @@ async function closeSettingsAndAssertMatch(page, scanSelect, settingsSelect, lab
       await page.waitForFunction(model => JSON.parse(localStorage.getItem('billSplitterApiConfig') || 'null')?.model === model, freeModel);
       const menuTrigger = page.getByTestId('header-action-menu-toggle');
       await menuTrigger.waitFor({ state: 'visible' });
-      assert.equal((await page.getByTestId('app-version-label').innerText()).trim(), 'R139');
+      assert.equal((await page.getByTestId('app-version-label').innerText()).trim(), 'R140');
       await menuTrigger.click();
       const menu = page.locator('#header-action-menu');
       await menu.waitFor({ state: 'visible' });
@@ -251,6 +255,7 @@ async function closeSettingsAndAssertMatch(page, scanSelect, settingsSelect, lab
         await page.screenshot({ path: process.env.MENU_SCREENSHOT_PATH });
       }
       const routeBeforeSettings = await scanSelect.inputValue();
+      if (await page.locator('#header-action-menu').isVisible()) await page.getByTestId('header-action-menu-toggle').click();
       const descriptionBeforeSettings = await readModelDescription(page, 'scan');
       if (!await page.locator('.header-settings-button').isVisible()) await page.getByTestId('header-action-menu-toggle').click();
       await page.locator('.header-settings-button').click();

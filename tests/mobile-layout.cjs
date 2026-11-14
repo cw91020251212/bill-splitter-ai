@@ -65,7 +65,7 @@ async function assertOriginalFirstStep(page, width, height) {
   assert.equal(await progress.isVisible(), true, `${label}: progress bar is visible above the step buttons`);
   assert.equal(await progress.getAttribute('aria-valuenow'), '1', `${label}: progress bar reports Step 1`);
   assert.equal(await progress.getAttribute('aria-valuemax'), '4', `${label}: progress bar reports four total stages`);
-  assert.equal(await page.getByTestId('app-version-label').innerText(), 'R139', `${label}: R139 is loaded`);
+  assert.equal(await page.getByTestId('app-version-label').innerText(), 'R140', `${label}: R140 is loaded`);
 
   const keyCard = page.locator('.api-settings-card');
   assert.equal(await keyCard.isVisible(), true, `${label}: original Key status/action card is visible`);
@@ -73,12 +73,16 @@ async function assertOriginalFirstStep(page, width, height) {
   assert.match(await keyCard.innerText(), /相片／文字需 Key/);
   assert.equal(await page.getByTestId('open-free-key-settings').isVisible(), true, `${label}: the Key card opens the existing setup route`);
   const keyHelpToggle = page.getByTestId('toggle-key-guidance');
-  assert.equal(await keyHelpToggle.getAttribute('aria-expanded'), 'true', `${label}: first-time Key explanation is open`);
+  assert.equal(await keyHelpToggle.getAttribute('aria-expanded'), 'false', `${label}: Key explanation starts collapsed`);
+  assert.equal(await page.getByTestId('key-guidance-content').isVisible().catch(() => false), false, `${label}: model help does not sit above the upload`);
+  assert((await keyHelpToggle.boundingBox()).height >= 44, `${label}: Key help control is at least 44px high`);
+  await keyHelpToggle.click();
   assert.equal(await page.getByTestId('key-guidance-content').isVisible(), true, `${label}: application and no-key alternatives are explained`);
   assert.equal(await page.getByTestId('scan-model-settings').isVisible(), true, `${label}: model choice is grouped under Key guidance`);
-  assert((await keyHelpToggle.boundingBox()).height >= 44, `${label}: Key help control is at least 44px high`);
   assert.equal(await page.getByTestId('scan-model-select').isVisible(), true, `${label}: original model selector remains available`);
-  assert.equal(await page.getByTestId('scan-model-description').isVisible(), true, `${label}: first-time model details are visible`);
+  assert.equal(await page.getByTestId('toggle-scan-model-description').getAttribute('aria-expanded'), 'false', `${label}: model details start collapsed`);
+  await keyHelpToggle.click();
+  assert.equal(await keyHelpToggle.getAttribute('aria-expanded'), 'false', `${label}: Key explanation can be collapsed again`);
 
   assert.equal(await page.getByTestId('receipt-camera').isVisible(), true, `${label}: camera action remains`);
   assert.equal(await page.getByTestId('receipt-upload').isVisible(), true, `${label}: image selection remains`);
@@ -104,9 +108,23 @@ async function assertOriginalFirstStep(page, width, height) {
   assert.equal((await methodsIntro.innerText()).trim(), '以下三種方法處理單據：', `${label}: the Step 1 instructions are concise`);
   const introMetrics = await methodsIntro.evaluate(node => ({ height: node.getBoundingClientRect().height, fontSize: parseFloat(getComputedStyle(node).fontSize), width: node.clientWidth, scrollWidth: node.scrollWidth }));
   assert(introMetrics.height <= introMetrics.fontSize * 1.6 && introMetrics.fontSize >= 14 && introMetrics.scrollWidth <= introMetrics.width, `${label}: the methods prompt fits on one readable line (${JSON.stringify(introMetrics)})`);
+  const heroOrder = await page.evaluate(() => {
+    const top = selector => document.querySelector(selector).getBoundingClientRect().top;
+    return {
+      upload: top('.upload-dropzone'),
+      key: top('.api-settings-card'),
+      ai: top('[data-testid="receipt-text-import"]'),
+      manual: top('[data-testid="start-manual"]')
+    };
+  });
+  assert(heroOrder.upload < heroOrder.key && heroOrder.key < heroOrder.ai && heroOrder.ai < heroOrder.manual, `${label}: upload is the Step 1 hero, ahead of key help and the other paths (${JSON.stringify(heroOrder)})`);
+  const cameraBox = await page.getByTestId('receipt-camera').boundingBox();
+  assert(cameraBox.y >= 0 && cameraBox.y + cameraBox.height <= height, `${label}: the photo action is on the first screen`);
   const aiHeading = page.getByTestId('toggle-receipt-text-import');
   assert.equal(await aiHeading.isVisible(), true, `${label}: other-AI translation option is discoverable`);
-  assert.equal(await aiHeading.getAttribute('aria-expanded'), 'true', `${label}: first-time AI translation guide is open`);
+  assert.equal(await aiHeading.getAttribute('aria-expanded'), 'false', `${label}: other-AI translation starts collapsed`);
+  await aiHeading.click();
+  assert.equal(await aiHeading.getAttribute('aria-expanded'), 'true', `${label}: other-AI translation can be opened`);
   assert.equal(await page.getByTestId('receipt-text-import-title').getAttribute('aria-label'), '其他 AI 翻譯', `${label}: title is concise and accessible`);
   assert.match(await aiHeading.innerText(), /AI.*翻譯/);
   assert.match(await aiHeading.innerText(), /提示詞＋賬單＝專用翻譯檔（\.json）/);
@@ -145,6 +163,8 @@ async function assertOriginalFirstStep(page, width, height) {
   assert((await aiHeading.boundingBox()).height >= 44, `${label}: AI guide toggle is at least 44px high`);
   await assertNoOverflow(page, width, `${label} first step`);
   await page.screenshot({ path: path.join(outputDir, `step1-${width}x${height}.png`), fullPage: false });
+  await aiHeading.click();
+  assert.equal(await aiHeading.getAttribute('aria-expanded'), 'false', `${label}: other-AI translation returns to its compact row`);
   console.log(`PASS original Step 1 ${label}: four progress labels, Key path, camera/photo, AI translation heading and manual entry`);
 }
 
@@ -165,16 +185,18 @@ async function assertKeyApplicationRoute(page) {
 async function assertDisclosurePreferences(page) {
   const keyToggle = page.getByTestId('toggle-key-guidance');
   const aiToggle = page.getByTestId('toggle-receipt-text-import');
+  assert.equal(await keyToggle.getAttribute('aria-expanded'), 'false', 'Key options start compact');
+  assert.equal(await aiToggle.getAttribute('aria-expanded'), 'false', 'AI guide starts compact');
+  await keyToggle.click();
   const modelToggle = page.getByTestId('toggle-scan-model-description');
-  assert.equal(await keyToggle.getAttribute('aria-expanded'), 'true', 'first-use Key and model options are open');
-  assert.equal(await aiToggle.getAttribute('aria-expanded'), 'true', 'first-use AI guide is open');
-  assert.equal(await modelToggle.getAttribute('aria-expanded'), 'true', 'first-use model details are open inside Key options');
+  assert.equal(await page.getByTestId('scan-model-select').isVisible(), true, 'opening the Key arrow restores the model selector');
+  assert.equal(await modelToggle.getAttribute('aria-expanded'), 'false', 'model details stay collapsed until asked');
+  await modelToggle.click();
+  assert.equal(await page.getByTestId('scan-model-description').isVisible(), true, 'model details can be opened inside the group');
   await keyToggle.click();
   assert.equal(await keyToggle.getAttribute('aria-expanded'), 'false', 'Key arrow collapses the whole settings group');
   assert.equal(await page.getByTestId('scan-model-settings').isVisible().catch(() => false), false, 'model selector and description hide with Key guidance');
   assert.equal(await page.evaluate(() => localStorage.getItem('billSplitterUiDisclosureV1.key-guidance-r133')), 'closed', 'Key arrow stores the combined group state');
-  await aiToggle.click();
-  assert.equal(await aiToggle.getAttribute('aria-expanded'), 'false', 'AI guide can also be collapsed independently');
   assert.equal(await page.evaluate(() => localStorage.getItem('billSplitterUiDisclosureV1.receipt-ai-import-r133')), 'closed', 'AI guide collapse is stored locally');
   await page.reload({ waitUntil: 'networkidle', timeout: 60000 });
   await page.getByTestId('receipt-camera').waitFor({ state: 'visible' });
@@ -184,8 +206,8 @@ async function assertDisclosurePreferences(page) {
   assert.equal(await page.getByTestId('scan-model-settings').isVisible().catch(() => false), false, 'collapsed model options stay hidden after reload');
   assert.equal(await page.getByTestId('receipt-text-draft').isVisible().catch(() => false), false, 'collapsed AI content stays hidden after reload');
   await keyToggle.click();
-  assert.equal(await page.getByTestId('scan-model-select').isVisible(), true, 'opening the Key arrow restores the model selector');
-  assert.equal(await page.getByTestId('scan-model-description').isVisible(), true, 'model details stay expanded inside the group');
+  assert.equal(await page.getByTestId('scan-model-select').isVisible(), true, 'reopened group still exposes the model selector');
+  assert.equal(await modelToggle.getAttribute('aria-expanded'), 'true', 'opened model details persist inside the group');
   await modelToggle.click();
   assert.equal(await modelToggle.getAttribute('aria-expanded'), 'false', 'model details remain independently collapsible');
   assert.equal(await page.evaluate(() => localStorage.getItem('billSplitterUiDisclosureV1.model-description-r133')), 'closed', 'model-details choice is stored locally');
@@ -194,7 +216,6 @@ async function assertDisclosurePreferences(page) {
   await page.getByTestId('receipt-camera').waitFor({ state: 'visible' });
   assert.equal(await keyToggle.getAttribute('aria-expanded'), 'false', 'combined Key/model group remains collapsed after a second reload');
   await keyToggle.click();
-  assert.equal(await page.getByTestId('scan-model-select').isVisible(), true, 'reopened group still exposes the model selector');
   assert.equal(await modelToggle.getAttribute('aria-expanded'), 'false', 'separate model-details choice also persists in the nested group');
   await modelToggle.click();
   assert.equal(await modelToggle.getAttribute('aria-expanded'), 'true', 'model description can be reopened');
@@ -207,7 +228,7 @@ async function assertDisclosurePreferences(page) {
   assert.equal(await keyToggle.getAttribute('aria-expanded'), 'true', 'reopened combined group survives reload');
   assert.equal(await aiToggle.getAttribute('aria-expanded'), 'true', 'reopened AI guide survives reload');
   assert.equal(await modelToggle.getAttribute('aria-expanded'), 'true', 'reopened nested model description survives reload');
-  console.log('PASS selective disclosures: first-use help, local manual collapse, reload, reopen and reload');
+  console.log('PASS selective disclosures: compact defaults, local manual collapse, reload, reopen and reload');
 }
 
 async function assertOriginalStep2Order(page, width) {
