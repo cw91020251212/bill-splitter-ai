@@ -84,7 +84,7 @@ async function closeSettingsAndAssertMatch(page, scanSelect, settingsSelect, lab
     const firstVisitSelect = firstVisitPage.getByTestId('scan-model-select');
     await firstVisitSelect.waitFor({ state: 'visible' });
     assert.equal(await firstVisitSelect.inputValue(), localPaddleModel, 'first visit defaults to PaddleOCR.js local + Dots3-Note');
-    assert.equal((await firstVisitPage.getByTestId('app-version-label').innerText()).trim(), 'R144');
+    assert.equal((await firstVisitPage.getByTestId('app-version-label').innerText()).trim(), 'R145');
     console.log('PASS first-visit default is PaddleOCR.js local + Dots3-Note');
 
     await assertRouteDescription(firstVisitPage, '不送去 OpenRouter', 'local route keeps the image on-device');
@@ -189,7 +189,7 @@ async function closeSettingsAndAssertMatch(page, scanSelect, settingsSelect, lab
       await page.waitForFunction(model => JSON.parse(localStorage.getItem('billSplitterApiConfig') || 'null')?.model === model, freeModel);
       const menuTrigger = page.getByTestId('header-action-menu-toggle');
       await menuTrigger.waitFor({ state: 'visible' });
-      assert.equal((await page.getByTestId('app-version-label').innerText()).trim(), 'R144');
+      assert.equal((await page.getByTestId('app-version-label').innerText()).trim(), 'R145');
       await menuTrigger.click();
       const menu = page.locator('#header-action-menu');
       await menu.waitFor({ state: 'visible' });

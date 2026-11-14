@@ -36,14 +36,16 @@ const syntheticPhoto = fs.readFileSync(path.join(__dirname, 'fixtures', 'card-re
     await page.getByTestId('redaction-next-or-finish').click();
     await page.getByTestId('redaction-next-or-finish').click();
     await page.waitForFunction(() => /已加2張/.test(document.querySelector('[data-testid="receipt-attachment-status"]')?.textContent || ''), null, { timeout: 20000 });
-    assert.equal(await page.getByTestId('added-receipt-images').locator('img').count(), 2);
-    await page.getByTestId('remove-added-receipt-0').click();
+    assert.equal(await page.getByTestId('source-receipt-card').locator('img').count(), 2);
+    assert.equal(await page.getByTestId('remove-receipt-image-0').count(), 1);
+    assert.equal(await page.getByTestId('added-receipt-images').count(), 0, 'no duplicate small-photo row is rendered');
+    await page.getByTestId('remove-receipt-image-0').click();
     await page.waitForFunction(() => /已加1張/.test(document.querySelector('[data-testid="receipt-attachment-status"]')?.textContent || ''));
-    assert.equal(await page.getByTestId('added-receipt-images').locator('img').count(), 1);
+    assert.equal(await page.getByTestId('source-receipt-card').locator('img').count(), 1);
     await page.reload();
     await page.getByTestId('activity-settings-next').waitFor({ state: 'visible', timeout: 30000 });
     assert.match(await page.getByTestId('receipt-attachment-status').innerText(), /已加1張/);
-    assert.equal(await page.getByTestId('added-receipt-images').locator('img').count(), 1);
+    assert.equal(await page.getByTestId('source-receipt-card').locator('img').count(), 1);
 
     const before = await page.evaluate(() => window.scrollY);
     await page.getByTestId('activity-settings-next').click();

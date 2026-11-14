@@ -96,6 +96,9 @@ const receiptPayload = {
     await sourceCard.waitFor({ state: 'visible', timeout: 15000 });
     assert.match(await sourceCard.innerText(), /已讀取的單據圖片（2 張）/);
     assert.match(await sourceCard.innerText(), /點圖片放大對照/);
+    assert.equal(await page.getByTestId('remove-receipt-image-0').count(), 1, 'the first full-size preview card has its own trash control');
+    assert.equal(await page.getByTestId('remove-receipt-image-1').count(), 1, 'the second full-size preview card has its own trash control');
+    assert.equal(await page.getByTestId('added-receipt-images').count(), 0, 'no separate duplicate thumbnail row is rendered');
     const thumbnail = page.locator('[data-testid="source-receipt-image-0"] img');
     await page.waitForFunction(() => {
       const image = document.querySelector('[data-testid="source-receipt-image-0"] img');

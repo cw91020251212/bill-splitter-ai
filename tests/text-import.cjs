@@ -133,8 +133,8 @@ const ensureAIImportOpen = async page => {
     assert.equal(await noKeyPage.getByTestId('external-ai-provider-examples').innerText(), '（Google AI 模式、豆包等）');
     const googleAIButton = noKeyPage.getByTestId('copy-prompt-open-google-ai');
     assert.equal(await googleAIButton.isVisible(), true, 'the combined copy-and-open action is available');
-    assert.equal(await noKeyPage.locator('meta[name="bill-app-release"]').getAttribute('content'), 'v144-added-photo-remove-share-scroll-20261115');
-    assert.equal((await noKeyPage.getByTestId('app-version-label').innerText()).trim(), 'R144');
+    assert.equal(await noKeyPage.locator('meta[name="bill-app-release"]').getAttribute('content'), 'v145-single-photo-gallery-remove-20261115');
+    assert.equal((await noKeyPage.getByTestId('app-version-label').innerText()).trim(), 'R145');
     const buttonPaint = async locator => locator.evaluate(button => {
       const style = getComputedStyle(button);
       const icon = button.querySelector('svg');
@@ -486,11 +486,12 @@ const ensureAIImportOpen = async page => {
     assert.match(await noKeyPage.getByTestId('receipt-attachment-only-hint').innerText(), /no OCR or AI/);
     await noKeyPage.getByTestId('redaction-next-or-finish').click();
     await noKeyPage.waitForFunction(() => /2 added/.test(document.querySelector('[data-testid="receipt-attachment-status"]')?.textContent || ''), null, { timeout: 15000 });
-    assert.equal(await noKeyPage.getByTestId('added-receipt-images').locator('img').count(), 2, 'each added photo has a visible preview');
-    assert.match(await noKeyPage.getByTestId('remove-added-receipt-0').getAttribute('aria-label'), /Delete added photo 1/);
-    await noKeyPage.getByTestId('remove-added-receipt-0').click();
+    assert.equal(await noKeyPage.getByTestId('source-receipt-card').locator('img').count(), 2, 'each added photo appears once in the original full-size gallery');
+    assert.equal(await noKeyPage.getByTestId('added-receipt-images').count(), 0, 'no duplicate small-photo gallery is rendered');
+    assert.match(await noKeyPage.getByTestId('remove-receipt-image-0').getAttribute('aria-label'), /Delete receipt photo 1/);
+    await noKeyPage.getByTestId('remove-receipt-image-0').click();
     await noKeyPage.waitForFunction(() => /1 added/.test(document.querySelector('[data-testid="receipt-attachment-status"]')?.textContent || ''));
-    assert.equal(await noKeyPage.getByTestId('added-receipt-images').locator('img').count(), 1, 'deleting a photo preserves the other attachment');
+    assert.equal(await noKeyPage.getByTestId('source-receipt-card').locator('img').count(), 1, 'deleting a photo preserves the other attachment');
     await noKeyPage.reload();
     await noKeyPage.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '2', null, { timeout: 30000 });
     assert.match(await noKeyPage.getByTestId('receipt-attachment-status').innerText(), /1 added/, 'photo deletion is saved in the draft');

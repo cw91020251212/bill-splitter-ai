@@ -5,7 +5,7 @@ const path = require('node:path');
 
 const root = path.join(__dirname, '..');
 const read = name => fs.readFileSync(path.join(root, name), 'utf8');
-const release = 'v144-added-photo-remove-share-scroll-20261115';
+const release = 'v145-single-photo-gallery-remove-20261115';
 
 function linearize(channel) {
   const value = channel / 255;
@@ -109,19 +109,19 @@ test('Google AI copies the receipt prompt before opening Gemini and does not cla
   assert.ok(prompt.length > 400);
 });
 
-test('R144 cache epoch is on the host shell and does not leak into friend pages', () => {
+test('R145 cache epoch is on the host shell and does not leak into friend pages', () => {
   const index = read('index.html');
   const sw = read('sw.js');
   const pwa = read('pwa.js');
   assert.match(index, new RegExp(`theme\\.css\\?v=${release}`));
   assert.match(index, new RegExp(`pwa\\.js\\?v=${release}`));
   assert.match(index, new RegExp(`name="bill-app-release" content="${release}"`));
-  assert.match(index, />R144</);
+  assert.match(index, />R145</);
   assert.doesNotMatch(index, /v142-dark-green-white-label-20261114/);
   assert.doesNotMatch(index, />R142</);
   assert.match(sw, new RegExp(`const CACHE_VERSION = '${release}'`));
   assert.match(pwa, new RegExp(`var RELEASE_VERSION = '${release}'`));
-  assert.match(pwa, /version: 'R144'/);
+  assert.match(pwa, /version: 'R145'/);
   for (const name of ['claim.html', 'detailed-view.html']) {
     const text = read(name);
     assert.equal(text.includes('theme.css'), false, `${name} must not load host theme.css`);
@@ -135,7 +135,7 @@ test('R144 cache epoch is on the host shell and does not leak into friend pages'
   }
 });
 
-test('R144 white action labels, yellow icons, Google wordmark, and bold labels stay on the host', () => {
+test('R145 white action labels, yellow icons, Google wordmark, and bold labels stay on the host', () => {
   const index = read('index.html');
   const css = read('theme.css');
   const publish = index.split('\n').find(row => row.includes('<Button data-testid="publish-same-link-result"'));

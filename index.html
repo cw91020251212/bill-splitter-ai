@@ -142,11 +142,11 @@
   ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
   ::-webkit-scrollbar-thumb:hover { background: #64748b; }
   </style>
-  <link rel="stylesheet" href="./theme.css?v=v144-added-photo-remove-share-scroll-20261115">
+  <link rel="stylesheet" href="./theme.css?v=v145-single-photo-gallery-remove-20261115">
   <link rel="stylesheet" href="./tutorial.css?v=v86-free-models-only">
-  <!-- R144: removable added receipt photos and direct scroll to claim sharing. -->
-  <meta name="bill-app-release" content="v144-added-photo-remove-share-scroll-20261115">
-  <script defer src="./pwa.js?v=v144-added-photo-remove-share-scroll-20261115"></script>
+  <!-- R145: one full-size receipt gallery with an in-place delete action. -->
+  <meta name="bill-app-release" content="v145-single-photo-gallery-remove-20261115">
+  <script defer src="./pwa.js?v=v145-single-photo-gallery-remove-20261115"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
@@ -2022,6 +2022,13 @@ Format (keep every field; items may contain multiple entries, and adjustments mu
       const visibleScrollBottom = () => {
         const statusEl = document.querySelector('div.fixed.bottom-0[role="status"]');
         return (statusEl ? statusEl.getBoundingClientRect().top : window.innerHeight) - 12;
+      };
+
+      const removeReceiptImage = index => {
+        setLastImageData(current => current.filter((_, imageIndex) => imageIndex !== index));
+        setReviewReceiptImageIndex(null);
+        setIsSaved(false);
+        if (results && claimSessionRef.current?.link) setReceiptImageSharePending(true);
       };
 
       const scrollToStep2Next = () => {
@@ -4308,19 +4315,6 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
               <Icon path={icons.fileImage} size={18}/>{bi(remindBillPhoto ? '補貼原帳單' : shareMode ? (lastImageData.length > 0 ? '再加帳單圖' : '加入帳單圖') : '後加圖片', remindBillPhoto ? 'Attach original bill' : shareMode ? (lastImageData.length > 0 ? 'Add another bill photo' : 'Add bill photo') : 'Add photo')}
             </Button>
             {lastImageData.length > 0 && !shareMode && <p data-testid="receipt-attachment-status" className="text-center text-xs text-slate-600" role="status" aria-live="polite">{bi(`已加${lastImageData.length}張`, `${lastImageData.length} added`)}</p>}
-            {lastImageData.length > 0 && !shareMode && <div data-testid="added-receipt-images" className="grid grid-cols-2 gap-2 pt-2">
-              {lastImageData.map((image, index) => <div key={`${index}-${image.mimeType}`} className="relative overflow-hidden rounded-xl border border-slate-300 bg-slate-50">
-                <img src={`data:${image.mimeType || 'image/jpeg'};base64,${image.data}`} alt={bi(`後加的單據圖片 ${index + 1}`, `Added receipt photo ${index + 1}`)} className="block h-32 w-full object-contain" />
-                <button type="button" data-testid={`remove-added-receipt-${index}`} aria-label={bi(`刪除後加圖片 ${index + 1}`, `Delete added photo ${index + 1}`)} title={bi('刪除圖片', 'Delete photo')} onClick={() => {
-                  setLastImageData(current => current.filter((_, imageIndex) => imageIndex !== index));
-                  setReviewReceiptImageIndex(null);
-                  setIsSaved(false);
-                  if (results && claimSessionRef.current?.link) setReceiptImageSharePending(true);
-                }} className="absolute right-2 top-2 flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-full border border-slate-400 bg-white text-slate-700 shadow-sm transition-colors hover:border-red-700 hover:bg-red-50 hover:text-red-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700">
-                  <Icon path={icons.trash} size={18}/>
-                </button>
-              </div>)}
-            </div>}
           </div>
         </Card>
       );
@@ -5033,7 +5027,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                 <div className="flex items-center gap-2 sm:gap-3 shrink-0">
                   <img src="./icons/icon.svg" alt="" width="48" height="48" className="app-brand-icon shrink-0" />
                   <div>
-                  <h1 className="text-xl font-extrabold text-slate-800 tracking-tight"><span className="app-brand-name block sm:inline whitespace-nowrap">{tr("分帳管家")}</span><span className="inline-flex items-baseline gap-1 sm:ml-1 whitespace-nowrap"><span data-testid="app-pro-label" className="text-brand-600 font-black">Pro</span><span data-testid="app-version-label" className="text-[10px] leading-3 font-semibold tracking-normal text-brand-700">R144</span></span></h1>
+                  <h1 className="text-xl font-extrabold text-slate-800 tracking-tight"><span className="app-brand-name block sm:inline whitespace-nowrap">{tr("分帳管家")}</span><span className="inline-flex items-baseline gap-1 sm:ml-1 whitespace-nowrap"><span data-testid="app-pro-label" className="text-brand-600 font-black">Pro</span><span data-testid="app-version-label" className="text-[10px] leading-3 font-semibold tracking-normal text-brand-700">R145</span></span></h1>
                   </div>
               </div>
               <div className="header-actions relative flex items-center gap-1.5 sm:gap-2">
@@ -5423,18 +5417,23 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                     <h2 className="text-2xl font-bold text-slate-800 tracking-tight">{tr("核對項目")}</h2>
                   )}
                 </div>
-                {receiptWasRead && lastImageData.length > 0 && (
+                {lastImageData.length > 0 && (
                   <Card data-testid="source-receipt-card" className="!p-3 space-y-2">
                     <div>
-                      <h3 className="text-base font-bold text-slate-800">{bi(`已讀取的單據圖片（${lastImageData.length} 張）`, `Receipt photos used (${lastImageData.length})`)}</h3>
-                      <p className="mt-1 text-sm leading-relaxed text-slate-700">{bi('核對項目或翻譯時，點圖片放大對照。', 'Tap a photo to enlarge it while checking items or translations.')}</p>
+                      <h3 className="text-base font-bold text-slate-800">{receiptWasRead ? bi(`已讀取的單據圖片（${lastImageData.length} 張）`, `Receipt photos used (${lastImageData.length})`) : bi(`已加入的單據圖片（${lastImageData.length} 張）`, `Added receipt photos (${lastImageData.length})`)}</h3>
+                      <p className="mt-1 text-sm leading-relaxed text-slate-700">{receiptWasRead ? bi('核對項目或翻譯時，點圖片放大對照。', 'Tap a photo to enlarge it while checking items or translations.') : bi('點圖片放大查看；按右上角垃圾桶移除。', 'Tap a photo to enlarge it, or use its top-right trash icon to remove it.')}</p>
                     </div>
                     <div className="space-y-2">
                       {lastImageData.map((image, index) => (
-                        <button key={`${index}-${image.mimeType}`} type="button" data-testid={`source-receipt-image-${index}`} aria-label={bi(`放大第 ${index + 1} 張單據圖片`, `Enlarge receipt photo ${index + 1}`)} onClick={() => setReviewReceiptImageIndex(index)} className="block w-full overflow-hidden rounded-xl border border-slate-300 bg-slate-50 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700">
-                          <img src={`data:${image.mimeType || 'image/jpeg'};base64,${image.data}`} alt={bi(`第 ${index + 1} 張已讀取的單據`, `Receipt photo ${index + 1} used for scanning`)} className="block max-h-[220px] w-full object-contain" />
-                          <span className="block border-t border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700">{bi(`第 ${index + 1} 張 · 點圖放大`, `Photo ${index + 1} · tap to enlarge`)}</span>
-                        </button>
+                        <div key={`${index}-${image.mimeType}`} className="relative">
+                          <button type="button" data-testid={`source-receipt-image-${index}`} aria-label={bi(`放大第 ${index + 1} 張單據圖片`, `Enlarge receipt photo ${index + 1}`)} onClick={() => setReviewReceiptImageIndex(index)} className="block w-full overflow-hidden rounded-xl border border-slate-300 bg-slate-50 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700">
+                            <img src={`data:${image.mimeType || 'image/jpeg'};base64,${image.data}`} alt={bi(`第 ${index + 1} 張單據圖片`, `Receipt photo ${index + 1}`)} className="block max-h-[220px] w-full object-contain" />
+                            <span className="block border-t border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700">{bi(`第 ${index + 1} 張 · 點圖放大`, `Photo ${index + 1} · tap to enlarge`)}</span>
+                          </button>
+                          <button type="button" data-testid={`remove-receipt-image-${index}`} aria-label={bi(`刪除第 ${index + 1} 張單據圖片`, `Delete receipt photo ${index + 1}`)} title={bi('刪除圖片', 'Delete photo')} onClick={() => removeReceiptImage(index)} className="absolute right-2 top-2 flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-full border border-slate-400 bg-white text-slate-700 shadow-sm transition-colors hover:border-red-700 hover:bg-red-50 hover:text-red-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700">
+                            <Icon path={icons.trash} size={18}/>
+                          </button>
+                        </div>
                       ))}
                     </div>
                   </Card>
