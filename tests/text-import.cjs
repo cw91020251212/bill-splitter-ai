@@ -406,8 +406,11 @@ const ensureAIImportOpen = async page => {
     assert.match(await missingBillReminder.innerText(), /AI 只匯入項目，未有帳單圖片/);
     assert.match(await missingBillReminder.innerText(), /請補貼原帳單/);
     assert.match(await noKeyPage.getByTestId('attach-receipt-image').innerText(), /補貼原帳單/);
-    const reminderButtonStyle = await noKeyPage.getByTestId('attach-receipt-image').evaluate(button => ({ background: getComputedStyle(button).backgroundColor, height: Math.round(button.getBoundingClientRect().height) }));
-    assert.deepEqual(reminderButtonStyle, { background: 'rgb(255, 255, 255)', height: 44 }, 'the original-bill reminder offers a clear white 44px action');
+    const reminderButtonStyle = await noKeyPage.getByTestId('attach-receipt-image').evaluate(button => ({ background: getComputedStyle(button).backgroundColor, color: getComputedStyle(button).color, shadow: getComputedStyle(button).textShadow, height: Math.round(button.getBoundingClientRect().height) }));
+    assert.equal(reminderButtonStyle.background, 'rgb(29, 115, 73)', 'the original-bill reminder uses the host green action fill');
+    assert.equal(reminderButtonStyle.color, 'rgb(255, 255, 255)', 'the original-bill reminder uses white text');
+    assert.match(reminderButtonStyle.shadow, /rgba\(0, 0, 0, 0\.35\)/, 'the original-bill reminder keeps the white-label text shadow');
+    assert.equal(reminderButtonStyle.height, 44, 'the original-bill reminder keeps the compact 44px height');
     await noKeyPage.getByTestId('header-action-menu-toggle').click();
     await noKeyPage.getByTestId('header-language-toggle').click();
     await noKeyPage.waitForFunction(() => document.querySelector('[data-testid="ai-import-bill-photo-reminder"]')?.textContent.includes('AI import includes the items, not the bill photo.'));
