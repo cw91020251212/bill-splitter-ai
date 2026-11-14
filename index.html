@@ -3250,6 +3250,7 @@ Format (keep every field; items may contain multiple entries, and adjustments mu
             setRedactionDrag(null);
             redactionDragRef.current = null;
             toast(bi('✅ 相片已加入；分享後會顯示在同一條結果連結（不做 OCR／AI）。', '✅ Photo added; it appears on the same result link when shared (no OCR/AI).'));
+            window.setTimeout(() => scrollToStep2Next(), 140);
             return;
           }
           setPendingRedactionImages([]);
