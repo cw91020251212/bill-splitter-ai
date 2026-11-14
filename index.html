@@ -4891,7 +4891,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
       useLayoutEffect(() => {
         if (!tutorialDemo) return;
         // Prepare the relevant real controls, without replacing the editable sample.
-        setShowClaimShareDialog(tutorialStage === 'share-options');
+        setShowClaimShareDialog(false);
         const shared = ['payer', 'currency', 'payment', 'tax-method', 'replies', 'calculate', 'report', 'report-web', 'report-fallback', 'report-share', 'detail'].includes(tutorialStage);
         claimLinkSharedRef.current = shared;
         setClaimLinkShared(shared);
@@ -5571,51 +5571,9 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                       <Button data-testid="copy-friend-claim-link" variant="secondary" onClick={generateFriendClaimLink} className="!w-full text-sm bg-white hover:bg-slate-50 border-slate-500">
                         <Icon path={icons.copy} size={18} className="text-slate-600"/>{tr(" 複製連結給朋友")}</Button>
                       <ChoiceDivider />
-                        <Button data-testid="open-claim-share-button" data-tutorial-target="open-claim-share" variant="primary" onClick={openClaimShareDialog} className="host-primary !w-full text-sm">
-                        <Icon path={icons.share} size={18}/><span>{bi('分享認帳連結', 'Share claim link')}<span className="btn-aside">{bi('（可加附件）', ' (attachments optional)')}</span></span></Button>
+                        <Button data-testid="open-claim-share-button" data-tutorial-target="open-claim-share" variant="primary" onClick={shareFriendClaimLink} className="host-primary !w-full text-sm">
+                        <Icon path={icons.share} size={18}/><span>{bi('分享認帳連結', 'Share claim link')}</span></Button>
                     </div>
-                    {showClaimShareDialog && (
-                    <dialog open={tutorialDemo ? true : undefined} ref={claimShareDialogRef} onCancel={() => setShowClaimShareDialog(false)} aria-labelledby="claim-share-title" className="m-auto max-w-lg rounded-2xl border border-slate-400 bg-white p-4 text-slate-800 shadow-xl overflow-y-auto backdrop:bg-slate-950/60" style={{ width: 'calc(100% - 2rem)', maxHeight: '85dvh' }}>
-                      <div className="flex items-center justify-between gap-2 mb-3">
-                        <h2 id="claim-share-title" className="font-bold text-base">{bi('分享認帳連結（附件可選）', 'Share claim link (attachments optional)')}</h2>
-                        <button type="button" data-testid="close-claim-share-dialog" aria-label={tr("關閉分享視窗")} onClick={() => setShowClaimShareDialog(false)} className="shrink-0 rounded-lg p-2 hover:bg-slate-100"><Icon path={icons.x} size={20}/></button>
-                      </div>
-                      <label htmlFor="claim-share-files" className="block text-sm font-semibold mb-2">{tr("單據圖片／其他附件（可選）")}</label>
-                      {claimAttachments.length === 0 && <p data-testid="claim-attachments-empty-state" role="status" className="mb-3 border-l-4 border-brand-700 bg-brand-50 px-3 py-2 text-sm leading-relaxed text-slate-800">{bi('未選附件，只會分享認帳連結。', 'No attachments selected; only the claim link will be shared.')}</p>}
-                      <input
-                        id="claim-share-files"
-                        type="file"
-                        multiple
-                        accept="image/*,.pdf,.txt,.md,.rtf,.doc,.docx,.odt,.csv,.xls,.xlsx,.ppt,.pptx"
-                        className="block w-full min-w-0 rounded-lg border border-slate-400 bg-slate-50 p-2 text-sm file:mr-2 file:rounded-lg file:border-0 file:bg-slate-200 file:px-3 file:py-2 file:text-slate-800"
-                        ref={claimAttachmentInputRef}
-                        onChange={handleClaimAttachmentSelection}
-                      />
-                      <p className="text-xs text-slate-500 mt-2 leading-relaxed">{bi('附件上限：10 個，總共 20 MB。', 'Attachments: up to 10 files, 20 MB total.')}</p>
-                      {claimAttachments.length > 0 && (
-                        <div className="mt-3 border-t border-slate-300 pt-3">
-                          <div className="flex items-center justify-between gap-2 mb-2">
-                            <p data-testid="claim-attachments-count" className="text-sm font-bold text-slate-700">{tr("已選 ")}{claimAttachments.length}{tr(" 個附件（")}{(claimAttachments.reduce((sum, file) => sum + file.size, 0) / (1024 * 1024)).toFixed(1)} MB）</p>
-                            <button type="button" data-testid="clear-claim-attachments" onClick={() => { setClaimAttachments([]); if (claimAttachmentInputRef.current) claimAttachmentInputRef.current.value = ''; }} className="text-xs font-semibold text-red-700 hover:underline shrink-0">{tr("清除全部")}</button>
-                          </div>
-                          <ul className="space-y-1.5">
-                            {claimAttachments.map((file, index) => (
-                              <li key={`${file.name}-${file.size}-${file.lastModified}-${index}`} className="flex items-center gap-2 text-xs text-slate-600">
-                                <span className="min-w-0 flex-1 truncate" title={file.name}>{file.name}</span>
-                                <span className="shrink-0">{file.size < 1024 * 1024 ? `${Math.max(1, Math.round(file.size / 1024))} KB` : `${(file.size / (1024 * 1024)).toFixed(1)} MB`}</span>
-                                <button type="button" aria-label={tf("移除附件 {0}", [file.name])} onClick={() => setClaimAttachments(current => current.filter((_, itemIndex) => itemIndex !== index))} className="px-2 py-1 rounded border border-slate-400 bg-white text-slate-500 hover:text-red-700 hover:border-red-500">{tr("移除")}</button>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                      {draftAssetStatus === 'saving' && hasDraftAssets && <p className="mt-3 text-xs text-slate-600">{tr("正在儲存草稿附件，請稍候…")}</p>}
-                      <Button data-tutorial-target="send-claim-link" variant="primary" onClick={shareFriendClaimLink} disabled={hasDraftAssets && draftAssetStatus === 'saving'} className="!w-full mt-4 text-sm"><Icon path={icons.share} size={18}/>{tr(" 第 1 步：分享認帳連結")}</Button>
-                      {claimAttachments.length > 0 && (
-                        <Button variant="outline" onClick={shareClaimAttachments} disabled={hasDraftAssets && draftAssetStatus === 'saving'} className="!w-full mt-3 text-sm"><Icon path={icons.share} size={18}/>{tr(" 第 2 步：另分享附件（")}{claimAttachments.length}{tr(" 個）")}</Button>
-                      )}
-                    </dialog>
-                    )}
                   </div>
                 {!tutorialDemo && !manualClaimsEnabled && !claimLinkShared && !claimSession && !claimRoom && !hasInboundClaim && (
                   <Card data-testid="manual-claim-entry-option" className="!p-4 mb-4 border-slate-400 bg-slate-50 !shadow-none">
