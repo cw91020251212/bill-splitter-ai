@@ -250,8 +250,8 @@ async function hostFixture() {
     const target = document.querySelector('[data-testid="open-claim-share-button"]');
     if (!target) return false;
     const rect = target.getBoundingClientRect();
-    const statusTop = document.querySelector('div.fixed.bottom-0[role="status"]')?.getBoundingClientRect().top || innerHeight;
-    return rect.top >= 0 && rect.bottom <= statusTop - 8;
+    const statusTop = document.querySelector('[data-testid="status-compact-region"]')?.getBoundingClientRect().top || innerHeight;
+    return rect.top >= 0 && rect.bottom <= statusTop - 40;
   }, null, { timeout: 8000 });
   await host.waitForTimeout(2000);
   const nextScrollMetrics = await host.evaluate(() => ({

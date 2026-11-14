@@ -2,18 +2,20 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const { execFileSync } = require('node:child_process');
 const { URL } = require('node:url');
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const base = new URL(process.env.BASE_URL || 'http://127.0.0.1:4178/');
 if (!['127.0.0.1', 'localhost'].includes(base.hostname)) throw new Error('This test only runs against a local server.');
 const syntheticPhoto = fs.readFileSync(path.join(__dirname, 'fixtures', 'card-redaction-synthetic.png'));
+const tailwind = execFileSync('curl', ['--fail', '--location', '--silent', '--show-error', '--max-time', '45', 'https://cdn.tailwindcss.com'], { encoding: 'utf8', maxBuffer: 20 * 1024 * 1024 });
 
 (async () => {
   const browser = await chromium.launch({ headless: true, executablePath: process.env.CHROMIUM_EXECUTABLE || undefined, args: ['--no-sandbox', '--disable-dev-shm-usage'] });
   try {
     const page = await browser.newPage({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' });
     page.on('pageerror', error => { throw error; });
-    await page.route(/^https:\/\/cdn\.tailwindcss\.com(?:\/.*)?$/, route => route.fulfill({ status: 200, contentType: 'application/javascript', body: 'window.tailwind = window.tailwind || {};' }));
+    await page.route(/^https:\/\/cdn\.tailwindcss\.com(?:\/.*)?$/, route => route.fulfill({ status: 200, contentType: 'application/javascript', body: tailwind }));
     await page.goto(new URL('tests/README.md', base).toString(), { waitUntil: 'domcontentloaded' });
     await page.evaluate(() => { localStorage.clear(); sessionStorage.clear(); localStorage.setItem('billSplitterFirstVisitVideoHubSeenV1', '1'); localStorage.setItem('billSplitterLanguage', 'zh-HK'); localStorage.setItem('billSplitterHistory', '[]'); });
     await page.goto(base.toString(), { waitUntil: 'domcontentloaded' });
@@ -49,14 +51,16 @@ const syntheticPhoto = fs.readFileSync(path.join(__dirname, 'fixtures', 'card-re
 
     const before = await page.evaluate(() => window.scrollY);
     await page.getByTestId('activity-settings-next').click();
-    await page.waitForFunction(() => {
+    await page.waitForTimeout(2100);
+    const finalPosition = await page.evaluate(() => {
       const target = document.querySelector('[data-testid="open-claim-share-button"]');
-      if (!target) return false;
+      const status = document.querySelector('[data-testid="status-compact-region"]');
       const rect = target.getBoundingClientRect();
-      const statusTop = document.querySelector('div.fixed.bottom-0[role="status"]')?.getBoundingClientRect().top || innerHeight;
-      return rect.top >= 0 && rect.bottom <= statusTop - 8;
-    }, null, { timeout: 10000 });
-    assert((await page.evaluate(() => window.scrollY)) > before);
+      const statusTop = status?.getBoundingClientRect().top || innerHeight;
+      return { top: rect.top, bottom: rect.bottom, statusTop, gap: statusTop - rect.bottom, scrollY: window.scrollY };
+    });
+    assert(finalPosition.scrollY > before, 'settlement navigation scrolls the document');
+    assert(finalPosition.top >= 0 && finalPosition.gap >= 40, `share button clears the fixed hint bar: ${JSON.stringify(finalPosition)}`);
     console.log('PASS one-at-a-time photo deletion persists after reload; settlement button scrolls to Share claim link');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });
