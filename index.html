@@ -86,11 +86,11 @@
   ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
   ::-webkit-scrollbar-thumb:hover { background: #64748b; }
   </style>
-  <link rel="stylesheet" href="./theme.css?v=v141-google-ai-green-copy-20261114">
+  <link rel="stylesheet" href="./theme.css?v=v142-dark-green-white-label-20261114">
   <link rel="stylesheet" href="./tutorial.css?v=v86-free-models-only">
-  <!-- R141: Google AI prompt button stays green and copies before opening Gemini. -->
-  <meta name="bill-app-release" content="v141-google-ai-green-copy-20261114">
-  <script defer src="./pwa.js?v=v141-google-ai-green-copy-20261114"></script>
+  <!-- R142: dark green host actions use white labels. Google AI still copies the prompt before opening Gemini. -->
+  <meta name="bill-app-release" content="v142-dark-green-white-label-20261114">
+  <script defer src="./pwa.js?v=v142-dark-green-white-label-20261114"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
@@ -4903,7 +4903,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                 <div className="flex items-center gap-2 sm:gap-3 shrink-0">
                   <img src="./icons/icon.svg" alt="" width="48" height="48" className="app-brand-icon shrink-0" />
                   <div>
-                  <h1 className="text-xl font-extrabold text-slate-800 tracking-tight"><span className="app-brand-name block sm:inline whitespace-nowrap">{tr("分帳管家")}</span><span className="inline-flex items-baseline gap-1 sm:ml-1 whitespace-nowrap"><span data-testid="app-pro-label" className="text-brand-600 font-black">Pro</span><span data-testid="app-version-label" className="text-[10px] leading-3 font-semibold tracking-normal text-brand-700">R141</span></span></h1>
+                  <h1 className="text-xl font-extrabold text-slate-800 tracking-tight"><span className="app-brand-name block sm:inline whitespace-nowrap">{tr("分帳管家")}</span><span className="inline-flex items-baseline gap-1 sm:ml-1 whitespace-nowrap"><span data-testid="app-pro-label" className="text-brand-600 font-black">Pro</span><span data-testid="app-version-label" className="text-[10px] leading-3 font-semibold tracking-normal text-brand-700">R142</span></span></h1>
                   </div>
               </div>
               <div className="header-actions relative flex items-center gap-1.5 sm:gap-2">
@@ -5144,7 +5144,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                             </div>
                             <div className="flex flex-col gap-2">
                               <Button data-testid="add-new-receipt-photos" variant="primary" className="host-primary !justify-start !py-3 text-left" onClick={() => { setShowImageActionMenu(false); setUploadError(''); triggerUpload(); }}>
-                                <Icon path={icons.fileImage} size={20}/><span className="flex flex-col items-start"><span>{bi('從「下載」選單據圖片', 'Choose receipt photos from Downloads')}</span><span className="text-xs font-normal opacity-90">{bi('優先開啟下載資料夾；否則在檔案瀏覽器選「下載」（最多 5 張）', 'Starts in Downloads when supported; otherwise choose Downloads in Files (up to 5)')}</span></span>
+                                <Icon path={icons.fileImage} size={20}/><span className="flex flex-col items-start"><span>{bi('從「下載」選單據圖片', 'Choose receipt photos from Downloads')}</span><span className="text-xs font-normal">{bi('優先開啟下載資料夾；否則在檔案瀏覽器選「下載」（最多 5 張）', 'Starts in Downloads when supported; otherwise choose Downloads in Files (up to 5)')}</span></span>
                               </Button>
                               <Button data-testid="reuse-last-receipt-photos" variant="secondary" className="!justify-start !py-3 text-left" disabled={!lastImageData.length || isAnalyzing} onClick={() => { setShowImageActionMenu(false); retryLastUpload(); }}>
                                 <Icon path={icons.fileImage} size={20}/><span className="flex flex-col items-start"><span>{bi('用上一次的圖片重新識別', 'Re-recognize the last photos')}</span><span className="text-xs font-normal text-slate-600">{lastImageData.length ? bi(`重用整批 ${lastImageData.length} 張相片`, `Reuse all ${lastImageData.length} photos`) : bi('暫無可重用的相片', 'No previous photos available')}</span></span>
@@ -5793,7 +5793,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                   <Button variant="secondary" className="w-1/3 !px-2 border-slate-500" onClick={() => setStep(2)}>{tr("上一步")}</Button>
                   <Button data-testid="calculate-split" variant="primary" className="host-primary w-2/3 flex-col gap-1 text-center leading-tight" disabled={!friendsReplies.trim() || !Object.keys(claimInfo?.claims || {}).some(person => items.some(item => Number(claimInfo.claims[person]?.[item.id]) > 0))} onClick={() => { const calculated = calculateSplit(); if (tutorialDemo) onTutorialAction?.(calculated ? 'calculated' : 'calculation-error', !payer.trim() ? 'payer' : 'replies'); }}>
                     <span className="inline-flex items-center justify-center gap-2">{tr("產生分帳報告 ")}<Icon path={icons.check} size={18}/></span>
-                    <span data-testid="calculate-split-hint" className="w-full text-[11px] font-medium leading-snug text-white/95" style={{ textShadow: 'none', filter: 'none' }}>{claimSession?.link ? bi('按下後會計算，朋友可在原本連結查看結果。', 'Calculate; friends can view the result on their original link.') : bi('按下後會計算並產生分帳報告。', 'Calculate and create the bill-splitting report.')}</span>
+                    <span data-testid="calculate-split-hint" className="w-full text-[11px] font-medium leading-snug text-white">{claimSession?.link ? bi('按下後會計算，朋友可在原本連結查看結果。', 'Calculate; friends can view the result on their original link.') : bi('按下後會計算並產生分帳報告。', 'Calculate and create the bill-splitting report.')}</span>
                   </Button>
                 </div>
               </div>
@@ -6241,7 +6241,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                 <video ref={cameraVideoRef} playsInline muted autoPlay className="w-full max-w-lg max-h-[68vh] rounded-2xl bg-black object-contain" />
                 <p className="text-white/80 text-sm mt-3">{tr("將單據放入畫面，按下面按鈕拍攝")}</p>
                 <button type="button" onClick={captureCameraPhoto} className="host-primary green-action mt-4 w-20 h-20 rounded-full border-4 border-white bg-brand-500 shadow-lg active:scale-95" aria-label={tr("拍攝相片")}>
-                  <span className="block w-12 h-12 mx-auto rounded-full border-2 border-black/80" />
+                  <span className="block w-12 h-12 mx-auto rounded-full border-2 border-white" />
                 </button>
               </div>
             )}

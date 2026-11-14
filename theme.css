@@ -914,14 +914,15 @@ body.bg-slate-50 { background: var(--page-grey); color: var(--ink); }
   box-shadow: none !important;
 }
 
-/* Base light-green CTA colors; dark modifiers above retain white labels/icons. */
-#root button.green-action {
+/* Light green-action fills keep black labels. Dark fills (host-primary and
+   green-action-dark) set their own white labels and are excluded here. */
+#root button.green-action:not(.green-action-dark):not(.host-primary) {
   color: #000 !important;
   -webkit-text-fill-color: #000 !important;
   text-shadow: none !important;
   box-shadow: none !important;
 }
-#root button.green-action svg {
+#root button.green-action:not(.green-action-dark):not(.host-primary) svg {
   color: #000 !important;
   stroke: #000 !important;
   filter: none !important;
@@ -947,20 +948,30 @@ body.bg-slate-50 { background: var(--page-grey); color: var(--ink); }
   #root .upload-dropzone.upload-dropzone-compact [data-testid="receipt-source-actions"] { gap: 4px; }
 }
 
-/* R140 host accents, kept in R141. Stage border colors stay the existing step markers.
-   Green is the logo and host-primary actions, including the Google AI prompt button.
-   Other fills shrink to an edge or a pill. */
+/* R142 host-primary fills. White on the old #2f9d68 stop was only ~3.4:1.
+   Every stop below is an existing brand green and clears 4.5:1 with white
+   (#29835f 4.66:1, #1d7349 5.83:1, #176a43 6.61:1). The shadow is a lift only.
+   Non-host-primary actions in main stay white with a thin left edge. */
 #root button.host-primary.green-action:not(.green-action-dark):not(:disabled) {
-  background-image: linear-gradient(to top right, #248a5a 0%, #2f9d68 55%, #3aaf76 100%) !important;
-  background-color: #2f9d68 !important;
-  border-color: #1d7349 !important;
-  color: #000 !important;
-  -webkit-text-fill-color: #000 !important;
-  text-shadow: none !important;
+  background-image: linear-gradient(to top right, #176a43 0%, #1d7349 55%, #29835f 100%) !important;
+  background-color: #1d7349 !important;
+  border-color: #104d31 !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, .35) !important;
+  box-shadow: none !important;
+}
+#root button.host-primary.green-action:not(.green-action-dark):not(:disabled):hover {
+  background-image: linear-gradient(to top right, #104d31 0%, #176a43 55%, #1d7349 100%) !important;
+  background-color: #176a43 !important;
+}
+#root button.host-primary.green-action:not(.green-action-dark):not(:disabled):active {
+  background-image: linear-gradient(to top right, #064b35 0%, #104d31 55%, #176a43 100%) !important;
+  background-color: #104d31 !important;
 }
 #root button.host-primary.green-action:not(.green-action-dark):not(:disabled) svg {
-  color: #000 !important;
-  stroke: #000 !important;
+  color: #fff !important;
+  stroke: #fff !important;
   filter: none !important;
 }
 #root main button.green-action:not(.host-primary):not(:disabled) {
@@ -1001,15 +1012,16 @@ body.bg-slate-50 { background: var(--page-grey); color: var(--ink); }
   filter: none !important;
   opacity: 1 !important;
 }
-#root [data-testid="calculate-split-hint"] {
-  color: #123d2c !important;
-  -webkit-text-fill-color: #123d2c !important;
-  text-shadow: none !important;
+#root button.host-primary.green-action:not(:disabled) [data-testid="calculate-split-hint"] {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, .35) !important;
   filter: none !important;
 }
 #root button.green-action:disabled [data-testid="calculate-split-hint"] {
   color: #5c6560 !important;
   -webkit-text-fill-color: #5c6560 !important;
+  text-shadow: none !important;
 }
 #root button[disabled][class*="bg-emerald-50"] {
   background: #fff !important;
@@ -1075,6 +1087,7 @@ html[lang="en"] #root [data-testid="open-free-key-settings"] span {
   background: #047857 !important;
   color: #fff !important;
   -webkit-text-fill-color: #fff !important;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, .35) !important;
   box-shadow: none !important;
 }
 
