@@ -1,8 +1,17 @@
 # Change summary — 2026-11-15
 
-## R148: show the copied prompt in the Gemini guide
+## R149: prefill the main text box with the copied prompt
 
-The Gemini guide now contains a prefilled, read-only text area displaying the complete prompt that was copied to the clipboard. The dialog remains scrollable on short screens, and the cache/version identifiers are bumped to R148.
+The copied Gemini prompt is now shown directly in the main “Paste JSON or translated text” box highlighted by the user. The prompt preview is display-only until the user edits the box; when “Process this text” is clicked without an actual draft (or while that prompt preview is showing), the app reads the copied Gemini response from the clipboard instead, so the prompt itself is never mistaken for Gemini’s answer. Bumped the cache and app version identifiers to R149.
+
+## Verification
+
+- `node tests/google-ai-button.test.cjs` — passed.
+- `node tests/text-import.cjs` — not run: Playwright is not installed in this checkout.
+
+## R148: initial prompt preview placement (superseded by R149)
+
+The prompt preview was first added inside the Gemini guide dialog. Following the user's screenshot clarification, R149 moves it into the main text input instead, where the user expected to see it.
 
 ## Verification
 

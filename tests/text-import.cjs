@@ -245,6 +245,9 @@ const ensureAIImportOpen = async page => {
     const traceFrom = async () => noKeyPage.evaluate(() => window.__copyTrace.length);
     const assertCopiedBeforeOpen = async (start, label) => {
       assert.equal(await noKeyPage.getByTestId('google-ai-guide').isVisible(), true, `${label}: shows the usage guide first`);
+      const visibleInputPrompt = await noKeyPage.getByTestId('receipt-text-draft').inputValue();
+      assert.ok(visibleInputPrompt.length > 400, `${label}: the main text box visibly contains the full prompt`);
+      assert.match(visibleInputPrompt, /"receiptTotal"/, `${label}: the prefilled content is the receipt prompt`);
       const copiedEvents = await noKeyPage.evaluate(from => window.__copyTrace.slice(from), start);
       assert.ok(copiedEvents.some(event => event.type === 'clipboard'), `${label}: copies the prompt before showing the guide`);
       assert.equal(copiedEvents.some(event => event.type === 'open'), false, `${label}: does not open Gemini before confirmation`);
