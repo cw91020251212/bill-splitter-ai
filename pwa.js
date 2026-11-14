@@ -40,7 +40,7 @@
     window.navigator.standalone === true;
 
   /* ---------------------------------------------------------- service worker */
-  var RELEASE_VERSION = 'v143-yellow-bold-refresh-20261114';
+  var RELEASE_VERSION = 'v143-white-action-labels-20261115';
   var waitingWorker = null;
   var registrationPromise = null;
   var reloadRequested = false;

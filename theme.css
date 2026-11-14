@@ -1186,18 +1186,16 @@ html[lang="en"] #root [data-testid="open-free-key-settings"] span {
   color: #243e66 !important;
 }
 
-/* R143 host buttons. Action labels are bold; step chips and secondary hints stay lighter.
-   Dark green fills are unchanged. #ffe566 is the shared yellow: hue 50 at full
-   saturation, 3.70:1 on the lightest host fill #29835f (large-text 3:1) and
-   4.62:1 on #1d7349. A 4.5:1 yellow on #29835f is near-white and is not used. */
+/* R143 host buttons. Primary action labels stay white; #ffe566 is reserved for
+   icon glyphs. Step chips and secondary hints keep their own lighter treatment. */
 #root button { font-weight: 700; }
 #root .step-nav button { font-weight: 600; }
 #root .step-nav button > span:first-child { font-weight: 700; }
 #root button .btn-aside { font-weight: 400; }
 
 #root button.host-primary.green-action:not(:disabled):not([data-testid="copy-prompt-open-google-ai"]) {
-  color: #ffe566 !important;
-  -webkit-text-fill-color: #ffe566 !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
   text-shadow: 0 1px 1px rgba(0, 0, 0, .35) !important;
 }
 #root button.host-primary.green-action:not(:disabled):not([data-testid="copy-prompt-open-google-ai"]) svg {
