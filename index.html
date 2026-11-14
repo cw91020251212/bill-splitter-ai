@@ -1031,6 +1031,7 @@ Format (keep every field; items may contain multiple entries, and adjustments mu
 
     const RECEIPT_DB_NAME = 'billSplitterLocalData';
     const RECEIPT_STORE_NAME = 'receipts';
+    const RECENT_RECEIPT_HANDLES_ID = 'recent-receipt-file-handles-v1';
     const openReceiptDatabase = (timeoutMs = 0) => new Promise((resolve, reject) => {
       if (!window.indexedDB) { reject(new Error('此瀏覽器不支援本機單據儲存')); return; }
       const request = window.indexedDB.open(RECEIPT_DB_NAME, 1);
@@ -1052,6 +1053,34 @@ Format (keep every field; items may contain multiple entries, and adjustments mu
       request.onblocked = () => { if (timeoutMs) fail(new Error('本機儲存被其他分頁阻塞')); };
     });
     const receiptExtension = (mimeType) => mimeType === 'image/png' ? 'png' : mimeType === 'image/webp' ? 'webp' : 'jpg';
+    const saveRecentReceiptHandles = async handles => {
+      const usable = (handles || []).filter(handle => handle && typeof handle.getFile === 'function').slice(0, 5);
+      if (!usable.length) return;
+      try {
+        const db = await openReceiptDatabase();
+        await new Promise((resolve, reject) => {
+          const transaction = db.transaction(RECEIPT_STORE_NAME, 'readwrite');
+          transaction.objectStore(RECEIPT_STORE_NAME).put({ recordId: RECENT_RECEIPT_HANDLES_ID, handles: usable, savedAt: Date.now() });
+          transaction.oncomplete = resolve;
+          transaction.onerror = () => reject(transaction.error || new Error('無法記住最近單據位置'));
+          transaction.onabort = () => reject(transaction.error || new Error('記住最近單據位置已取消'));
+        });
+        db.close();
+      } catch (error) {}
+    };
+    const loadRecentReceiptHandles = async () => {
+      try {
+        const db = await openReceiptDatabase(1500);
+        const record = await new Promise((resolve, reject) => {
+          const transaction = db.transaction(RECEIPT_STORE_NAME, 'readonly');
+          const request = transaction.objectStore(RECEIPT_STORE_NAME).get(RECENT_RECEIPT_HANDLES_ID);
+          request.onsuccess = () => resolve(request.result || null);
+          request.onerror = () => reject(request.error || new Error('無法讀取最近單據位置'));
+        });
+        db.close();
+        return Array.isArray(record?.handles) ? record.handles : [];
+      } catch (error) { return []; }
+    };
     const receiptBase64ToBlob = (image) => {
       const binary = atob(image.data);
       const bytes = new Uint8Array(binary.length);
@@ -2988,8 +3017,31 @@ Format (keep every field; items may contain multiple entries, and adjustments mu
           return;
         }
         let files = [];
+        let rememberedHandles = input === receiptAttachmentInputRef.current ? await loadRecentReceiptHandles() : [];
+        for (const handle of rememberedHandles) {
+          try {
+            const permission = typeof handle.queryPermission === 'function' ? await handle.queryPermission({ mode: 'read' }) : 'granted';
+            if (permission === 'prompt' && typeof handle.requestPermission === 'function') {
+              const requested = await handle.requestPermission({ mode: 'read' });
+              if (requested !== 'granted') continue;
+            } else if (permission !== 'granted') continue;
+            const file = await handle.getFile();
+            if (['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+              files = [file];
+              toast(bi(`已找回上次單據：${file.name}，請核對圖片後再加入。`, `Found the previous bill: ${file.name}. Check the image before adding it.`));
+              break;
+            }
+          } catch (error) {}
+        }
+        if (files.length) {
+          const event = { target: { files, value: '' } };
+          if (input === receiptAttachmentInputRef.current) await handleReceiptImageAttachmentUpload(event);
+          else await handleFileUpload(event);
+          return;
+        }
         try {
           const handles = await window.showOpenFilePicker({
+            id: 'bill-splitter-recent-receipt-folder',
             startIn: 'downloads',
             multiple: true,
             types: [{
@@ -3001,6 +3053,7 @@ Format (keep every field; items may contain multiple entries, and adjustments mu
               }
             }]
           });
+          await saveRecentReceiptHandles(handles);
           files = await Promise.all((handles || []).map(handle => handle.getFile()));
         } catch (error) {
           if (error?.name === 'AbortError') return;
