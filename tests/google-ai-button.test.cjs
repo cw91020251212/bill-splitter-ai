@@ -5,16 +5,23 @@ const path = require('node:path');
 
 const root = path.join(__dirname, '..');
 const read = name => fs.readFileSync(path.join(root, name), 'utf8');
-const release = 'v142-dark-green-white-label-20261114';
+const release = 'v143-yellow-bold-refresh-20261114';
 
 function linearize(channel) {
   const value = channel / 255;
   return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
 }
 function contrastWithWhite(hex) {
-  const channels = [1, 3, 5].map(index => parseInt(hex.slice(index, index + 2), 16));
-  const luminance = 0.2126 * linearize(channels[0]) + 0.7152 * linearize(channels[1]) + 0.0722 * linearize(channels[2]);
-  return 1.05 / (luminance + 0.05);
+  return contrast(hex, '#ffffff');
+}
+function contrast(foreground, background) {
+  const luminance = hex => {
+    const channels = [1, 3, 5].map(index => parseInt(hex.slice(index, index + 2), 16));
+    return 0.2126 * linearize(channels[0]) + 0.7152 * linearize(channels[1]) + 0.0722 * linearize(channels[2]);
+  };
+  const lighter = Math.max(luminance(foreground), luminance(background));
+  const darker = Math.min(luminance(foreground), luminance(background));
+  return (lighter + 0.05) / (darker + 0.05);
 }
 function ruleBlock(css, selector) {
   const start = css.indexOf(selector);
@@ -102,19 +109,19 @@ test('Google AI copies the receipt prompt before opening Gemini and does not cla
   assert.ok(prompt.length > 400);
 });
 
-test('R142 cache epoch is on the host shell and does not leak into friend pages', () => {
+test('R143 cache epoch is on the host shell and does not leak into friend pages', () => {
   const index = read('index.html');
   const sw = read('sw.js');
   const pwa = read('pwa.js');
   assert.match(index, new RegExp(`theme\\.css\\?v=${release}`));
   assert.match(index, new RegExp(`pwa\\.js\\?v=${release}`));
   assert.match(index, new RegExp(`name="bill-app-release" content="${release}"`));
-  assert.match(index, />R142</);
-  assert.doesNotMatch(index, /v141-google-ai-green-copy-20261114/);
-  assert.doesNotMatch(index, />R141</);
+  assert.match(index, />R143</);
+  assert.doesNotMatch(index, /v142-dark-green-white-label-20261114/);
+  assert.doesNotMatch(index, />R142</);
   assert.match(sw, new RegExp(`const CACHE_VERSION = '${release}'`));
   assert.match(pwa, new RegExp(`var RELEASE_VERSION = '${release}'`));
-  assert.match(pwa, /version: 'R142'/);
+  assert.match(pwa, /version: 'R143'/);
   for (const name of ['claim.html', 'detailed-view.html']) {
     const text = read(name);
     assert.equal(text.includes('theme.css'), false, `${name} must not load host theme.css`);
@@ -123,5 +130,69 @@ test('R142 cache epoch is on the host shell and does not leak into friend pages'
     assert.equal(text.includes('host-primary'), false, name);
     assert.equal(text.includes(release), false, name);
     assert.equal(text.includes('copyPromptAndOpenGoogleAI'), false, name);
+    assert.equal(text.includes('icons.refresh'), false, name);
+    assert.equal(text.includes('#ffe566'), false, name);
   }
+});
+
+test('R143 yellow labels, refresh icon, Google wordmark, and bold action labels stay on the host', () => {
+  const index = read('index.html');
+  const css = read('theme.css');
+  const publish = index.split('\n').find(row => row.includes('data-testid="publish-same-link-result"') || row.includes("icons.refresh"));
+  const updateIcon = index.split('\n').find(row => row.includes('更新結果'));
+  const whatsapp = index.split('\n').find(row => row.includes('data-testid="friend-whatsapp-share"'));
+  const copy = index.split('\n').find(row => row.includes('data-testid="copy-friend-share-link"'));
+  assert.match(updateIcon, /icons\.refresh/);
+  assert.doesNotMatch(updateIcon, /icons\.share/);
+  assert.match(whatsapp, /icons\.share/);
+  assert.doesNotMatch(whatsapp, /icons\.refresh/);
+  assert.match(copy, /icons\.copy/);
+  assert.match(index, /refresh: '<path d="M3 12a9 9 0 0 1 9-9/);
+  const yellow = ruleBlock(css, '#root button.host-primary.green-action:not(:disabled):not([data-testid="copy-prompt-open-google-ai"]) {');
+  assert.match(yellow, /color:\s*#ffe566\s*!important/);
+  assert.match(yellow, /text-shadow:\s*0 1px 1px rgba\(0,\s*0,\s*0,\s*\.35\)\s*!important/);
+  const yellowOnLightest = contrast('#ffe566', '#29835f');
+  const yellowOnMid = contrast('#ffe566', '#1d7349');
+  assert.ok(yellowOnLightest >= 3, `yellow vs #29835f is ${yellowOnLightest.toFixed(2)}, need >= 3`);
+  assert.ok(yellowOnMid >= 4.5, `yellow vs #1d7349 is ${yellowOnMid.toFixed(2)}, need >= 4.5`);
+  assert.ok(contrast('#ffffff', '#29835f') >= 4.5, 'white descriptions still clear 4.5:1 on the lightest fill');
+  for (const [letter, hex, fill] of [['blue', '#4285F4', '#29835f'], ['red', '#EA4335', '#29835f'], ['wordmark yellow', '#FBBC05', '#29835f'], ['green', '#34A853', '#29835f']]) {
+    assert.match(css, new RegExp(hex, 'i'), `${letter} keeps official ${hex}`);
+  }
+  assert.match(css, /\.gw-blue[\s\S]*#4285F4/);
+  assert.match(css, /\.gw-red[\s\S]*#EA4335/);
+  assert.match(css, /\.gw-yellow[\s\S]*#FBBC05/);
+  assert.match(css, /\.gw-green[\s\S]*#34A853/);
+  assert.match(css, /text-shadow:[\s\S]*rgba\(255,\s*248,\s*220/);
+  assert.match(index, /className="gw gw-blue">G</);
+  assert.match(index, /className="gw gw-red">o</);
+  assert.match(index, /className="gw gw-yellow">o</);
+  assert.match(index, /className="gw gw-blue">g</);
+  assert.match(index, /className="gw gw-green">l</);
+  assert.match(index, /className="gw gw-red">e</);
+  assert.match(index, /className="gw gw-ai"> AI</);
+  assert.match(css, /#root button \{ font-weight: 700; \}/);
+  assert.match(css, /#root \.step-nav button \{ font-weight: 600; \}/);
+  assert.match(css, /#root button \.btn-aside \{ font-weight: 400; \}/);
+  assert.match(index, /className="btn-aside"/);
+  assert.match(css, /background-color:\s*#e7ebe8\s*!important/);
+  assert.match(css, /border-color:\s*#d2d8d4\s*!important/);
+  assert.match(css, /color:\s*#9aa39d\s*!important/);
+  assert.match(index, /text-size-face-sm/);
+  assert.match(index, /text-size-face-md/);
+  assert.match(index, /text-size-face-lg/);
+  assert.match(index, /min-height:\s*52px/);
+  assert.equal(publish.includes('host-primary') || updateIcon.includes('icons.refresh'), true);
+  const shareClaim = index.split('\n').find(row => row.includes('data-testid="open-claim-share-button"'));
+  const copyClaim = index.split('\n').find(row => row.includes('data-testid="copy-friend-claim-link"'));
+  assert.match(shareClaim, /\bhost-primary\b/);
+  assert.doesNotMatch(copyClaim, /\bhost-primary\b/);
+  assert.match(index, /分享認帳連結/);
+  assert.match(index, /（可加附件）/);
+  const shareLabel = ruleBlock(css, '#root button.host-primary.green-action[data-testid="open-claim-share-button"]:not(:disabled):not([data-testid="copy-prompt-open-google-ai"])');
+  const shareIcon = ruleBlock(css, '#root button.host-primary.green-action[data-testid="open-claim-share-button"]:not(:disabled) svg');
+  assert.match(shareLabel, /color:\s*#fff\s*!important/);
+  assert.match(shareLabel, /text-shadow:\s*0 1px 1px rgba\(0,\s*0,\s*0,\s*\.35\)\s*!important/);
+  assert.match(shareIcon, /color:\s*#ffe566\s*!important/);
+  assert.doesNotMatch(shareLabel, /#ffe566/);
 });

@@ -55,11 +55,67 @@
     input:focus, textarea:focus {
       border-color: #67c99a !important; /* 聚焦時變為品牌深綠 */
     }
-    #header-action-menu [data-testid="app-text-size-control"] button[aria-pressed="true"] {
+    /* Font-size choices read as small / medium / large by the face itself.
+       The button stays a 44px+ hit target even when the visible face is smaller. */
+    #header-action-menu [data-testid="app-text-size-control"] .text-size-row {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 4px;
+      min-height: 52px;
+    }
+    #header-action-menu [data-testid="app-text-size-control"] button.text-size-hit {
+      display: flex;
+      flex: 1 1 0;
+      align-items: flex-end;
+      justify-content: center;
+      min-width: 44px;
+      min-height: 52px;
+      margin: 0;
+      padding: 2px 0 0;
+      border: 0;
+      background: transparent;
+      box-shadow: none;
+      line-height: 1;
+    }
+    #header-action-menu [data-testid="app-text-size-control"] .text-size-face {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-sizing: border-box;
+      border: 1px solid #64748b;
+      background: #fff;
+      color: #1e293b;
+      font-weight: 700;
+      line-height: 1;
+    }
+    #header-action-menu [data-testid="app-text-size-control"] .text-size-face-sm {
+      width: 34px;
+      height: 26px;
+      border-radius: 6px;
+      font-size: 12px;
+    }
+    #header-action-menu [data-testid="app-text-size-control"] .text-size-face-md {
+      width: 42px;
+      height: 36px;
+      border-radius: 8px;
+      font-size: 17px;
+    }
+    #header-action-menu [data-testid="app-text-size-control"] .text-size-face-lg {
+      width: 52px;
+      height: 46px;
+      border-radius: 11px;
+      font-size: 22px;
+    }
+    #header-action-menu [data-testid="app-text-size-control"] button[aria-pressed="true"] .text-size-face {
       border-color: #176a43;
       background: #fff;
       color: #104d31;
       box-shadow: inset 0 0 0 1px #176a43;
+    }
+    #header-action-menu [data-testid="app-text-size-control"] button:focus-visible .text-size-face {
+      outline: 2px solid #176a43;
+      outline-offset: 2px;
     }
 
     .animate-spin { animation: spin 1s linear infinite; }
@@ -86,11 +142,11 @@
   ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
   ::-webkit-scrollbar-thumb:hover { background: #64748b; }
   </style>
-  <link rel="stylesheet" href="./theme.css?v=v142-dark-green-white-label-20261114">
+  <link rel="stylesheet" href="./theme.css?v=v143-yellow-bold-refresh-20261114">
   <link rel="stylesheet" href="./tutorial.css?v=v86-free-models-only">
-  <!-- R142: dark green host actions use white labels. Google AI still copies the prompt before opening Gemini. -->
-  <meta name="bill-app-release" content="v142-dark-green-white-label-20261114">
-  <script defer src="./pwa.js?v=v142-dark-green-white-label-20261114"></script>
+  <!-- R143: yellow labels on dark green host actions, refresh icon, bold button labels. Google AI still copies the prompt before opening Gemini. -->
+  <meta name="bill-app-release" content="v143-yellow-bold-refresh-20261114">
+  <script defer src="./pwa.js?v=v143-yellow-bold-refresh-20261114"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
@@ -139,6 +195,7 @@
       plus: '<line x1="12" x2="12" y1="5" y2="19"/><line x1="5" x2="19" y1="12" y2="12"/>',
       copy: '<rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>',
       share: '<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>',
+      refresh: '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>',
       arrowRight: '<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',
       settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2h.09a1.65 1.65 0 0 0 1.51-1z"/>',
       loader: '<path d="M21 12a9 9 0 1 1-6.219-8.56"/>',
@@ -164,7 +221,7 @@
     };
 
     const Button = ({ children, onClick, variant = 'primary', className = '', disabled = false, type = 'button', ...rest }) => {
-      const baseStyle = "flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl font-semibold text-base transition-all duration-200 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed w-full md:w-auto outline-none focus:ring-2 focus:ring-offset-2";
+      const baseStyle = "flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl font-bold text-base transition-all duration-200 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed w-full md:w-auto outline-none focus:ring-2 focus:ring-offset-2";
       const variants = {
         primary: "bg-brand-600 text-white hover:bg-brand-700 shadow-md focus:ring-brand-500 border border-brand-700",
         secondary: "bg-white text-slate-800 border border-slate-400 hover:bg-slate-100 shadow-sm focus:ring-slate-400",
@@ -4903,7 +4960,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                 <div className="flex items-center gap-2 sm:gap-3 shrink-0">
                   <img src="./icons/icon.svg" alt="" width="48" height="48" className="app-brand-icon shrink-0" />
                   <div>
-                  <h1 className="text-xl font-extrabold text-slate-800 tracking-tight"><span className="app-brand-name block sm:inline whitespace-nowrap">{tr("分帳管家")}</span><span className="inline-flex items-baseline gap-1 sm:ml-1 whitespace-nowrap"><span data-testid="app-pro-label" className="text-brand-600 font-black">Pro</span><span data-testid="app-version-label" className="text-[10px] leading-3 font-semibold tracking-normal text-brand-700">R142</span></span></h1>
+                  <h1 className="text-xl font-extrabold text-slate-800 tracking-tight"><span className="app-brand-name block sm:inline whitespace-nowrap">{tr("分帳管家")}</span><span className="inline-flex items-baseline gap-1 sm:ml-1 whitespace-nowrap"><span data-testid="app-pro-label" className="text-brand-600 font-black">Pro</span><span data-testid="app-version-label" className="text-[10px] leading-3 font-semibold tracking-normal text-brand-700">R143</span></span></h1>
                   </div>
               </div>
               <div className="header-actions relative flex items-center gap-1.5 sm:gap-2">
@@ -4929,10 +4986,10 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                       </button>
                       <div data-testid="app-text-size-control" role="group" aria-label={bi('字體大小', 'Text size')} className="w-full rounded-lg border border-slate-400 bg-slate-50 p-2">
                         <span className="mb-1 block px-1 text-sm font-semibold text-slate-700">{bi('字體大小', 'Text size')}</span>
-                        <div className="grid grid-cols-3 gap-1">
-                          <button type="button" data-testid="app-text-size-small" aria-label={bi('小字體', 'Small text')} aria-pressed={appTextSize === 'small'} onClick={() => chooseAppTextSize('small')} style={{ minWidth: '44px', minHeight: '44px' }} className="min-h-[44px] min-w-[44px] rounded-lg border border-slate-500 bg-white text-base font-bold text-slate-800 hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500">A−</button>
-                          <button type="button" data-testid="app-text-size-normal" aria-label={bi('標準字體', 'Standard text')} aria-pressed={appTextSize === 'normal'} onClick={() => chooseAppTextSize('normal')} style={{ minWidth: '44px', minHeight: '44px' }} className="min-h-[44px] min-w-[44px] rounded-lg border border-slate-500 bg-white text-base font-bold text-slate-800 hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500">A</button>
-                          <button type="button" data-testid="app-text-size-large" aria-label={bi('大字體', 'Large text')} aria-pressed={appTextSize === 'large'} onClick={() => chooseAppTextSize('large')} style={{ minWidth: '44px', minHeight: '44px' }} className="min-h-[44px] min-w-[44px] rounded-lg border border-slate-500 bg-white text-base font-bold text-slate-800 hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500">A+</button>
+                        <div className="text-size-row">
+                          <button type="button" data-testid="app-text-size-small" aria-label={bi('小字體', 'Small text')} aria-pressed={appTextSize === 'small'} onClick={() => chooseAppTextSize('small')} style={{ minWidth: '44px', minHeight: '52px' }} className="text-size-hit"><span className="text-size-face text-size-face-sm">A−</span></button>
+                          <button type="button" data-testid="app-text-size-normal" aria-label={bi('標準字體', 'Standard text')} aria-pressed={appTextSize === 'normal'} onClick={() => chooseAppTextSize('normal')} style={{ minWidth: '44px', minHeight: '52px' }} className="text-size-hit"><span className="text-size-face text-size-face-md">A</span></button>
+                          <button type="button" data-testid="app-text-size-large" aria-label={bi('大字體', 'Large text')} aria-pressed={appTextSize === 'large'} onClick={() => chooseAppTextSize('large')} style={{ minWidth: '44px', minHeight: '52px' }} className="text-size-hit"><span className="text-size-face text-size-face-lg">A+</span></button>
                         </div>
                       </div>
                       <button type="button" data-testid="start-tutorial" disabled={!draftReady || isAnalyzing || isSavingRecord} onClick={() => {
@@ -5144,7 +5201,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                             </div>
                             <div className="flex flex-col gap-2">
                               <Button data-testid="add-new-receipt-photos" variant="primary" className="host-primary !justify-start !py-3 text-left" onClick={() => { setShowImageActionMenu(false); setUploadError(''); triggerUpload(); }}>
-                                <Icon path={icons.fileImage} size={20}/><span className="flex flex-col items-start"><span>{bi('從「下載」選單據圖片', 'Choose receipt photos from Downloads')}</span><span className="text-xs font-normal">{bi('優先開啟下載資料夾；否則在檔案瀏覽器選「下載」（最多 5 張）', 'Starts in Downloads when supported; otherwise choose Downloads in Files (up to 5)')}</span></span>
+                                <Icon path={icons.fileImage} size={20}/><span className="flex flex-col items-start"><span>{bi('從「下載」選單據圖片', 'Choose receipt photos from Downloads')}</span><span className="host-action-hint text-xs font-normal">{bi('優先開啟下載資料夾；否則在檔案瀏覽器選「下載」（最多 5 張）', 'Starts in Downloads when supported; otherwise choose Downloads in Files (up to 5)')}</span></span>
                               </Button>
                               <Button data-testid="reuse-last-receipt-photos" variant="secondary" className="!justify-start !py-3 text-left" disabled={!lastImageData.length || isAnalyzing} onClick={() => { setShowImageActionMenu(false); retryLastUpload(); }}>
                                 <Icon path={icons.fileImage} size={20}/><span className="flex flex-col items-start"><span>{bi('用上一次的圖片重新識別', 'Re-recognize the last photos')}</span><span className="text-xs font-normal text-slate-600">{lastImageData.length ? bi(`重用整批 ${lastImageData.length} 張相片`, `Reuse all ${lastImageData.length} photos`) : bi('暫無可重用的相片', 'No previous photos available')}</span></span>
@@ -5246,7 +5303,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                   {showReceiptTextImport && (
                     <div id="receipt-text-import-content" data-testid="receipt-text-import-content" className="mt-4 space-y-3">
                       <div className="grid grid-cols-1 gap-2">
-                        <Button data-testid="copy-prompt-open-google-ai" variant="primary" className="host-primary w-full" disabled={tutorialDemo || isAnalyzing} onClick={copyPromptAndOpenGoogleAI}><Icon path={icons.send} size={18}/>{bi('複製提示詞並開啟 Google AI', 'Copy prompt & open Google AI')}</Button>
+                        <Button data-testid="copy-prompt-open-google-ai" variant="primary" className="host-primary w-full" disabled={tutorialDemo || isAnalyzing} onClick={copyPromptAndOpenGoogleAI}><Icon path={icons.send} size={18}/><span className="google-ai-label"><span className="google-ai-lead">{bi('複製提示詞並開啟 ', 'Copy prompt & open ')}</span><span className="google-ai-brand"><span className="gw gw-blue">G</span><span className="gw gw-red">o</span><span className="gw gw-yellow">o</span><span className="gw gw-blue">g</span><span className="gw gw-green">l</span><span className="gw gw-red">e</span><span className="gw gw-ai"> AI</span></span></span></Button>
                         <Button data-testid="copy-receipt-json-prompt" variant="outline" className="w-full border-slate-400 bg-white" disabled={tutorialDemo || isAnalyzing} onClick={copyReceiptJsonImportPrompt}><Icon path={icons.copy} size={18}/>{bi('複製讀圖提示詞', 'Copy photo-reading prompt')}</Button>
                       </div>
                       <p className="text-xs leading-relaxed text-slate-600">{bi('開啟 Gemini 後，請手動附上帳單圖片並按送出；此按鈕不會上載圖片。', 'In Gemini, manually attach the receipt and press Send; this button does not upload images.')}</p>
@@ -5259,7 +5316,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                       <textarea id="receipt-text-draft" data-testid="receipt-text-draft" rows={5} maxLength={200000} value={receiptTextDraft} onChange={event => setReceiptTextDraft(event.target.value)} disabled={tutorialDemo || isAnalyzing} placeholder={bi('貼上 JSON、收據文字或 AI 結果。', 'Paste JSON, receipt text, or AI output.')} className="field-round w-full text-base text-slate-800 leading-relaxed shadow-none" />
                       <input ref={receiptTextFileInputRef} data-testid="receipt-text-file" type="file" accept=".txt,.md,.csv,.json,text/plain,text/csv,application/json" className="hidden" onChange={handleReceiptTextFileUpload} />
                       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                        <Button data-testid="choose-receipt-text-file" variant="secondary" disabled={tutorialDemo || isAnalyzing} onClick={() => receiptTextFileInputRef.current?.click()}><Icon path={icons.fileImage} size={18}/>{bi('上載文字檔（≤1 MB）', 'Upload text file (≤1 MB)')}</Button>
+                        <Button data-testid="choose-receipt-text-file" variant="secondary" disabled={tutorialDemo || isAnalyzing} onClick={() => receiptTextFileInputRef.current?.click()}><Icon path={icons.fileImage} size={18}/><span className="inline-flex items-baseline gap-0.5"><span>{bi('上載文字檔', 'Upload text file')}</span><span className="btn-aside">{bi('（≤1 MB）', '(≤1 MB)')}</span></span></Button>
                         <Button data-testid="submit-receipt-text" variant="primary" disabled={tutorialDemo || isAnalyzing || !receiptTextDraft.trim()} onClick={submitReceiptTextImport}>{isAnalyzing ? bi('整理中…', 'Processing…') : bi('整理這段文字', 'Process this text')}</Button>
                       </div>
                       {uploadError && <p data-testid="receipt-text-import-error" role="alert" className="rounded-lg border border-amber-400 bg-amber-50 p-2 text-sm text-amber-900">{typeof uploadError === 'string' ? tr(uploadError) : tr(uploadError.sub || uploadError.main || '讀取失敗')}</p>}
@@ -5512,8 +5569,8 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                       <Button data-testid="copy-friend-claim-link" variant="secondary" onClick={generateFriendClaimLink} className="!w-full text-sm bg-white hover:bg-slate-50 border-slate-500">
                         <Icon path={icons.copy} size={18} className="text-slate-600"/>{tr(" 複製連結給朋友")}</Button>
                       <ChoiceDivider />
-                        <Button data-testid="open-claim-share-button" data-tutorial-target="open-claim-share" variant="primary" onClick={openClaimShareDialog} className="!w-full text-sm">
-                        <Icon path={icons.share} size={18}/>{bi('分享認帳連結（可加附件）', 'Share claim link (attachments optional)')}</Button>
+                        <Button data-testid="open-claim-share-button" data-tutorial-target="open-claim-share" variant="primary" onClick={openClaimShareDialog} className="host-primary !w-full text-sm">
+                        <Icon path={icons.share} size={18}/><span>{bi('分享認帳連結', 'Share claim link')}<span className="btn-aside">{bi('（可加附件）', ' (attachments optional)')}</span></span></Button>
                     </div>
                     {showClaimShareDialog && (
                     <dialog open={tutorialDemo ? true : undefined} ref={claimShareDialogRef} onCancel={() => setShowClaimShareDialog(false)} aria-labelledby="claim-share-title" className="m-auto max-w-lg rounded-2xl border border-slate-400 bg-white p-4 text-slate-800 shadow-xl overflow-y-auto backdrop:bg-slate-950/60" style={{ width: 'calc(100% - 2rem)', maxHeight: '85dvh' }}>
@@ -5792,8 +5849,8 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                 <div className="flex gap-3 pt-2">
                   <Button variant="secondary" className="w-1/3 !px-2 border-slate-500" onClick={() => setStep(2)}>{tr("上一步")}</Button>
                   <Button data-testid="calculate-split" variant="primary" className="host-primary w-2/3 flex-col gap-1 text-center leading-tight" disabled={!friendsReplies.trim() || !Object.keys(claimInfo?.claims || {}).some(person => items.some(item => Number(claimInfo.claims[person]?.[item.id]) > 0))} onClick={() => { const calculated = calculateSplit(); if (tutorialDemo) onTutorialAction?.(calculated ? 'calculated' : 'calculation-error', !payer.trim() ? 'payer' : 'replies'); }}>
-                    <span className="inline-flex items-center justify-center gap-2">{tr("產生分帳報告 ")}<Icon path={icons.check} size={18}/></span>
-                    <span data-testid="calculate-split-hint" className="w-full text-[11px] font-medium leading-snug text-white">{claimSession?.link ? bi('按下後會計算，朋友可在原本連結查看結果。', 'Calculate; friends can view the result on their original link.') : bi('按下後會計算並產生分帳報告。', 'Calculate and create the bill-splitting report.')}</span>
+                    <span data-testid="calculate-split-title" className="inline-flex items-center justify-center gap-2">{tr("產生分帳報告 ")}<Icon path={icons.check} size={18}/></span>
+                    <span data-testid="calculate-split-hint" className="host-action-hint w-full text-[11px] font-medium leading-snug text-white">{claimSession?.link ? bi('按下後會計算，朋友可在原本連結查看結果。', 'Calculate; friends can view the result on their original link.') : bi('按下後會計算並產生分帳報告。', 'Calculate and create the bill-splitting report.')}</span>
                   </Button>
                 </div>
               </div>
@@ -5939,7 +5996,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                         <div data-testid="friend-share-ready" className="rounded-xl border border-emerald-300 bg-white p-4">
                           <a data-testid="friend-share-open" href={getDetailedTableShareUrl()} target="_blank" rel="noopener noreferrer" title={getDetailedTableShareUrl()} aria-label={bi('開啟朋友連結', 'Open friend link')} className="block text-center font-bold text-emerald-800 underline">{bi('朋友連結', 'Friend link')}<span data-testid="friend-share-url-display" title={getDetailedTableShareUrl()} className="mt-1 block max-w-full overflow-hidden text-ellipsis whitespace-nowrap text-left font-mono text-xs font-medium">{getCompactShareUrl(getDetailedTableShareUrl())}</span></a>
                           <Button data-testid="publish-same-link-result" onClick={createFriendShareLink} disabled={friendShareStatus === 'uploading'} variant="primary" className="host-primary !w-full green-action-dark !bg-emerald-700 hover:!bg-emerald-800 !border-emerald-900 disabled:!opacity-60" style={{ backgroundColor: '#047857', borderColor: '#065f46', boxShadow: 'none' }}>
-                            <Icon path={friendShareStatus === 'uploading' ? icons.loader : icons.share} size={18}/>{friendShareStatus === 'uploading' ? bi('更新中…', 'Updating…') : bi('更新結果', 'Update')}
+                            <Icon path={friendShareStatus === 'uploading' ? icons.loader : icons.refresh} size={18}/>{friendShareStatus === 'uploading' ? bi('更新中…', 'Updating…') : bi('更新結果', 'Update')}
                           </Button>
                           {friendShareStatus === 'error' && <p role="alert" className="text-center text-xs font-semibold text-red-700">{bi('更新失敗', 'Update failed')}</p>}
                           {friendShareInfo?.signature === currentFriendShareSignature && <p role="status" className="text-center text-xs font-semibold text-emerald-800">{bi('已更新', 'Updated')}</p>}

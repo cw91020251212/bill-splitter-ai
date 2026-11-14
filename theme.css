@@ -502,7 +502,7 @@ body.bg-slate-50 { background: var(--page-grey); color: var(--ink); }
 }
 #root button.bg-brand-600:not(:disabled) {
   color: #000;
-  font-weight: 400;
+  font-weight: 700;
   text-shadow: none;
 }
 #root button.bg-brand-600:not(:disabled) svg {
@@ -613,7 +613,7 @@ body.bg-slate-50 { background: var(--page-grey); color: var(--ink); }
 #root #header-action-menu > button.header-action-menu-item {
   box-sizing: border-box; display: flex; align-items: center; width: 100%; min-height: 44px;
   border: 1px solid #68756b; border-radius: 8px; padding: 8px 6px;
-  background: #ffffff; color: #26372b; font-size: calc(16px * var(--app-font-scale, 1)); font-weight: 650; line-height: 1.3;
+  background: #ffffff; color: #26372b; font-size: calc(16px * var(--app-font-scale, 1)); font-weight: 700; line-height: 1.3;
   text-align: left; box-shadow: none; transition: background-color .15s ease, border-color .15s ease, transform .15s ease;
 }
 #root #header-action-menu > button.header-action-menu-item:not(:disabled):hover {
@@ -916,13 +916,13 @@ body.bg-slate-50 { background: var(--page-grey); color: var(--ink); }
 
 /* Light green-action fills keep black labels. Dark fills (host-primary and
    green-action-dark) set their own white labels and are excluded here. */
-#root button.green-action:not(.green-action-dark):not(.host-primary) {
+#root button.green-action:not(.green-action-dark):not(.host-primary):not(:disabled) {
   color: #000 !important;
   -webkit-text-fill-color: #000 !important;
   text-shadow: none !important;
   box-shadow: none !important;
 }
-#root button.green-action:not(.green-action-dark):not(.host-primary) svg {
+#root button.green-action:not(.green-action-dark):not(.host-primary):not(:disabled) svg {
   color: #000 !important;
   stroke: #000 !important;
   filter: none !important;
@@ -1184,4 +1184,116 @@ html[lang="en"] #root [data-testid="open-free-key-settings"] span {
 #root [data-testid="add-missing-person-guide"] :is(summary, li, h3, p),
 #root [data-testid="missing-bill-guide"] :is(summary, li, h3, p) {
   color: #243e66 !important;
+}
+
+/* R143 host buttons. Action labels are bold; step chips and secondary hints stay lighter.
+   Dark green fills are unchanged. #ffe566 is the shared yellow: hue 50 at full
+   saturation, 3.70:1 on the lightest host fill #29835f (large-text 3:1) and
+   4.62:1 on #1d7349. A 4.5:1 yellow on #29835f is near-white and is not used. */
+#root button { font-weight: 700; }
+#root .step-nav button { font-weight: 600; }
+#root .step-nav button > span:first-child { font-weight: 700; }
+#root button .btn-aside { font-weight: 400; }
+
+#root button.host-primary.green-action:not(:disabled):not([data-testid="copy-prompt-open-google-ai"]) {
+  color: #ffe566 !important;
+  -webkit-text-fill-color: #ffe566 !important;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, .35) !important;
+}
+#root button.host-primary.green-action:not(:disabled):not([data-testid="copy-prompt-open-google-ai"]) svg {
+  color: #ffe566 !important;
+  stroke: #ffe566 !important;
+  filter: none !important;
+}
+#root button.host-primary.green-action:not(:disabled) .host-action-hint {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, .35) !important;
+  filter: none !important;
+}
+
+/* Disabled outline/white actions, including 「整理這段文字」 before any text is pasted. */
+#root main button.green-action:not(.host-primary):disabled {
+  background-image: none !important;
+  background-color: #e7ebe8 !important;
+  border-color: #d2d8d4 !important;
+  color: #9aa39d !important;
+  -webkit-text-fill-color: #9aa39d !important;
+  text-shadow: none !important;
+  box-shadow: none !important;
+  opacity: 1 !important;
+}
+#root main button.green-action:not(.host-primary):disabled svg {
+  color: #9aa39d !important;
+  stroke: #9aa39d !important;
+  filter: none !important;
+  opacity: 1 !important;
+}
+
+/* Google AI lockup. Letter fills are the official wordmark hexes
+   (G #4285F4, o #EA4335, o #FBBC05, g #4285F4, l #34A853, e #EA4335).
+   All four fail 4.5:1 on #29835f (blue 1.31, red 1.19, yellow 2.73, green 1.53),
+   so each keeps that exact fill and gets a thin cream ring. 「AI」 and the lead line stay white. */
+#root button[data-testid="copy-prompt-open-google-ai"] .google-ai-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+  line-height: 1.25;
+  text-align: center;
+}
+#root button[data-testid="copy-prompt-open-google-ai"] .google-ai-brand { white-space: nowrap; }
+#root button[data-testid="copy-prompt-open-google-ai"]:not(:disabled) .google-ai-lead,
+#root button[data-testid="copy-prompt-open-google-ai"]:not(:disabled) .gw-ai {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, .35) !important;
+}
+#root button.host-primary.green-action[data-testid="copy-prompt-open-google-ai"]:not(:disabled) svg {
+  color: #ffe566 !important;
+  stroke: #ffe566 !important;
+  filter: none !important;
+}
+#root button[data-testid="copy-prompt-open-google-ai"]:not(:disabled) .gw:not(.gw-ai) {
+  text-shadow:
+    -1px 0 0 rgba(255, 248, 220, .95),
+    1px 0 0 rgba(255, 248, 220, .95),
+    0 -1px 0 rgba(255, 248, 220, .95),
+    0 1px 0 rgba(255, 248, 220, .95),
+    0 1px 1px rgba(0, 0, 0, .35);
+}
+#root button[data-testid="copy-prompt-open-google-ai"]:not(:disabled) .gw-blue {
+  color: #4285F4 !important;
+  -webkit-text-fill-color: #4285F4 !important;
+}
+#root button[data-testid="copy-prompt-open-google-ai"]:not(:disabled) .gw-red {
+  color: #EA4335 !important;
+  -webkit-text-fill-color: #EA4335 !important;
+}
+#root button[data-testid="copy-prompt-open-google-ai"]:not(:disabled) .gw-yellow {
+  color: #FBBC05 !important;
+  -webkit-text-fill-color: #FBBC05 !important;
+}
+#root button[data-testid="copy-prompt-open-google-ai"]:not(:disabled) .gw-green {
+  color: #34A853 !important;
+  -webkit-text-fill-color: #34A853 !important;
+}
+
+/* Step 2 「分享認帳連結」 is a host-primary fill with a white label and a yellow share icon.
+   The parenthetical stays white at regular weight. */
+#root button.host-primary.green-action[data-testid="open-claim-share-button"]:not(:disabled):not([data-testid="copy-prompt-open-google-ai"]) {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, .35) !important;
+}
+#root button.host-primary.green-action[data-testid="open-claim-share-button"]:not(:disabled) svg {
+  color: #ffe566 !important;
+  stroke: #ffe566 !important;
+  filter: none !important;
+}
+#root button[data-testid="open-claim-share-button"] .btn-aside {
+  color: #fff;
+  -webkit-text-fill-color: #fff;
+  font-weight: 400;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, .35);
 }
