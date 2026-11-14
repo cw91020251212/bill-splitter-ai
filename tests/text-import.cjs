@@ -202,10 +202,7 @@ const ensureAIImportOpen = async page => {
     assert.notEqual(outlinePaint.backgroundColor, 'rgb(29, 115, 73)', 'the outline prompt button stays a secondary control');
     assert.equal(outlinePaint.backgroundImage, 'none');
     const submitDisabled = await buttonPaint(noKeyPage.getByTestId('submit-receipt-text'));
-    assert.equal(submitDisabled.disabled, true, '整理這段文字 stays disabled until text is pasted');
-    assert.equal(submitDisabled.backgroundColor, 'rgb(228, 231, 228)', 'the empty submit button uses a light gray fill');
-    assert.equal(submitDisabled.color, 'rgb(106, 114, 108)', 'the empty submit label is light gray, not black');
-    assert.equal(await noKeyPage.getByTestId('submit-receipt-text').evaluate(button => getComputedStyle(button).borderTopColor), 'rgb(197, 203, 198)', 'the empty submit button uses a light gray outline');
+    assert.equal(submitDisabled.disabled, false, '整理這段文字 stays available to read a copied Gemini answer');
     const fileLabel = await noKeyPage.getByTestId('choose-receipt-text-file').evaluate(button => {
       const aside = button.querySelector('.btn-aside');
       return {
@@ -247,13 +244,16 @@ const ensureAIImportOpen = async page => {
     assert.ok(narrowCopyBox.y >= 0 && narrowCopyBox.y + narrowCopyBox.height <= 640, 'the white button remains fully visible in the narrow viewport');
     const traceFrom = async () => noKeyPage.evaluate(() => window.__copyTrace.length);
     const assertCopiedBeforeOpen = async (start, label) => {
+      assert.equal(await noKeyPage.getByTestId('google-ai-guide').isVisible(), true, `${label}: shows the usage guide first`);
+      const copiedEvents = await noKeyPage.evaluate(from => window.__copyTrace.slice(from), start);
+      assert.ok(copiedEvents.some(event => event.type === 'clipboard'), `${label}: copies the prompt before showing the guide`);
+      assert.equal(copiedEvents.some(event => event.type === 'open'), false, `${label}: does not open Gemini before confirmation`);
+      await noKeyPage.getByTestId('google-ai-guide-continue').click();
       const events = await noKeyPage.evaluate(from => window.__copyTrace.slice(from), start);
       const openAt = events.findIndex(event => event.type === 'open');
-      assert.ok(openAt > 0, `${label}: opens Gemini`);
+      assert.ok(openAt > 0, `${label}: opens Gemini after Next`);
       assert.equal(events[openAt].url, 'https://gemini.google.com/app');
       assert.ok(events.slice(0, openAt).some(event => event.type === 'clipboard'), `${label}: clipboard write starts before the new tab`);
-      assert.ok(events.slice(0, openAt).some(event => event.type === 'exec'), `${label}: execCommand fallback runs before the new tab`);
-      assert.equal(events.slice(openAt + 1).some(event => event.type === 'clipboard' || event.type === 'exec'), false, `${label}: no copy attempt is left until after the tab opens`);
       return events;
     };
     const clearToasts = () => noKeyPage.evaluate(() => document.querySelectorAll('[data-testid="app-toast"]').forEach(node => node.remove()));
@@ -268,7 +268,7 @@ const ensureAIImportOpen = async page => {
     assert.equal(await noKeyPage.evaluate(() => window.__copiedPrompt), attemptedPrompt);
     assert.equal(await noKeyPage.evaluate(() => window.__openedUrls[0]?.[0]), 'https://gemini.google.com/app', 'the combined action opens Google Gemini in a new tab');
     assert.match(await noKeyPage.evaluate(() => window.__copiedPrompt || ''), /一個 Markdown JSON 程式碼區塊/, 'the same action copies the receipt prompt');
-    await noKeyPage.waitForFunction(() => [...document.querySelectorAll('[data-testid="app-toast"]')].some(node => node.dataset.toastType === 'success' && /提示詞已複製/.test(node.textContent)));
+    assert.match(await noKeyPage.getByTestId('google-ai-guide').innerText(), /提示詞已複製/);
     assert.equal(noKeyRequests, 0, 'copying the prompt does not upload the receipt or call OpenRouter');
 
     await clearToasts();
@@ -276,11 +276,10 @@ const ensureAIImportOpen = async page => {
     traceStart = await traceFrom();
     await googleAIButton.click();
     await assertCopiedBeforeOpen(traceStart, 'both copy methods refused');
-    await noKeyPage.waitForFunction(() => [...document.querySelectorAll('[data-testid="app-toast"]')].some(node => node.dataset.toastType === 'error' && /未能複製提示詞/.test(node.textContent)));
-    const failureToast = await noKeyPage.locator('[data-testid="app-toast"]').last().innerText();
-    assert.match(failureToast, /未能複製提示詞/);
-    assert.doesNotMatch(failureToast, /提示詞已複製/);
-    assert.match(failureToast, /不會上載帳單圖片/);
+    await noKeyPage.waitForFunction(() => document.querySelector('[data-testid="google-ai-guide"]')?.innerText.includes('提示詞未能複製'));
+    const guideText = await noKeyPage.getByTestId('google-ai-guide').innerText();
+    assert.match(guideText, /提示詞未能複製/);
+    assert.match(guideText, /複製讀圖提示詞/);
     assert.equal(await noKeyPage.evaluate(() => window.__openedUrls.at(-1)?.[0]), 'https://gemini.google.com/app', 'a failed copy still opens Google AI');
 
     await clearToasts();
@@ -288,7 +287,7 @@ const ensureAIImportOpen = async page => {
     traceStart = await traceFrom();
     await googleAIButton.click();
     await assertCopiedBeforeOpen(traceStart, 'clipboard API refused');
-    await noKeyPage.waitForFunction(() => [...document.querySelectorAll('[data-testid="app-toast"]')].some(node => node.dataset.toastType === 'success' && /提示詞已複製/.test(node.textContent)));
+    assert.match(await noKeyPage.getByTestId('google-ai-guide').innerText(), /提示詞已複製/);
     assert.match(await noKeyPage.evaluate(() => window.__copiedPrompt), /一個 Markdown JSON 程式碼區塊/, 'execCommand still copies the prompt when the Clipboard API fails');
 
     await clearToasts();
@@ -296,7 +295,7 @@ const ensureAIImportOpen = async page => {
     traceStart = await traceFrom();
     await googleAIButton.click();
     await assertCopiedBeforeOpen(traceStart, 'execCommand refused');
-    await noKeyPage.waitForFunction(() => [...document.querySelectorAll('[data-testid="app-toast"]')].some(node => node.dataset.toastType === 'success' && /提示詞已複製/.test(node.textContent)));
+    assert.match(await noKeyPage.getByTestId('google-ai-guide').innerText(), /提示詞已複製/);
     assert.match(await noKeyPage.evaluate(() => window.__clipboardText), /一個 Markdown JSON 程式碼區塊/, 'the Clipboard API still copies the prompt when execCommand fails');
     await noKeyPage.evaluate(() => { window.__failClipboard = false; window.__failExecCopy = false; });
     await clearToasts();
@@ -371,13 +370,13 @@ const ensureAIImportOpen = async page => {
     assert.equal(await noKeyPage.evaluate(() => window.__openedUrls.at(-1)?.[0]), 'https://gemini.google.com/app', 'the combined action also opens Google Gemini in English mode');
     assert.match(englishEvents.find(event => event.type === 'clipboard').text, /exactly one Markdown JSON code block/);
     assert.match(await noKeyPage.evaluate(() => window.__copiedPrompt || ''), /exactly one Markdown JSON code block/);
-    await noKeyPage.waitForFunction(() => [...document.querySelectorAll('[data-testid="app-toast"]')].some(node => node.dataset.toastType === 'success' && /Prompt copied/.test(node.textContent)));
+    assert.match(await noKeyPage.getByTestId('google-ai-guide').innerText(), /Prompt copied/);
     await clearToasts();
     await noKeyPage.evaluate(() => { window.__failClipboard = true; window.__failExecCopy = true; });
     traceStart = await traceFrom();
     await noKeyPage.getByTestId('copy-prompt-open-google-ai').click();
     await assertCopiedBeforeOpen(traceStart, 'English copy failure');
-    await noKeyPage.waitForFunction(() => [...document.querySelectorAll('[data-testid="app-toast"]')].some(node => node.dataset.toastType === 'error' && /Could not copy the prompt/.test(node.textContent)));
+    await noKeyPage.waitForFunction(() => document.querySelector('[data-testid="google-ai-guide"]')?.innerText.includes('The prompt was not copied'));
     const englishFailure = await noKeyPage.locator('[data-testid="app-toast"]').last().innerText();
     assert.match(englishFailure, /Could not copy the prompt/);
     assert.doesNotMatch(englishFailure, /Prompt copied/);
@@ -650,6 +649,7 @@ const ensureAIImportOpen = async page => {
     }
     const popupPromise = livePage.waitForEvent('popup', { timeout: 8000 });
     await liveButton.click();
+    await livePage.getByTestId('google-ai-guide-continue').click();
     const popup = await popupPromise;
     await livePage.waitForFunction(async () => {
       try { return (await navigator.clipboard.readText()).includes('一個 Markdown JSON 程式碼區塊'); }

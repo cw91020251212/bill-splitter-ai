@@ -142,11 +142,11 @@
   ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
   ::-webkit-scrollbar-thumb:hover { background: #64748b; }
   </style>
-  <link rel="stylesheet" href="./theme.css?v=v146-settlement-status-clearance-20261115">
+  <link rel="stylesheet" href="./theme.css?v=v147-gemini-guide-clipboard-import-20261115">
   <link rel="stylesheet" href="./tutorial.css?v=v86-free-models-only">
-  <!-- R146: settlement scroll clears the fixed compact status bar. -->
-  <meta name="bill-app-release" content="v146-settlement-status-clearance-20261115">
-  <script defer src="./pwa.js?v=v146-settlement-status-clearance-20261115"></script>
+  <!-- R147: Gemini guidance and clipboard text import. -->
+  <meta name="bill-app-release" content="v147-gemini-guide-clipboard-import-20261115">
+  <script defer src="./pwa.js?v=v147-gemini-guide-clipboard-import-20261115"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
@@ -1301,6 +1301,8 @@ Format (keep every field; items may contain multiple entries, and adjustments mu
       const [progressText, setProgressText] = useState('');
       const [uploadError, setUploadError] = useState('');
       const [receiptTextDraft, setReceiptTextDraft] = useState('');
+      const [showGoogleAiGuide, setShowGoogleAiGuide] = useState(false);
+      const [googleAiCopyStatus, setGoogleAiCopyStatus] = useState('copied');
       const [lastImageData, setLastImageData] = useState([]);
       const [reviewReceiptImageIndex, setReviewReceiptImageIndex] = useState(null);
       const receiptReviewDialogRef = useRef(null);
@@ -3804,11 +3806,21 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
         }
       };
 
-      const submitReceiptTextImport = () => {
-        const text = String(receiptTextDraft || '').trim();
+      const submitReceiptTextImport = async () => {
+        let text = String(receiptTextDraft || '').trim();
         if (!text) {
-          setUploadError({ main: bi('請先貼上收據文字，或上載文字檔。', 'Paste receipt text or upload a text file first.'), sub: '', action: null });
-          return;
+          try {
+            if (!navigator.clipboard?.readText) throw new Error('Clipboard read unavailable');
+            text = String(await navigator.clipboard.readText() || '').trim();
+          } catch (_) {
+            setUploadError({ main: bi('無法讀取剪貼簿。請先在 Gemini 複製回答，再回來貼到文字框。', 'Clipboard access was blocked. Copy Gemini’s answer, then return and paste it into the text box.'), sub: '', action: null });
+            return;
+          }
+          if (!text) {
+            setUploadError({ main: bi('剪貼簿沒有文字。請先在 Gemini 複製回答，再按「整理這段文字」。', 'No text was found in the clipboard. Copy Gemini’s answer, then press “Process this text”.'), sub: '', action: null });
+            return;
+          }
+          setReceiptTextDraft(text);
         }
         setUploadError('');
         handleFileUpload({ target: { files: [], value: '' } }, true, false, text);
@@ -4290,19 +4302,16 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
       const copyPromptAndOpenGoogleAI = () => {
         if (tutorialDemo) return;
         const prompt = uiLang === 'en' ? RECEIPT_JSON_IMPORT_PROMPT_EN : RECEIPT_JSON_IMPORT_PROMPT_ZH;
-        // Copy in this click, then open. Opening Gemini first spends the user
-        // gesture on mobile Safari/Chrome and leaves the clipboard empty.
-        // window.open stays synchronous so the browser still allows the tab.
         const clipboardPromise = startClipboardWrite(prompt);
         const copiedSync = copyTextForGoogleAI(prompt);
-        window.open('https://gemini.google.com/app', '_blank', 'noopener,noreferrer');
-        const successMessage = bi('提示詞已複製，已嘗試開啟 Google AI。請在新分頁手動附上帳單並按送出；網站不會代你上載。若新分頁未開啟，請允許彈出視窗。', 'Prompt copied and Google AI was opened. Manually attach the receipt and press Send; this site does not upload it. If no tab opened, allow pop-ups.');
-        const failureMessage = bi('未能複製提示詞。請再按一次，或改用「複製讀圖提示詞」。已嘗試開啟 Google AI；此按鈕不會上載帳單圖片。', 'Could not copy the prompt. Tap again, or use “Copy photo-reading prompt”. Google AI was opened if pop-ups are allowed; this button does not upload the receipt.');
-        const report = (copied) => toast(copied ? successMessage : failureMessage, copied ? 'success' : 'error');
-        if (copiedSync) report(true);
-        else clipboardPromise.then(report);
+        setGoogleAiCopyStatus(copiedSync ? 'copied' : 'pending');
+        clipboardPromise.then(copiedAsync => setGoogleAiCopyStatus(copiedSync || copiedAsync ? 'copied' : 'failed'));
+        setShowGoogleAiGuide(true);
       };
-
+      const continueToGoogleAI = () => {
+        setShowGoogleAiGuide(false);
+        window.open('https://gemini.google.com/app', '_blank', 'noopener,noreferrer');
+      };
       const renderTextImportReceiptAttachmentCard = (shareMode = false, remindBillPhoto = false) => (
         <Card data-testid="imported-receipt-attachment-card" className={`!p-2 border-slate-400 bg-white ${remindBillPhoto ? '!border-amber-500 !bg-amber-50' : ''}`}>
           {remindBillPhoto && <div data-testid="ai-import-bill-photo-reminder" role="status" aria-live="polite" className="mb-2 space-y-1 text-sm leading-relaxed text-amber-950">
@@ -5021,13 +5030,28 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
 
       return (
         <React.Fragment>
+          {showGoogleAiGuide && <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-950/60 p-4" role="dialog" aria-modal="true" aria-labelledby="google-ai-guide-title" data-testid="google-ai-guide">
+            <div className="w-full max-w-md rounded-2xl border border-slate-300 bg-white p-5 shadow-2xl">
+              <h2 id="google-ai-guide-title" className="text-xl font-extrabold text-slate-900">{googleAiCopyStatus === 'failed' ? bi('提示詞未能複製', 'The prompt was not copied') : googleAiCopyStatus === 'pending' ? bi('正在複製提示詞…', 'Copying the prompt…') : bi('提示詞已複製，跟著做就可以', 'Prompt copied — follow these steps')}</h2>
+              {googleAiCopyStatus === 'failed' && <p role="alert" className="mt-2 rounded-lg bg-amber-50 p-3 text-sm leading-relaxed text-amber-950">{bi('請按「返回」，再用「複製讀圖提示詞」複製一次，然後重新開啟教學。', 'Press Back, then use “Copy photo-reading prompt” to copy it and try again.')}</p>}
+              <ol className="mt-3 list-decimal space-y-2 pl-6 text-sm leading-relaxed text-slate-700">
+                <li>{bi('到 Gemini 輸入欄貼上提示詞，附上單據圖片，再按傳送。', 'In Gemini, paste the prompt, attach a photo of the bill, then press Send.')}</li>
+                <li>{bi('等 Gemini 整理好後，複製它的完整回答，再回到這個頁面。', 'When Gemini finishes, copy its complete answer and return to this page.')}</li>
+                <li>{bi('按「整理這段文字」；本頁會讀取你剛複製的回答並開始整理。若讀取被瀏覽器阻擋，再手動貼上即可。', 'Press “Process this text”; this page will read your copied answer and process it. If the browser blocks clipboard access, paste it manually.')}</li>
+              </ol>
+              <div className="mt-5 flex gap-2">
+                <Button data-testid="google-ai-guide-cancel" variant="secondary" className="flex-1" onClick={() => setShowGoogleAiGuide(false)}>{bi('返回', 'Back')}</Button>
+                <Button data-testid="google-ai-guide-continue" variant="primary" className="host-primary flex-1" onClick={continueToGoogleAI}>{bi('下一步，前往 Gemini', 'Next: open Gemini')}</Button>
+              </div>
+            </div>
+          </div>}
           {/* Header */}
           <header className="app-header bg-white border-b border-slate-400 sticky top-0 z-20 shadow-sm backdrop-blur-md bg-white/90">
             <div className="app-header-row w-full px-3 sm:px-4 py-3.5 flex items-center justify-between max-w-2xl mx-auto">
                 <div className="flex items-center gap-2 sm:gap-3 shrink-0">
                   <img src="./icons/icon.svg" alt="" width="48" height="48" className="app-brand-icon shrink-0" />
                   <div>
-                  <h1 className="text-xl font-extrabold text-slate-800 tracking-tight"><span className="app-brand-name block sm:inline whitespace-nowrap">{tr("分帳管家")}</span><span className="inline-flex items-baseline gap-1 sm:ml-1 whitespace-nowrap"><span data-testid="app-pro-label" className="text-brand-600 font-black">Pro</span><span data-testid="app-version-label" className="text-[10px] leading-3 font-semibold tracking-normal text-brand-700">R146</span></span></h1>
+                  <h1 className="text-xl font-extrabold text-slate-800 tracking-tight"><span className="app-brand-name block sm:inline whitespace-nowrap">{tr("分帳管家")}</span><span className="inline-flex items-baseline gap-1 sm:ml-1 whitespace-nowrap"><span data-testid="app-pro-label" className="text-brand-600 font-black">Pro</span><span data-testid="app-version-label" className="text-[10px] leading-3 font-semibold tracking-normal text-brand-700">R147</span></span></h1>
                   </div>
               </div>
               <div className="header-actions relative flex items-center gap-1.5 sm:gap-2">
@@ -5386,7 +5410,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                       <input ref={receiptTextFileInputRef} data-testid="receipt-text-file" type="file" accept=".txt,.md,.csv,.json,text/plain,text/csv,application/json" className="hidden" onChange={handleReceiptTextFileUpload} />
                       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                         <Button data-testid="choose-receipt-text-file" variant="secondary" disabled={tutorialDemo || isAnalyzing} onClick={() => receiptTextFileInputRef.current?.click()}><Icon path={icons.fileImage} size={18}/><span className="inline-flex items-baseline gap-0.5"><span>{bi('上載文字檔', 'Upload text file')}</span><span className="btn-aside">{bi('（≤1 MB）', '(≤1 MB)')}</span></span></Button>
-                        <Button data-testid="submit-receipt-text" variant="primary" className="host-primary" disabled={tutorialDemo || isAnalyzing || !receiptTextDraft.trim()} onClick={submitReceiptTextImport}>{isAnalyzing ? bi('整理中…', 'Processing…') : bi('整理這段文字', 'Process this text')}</Button>
+                        <Button data-testid="submit-receipt-text" variant="primary" className="host-primary" disabled={tutorialDemo || isAnalyzing} onClick={submitReceiptTextImport}>{isAnalyzing ? bi('整理中…', 'Processing…') : bi('整理這段文字', 'Process this text')}</Button>
                       </div>
                       {uploadError && <p data-testid="receipt-text-import-error" role="alert" className="rounded-lg border border-amber-400 bg-amber-50 p-2 text-sm text-amber-900">{typeof uploadError === 'string' ? tr(uploadError) : tr(uploadError.sub || uploadError.main || '讀取失敗')}</p>}
                     </div>

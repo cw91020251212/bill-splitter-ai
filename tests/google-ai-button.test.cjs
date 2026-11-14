@@ -5,7 +5,7 @@ const path = require('node:path');
 
 const root = path.join(__dirname, '..');
 const read = name => fs.readFileSync(path.join(root, name), 'utf8');
-const release = 'v146-settlement-status-clearance-20261115';
+const release = 'v147-gemini-guide-clipboard-import-20261115';
 
 function linearize(channel) {
   const value = channel / 255;
@@ -91,15 +91,19 @@ test('Google AI copies the receipt prompt before opening Gemini and does not cla
   const start = html.indexOf('const copyPromptAndOpenGoogleAI = () => {');
   const end = html.indexOf('const renderTextImportReceiptAttachmentCard', start);
   const fn = html.slice(start, end);
-  const openAt = fn.indexOf("window.open('https://gemini.google.com/app'");
-  assert.ok(start > 0 && end > start && openAt > 0);
-  assert.ok(fn.indexOf('startClipboardWrite(prompt)') < openAt, 'Clipboard API starts before the new tab');
-  assert.ok(fn.indexOf('copyTextForGoogleAI(prompt)') < openAt, 'execCommand fallback finishes before the new tab');
-  assert.equal(fn.includes('copyToClipboard('), false, 'the combined action no longer uses the toast-on-attempt helper');
-  assert.match(fn, /const report = \(copied\) => toast\(copied \? successMessage : failureMessage/);
-  assert.match(fn, /if \(copiedSync\) report\(true\);\s*else clipboardPromise\.then\(report\)/);
-  assert.match(fn, /未能複製提示詞/);
-  assert.match(fn, /Could not copy the prompt/);
+  const openAt = html.indexOf("window.open('https://gemini.google.com/app'");
+  assert.ok(start > 0 && end > start && openAt > 0, 'Gemini is opened by a separate tutorial continue action');
+  assert.match(html.slice(html.indexOf('const continueToGoogleAI ='), html.indexOf('const renderTextImportReceiptAttachmentCard')), /window\.open\('https:\/\/gemini\.google\.com\/app'/);
+  assert.ok(fn.indexOf('startClipboardWrite(prompt)') >= 0 && fn.indexOf('copyTextForGoogleAI(prompt)') > fn.indexOf('startClipboardWrite(prompt)'), 'prompt copy is initiated before showing the guide');
+  assert.match(fn, /setShowGoogleAiGuide\(true\)/);
+  assert.match(html, /data-testid=\"google-ai-guide-continue\"/);
+  assert.equal(fn.slice(0, fn.indexOf('const continueToGoogleAI')).includes('window.open('), false, 'the first action does not leave the page');
+  assert.equal(fn.includes('copyToClipboard('), false, 'the combined action does not use the toast-on-attempt helper');
+  assert.match(html, /提示詞未能複製/);
+  assert.match(html, /The prompt was not copied/);
+  const submit = html.slice(html.indexOf('const submitReceiptTextImport ='), html.indexOf('const handleReceiptTextFileUpload =', html.indexOf('const submitReceiptTextImport =')));
+  assert.match(submit, /navigator\.clipboard\?\.readText/);
+  assert.match(submit, /handleFileUpload/);
   assert.match(html, /navigator\.clipboard\.writeText\(value\)/);
   assert.match(html, /document\.execCommand\('copy'\) === true/);
   assert.match(html, /textarea\.setSelectionRange\(0, text\.length\)/);
@@ -109,19 +113,20 @@ test('Google AI copies the receipt prompt before opening Gemini and does not cla
   assert.ok(prompt.length > 400);
 });
 
-test('R146 cache epoch is on the host shell and does not leak into friend pages', () => {
+test('R147 cache epoch is on the host shell and does not leak into friend pages', () => {
   const index = read('index.html');
   const sw = read('sw.js');
   const pwa = read('pwa.js');
   assert.match(index, new RegExp(`theme\\.css\\?v=${release}`));
   assert.match(index, new RegExp(`pwa\\.js\\?v=${release}`));
   assert.match(index, new RegExp(`name="bill-app-release" content="${release}"`));
-  assert.match(index, />R146</);
+  assert.match(index, />R147</);
   assert.doesNotMatch(index, /v142-dark-green-white-label-20261114/);
+  assert.doesNotMatch(index, />R146</);
   assert.doesNotMatch(index, />R142</);
   assert.match(sw, new RegExp(`const CACHE_VERSION = '${release}'`));
   assert.match(pwa, new RegExp(`var RELEASE_VERSION = '${release}'`));
-  assert.match(pwa, /version: 'R146'/);
+  assert.match(pwa, /version: 'R147'/);
   for (const name of ['claim.html', 'detailed-view.html']) {
     const text = read(name);
     assert.equal(text.includes('theme.css'), false, `${name} must not load host theme.css`);
