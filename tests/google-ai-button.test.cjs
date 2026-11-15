@@ -5,7 +5,7 @@ const path = require('node:path');
 
 const root = path.join(__dirname, '..');
 const read = name => fs.readFileSync(path.join(root, name), 'utf8');
-const release = 'v164-circled-reference-gray-74798e-20261116';
+const release = 'v165-ai-translation-heading-20261116';
 
 function linearize(channel) {
   const value = channel / 255;
@@ -117,7 +117,18 @@ test('Google AI copies the receipt prompt before opening Gemini and does not cla
   assert.ok(prompt.length > 400);
 });
 
-test('R164 cache epoch is on the host shell and does not leak into friend pages', () => {
+test('AI translation heading uses the requested copy and heading size with mobile wrapping', () => {
+  const index = read('index.html');
+  const css = read('theme.css');
+  const title = index.split('\n').find(row => row.includes('data-testid="receipt-text-import-title"'));
+  assert.match(title, /揾其他 AI 翻譯/);
+  assert.match(title, /text-lg/);
+  assert.doesNotMatch(title, /text-base/);
+  assert.match(css, /\[data-testid="receipt-text-import-title-row"\][\s\S]*?flex-wrap:\s*wrap/);
+  assert.doesNotMatch(css, /\[data-testid="receipt-text-import-title"\]\s*\{\s*font-size:\s*(?:14|15)px/);
+});
+
+test('R165 cache epoch is on the host shell and does not leak into friend pages', () => {
   const index = read('index.html');
   const sw = read('sw.js');
   const pwa = read('pwa.js');

@@ -598,8 +598,14 @@ body.bg-slate-50 { background: var(--page-grey); color: var(--ink); }
   gap: 0;
 }
 #root main [data-testid="external-ai-provider-examples"] { text-align: right; }
+@media (max-width: 420px) {
+  #root main [data-testid="receipt-text-import-title-row"] {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: 2px 6px;
+  }
+}
 @media (max-width: 359px) {
-  #root main [data-testid="receipt-text-import-title"] { font-size: calc(15px * var(--app-font-scale, 1)); }
   #root main [data-testid="external-ai-provider-examples"] { font-size: calc(10.5px * var(--app-font-scale, 1)); }
 }
 #root .language-switch-control { background: #e4eaf3; border-color: #7d93b3; }
@@ -1093,7 +1099,6 @@ html[lang="en"] #root [data-testid="open-free-key-settings"] span {
 }
 @media (max-width: 359px) {
   #root main [data-testid="external-ai-provider-examples"] { font-size: calc(10px * var(--app-font-scale, 1)); }
-  html[data-app-text-size="large"] #root [data-testid="receipt-text-import-title"] { font-size: 14px !important; }
   html[data-app-text-size="large"] #root [data-testid="external-ai-provider-examples"] {
     flex-shrink: 1 !important;
     min-width: 0 !important;

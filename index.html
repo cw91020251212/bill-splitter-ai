@@ -142,11 +142,11 @@
   ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
   ::-webkit-scrollbar-thumb:hover { background: #64748b; }
   </style>
-  <link rel="stylesheet" href="./theme.css?v=v164-circled-reference-gray-74798e-20261116">
+  <link rel="stylesheet" href="./theme.css?v=v165-ai-translation-heading-20261116">
   <link rel="stylesheet" href="./tutorial.css?v=v86-free-models-only">
   <!-- R157: on-device sensitive-data masking before receipt sharing. -->
-  <meta name="bill-app-release" content="v164-circled-reference-gray-74798e-20261116">
-  <script defer src="./pwa.js?v=v164-circled-reference-gray-74798e-20261116"></script>
+  <meta name="bill-app-release" content="v165-ai-translation-heading-20261116">
+  <script defer src="./pwa.js?v=v165-ai-translation-heading-20261116"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
@@ -158,9 +158,9 @@
   <script src="./receipt-adjustments.js"></script>
   <script src="./share-config.js"></script>
   <script src="./bill-share-api.js?v=v107-code-focus-visible"></script>
-  <script src="./sync-diagnostics.js?v=v164-circled-reference-gray-74798e-20261116"></script>
-  <script src="./card-redaction.js?v=v164-circled-reference-gray-74798e-20261116"></script>
-  <script src="./card-share-review.js?v=v164-circled-reference-gray-74798e-20261116"></script>
+  <script src="./sync-diagnostics.js?v=v165-ai-translation-heading-20261116"></script>
+  <script src="./card-redaction.js?v=v165-ai-translation-heading-20261116"></script>
+  <script src="./card-share-review.js?v=v165-ai-translation-heading-20261116"></script>
   <script src="./exchange-rates.js?v=v90-cross-currency-settlement"></script>
     <script src="./tutorial.js?v=v139-gemini-button-order-20261113"></script>
   <script type="text/babel">
@@ -5453,8 +5453,8 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                   <button type="button" data-testid="toggle-receipt-text-import" aria-controls="receipt-text-import-content" aria-expanded={showReceiptTextImport} onClick={() => { const nextOpen = !showReceiptTextImport; setShowReceiptTextImport(nextOpen); if (!tutorialDemo) writeUiDisclosure('receipt-ai-import-r133', nextOpen); }} className="relative -mx-5 w-[calc(100%+1.25rem)] sm:mx-0 sm:w-full min-h-[44px] flex items-center justify-between gap-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700">
                       <span className="min-w-0 flex-1 pl-3 sm:pl-0">
                         <span data-testid="receipt-text-import-title-row" className="flex min-w-0 flex-nowrap items-baseline justify-between gap-0">
-                          <span data-testid="receipt-text-import-title" aria-label={bi('其他 AI 翻譯', 'Other AI translation')} className="shrink-0 whitespace-nowrap text-base font-bold leading-tight text-slate-800">
-                            {bi('其他 AI 翻譯', 'Other AI translation')}
+                          <span data-testid="receipt-text-import-title" aria-label={bi('揾其他 AI 翻譯', 'Find other AI translation')} className="shrink-0 whitespace-nowrap text-lg font-bold leading-tight text-slate-800">
+                            {bi('揾其他 AI 翻譯', 'Find other AI translation')}
                           </span>
                           <span data-testid="external-ai-provider-examples" aria-label={bi('Google AI 模式、豆包等', 'Google AI, Doubao, etc.')} className="shrink-0 whitespace-nowrap text-right font-normal leading-tight text-slate-500">{bi('（Google AI 模式、豆包等）', '(Google AI, Doubao, etc.)')}</span>
                         </span>
