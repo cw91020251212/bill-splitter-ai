@@ -914,6 +914,24 @@ body.bg-slate-50 { background: var(--page-grey); color: var(--ink); }
   box-shadow: none !important;
 }
 
+/* After external-AI text is pasted, keep the user's attention on the only next action. */
+#root .external-ai-action-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9990;
+  background: rgba(15, 23, 42, .68);
+  cursor: default;
+}
+#root .external-ai-action-target {
+  position: relative !important;
+  z-index: 9991 !important;
+}
+#root button.external-ai-action-target {
+  outline: 4px solid #facc15 !important;
+  outline-offset: 4px !important;
+  box-shadow: 0 0 0 8px rgba(250, 204, 21, .3), 0 8px 20px rgba(0, 0, 0, .24) !important;
+}
+
 /* Light green-action fills keep black labels. Dark fills (host-primary and
    green-action-dark) set their own white labels and are excluded here. */
 #root button.green-action:not(.green-action-dark):not(.host-primary):not(:disabled) {
