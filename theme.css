@@ -1370,25 +1370,25 @@ html[lang="en"] #root [data-testid="open-free-key-settings"] span {
    perimeter, not just the visible segment, and keep every edge hairline-thin. */
 #root .api-settings-card,
 #root .api-settings-card:not(:has(button.bg-red-50)) {
-  border: 1px solid #000000 !important;
+  border: 1px solid #403d38 !important;
   border-width: 1px !important;
   border-style: solid !important;
-  border-color: #000000 !important;
+  border-color: #403d38 !important;
 }
 #root .api-settings-card button[data-testid="open-free-key-settings"] {
-  border: 1px solid #000000 !important;
+  border: 1px solid #403d38 !important;
   border-width: 1px !important;
   border-style: solid !important;
-  border-color: #000000 !important;
+  border-color: #403d38 !important;
 }
 #root .choice-divider::before,
 #root .choice-divider::after {
   height: 1px !important;
-  background: #000000 !important;
+  background: #403d38 !important;
 }
 #root [data-testid="receipt-text-import"].step1-option {
-  border: 1px solid #000000 !important;
+  border: 1px solid #403d38 !important;
   border-width: 1px !important;
   border-style: solid !important;
-  border-color: #000000 !important;
+  border-color: #403d38 !important;
 }

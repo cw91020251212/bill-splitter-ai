@@ -40,7 +40,7 @@
     window.navigator.standalone === true;
 
   /* ---------------------------------------------------------- service worker */
-  var RELEASE_VERSION = 'v162-circled-continuous-black-20261116';
+  var RELEASE_VERSION = 'v163-continuous-dark-gray-outlines-20261116';
   var waitingWorker = null;
   var registrationPromise = null;
   var reloadRequested = false;

@@ -142,11 +142,11 @@
   ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
   ::-webkit-scrollbar-thumb:hover { background: #64748b; }
   </style>
-  <link rel="stylesheet" href="./theme.css?v=v162-circled-continuous-black-20261116">
+  <link rel="stylesheet" href="./theme.css?v=v163-continuous-dark-gray-outlines-20261116">
   <link rel="stylesheet" href="./tutorial.css?v=v86-free-models-only">
   <!-- R157: on-device sensitive-data masking before receipt sharing. -->
-  <meta name="bill-app-release" content="v162-circled-continuous-black-20261116">
-  <script defer src="./pwa.js?v=v162-circled-continuous-black-20261116"></script>
+  <meta name="bill-app-release" content="v163-continuous-dark-gray-outlines-20261116">
+  <script defer src="./pwa.js?v=v163-continuous-dark-gray-outlines-20261116"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
@@ -158,9 +158,9 @@
   <script src="./receipt-adjustments.js"></script>
   <script src="./share-config.js"></script>
   <script src="./bill-share-api.js?v=v107-code-focus-visible"></script>
-  <script src="./sync-diagnostics.js?v=v162-circled-continuous-black-20261116"></script>
-  <script src="./card-redaction.js?v=v162-circled-continuous-black-20261116"></script>
-  <script src="./card-share-review.js?v=v162-circled-continuous-black-20261116"></script>
+  <script src="./sync-diagnostics.js?v=v163-continuous-dark-gray-outlines-20261116"></script>
+  <script src="./card-redaction.js?v=v163-continuous-dark-gray-outlines-20261116"></script>
+  <script src="./card-share-review.js?v=v163-continuous-dark-gray-outlines-20261116"></script>
   <script src="./exchange-rates.js?v=v90-cross-currency-settlement"></script>
     <script src="./tutorial.js?v=v139-gemini-button-order-20261113"></script>
   <script type="text/babel">
@@ -1194,7 +1194,7 @@ Format (keep every field; items may contain multiple entries, and adjustments mu
           const context = canvas.getContext('2d');
           if (!context) throw new Error('無法處理圖片');
           context.drawImage(image, 0, 0, canvas.width, canvas.height);
-          context.fillStyle = '#000000';
+          context.fillStyle = '#403d38';
           (masks || []).forEach(mask => {
             const x = Math.max(0, Math.min(1, mask.x));
             const y = Math.max(0, Math.min(1, mask.y));
@@ -2320,7 +2320,7 @@ Format (keep every field; items may contain multiple entries, and adjustments mu
           const context = canvas.getContext('2d');
           if (!context) return;
           context.setTransform(ratio, 0, 0, ratio, 0, 0);
-          context.fillStyle = '#000000';
+          context.fillStyle = '#403d38';
           (redactionMasks[redactionIndex] || []).forEach(mask => {
             context.fillRect(mask.x * rect.width, mask.y * rect.height, mask.width * rect.width, mask.height * rect.height);
           });
