@@ -5,7 +5,7 @@ const path = require('node:path');
 
 const root = path.join(__dirname, '..');
 const read = name => fs.readFileSync(path.join(root, name), 'utf8');
-const release = 'v158-strong-step-outlines-20261116';
+const release = 'v159-dark-step-lines-left-only-shadow-20261116';
 
 function linearize(channel) {
   const value = channel / 255;
@@ -117,7 +117,7 @@ test('Google AI copies the receipt prompt before opening Gemini and does not cla
   assert.ok(prompt.length > 400);
 });
 
-test('R158 cache epoch is on the host shell and does not leak into friend pages', () => {
+test('R159 cache epoch is on the host shell and does not leak into friend pages', () => {
   const index = read('index.html');
   const sw = read('sw.js');
   const pwa = read('pwa.js');

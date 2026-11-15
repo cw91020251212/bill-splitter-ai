@@ -1334,28 +1334,33 @@ html[lang="en"] #root [data-testid="open-free-key-settings"] span {
   text-shadow: 0 1px 1px rgba(0, 0, 0, .35);
 }
 
-/* Step outlines use a firm, consistent dark 1px line; marker fills are distinct.
-   Restore the original card/dropzone shadow treatment. */
+/* Final stepper overrides: active-stage rules above use :has() and win without
+   !important. These explicit 1px borders must stay dark in every stage. */
 #root .step-nav button,
 #root .step-nav button[class*="bg-brand-50"] {
-  border: 1px solid #403d38;
-  box-shadow: none;
+  border: 1px solid #211f1c !important;
+  border-width: 1px !important;
+  border-style: solid !important;
 }
 #root .step-nav button > span:first-child,
 #root .step-nav button[class*="bg-brand-50"] > span:first-child {
-  border: 1px solid #403d38;
+  border: 1px solid #211f1c !important;
+  border-width: 1px !important;
+  border-style: solid !important;
 }
 #root .step-nav button:nth-child(1) > span:first-child {
-  background: #355b87;
-  color: #ffffff;
+  background: #355b87 !important;
+  color: #ffffff !important;
 }
 #root .step-nav button:nth-child(2) > span:first-child {
-  background: #eee9fa;
-  color: #55458c;
+  background: #eee9fa !important;
+  color: #55458c !important;
 }
+/* Keep only a left-side cast shadow: zero vertical offset means no shadow
+   along the bottom edge. Preserve the dropzone's white inset rim. */
 #root .app-card {
-  box-shadow: 0 3px 0 #b4bac3, 0 8px 18px #263c2d14;
+  box-shadow: -4px 0 8px #263c2d20 !important;
 }
-#root .upload-dropzone {
-  box-shadow: inset 0 0 0 5px #ffffff, 0 3px 0 #b4bac3;
+#root .upload-dropzone.step1-hero {
+  box-shadow: inset 0 0 0 5px #ffffff, -4px 0 8px #24352a20 !important;
 }
