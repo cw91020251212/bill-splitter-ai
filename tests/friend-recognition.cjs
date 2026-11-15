@@ -47,7 +47,7 @@ function data(entries) {
     participants: entries.map(e => ({ name: e.name, total: 100 * e.claims[0].qty / total, subtotal: 100 * e.claims[0].qty / total })),
     items: [{ id: '01', number: '01', name: 'QA茶', quantity: 0, unit: '', sourceAmount: 100, allocatedAmount: 100, shares: entries.map(e => ({ person: e.name, quantity: e.claims[0].qty, unit: '份', isActualUnit: false, amount: 100 * e.claims[0].qty / total })) }], adjustments: [], images: [] };
 }
-function linkFor(c) { const url = new URL('claim.html', site); url.searchParams.set('session', c.id); url.hash = relay.buildHash(Buffer.from(JSON.stringify([{ id: '01', name: 'QA茶', totalQty: null, unit: '' }])).toString('base64url'), relay.createRoom(), { title: 'QA識別碼驗收', createdAt: Date.parse(c.createdAt), expiresAt: Date.parse(c.expiresAt) }); secretFree(url.href); return url.href; }
+function linkFor(c, title = 'QA識別碼驗收') { const url = new URL('claim.html', site); url.searchParams.set('session', c.id); url.hash = relay.buildHash(Buffer.from(JSON.stringify([{ id: '01', name: 'QA茶', totalQty: null, unit: '' }])).toString('base64url'), relay.createRoom(), { title, createdAt: Date.parse(c.createdAt), expiresAt: Date.parse(c.expiresAt) }); secretFree(url.href); return url.href; }
 async function publish(c, entries) { status(await call(c.id, '', { method: 'PUT', owner: c.writeToken, body: data(entries) }), 200, 'publish current claims'); }
 async function backend() {
   stage = 'real backend optional code contracts';
@@ -480,7 +480,50 @@ async function manualClaimEntry() {
   pass('manual claim entry is opt-in and local by default, persists on reload, is not seeded to a later link, and does not disrupt normal online replies');
 }
 
+async function sameDeviceMultiPerson() {
+  stage = 'explicit same-device second person without replacing first claim';
+  const c = await create(), page = await pageFor('same-device first and second'), link = linkFor(c, '多人使用預覽');
+  const firstName = 'QA同機第一人', secondName = 'QA同機第二人';
+  await page.goto(link, { waitUntil: 'domcontentloaded' });
+  await page.locator('#claim-content').waitFor({ state: 'visible' });
+  assert.equal(await page.getByTestId('add-another-person-waiting').isVisible(), false, 'single-person form does not show a multi-person switch by default');
+  await page.locator('#person-name').fill(firstName);
+  await firstCode(page).fill(PIN);
+  await page.locator('.claim-mode-option[data-claim-mode="shared"]').click();
+  await submit(page, c, PIN, 1);
+  const addAnother = page.getByTestId('add-another-person-waiting');
+  await addAnother.waitFor({ state: 'visible' });
+  assert.equal(await page.locator('#person-name').inputValue(), firstName, 'waiting keeps the first person name unchanged');
+  assert.equal((await friendState(page, c)).pending.payload.name, firstName, 'first claim remains pending before the explicit choice');
+  assert.equal(await page.locator('#same-device-add-person-hint').count(), 0, 'the optional action has no extra instruction paragraph');
+  assert.equal((await addAnother.innerText()).trim(), '同一手機新增另一位', 'the optional action uses concise wording');
+  assert.equal(await addAnother.evaluate(node => getComputedStyle(node).fontSize), '15px', 'the secondary action remains readable on a phone');
+  assert((await addAnother.boundingBox()).height >= 44, 'the secondary action keeps a touch-sized target');
+  await page.locator('#toast').waitFor({ state: 'hidden' });
+  await shot(page, 'same-device-waiting');
+  await addAnother.click();
+  await page.locator('#claim-content').waitFor({ state: 'visible' });
+  assert.equal(page.url(), link, 'switching people does not change the shared link');
+  assert.equal(await page.locator('#person-name').inputValue(), '', 'second person starts with a blank name only after explicit choice');
+  const afterChoice = await friendState(page, c);
+  assert.equal(afterChoice.submitted.name, firstName, 'explicitly starting another person preserves the first submitted claim');
+  assert.equal(afterChoice.pending.payload.name, firstName, 'first pending claim remains stored while the second form opens');
+  await page.locator('#person-name').fill(secondName);
+  await firstCode(page).fill(SYMBOL_PIN);
+  await page.locator('.claim-mode-option[data-claim-mode="shared"]').click();
+  await submit(page, c, SYMBOL_PIN, 2);
+  const afterSecondSubmit = await friendState(page, c);
+  assert.equal(afterSecondSubmit.otherPending[0].payload.name, firstName, 'first claim moves to the preserved claims list, not overwritten');
+  assert.equal(afterSecondSubmit.pending.payload.name, secondName, 'second person becomes the active pending claim');
+  await kind(c.id, firstName, 'pin'); await kind(c.id, secondName, 'pin');
+  const first = status(await post(c.id, 'unlock', { name: firstName, recognitionCode: PIN }), 200, 'first same-device identity retains its own code');
+  const second = status(await post(c.id, 'unlock', { name: secondName, recognitionCode: SYMBOL_PIN }), 200, 'second same-device identity retains its own code');
+  assert.equal(first.payload.claims[0].qty, 1); assert.equal(second.payload.claims[0].qty, 2);
+  await stored(page); await page.context().close(); pages.splice(pages.findIndex(entry => entry.page === page), 1);
+  pass('one-device multi-person mode is explicit, keeps both claims and each person’s own PIN');
+}
 async function ui() {
+  await sameDeviceMultiPerson();
   await manualClaimEntry();
   stage = 'actual host and compact optional initial form';
   const fixture = process.argv.includes('--friends-only') ? await (async () => { const c = await create(); return { c, link: linkFor(c), host: null }; })() : await hostFixture();
@@ -718,11 +761,11 @@ async function authCodeIfPresent(page) { const nodes = page.locator('#auth-recog
   harness = await createPasswordTestServer({ origin: base.origin, publicStaticQA }); secrets.add(harness.env.CLAIM_PASSWORD_PEPPER);
   try {
     await backend();
-    if (!process.argv.includes('--backend-only')) { await preload(); browser = await chromium.launch({ executablePath: '/usr/bin/chromium', headless: true, args: ['--no-sandbox', '--disable-dev-shm-usage'] }); await ui(); }
+    if (!process.argv.includes('--backend-only')) { await preload(); browser = await chromium.launch({ executablePath: '/usr/bin/chromium', headless: true, args: ['--no-sandbox', '--disable-dev-shm-usage'] }); if (process.argv.includes('--same-device-only')) await sameDeviceMultiPerson(); else await ui(); }
     for (const entry of pages) await stored(entry.page, entry.host);
     assert.equal(blocked.length, 0, 'no unmatched mutations or remote fallback'); assert.equal(harness.outboundBlocked.length, 0, 'real backend does not contact external services'); assert.equal(errors.length, 0, scrub(errors.join('; ')));
     pass('all bill APIs local, no external writes and no credential in result/URL/storage');
-    const report = { result: 'PASS', tests: steps, metrics, publicStaticQA, localRealBackend: true, externalWrites: 0, screenshots: process.argv.includes('--backend-only') ? [] : ['initial-compact-name-code.png', 'auth-compact-name-code.png', 'inline-edit-code-cleared.png', 'inline-pin-edit-masked-code-cleared.png'] };
+    const report = { result: 'PASS', tests: steps, metrics, publicStaticQA, localRealBackend: true, externalWrites: 0, screenshots: process.argv.includes('--backend-only') ? [] : process.argv.includes('--same-device-only') ? ['same-device-waiting.png'] : ['initial-compact-name-code.png', 'auth-compact-name-code.png', 'inline-edit-code-cleared.png', 'inline-pin-edit-masked-code-cleared.png', 'same-device-waiting.png'] };
     await fs.writeFile(path.join(OUT, process.argv.includes('--backend-only') ? 'backend-report.json' : 'report.json'), JSON.stringify(report, null, 2) + '\n'); console.log(`SUMMARY ${JSON.stringify({ result: 'PASS', tests: steps.length, localRealBackend: true, externalWrites: 0, evidence: OUT })}`);
   } catch (error) {
     const report = { result: 'FAIL', stage, error: scrub(error.stack || error), passed: steps, metrics, publicStaticQA, localRealBackend: true, blocked, apiStatuses: harness.requests.map(r => ({ method: r.method, path: r.path.split('?')[0], status: r.status })) };

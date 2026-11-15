@@ -10,6 +10,8 @@
 
 `node tests/friend-recognition.cjs` 使用本機記憶體 Worker／DO 驗證空白碼可認帳、姓名找回、數字／大小寫英文字母／符號碼、大小寫敏感、錯碼拒絕、小型修改入口、同一連結重算及舊密碼相容。認證碼不能出現在 URL、草稿或公開結果。`PUBLIC_STATIC_QA=1 BASE_URL=https://cw91020251212.github.io/bill-splitter-ai/` 只讀正式靜態頁面，所有認帳／结果 API 仍攔截到本機，不能讀寫真實帳單。後端仍用 `node --test worker/claim-auth.test.mjs worker/worker-core.test.mjs`。
 
+同一部手機新增第二人的回歸可單獨執行：先啟動本機靜態伺服器（預設測試網址 `http://127.0.0.1:4192/`），再執行 `node tests/friend-recognition.cjs --same-device-only`。它用本機記憶體 Worker／DO 與 Chromium 驗證初始畫面不顯示多人切換、第一人提交後才可明確加入第二人、原認領不被覆蓋且兩人各自的 PIN 仍有效；手機等候畫面截圖輸出到 `/home/ubuntu/bill-R105-qa/same-device-waiting.png`。
+
 R107 另驗證四字元碼在最後一字時沒有水平捲動、首字仍可見；大小寫及符號輸入、刪除、重打、失焦及重新聚焦都涵蓋初次認帳及修改畫面。
 
 R108 在 `node tests/settings-free-models.cjs` 驗證 390px 及 320px 視窗下首頁選單維持 160px 寬、6 個項目高度至少 44px、字體至少 16px、項目相隔至少 8px，並且沒有橫向溢出。設定 `MENU_SCREENSHOT_PATH=/absolute/path.png` 可擷取手機畫面。
