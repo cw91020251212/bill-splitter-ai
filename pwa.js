@@ -40,7 +40,7 @@
     window.navigator.standalone === true;
 
   /* ---------------------------------------------------------- service worker */
-  var RELEASE_VERSION = 'v159-dark-step-lines-left-only-shadow-20261116';
+  var RELEASE_VERSION = 'v160-circled-lines-dark-20261116';
   var waitingWorker = null;
   var registrationPromise = null;
   var reloadRequested = false;
