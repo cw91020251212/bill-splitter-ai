@@ -5,7 +5,7 @@ const path = require('node:path');
 
 const root = path.join(__dirname, '..');
 const read = name => fs.readFileSync(path.join(root, name), 'utf8');
-const release = 'v160-circled-lines-dark-20261116';
+const release = 'v161-circled-top-lines-black-20261116';
 
 function linearize(channel) {
   const value = channel / 255;
@@ -117,7 +117,7 @@ test('Google AI copies the receipt prompt before opening Gemini and does not cla
   assert.ok(prompt.length > 400);
 });
 
-test('R160 cache epoch is on the host shell and does not leak into friend pages', () => {
+test('R161 cache epoch is on the host shell and does not leak into friend pages', () => {
   const index = read('index.html');
   const sw = read('sw.js');
   const pwa = read('pwa.js');
@@ -210,9 +210,10 @@ test('R146 white action labels, yellow icons, Google wordmark, and bold labels s
 });
 
 
-test('screenshot-circled card accents use dark 1px lines', () => {
+test('screenshot-circled card outlines are continuous black hairlines', () => {
   const css = read('theme.css');
-  assert.match(css, /#root \.api-settings-card[\s\S]*?border-left: 1px solid #211f1c !important/);
-  assert.match(css, /#root \.choice-divider::before,[\s\S]*?background: #211f1c !important/);
-  assert.match(css, /#root \[data-testid="receipt-text-import"\]\.step1-option[\s\S]*?border-left: 1px solid #211f1c !important/);
+  assert.match(css, /#root \.api-settings-card,[\s\S]*?border: 1px solid #000000 !important/);
+  assert.match(css, /#root \.api-settings-card > button\[data-testid="open-free-key-settings"\][\s\S]*?border: 1px solid #000000 !important/);
+  assert.match(css, /#root \.choice-divider::before,[\s\S]*?background: #000000 !important/);
+  assert.match(css, /#root \[data-testid="receipt-text-import"\]\.step1-option[\s\S]*?border: 1px solid #000000 !important/);
 });
