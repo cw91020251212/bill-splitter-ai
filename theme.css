@@ -975,23 +975,25 @@ body.bg-slate-50 { background: var(--page-grey); color: var(--ink); }
   filter: none !important;
 }
 #root main button.green-action:not(.host-primary):not(:disabled) {
-  background-image: none !important;
-  background-color: #fff !important;
-  border-color: #d9d3cb !important;
-  color: #2c3330 !important;
-  -webkit-text-fill-color: #2c3330 !important;
+  background-image: var(--brand-action-gradient) !important;
+  background-color: #80d9aa !important;
+  border-color: #60b68d !important;
+  color: #123d2c !important;
+  -webkit-text-fill-color: #123d2c !important;
   text-shadow: none !important;
   box-shadow: inset 3px 0 0 #8a8176 !important;
 }
 #root main button.green-action:not(.host-primary):not(:disabled) svg {
-  color: #3d4641 !important;
-  stroke: #3d4641 !important;
+  color: #123d2c !important;
+  stroke: #123d2c !important;
   filter: none !important;
 }
-#root main[data-current-step="1"] button.green-action:not(.host-primary):not(:disabled) { box-shadow: inset 3px 0 0 #74798e !important; }
-#root main[data-current-step="2"] button.green-action:not(.host-primary):not(:disabled) { box-shadow: inset 3px 0 0 #6d68b0 !important; }
-#root main[data-current-step="3"] button.green-action:not(.host-primary):not(:disabled) { box-shadow: inset 3px 0 0 #a97922 !important; }
-#root main[data-current-step="4"] button.green-action:not(.host-primary):not(:disabled) { box-shadow: inset 3px 0 0 #5f9873 !important; }
+#root main button.green-action:not(.host-primary):not(:disabled):hover {
+  background-image: var(--brand-action-gradient-hover) !important;
+}
+#root main button.green-action:not(.host-primary):not(:disabled):active {
+  background-image: var(--brand-action-gradient-active) !important;
+}
 #root button.green-action:disabled,
 #root button.bg-brand-600:disabled,
 #root button.host-primary.green-action:disabled {

@@ -5,7 +5,7 @@ const path = require('node:path');
 
 const root = path.join(__dirname, '..');
 const read = name => fs.readFileSync(path.join(root, name), 'utf8');
-const release = 'v153-paste-gemini-guide-20261115';
+const release = 'v154-external-ai-action-focus-20261115';
 
 function linearize(channel) {
   const value = channel / 255;
@@ -39,11 +39,12 @@ test('Google AI button keeps a green host-primary default without repainting eve
   const html = read('index.html');
   const css = read('theme.css');
   const line = marker => html.split('\n').find(row => row.includes(marker));
-  const google = line('data-testid="copy-prompt-open-google-ai"');
-  const outline = line('data-testid="copy-receipt-json-prompt"');
-  const submit = line('data-testid="submit-receipt-text"');
-  const camera = line('data-testid="receipt-camera"');
-  const report = line('data-testid="calculate-split"');
+  const buttonLine = marker => html.split('\n').find(row => row.includes(marker) && row.includes('<Button'));
+  const google = buttonLine('data-testid="copy-prompt-open-google-ai"');
+  const outline = buttonLine('data-testid="copy-receipt-json-prompt"');
+  const submit = buttonLine('data-testid="submit-receipt-text"');
+  const camera = buttonLine('data-testid="receipt-camera"');
+  const report = buttonLine('data-testid="calculate-split"');
   const hint = line('data-testid="calculate-split-hint"');
   const menu = line('className="header-action-menu-trigger');
   assert.match(google, /variant="primary"/);
@@ -72,9 +73,9 @@ test('Google AI button keeps a green host-primary default without repainting eve
   assert.match(hintRule, /text-shadow:\s*0 1px 1px rgba\(0,\s*0,\s*0,\s*\.35\)\s*!important/);
   assert.doesNotMatch(hintRule, /#123d2c/);
   assert.match(disabledHint, /color:\s*#5c6560\s*!important/);
-  assert.match(light, /background-color:\s*#fff\s*!important/);
-  assert.match(light, /(?:^|\n)\s*color:\s*#2c3330\s*!important/);
-  assert.doesNotMatch(light, /(?:^|\n)\s*color:\s*#fff/);
+  assert.match(light, /background-image:\s*var\(--brand-action-gradient\)\s*!important/);
+  assert.match(light, /background-color:\s*#80d9aa\s*!important/);
+  assert.match(light, /(?:^|\n)\s*color:\s*#123d2c\s*!important/);
   for (const [label, block] of [['host-primary', host], ['host-primary hover', ruleBlock(css, '#root button.host-primary.green-action:not(.green-action-dark):not(:disabled):hover')], ['host-primary active', ruleBlock(css, '#root button.host-primary.green-action:not(.green-action-dark):not(:disabled):active')]]) {
     const fills = fillColors(block);
     assert.ok(fills.length >= 1, `${label} declares a fill`);
@@ -116,14 +117,14 @@ test('Google AI copies the receipt prompt before opening Gemini and does not cla
   assert.ok(prompt.length > 400);
 });
 
-test('R152 cache epoch is on the host shell and does not leak into friend pages', () => {
+test('R154 cache epoch is on the host shell and does not leak into friend pages', () => {
   const index = read('index.html');
   const sw = read('sw.js');
   const pwa = read('pwa.js');
   assert.match(index, new RegExp(`theme\\.css\\?v=${release}`));
   assert.match(index, new RegExp(`pwa\\.js\\?v=${release}`));
   assert.match(index, new RegExp(`name="bill-app-release" content="${release}"`));
-  assert.match(index, />R153</);
+  assert.match(index, />R154</);
   assert.doesNotMatch(index, /v142-dark-green-white-label-20261114/);
   assert.doesNotMatch(index, />R148</);
   assert.doesNotMatch(index, />R147</);
@@ -131,7 +132,7 @@ test('R152 cache epoch is on the host shell and does not leak into friend pages'
   assert.doesNotMatch(index, />R142</);
   assert.match(sw, new RegExp(`const CACHE_VERSION = '${release}'`));
   assert.match(pwa, new RegExp(`var RELEASE_VERSION = '${release}'`));
-  assert.match(pwa, /version: 'R153'/);
+  assert.match(pwa, /version: 'R154'/);
   for (const name of ['claim.html', 'detailed-view.html']) {
     const text = read(name);
     assert.equal(text.includes('theme.css'), false, `${name} must not load host theme.css`);
