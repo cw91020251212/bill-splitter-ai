@@ -13,7 +13,7 @@
  * Bump CACHE_VERSION whenever you edit index.html so returning users get the
  * new build instead of the cached one.
  */
-const CACHE_VERSION = 'v157-local-sensitive-redaction-20261116';
+const CACHE_VERSION = 'v157-local-sync-diagnostics-20261116';
 const SHELL_CACHE = `bill-splitter-shell-${CACHE_VERSION}`;
 const ASSET_CACHE = `bill-splitter-assets-${CACHE_VERSION}`;
 const CDN_CACHE = `bill-splitter-cdn-${CACHE_VERSION}`;
@@ -32,6 +32,7 @@ const SHELL_URLS = [
   './receipt-adjustments.js',
   './share-config.js',
   './bill-share-api.js',
+  './sync-diagnostics.js',
   './card-redaction.js',
   './card-share-review.js',
   './exchange-rates.js',

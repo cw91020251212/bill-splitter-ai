@@ -158,6 +158,7 @@
   <script src="./receipt-adjustments.js"></script>
   <script src="./share-config.js"></script>
   <script src="./bill-share-api.js?v=v107-code-focus-visible"></script>
+  <script src="./sync-diagnostics.js?v=v157-local-sync-diagnostics-20261116"></script>
   <script src="./card-redaction.js?v=v157-local-sensitive-redaction-20261116"></script>
   <script src="./card-share-review.js?v=v157-local-sensitive-redaction-20261116"></script>
   <script src="./exchange-rates.js?v=v90-cross-currency-settlement"></script>
@@ -1319,7 +1320,7 @@ Format (keep every field; items may contain multiple entries, and adjustments mu
       const receiptReviewDialogRef = useRef(null);
       const [friendShareInfo, setFriendShareInfo] = useState(null);
       const [friendShareStatus, setFriendShareStatus] = useState('idle');
-      const [friendShareError, setFriendShareError] = useState('');
+      const [friendShareDiagnostic, setFriendShareDiagnostic] = useState(null);
       const [friendShareWhatsAppStatus, setFriendShareWhatsAppStatus] = useState('idle');
       const friendShareRequestRef = useRef(false);
       const autoPublishResultRef = useRef(null);
@@ -2745,7 +2746,7 @@ Format (keep every field; items may contain multiple entries, and adjustments mu
         if (!results || !ensureDraftSavedForSharing()) return;
         if (!window.BillShareConfig?.apiBaseUrl || !window.BillShareApi) {
           setFriendShareStatus('error');
-          setFriendShareError('短連結服務尚未設定；此版本仍是本機候選，未能上線分享。');
+          setFriendShareDiagnostic(window.BillShareSyncDiagnostics.summarizeSyncDiagnostic('prepare-session', { code: 'missing_api_config' }));
           return;
         }
         if (friendShareRequestRef.current) return;
@@ -2754,15 +2755,18 @@ Format (keep every field; items may contain multiple entries, and adjustments mu
         friendShareRequestRef.current = true;
         setFriendShareWhatsAppStatus('idle');
         setFriendShareStatus('uploading');
-        setFriendShareError('');
+        setFriendShareDiagnostic(null);
+        let failureStage = 'prepare-session';
         try {
-          const sameLink = await prepareFriendClaimLink();
+          const sameLink = await prepareFriendClaimLink(stage => { failureStage = stage; });
           const session = claimSessionRef.current;
           if (!sameLink || !session) throw new Error('未能準備原認帳連結，請返回第二步重新產生。');
+          failureStage = 'setup-claims';
           await ensureSecureClaimSetup(session);
           const protectedMembers = await window.BillShareApi.setupClaimProtection(session.id, session.writeToken, seedProtectedClaimMembers());
           if (protectedMembers.enabled !== true || protectedMembers.claimSecurity !== 'password') throw new Error(bi('認帳資料未準備好，暫不發布結果。', 'Claim data is not ready; the result was not published.'));
           setClaimSecureMembers(protectedMembers.members || []);
+          failureStage = 'publish-result';
           await window.BillShareApi.publishSession(session.id, session.writeToken, shareData);
           setFriendShareInfo({ shortUrl: sameLink, expiresAt: new Date(session.expiresAt).toISOString(), signature: currentFriendShareSignature });
           setFriendShareStatus('ready');
@@ -2771,7 +2775,7 @@ Format (keep every field; items may contain multiple entries, and adjustments mu
         } catch (error) {
           setFriendShareWhatsAppStatus('idle');
           setFriendShareStatus('error');
-          setFriendShareError(error?.code === 'claims_outdated' ? bi('認帳已更新或未完成驗證，請重新接收並計算；已保護姓名請由本人用密碼修改。', 'Claims changed or are not verified. Receive them again and recalculate; protected claims must be edited by their owner using a password.') : error?.message || '未能更新同一條認帳連結，請稍後再試。');
+          setFriendShareDiagnostic(window.BillShareSyncDiagnostics.summarizeSyncDiagnostic(failureStage, error));
         } finally {
           friendShareRequestRef.current = false;
         }
@@ -4155,18 +4159,21 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
         persistActiveDraft();
       };
 
-      const prepareFriendClaimLink = async () => {
+      const prepareFriendClaimLink = async (onStage = () => {}) => {
         setStepError('');
         if (!items.length) { setStepError('⚠️ 請先新增至少一個賬單項目。'); return null; }
         const invalidIndex = items.findIndex(item => !String(item.name || '').trim());
         if (invalidIndex !== -1) { setStepError(`⚠️ 項目 ${displayBillItemNumber(invalidIndex)} 未填寫名稱，請先補上。`); focusField(`item-name-${invalidIndex}`); return null; }
         const metadata = getClaimLinkMetadata();
+        onStage('prepare-session');
         const session = await ensureClaimSession(metadata);
         // Never distribute a link as protected until owner setup is confirmed.
         // Idempotent setup keeps legacy claims and registered values. Rebuild
         // the hash each time so successful OCR corrections reach the next link.
+        onStage('setup-claims');
         await ensureSecureClaimSetup(session);
         if (claimSessionRef.current?.id !== session.id) throw Object.assign(new Error('Aborted'), { name: 'AbortError' });
+        onStage('build-link');
         const link = buildFriendClaimLink(session);
         if (!link) return null;
         if (claimSessionRef.current?.id !== session.id) throw Object.assign(new Error('Aborted'), { name: 'AbortError' });
@@ -6021,6 +6028,17 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                     : friendShareStatus === 'error' ? bi('同步失敗', 'Sync failed')
                     : bi('待同步', 'Sync pending')}
                   {results && friendShareInfo?.signature !== currentFriendShareSignature && friendShareStatus !== 'uploading' && <button type="button" data-testid="retry-same-link-sync" onClick={createFriendShareLink} className="ml-2 inline-flex min-h-[44px] items-center px-2 underline">{friendShareStatus === 'error' ? bi('重試', 'Retry') : bi('立即同步', 'Sync now')}</button>}
+                  {friendShareStatus === 'error' && friendShareDiagnostic && (
+                    <p data-testid="same-link-sync-diagnostic" className="mt-1 text-xs font-normal">
+                      {bi('診斷：', 'Diagnostic: ')}
+                      {friendShareDiagnostic.stage === 'prepare-session' ? bi('準備連結', 'Prepare link')
+                        : friendShareDiagnostic.stage === 'setup-claims' ? bi('設定認帳保護', 'Protect claims')
+                          : friendShareDiagnostic.stage === 'build-link' ? bi('組合連結', 'Build link')
+                            : friendShareDiagnostic.stage === 'publish-result' ? bi('發布結果', 'Publish result')
+                              : bi('未知階段', 'Unknown stage')}
+                      {' · HTTP '}{friendShareDiagnostic.status ?? '—'}{' · '}{bi('錯誤碼', 'Code')}{' '}{friendShareDiagnostic.code}
+                    </p>
+                  )}
                   </div>}
 
                 <Card data-testid="add-missing-person-guide" className="!px-3 !py-2 border-blue-300 bg-blue-50 !shadow-none">
