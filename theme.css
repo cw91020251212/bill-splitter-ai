@@ -1375,7 +1375,7 @@ html[lang="en"] #root [data-testid="open-free-key-settings"] span {
   border-style: solid !important;
   border-color: #000000 !important;
 }
-#root .api-settings-card > button[data-testid="open-free-key-settings"] {
+#root .api-settings-card button[data-testid="open-free-key-settings"] {
   border: 1px solid #000000 !important;
   border-width: 1px !important;
   border-style: solid !important;
