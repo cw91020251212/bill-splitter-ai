@@ -19,3 +19,10 @@
 ## 驗證
 
 已通過 Babel JSX 轉換、JavaScript 語法解析、service worker 語法檢查及 `git diff --check`。本報告與程式修正會隨同新版一併部署。
+
+
+## 2026-11-15 R157 聚焦下一步操作
+
+外部 AI 文字导入就绪时保留输入框、「上载文字档」及「整理这段文字」三个相关操作可见。第二步资料通过名称、金额、税费及旧草稿核对后，遮罩只突出「上一步／下一步」；第三步则只有在认领、数量承担、折扣／税费、收据总额确认及汇率等计算前置条件通过后，才突出「上一步／产生分帐报告」。两个操作均保持可点；点击遮罩外或按 Escape 可退出，键盘焦点限制在当前按钮组内。
+
+驗證：`node tests/guided-action-spotlight.cjs` 使用合成手動帳單運行本機 Chromium，不讀寫真實帳單或遠端 API；`google-ai-button.test.cjs`、`receipt-adjustments.test.cjs` 及 `exchange-rates.test.cjs` 共 37 項通過。另運行 `tests/text-import.cjs` 時，測試在文字導入互動前停於禁用按鈕背景色精確斷言（實測 `rgb(228, 231, 228)`，預期 `rgb(231, 235, 232)`），因此不列作通過。

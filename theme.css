@@ -933,6 +933,27 @@ body.bg-slate-50 { background: var(--page-grey); color: var(--ink); }
   box-shadow: 0 0 0 8px rgba(250, 204, 21, .3), 0 8px 20px rgba(0, 0, 0, .24) !important;
 }
 
+#root .guided-action-backdrop {
+  position: fixed !important;
+  inset: 0;
+  z-index: 2147483000 !important;
+  display: block !important;
+  background: rgba(15, 23, 42, .78) !important;
+  cursor: default;
+}
+#root .guided-action-target {
+  position: relative !important;
+  z-index: 2147483001 !important;
+  isolation: isolate;
+  margin: .25rem;
+  padding: .5rem !important;
+  border-radius: 1rem !important;
+  background: #fff !important;
+  outline: 4px solid #facc15 !important;
+  outline-offset: 4px !important;
+  box-shadow: 0 0 0 8px rgba(250, 204, 21, .3), 0 8px 20px rgba(0, 0, 0, .24) !important;
+}
+
 /* Light green-action fills keep black labels. Dark fills (host-primary and
    green-action-dark) set their own white labels and are excluded here. */
 #root button.green-action:not(.green-action-dark):not(.host-primary):not(:disabled) {

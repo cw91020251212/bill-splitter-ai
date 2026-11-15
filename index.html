@@ -142,11 +142,11 @@
   ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
   ::-webkit-scrollbar-thumb:hover { background: #64748b; }
   </style>
-  <link rel="stylesheet" href="./theme.css?v=v156-external-ai-overlay-fix-20261115">
+  <link rel="stylesheet" href="./theme.css?v=v157-guided-step-action-spotlight-20261115">
   <link rel="stylesheet" href="./tutorial.css?v=v86-free-models-only">
-  <!-- R154: focus the external-AI next action and standardize green gradients. -->
-  <meta name="bill-app-release" content="v156-external-ai-overlay-fix-20261115">
-  <script defer src="./pwa.js?v=v156-external-ai-overlay-fix-20261115"></script>
+  <!-- R157: spotlight only the valid next action groups. -->
+  <meta name="bill-app-release" content="v157-guided-step-action-spotlight-20261115">
+  <script defer src="./pwa.js?v=v157-guided-step-action-spotlight-20261115"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
@@ -1305,6 +1305,8 @@ Format (keep every field; items may contain multiple entries, and adjustments mu
       const [showGoogleAiGuide, setShowGoogleAiGuide] = useState(false);
       const [showExternalAiActionOverlay, setShowExternalAiActionOverlay] = useState(false);
       const externalAiActionHandledRef = useRef(false);
+      const [guidedActionSpotlight, setGuidedActionSpotlight] = useState('');
+      const guidedActionReadinessRef = useRef({ step2: false, step3: false });
       const [googleAiCopyStatus, setGoogleAiCopyStatus] = useState('copied');
       const [lastImageData, setLastImageData] = useState([]);
       const [reviewReceiptImageIndex, setReviewReceiptImageIndex] = useState(null);
@@ -3868,6 +3870,8 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
           clearTextFileSelection();
           return;
         }
+        setShowExternalAiActionOverlay(false);
+        externalAiActionHandledRef.current = true;
         try {
           const text = await file.text();
           if (!String(text || '').trim()) throw new Error(bi('文字檔沒有內容。', 'The text file is empty.'));
@@ -5053,8 +5057,138 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
         </Card>
       ) : null;
 
+      // Keep the spotlight gates read-only and mirror the real Step 2/3 validation.
+      const guidedTaxText = String(taxAmount ?? '').trim();
+      const guidedTaxValue = guidedTaxText === '' ? 0 : Number(guidedTaxText);
+      const guidedTaxReady = Number.isFinite(guidedTaxValue) && guidedTaxValue >= 0;
+      const guidedItemsReady = items.length > 0 && !legacyClaimReviewRequired && items.every(item => {
+        if (!String(item?.name || '').trim() || validateBillItem(item, detectedCurrency)) return false;
+        const validMoney = value => {
+          if (value === null || value === undefined || String(value).trim() === '') return false;
+          try { return Number.isFinite(ReceiptMath.parseMoney(value, detectedCurrency)); }
+          catch (_) { return false; }
+        };
+        const enteredUnitPrice = validMoney(item.price);
+        const explicitNonzeroLineTotal = validMoney(item.total) && Number(ReceiptMath.parseMoney(item.total, detectedCurrency)) > 0;
+        return enteredUnitPrice || explicitNonzeroLineTotal;
+      });
+      const guidedSurfaceAvailable = draftReady && !tutorialDemo && !isAnalyzing && !uploadError
+        && !showHistory && !showSettings && !showTutorial && !showGoogleAiGuide && !showExternalAiActionOverlay
+        && !cameraOpen && !showRedaction;
+      const step2ActionReady = guidedSurfaceAvailable && step === 2 && guidedItemsReady && guidedTaxReady;
+      const calculationActionReady = (() => {
+        if (!guidedSurfaceAvailable || step !== 3 || !payer.trim() || !guidedItemsReady || !guidedTaxReady || receiptTotalReview || !friendsReplies.trim()) return false;
+        const parsed = parseClaims(friendsReplies, items);
+        if (parsed.issues.length || parsed.duplicatePeople.length) return false;
+        if (!Object.keys(claimInfo?.claims || {}).some(person => items.some(item => Number(claimInfo.claims[person]?.[item.id]) > 0))) return false;
+        const claimants = Object.keys(parsed.claims || {}).filter(person => items.some(item => Number(parsed.claims[person]?.[item.id]) > 0));
+        if (!claimants.length || items.some(item => itemAmount(item) > 0 && claimants.reduce((sum, person) => sum + (Number(parsed.claims[person]?.[item.id]) || 0), 0) <= 0)) return false;
+
+        const sharedShareProblems = items.some(item => {
+          if (itemAmount(item) <= 0) return false;
+          const actualPeople = claimants.filter(person => parsed.claimUnits?.[person]?.[item.id] && (parsed.claims[person]?.[item.id] || 0) > 0);
+          const sharedPeople = claimants.filter(person => (parsed.claims[person]?.[item.id] || 0) > 0 && !actualPeople.includes(person));
+          const newSharedPeople = sharedPeople.filter(person => parsed.claimModes?.[person]?.[item.id] === 'shared');
+          const legacySharePeople = sharedPeople.filter(person => parsed.claimModes?.[person]?.[item.id] !== 'shared');
+          if (newSharedPeople.length && legacySharePeople.length) return true;
+          if (!newSharedPeople.length) return false;
+          const explicitPeople = newSharedPeople.filter(person => parsed.shareExplicit?.[person]?.[item.id] === true);
+          const explicitTotal = explicitPeople.reduce((sum, person) => sum + (Number(parsed.claims[person]?.[item.id]) || 0), 0);
+          const blankCount = newSharedPeople.length - explicitPeople.length;
+          return explicitTotal > newSharedPeople.length + 0.000001 || (!blankCount && explicitTotal < newSharedPeople.length - 0.000001);
+        });
+        if (sharedShareProblems) return false;
+
+        const quantityIssues = items.map(item => {
+          const totalQty = toNum(item.totalQty);
+          if (totalQty <= 0 || itemAmount(item) <= 0) return null;
+          const actualPeople = claimants.filter(person => parsed.claimUnits?.[person]?.[item.id] && (parsed.claims[person]?.[item.id] || 0) > 0);
+          const sharePeople = claimants.filter(person => !parsed.claimUnits?.[person]?.[item.id] && (parsed.claims[person]?.[item.id] || 0) > 0);
+          const newSharedPeople = sharePeople.filter(person => parsed.claimModes?.[person]?.[item.id] === 'shared');
+          const claimedQty = actualPeople.reduce((sum, person) => sum + (Number(parsed.claims[person]?.[item.id]) || 0), 0);
+          const difference = totalQty - claimedQty;
+          const claimantsForItem = [...new Set([...actualPeople, ...sharePeople])].sort();
+          if (difference < -0.0001) return { itemId: item.id, unit: item.unit || '單位', totalQty, claimedQty, difference, shareClaimCount: sharePeople.length, shareClaimTotal: sharePeople.reduce((sum, person) => sum + (Number(parsed.claims[person]?.[item.id]) || 0), 0), claimantKeys: claimantsForItem, requiresClaimCorrection: false };
+          if (newSharedPeople.length) {
+            if (Math.abs(difference) < 0.0001) return { itemId: item.id, unit: item.unit || '單位', totalQty, claimedQty, difference, shareClaimCount: sharePeople.length, shareClaimTotal: sharePeople.reduce((sum, person) => sum + (Number(parsed.claims[person]?.[item.id]) || 0), 0), claimantKeys: claimantsForItem, requiresClaimCorrection: true };
+            return null;
+          }
+          if (!sharePeople.length && Math.abs(difference) < 0.0001) return null;
+          return { itemId: item.id, unit: item.unit || '單位', totalQty, claimedQty, difference, shareClaimCount: sharePeople.length, shareClaimTotal: sharePeople.reduce((sum, person) => sum + (Number(parsed.claims[person]?.[item.id]) || 0), 0), claimantKeys: claimantsForItem, requiresClaimCorrection: sharePeople.length > 0 && Math.abs(difference) < 0.0001 };
+        }).filter(Boolean);
+        if (quantityIssues.some(issue => issue.difference < 0 || issue.requiresClaimCorrection)) return false;
+        const signatureFor = issues => JSON.stringify(issues.map(issue => ({ itemId: issue.itemId, unit: issue.unit, totalQty: issue.totalQty, claimedQty: issue.claimedQty, difference: issue.difference, shareClaimCount: issue.shareClaimCount, shareClaimTotal: issue.shareClaimTotal, claimantKeys: issue.claimantKeys })));
+        const signature = signatureFor(quantityIssues);
+        const previousSignature = reconciliation?.issues ? signatureFor(reconciliation.issues) : '';
+        const selectedPolicy = signature === previousSignature ? reconciliation?.policy || '' : '';
+        if (quantityIssues.length && !selectedPolicy) return false;
+
+        let conversionRate;
+        try { conversionRate = ExchangeRates.requireRate(exchangeRate, detectedCurrency, currency); }
+        catch (_) { return false; }
+        if (!Number.isFinite(conversionRate) || conversionRate <= 0) return false;
+        const itemSubtotal = ReceiptMath.roundMoney(items.reduce((sum, item) => sum + itemAmount(item), 0), detectedCurrency);
+        const discountText = String(discountAmount ?? '').trim();
+        const discountValue = discountText === '' ? 0 : Number(discountText);
+        if (!Number.isFinite(discountValue) || discountValue < 0) return false;
+        const discountNum = ReceiptMath.roundMoney(discountValue, detectedCurrency);
+        if (!ReceiptMath.isDiscountWithinSubtotal(discountNum, itemSubtotal, detectedCurrency)) return false;
+        const netSubtotal = ReceiptMath.roundMoney(Math.max(0, itemSubtotal - discountNum), detectedCurrency);
+        const taxNum = ReceiptMath.roundMoney(guidedTaxValue, detectedCurrency);
+        if (taxNum > 0 && taxSplitMethod === 'proportional' && netSubtotal <= 0) return false;
+        const sourceBillTotal = ReceiptMath.roundMoney(netSubtotal + taxNum, detectedCurrency);
+        const receiptTotalMismatch = Boolean(receiptTotalCheck) && (
+          receiptTotalCheck.legacyMismatch === true
+          || String(receiptTotalCheck.currency || '').toUpperCase() !== String(detectedCurrency || '').toUpperCase()
+          || receiptTotalCheck.amount === null
+          || !ReceiptMath.moneyEquals(receiptTotalCheck.amount, sourceBillTotal, detectedCurrency)
+        );
+        const receiptTotalSignature = JSON.stringify({ printedAmount: receiptTotalCheck?.amount ?? null, printedCurrency: receiptTotalCheck?.currency || '', legacyMismatch: receiptTotalCheck?.legacyMismatch === true, calculatedAmount: sourceBillTotal, calculatedCurrency: detectedCurrency });
+        if (receiptTotalMismatch && receiptTotalAcknowledgement !== receiptTotalSignature) return false;
+        return true;
+      })();
+
+      useEffect(() => {
+        const previous = guidedActionReadinessRef.current;
+        if ((step2ActionReady || calculationActionReady) && stepError) setStepError('');
+        if (step2ActionReady && !previous.step2) setGuidedActionSpotlight('step2');
+        else if (calculationActionReady && !previous.step3) setGuidedActionSpotlight('step3');
+        else if ((!step2ActionReady && guidedActionSpotlight === 'step2') || (!calculationActionReady && guidedActionSpotlight === 'step3')) setGuidedActionSpotlight('');
+        guidedActionReadinessRef.current = { step2: step2ActionReady, step3: calculationActionReady };
+      }, [step2ActionReady, calculationActionReady, guidedActionSpotlight, stepError]);
+
+      useEffect(() => {
+        if (!guidedActionSpotlight) return undefined;
+        const target = document.querySelector(`[data-testid="${guidedActionSpotlight}-guided-actions"]`);
+        if (!target) { setGuidedActionSpotlight(''); return undefined; }
+        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        const focusFrame = window.requestAnimationFrame(() => {
+          const testId = guidedActionSpotlight === 'step2' ? 'go-to-payer' : 'calculate-split';
+          window.setTimeout(() => target.querySelector(`[data-testid="${testId}"]`)?.focus({ preventScroll: true }), 100);
+        });
+        return () => window.cancelAnimationFrame(focusFrame);
+      }, [guidedActionSpotlight]);
+
+      useEffect(() => {
+        if (!guidedActionSpotlight) return undefined;
+        const target = document.querySelector(`[data-testid="${guidedActionSpotlight}-guided-actions"]`);
+        const onKeyDown = event => {
+          if (event.key === 'Escape') { event.preventDefault(); setGuidedActionSpotlight(''); return; }
+          if (event.key !== 'Tab' || !target) return;
+          const buttons = [...target.querySelectorAll('button:not(:disabled)')];
+          if (!buttons.length) return;
+          const index = buttons.indexOf(document.activeElement);
+          if (index < 0) { event.preventDefault(); buttons[0].focus(); }
+          else if (event.shiftKey && index === 0) { event.preventDefault(); buttons[buttons.length - 1].focus(); }
+          else if (!event.shiftKey && index === buttons.length - 1) { event.preventDefault(); buttons[0].focus(); }
+        };
+        window.addEventListener('keydown', onKeyDown);
+        return () => window.removeEventListener('keydown', onKeyDown);
+      }, [guidedActionSpotlight]);
+
       return (
         <React.Fragment>
+          {guidedActionSpotlight && <div className="guided-action-backdrop" data-testid="guided-action-backdrop" aria-hidden="true" onClick={() => setGuidedActionSpotlight('')} />}
           {showExternalAiActionOverlay && <div className="external-ai-action-backdrop" data-testid="external-ai-action-backdrop" aria-hidden="true" />}
           {showGoogleAiGuide && <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-950/60 p-4" role="dialog" aria-modal="true" aria-labelledby="google-ai-guide-title" data-testid="google-ai-guide">
             <div className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-2xl border border-slate-300 bg-white p-5 shadow-2xl">
@@ -5077,7 +5211,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                 <div className="flex items-center gap-2 sm:gap-3 shrink-0">
                   <img src="./icons/icon.svg" alt="" width="48" height="48" className="app-brand-icon shrink-0" />
                   <div>
-                  <h1 className="text-xl font-extrabold text-slate-800 tracking-tight"><span className="app-brand-name block sm:inline whitespace-nowrap">{tr("分帳管家")}</span><span className="inline-flex items-baseline gap-1 sm:ml-1 whitespace-nowrap"><span data-testid="app-pro-label" className="text-brand-600 font-black">Pro</span><span data-testid="app-version-label" className="text-[10px] leading-3 font-semibold tracking-normal text-brand-700">R156</span></span></h1>
+                  <h1 className="text-xl font-extrabold text-slate-800 tracking-tight"><span className="app-brand-name block sm:inline whitespace-nowrap">{tr("分帳管家")}</span><span className="inline-flex items-baseline gap-1 sm:ml-1 whitespace-nowrap"><span data-testid="app-pro-label" className="text-brand-600 font-black">Pro</span><span data-testid="app-version-label" className="text-[10px] leading-3 font-semibold tracking-normal text-brand-700">R157</span></span></h1>
                   </div>
               </div>
               <div className="header-actions relative flex items-center gap-1.5 sm:gap-2">
@@ -5435,7 +5569,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                       <textarea id="receipt-text-draft" data-testid="receipt-text-draft" rows={5} maxLength={200000} value={receiptTextDraft || googleAiPromptPreview} onPaste={activateExternalAiAction} onInput={event => { if (event.currentTarget.value.trim()) activateExternalAiAction(); }} onChange={event => { const value = event.target.value; setGoogleAiPromptPreview(''); setReceiptTextDraft(value); if (value.trim()) activateExternalAiAction(); else { externalAiActionHandledRef.current = false; setShowExternalAiActionOverlay(false); } }} disabled={tutorialDemo || isAnalyzing} placeholder={bi('貼上 JSON、收據文字或 AI 結果。', 'Paste JSON, receipt text, or AI output.')} className={`field-round w-full text-base text-slate-800 leading-relaxed shadow-none ${showExternalAiActionOverlay ? 'external-ai-action-target' : ''}`} />
                       <input ref={receiptTextFileInputRef} data-testid="receipt-text-file" type="file" accept=".txt,.md,.csv,.json,text/plain,text/csv,application/json" className="hidden" onChange={handleReceiptTextFileUpload} />
                       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                        <Button data-testid="choose-receipt-text-file" variant="secondary" disabled={tutorialDemo || isAnalyzing} onClick={() => receiptTextFileInputRef.current?.click()}><Icon path={icons.fileImage} size={18}/><span className="inline-flex items-baseline gap-0.5"><span>{bi('上載文字檔', 'Upload text file')}</span><span className="btn-aside">{bi('（≤1 MB）', '(≤1 MB)')}</span></span></Button>
+                        <Button data-testid="choose-receipt-text-file" variant="secondary" className={showExternalAiActionOverlay ? 'external-ai-action-target' : ''} disabled={tutorialDemo || isAnalyzing} onClick={() => receiptTextFileInputRef.current?.click()}><Icon path={icons.fileImage} size={18}/><span className="inline-flex items-baseline gap-0.5"><span>{bi('上載文字檔', 'Upload text file')}</span><span className="btn-aside">{bi('（≤1 MB）', '(≤1 MB)')}</span></span></Button>
                         <Button data-testid="submit-receipt-text" variant="primary" className={`host-primary ${showExternalAiActionOverlay ? 'external-ai-action-target' : ''}`} disabled={tutorialDemo || isAnalyzing || !String(receiptTextDraft || googleAiPromptPreview || '').trim()} onClick={submitReceiptTextImport}>{isAnalyzing ? bi('整理中…', 'Processing…') : bi('整理這段文字', 'Process this text')}</Button>
                       </div>
                       {uploadError && <p data-testid="receipt-text-import-error" role="alert" className="rounded-lg border border-amber-400 bg-amber-50 p-2 text-sm text-amber-900">{typeof uploadError === 'string' ? tr(uploadError) : tr(uploadError.sub || uploadError.main || '讀取失敗')}</p>}
@@ -5773,7 +5907,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                   </div>}
                 </div>
 
-                    <div className="flex gap-3 pt-2">
+                    <div data-testid="step2-guided-actions" className={`flex gap-3 pt-2 ${guidedActionSpotlight === 'step2' ? 'guided-action-target' : ''}`} onClickCapture={() => setGuidedActionSpotlight('')}>
                       <Button variant="secondary" className="w-1/3 !px-2 border-slate-500" onClick={() => { setStepError(''); setStep(1); }}>{tr("上一步")}</Button>
                       <Button data-testid="go-to-payer" variant="primary" className="host-primary w-2/3" onClick={goToPayerStep}>{bi('下一步', 'Next')}<Icon path={icons.arrowRight} size={18}/></Button>
                     </div>
@@ -5837,7 +5971,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                         <div className="grid gap-2 mt-2">
                           {[{ id: 'payer', label: tf("由墊支人（{0}）承擔", [payer || '我']) }, { id: 'equal', label: tr("由已認帳人士平均承擔") }, ...Object.keys(claimInfo?.claims || {}).map(person => ({ id: `person:${person}`, label: tf("指定由 {0} 承擔", [person]) }))].map(option => (
                             <label key={option.id} className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer ${reconciliation.policy === option.id ? 'bg-white border-brand-500' : 'bg-white border-amber-300'}`}>
-                              <input type="radio" name="reconciliationPolicy" checked={reconciliation.policy === option.id} onChange={() => setReconciliation(prev => ({ ...prev, policy: option.id }))} className="w-4 h-4 text-brand-600" />
+                              <input type="radio" name="reconciliationPolicy" checked={reconciliation.policy === option.id} onChange={() => { setReconciliation(prev => ({ ...prev, policy: option.id })); setStepError(''); }} className="w-4 h-4 text-brand-600" />
                               <span className="font-semibold text-slate-800 text-sm">{tr(option.label)}</span>
                             </label>
                           ))}
@@ -5928,7 +6062,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                   </div>
                 </Card>
 
-                <div className="flex gap-3 pt-2">
+                <div data-testid="step3-guided-actions" className={`flex gap-3 pt-2 ${guidedActionSpotlight === 'step3' ? 'guided-action-target' : ''}`} onClickCapture={() => setGuidedActionSpotlight('')}>
                   <Button variant="secondary" className="w-1/3 !px-2 border-slate-500" onClick={() => setStep(2)}>{tr("上一步")}</Button>
                   <Button data-testid="calculate-split" variant="primary" className="host-primary w-2/3 flex-col gap-1 text-center leading-tight" disabled={!friendsReplies.trim() || !Object.keys(claimInfo?.claims || {}).some(person => items.some(item => Number(claimInfo.claims[person]?.[item.id]) > 0))} onClick={() => { const calculated = calculateSplit(); if (tutorialDemo) onTutorialAction?.(calculated ? 'calculated' : 'calculation-error', !payer.trim() ? 'payer' : 'replies'); }}>
                     <span data-testid="calculate-split-title" className="inline-flex items-center justify-center gap-2">{tr("產生分帳報告 ")}<Icon path={icons.check} size={18}/></span>

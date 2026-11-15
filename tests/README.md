@@ -40,6 +40,8 @@ R114/R115 的 `tutorial-ui.cjs` 驗證雙語 18 階段教學、第二步分享�
 
 第四部分文案 E2E 驗證收據卡、朋友連結、狀態列、後備報告及儲存操作使用精簡繁英；簡易／詳細報告保留總額、分攤金額、匯率與付款資料，不包含冗長解釋。
 
+R157 的 `guided-action-spotlight.cjs` 使用合成手動帳單驗證第二步及第三步就緒後，遮罩只凸顯該步驟的兩個可選按鈕，兩者都可點選，並能完成計算；未填商品金額時不會提早出現。測試限 localhost，會封鎖非唯讀網絡請求。
+
 `tutorial-ui.cjs` 使用授權附上的真實 Tailwind Play CDN v3.4.17 測試 fixture，而不是只有 JavaScript 全域的空 stub，因此中英多尺寸版面斷言仍會執行實際 CSS。產品頁仍使用其原本 CDN，測試 fixture 只供 E2E 使用。
 
 `paddle-local-ocr-ui.cjs` 及 `text-import.cjs` 模擬 `showOpenFilePicker`，斷言收據圖片選擇器以 `startIn: "downloads"` 開始並提供 JPEG／PNG／WebP 類型篩選；文字匯入測試另確認 API 不可用時會回退至未限制目錄的檔案輸入，並檢查摺疊時箭頭向下、展開時向上。E2E 不會打開真實系統選檔視窗，也不使用私人收據。
@@ -69,6 +71,7 @@ node tests/tutorial-ui.cjs
 node tests/tutorial-safety.cjs
 node tests/settings-free-models.cjs
 node tests/text-import.cjs
+node tests/guided-action-spotlight.cjs
 node --test exchange-rates.test.cjs
 node tests/cross-currency-ui.cjs
 node tests/recognition-retry-ui.cjs
