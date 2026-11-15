@@ -54,3 +54,30 @@ test('word-only OCR data is grouped by line and masks are clipped to image bound
   assert.ok(masks[0].x + masks[0].width <= 1);
   assert.ok(masks[0].y + masks[0].height <= 1);
 });
+
+test('sensitive-data detection masks Hong Kong phone, HKID, email, labelled account and CVV without returning OCR text', () => {
+  const lines = [
+    { words: [token('Phone:', 10, 50, 10, 30), token('9123', 55, 105, 10, 30), token('4567', 110, 160, 10, 30)] },
+    { words: [token('A123456(7)', 10, 130, 50, 70)] },
+    { words: [token('wong@example.com', 10, 180, 90, 110)] },
+    { words: [token('Account', 10, 80, 130, 150), token('No.', 85, 110, 130, 150), token('123456789012', 115, 240, 130, 150)] },
+    { words: [token('CVV:', 10, 55, 170, 190), token('123', 60, 90, 170, 190)] }
+  ];
+
+  const masks = CardRedaction.detectSensitiveMasks({ lines }, 300, 240);
+  assert.equal(masks.length, 5);
+  assert.ok(masks.every(mask => Object.keys(mask).sort().join(',') === 'height,width,x,y'));
+  assert.ok(masks.every(mask => mask.x >= 0 && mask.y >= 0 && mask.x + mask.width <= 1 && mask.y + mask.height <= 1));
+  assert.equal(JSON.stringify(masks).includes('91234567'), false);
+  assert.equal(JSON.stringify(masks).includes('A123456'), false);
+  assert.equal(JSON.stringify(masks).includes('wong@example.com'), false);
+});
+
+test('a split card-number segment is not redundantly identified as a phone number', () => {
+  const line = { words: [token('41111111', 100, 200), token('11111111', 206, 306)] };
+  const data = { lines: [line] };
+  const cardMasks = CardRedaction.detectCardMasks(data, 500, 300);
+
+  assert.equal(cardMasks.length, 1);
+  assert.deepEqual(CardRedaction.detectSensitiveMasks(data, 500, 300, cardMasks), []);
+});

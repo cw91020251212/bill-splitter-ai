@@ -136,6 +136,76 @@
     return unique;
   }
 
+  function maskTextMatches(line, imageWidth, imageHeight, regex, captureGroup = 0) {
+    const words = Array.isArray(line?.words) && line.words.length ? line.words : [line];
+    const tokens = words.map(word => ({ text: String(word?.text || ''), box: getBox(word) }))
+      .filter(token => token.text && token.box)
+      .sort((a, b) => a.box.x0 - b.box.x0);
+    if (!tokens.length) return [];
+
+    let text = '';
+    const positioned = tokens.map(token => {
+      if (text) text += ' ';
+      const start = text.length;
+      text += token.text;
+      return { ...token, start, end: text.length };
+    });
+    const masks = [];
+    regex.lastIndex = 0;
+    let match;
+    while ((match = regex.exec(text))) {
+      const target = match[captureGroup] || match[0];
+      const offset = captureGroup ? match[0].lastIndexOf(target) : 0;
+      const start = match.index + offset;
+      const end = start + target.length;
+      const boxes = positioned.filter(token => token.start < end && token.end > start).map(token => token.box);
+      if (boxes.length) {
+        const x0 = Math.min(...boxes.map(box => box.x0));
+        const y0 = Math.min(...boxes.map(box => box.y0));
+        const x1 = Math.max(...boxes.map(box => box.x1));
+        const y1 = Math.max(...boxes.map(box => box.y1));
+        const pad = Math.max(1, (y1 - y0) * 0.2);
+        const left = clamp((x0 - pad) / imageWidth, 0, 1);
+        const top = clamp((y0 - pad) / imageHeight, 0, 1);
+        const right = clamp((x1 + pad) / imageWidth, 0, 1);
+        const bottom = clamp((y1 + pad) / imageHeight, 0, 1);
+        masks.push({ x: left, y: top, width: right - left, height: bottom - top });
+      }
+      if (!match[0].length) regex.lastIndex += 1;
+    }
+    return masks;
+  }
+
+  function detectSensitiveMasks(ocrData, imageWidth, imageHeight, excludedMasks = []) {
+    const width = Number(imageWidth);
+    const height = Number(imageHeight);
+    if (!(width > 0 && height > 0)) return [];
+    const patterns = [
+      { regex: /(?<!\d)(?:(?:\+|00)\s?852[\s().-]*)?(?:[2-9]\d{3}[\s-]?\d{4})(?!\d)/g },
+      { regex: /(?<![A-Z0-9])[A-Z]{1,2}\s*\d{6}\s*\(?[0-9A]\)?(?![A-Z0-9])/gi },
+      { regex: /(?<![\w.+-])[A-Z0-9.!#$%&'*+/=?^_`{|}~-]+\s*@\s*[A-Z0-9](?:[A-Z0-9-]*[A-Z0-9])?(?:\s*\.\s*[A-Z0-9](?:[A-Z0-9-]*[A-Z0-9])?)+(?![\w.-])/gi },
+      { regex: /\b(?:account(?:\s*(?:number|no\.?|#))?|a\/c|bank\s+account)(?=\s|[:：#-]|$)\s*[:：#-]?\s*((?:\d[\s-]*){5,17}\d)/gi, capture: 1 },
+      { regex: /\b(?:cvv2?|cvc2?|security\s+code)\b[^\d]{0,12}(\d{3,4})\b/gi, capture: 1 }
+    ];
+    const masks = [];
+    getOcrLines(ocrData).forEach(line => {
+      patterns.forEach(pattern => masks.push(...maskTextMatches(line, width, height, pattern.regex, pattern.capture || 0)));
+    });
+    const unique = [];
+    masks.forEach(mask => {
+      const overlapsCard = excludedMasks.some(existing =>
+        mask.x < existing.x + existing.width && mask.x + mask.width > existing.x
+        && mask.y < existing.y + existing.height && mask.y + mask.height > existing.y
+      );
+      const overlaps = unique.some(existing =>
+        mask.x < existing.x + existing.width && mask.x + mask.width > existing.x
+        && mask.y < existing.y + existing.height && mask.y + mask.height > existing.y
+      );
+      if (!overlapsCard && !overlaps) unique.push(mask);
+    });
+    return unique;
+  }
+
   function getImageDimensions(file) {
     return new Promise((resolve, reject) => {
       const url = URL.createObjectURL(file);
@@ -240,16 +310,19 @@
       checkCancelled();
       abortHandler = () => { try { worker?.terminate?.(); } catch (_) {} };
       signal?.addEventListener('abort', abortHandler, { once: true });
-      await worker.setParameters({ tessedit_char_whitelist: '0123456789- ' });
+      await worker.setParameters({ tessedit_char_whitelist: "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz@._%+-()/ :#'!$&*=?^{}|~" });
       for (let index = 0; index < files.length; index += 1) {
         checkCancelled();
         if (typeof onProgress === 'function') onProgress({ phase: 'image', index, total: files.length, ratio: 0 });
         const dimensions = await getImageDimensions(files[index]);
         const { data } = await worker.recognize(files[index], {}, { text: false, blocks: true });
         checkCancelled();
-        const masks = detectCardMasks(data, dimensions.width, dimensions.height);
-        const maskedFile = await createMaskedFile(files[index], masks, index);
-        output.push({ file: maskedFile, masks, cardCount: masks.length });
+        const cardMasks = detectCardMasks(data, dimensions.width, dimensions.height);
+        const sensitiveMasks = detectSensitiveMasks(data, dimensions.width, dimensions.height, cardMasks);
+        const masks = [...cardMasks, ...sensitiveMasks];
+        const autoFile = await createMaskedFile(files[index], masks, index);
+        const cardOnlyFile = sensitiveMasks.length ? await createMaskedFile(files[index], cardMasks, index) : autoFile;
+        output.push({ file: autoFile, autoFile, cardOnlyFile, masks, cardMasks, sensitiveMasks, manualMasks: [], cardCount: cardMasks.length });
         if (typeof onProgress === 'function') onProgress({ phase: 'image', index, total: files.length, ratio: 1 });
       }
       return output;
@@ -261,7 +334,7 @@
     }
   }
 
-  const api = { normalizeDigits, passesLuhn, detectCardMasks, getImageDimensions, createMaskedFile, prepareFiles };
+  const api = { normalizeDigits, passesLuhn, detectCardMasks, detectSensitiveMasks, getImageDimensions, createMaskedFile, prepareFiles };
   root.CardRedaction = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);

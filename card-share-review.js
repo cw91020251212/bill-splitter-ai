@@ -6,6 +6,7 @@
   function CardShareReview({ files, onCancel, onShare }) {
     const [phase, setPhase] = React.useState('scanning');
     const [prepared, setPrepared] = React.useState([]);
+    const [sensitiveAutoEnabled, setSensitiveAutoEnabled] = React.useState(true);
     const [imageIndex, setImageIndex] = React.useState(0);
     const [drawEnabled, setDrawEnabled] = React.useState(false);
     const [drag, setDrag] = React.useState(null);
@@ -126,6 +127,36 @@
       runScan(controller);
     };
 
+    const masksFor = (item, includeSensitive = sensitiveAutoEnabled) => [
+      ...(item?.cardMasks || item?.masks || []),
+      ...(includeSensitive ? item?.sensitiveMasks || [] : []),
+      ...(item?.manualMasks || [])
+    ];
+
+    const toggleSensitiveAuto = async event => {
+      const next = event.target.checked;
+      if (busy || next === sensitiveAutoEnabled) return;
+      const generation = generationRef.current;
+      setBusy(true);
+      setError('');
+      try {
+        const updated = await Promise.all(prepared.map(async (item, index) => {
+          const masks = masksFor(item, next);
+          const file = (next ? item.autoFile : item.cardOnlyFile)
+            || await root.CardRedaction.createMaskedFile(files[index], masks, index);
+          return { ...item, masks, file };
+        }));
+        if (generation === generationRef.current) {
+          setPrepared(updated);
+          setSensitiveAutoEnabled(next);
+        }
+      } catch (_) {
+        if (generation === generationRef.current) setError(bi('無法更新遮蓋副本；原相片未有更改，請重試。', 'Could not update the redacted copies. Originals are unchanged; try again.'));
+      } finally {
+        if (generation === generationRef.current) setBusy(false);
+      }
+    };
+
     const toggleDraw = () => {
       const next = !drawEnabledRef.current;
       drawEnabledRef.current = next;
@@ -141,17 +172,24 @@
       };
     };
 
-    const updateMasks = async masks => {
+    const updateMasks = async manualMasks => {
       const current = prepared[imageIndex];
       if (!current || busy) return;
       const generation = generationRef.current;
+      const masks = masksFor({ ...current, manualMasks });
+      const allAutoMasks = [...(current.cardMasks || []), ...(current.sensitiveMasks || []), ...manualMasks];
+      const cardOnlyMasks = [...(current.cardMasks || []), ...manualMasks];
       setBusy(true);
       setError('');
-      setPrepared(previous => previous.map((entry, index) => index === imageIndex ? { ...entry, masks } : entry));
+      setPrepared(previous => previous.map((entry, index) => index === imageIndex ? { ...entry, masks, manualMasks } : entry));
       try {
-        const redactedFile = await root.CardRedaction.createMaskedFile(files[imageIndex], masks, imageIndex);
+        const autoFile = await root.CardRedaction.createMaskedFile(files[imageIndex], allAutoMasks, imageIndex);
+        const cardOnlyFile = current.sensitiveMasks?.length
+          ? await root.CardRedaction.createMaskedFile(files[imageIndex], cardOnlyMasks, imageIndex)
+          : autoFile;
+        const redactedFile = sensitiveAutoEnabled ? autoFile : cardOnlyFile;
         if (generation === generationRef.current) {
-          setPrepared(previous => previous.map((entry, index) => index === imageIndex ? { ...entry, file: redactedFile, masks } : entry));
+          setPrepared(previous => previous.map((entry, index) => index === imageIndex ? { ...entry, file: redactedFile, autoFile, cardOnlyFile, masks, manualMasks } : entry));
         }
       } catch (_) {
         if (generation === generationRef.current) setError(bi('無法更新遮蓋副本；請重試製作或撤銷上一框。', 'Could not update the redacted copy. Retry creating it or undo the last box.'));
@@ -200,17 +238,19 @@
       const width = Math.abs(point.x - current.startX);
       const height = Math.abs(point.y - current.startY);
       if (width < 0.004 || height < 0.004) return;
-      updateMasks([...(prepared[imageIndex]?.masks || []), { x, y, width, height }]);
+      updateMasks([...(prepared[imageIndex]?.manualMasks || []), { x, y, width, height }]);
     };
 
-    const undoMask = () => updateMasks((prepared[imageIndex]?.masks || []).slice(0, -1));
-    const retryMaskExport = () => updateMasks(prepared[imageIndex]?.masks || []);
+    const undoMask = () => updateMasks((prepared[imageIndex]?.manualMasks || []).slice(0, -1));
+    const retryMaskExport = () => updateMasks(prepared[imageIndex]?.manualMasks || []);
     const shareCopies = () => {
       if (phase !== 'ready' || busy || error || prepared.length !== files.length || prepared.some(item => !item?.file)) return;
       if (onShare(prepared.map(item => item.file))) close();
     };
 
     const autoCount = prepared[imageIndex]?.cardCount || 0;
+    const sensitiveCount = sensitiveAutoEnabled ? prepared[imageIndex]?.sensitiveMasks?.length || 0 : 0;
+    const manualMaskCount = prepared[imageIndex]?.manualMasks?.length || 0;
     const maskCount = prepared[imageIndex]?.masks?.length || 0;
     const shell = { className: 'fixed inset-0 z-[60] bg-slate-950/90 overflow-y-auto', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'card-share-review-title', 'data-testid': 'card-share-review' };
     const cardClass = 'w-full max-w-xl rounded-2xl bg-white border border-slate-200 p-4 sm:p-6 shadow-2xl';
@@ -222,30 +262,35 @@
           h('div', { className: 'flex items-start justify-between gap-3 mb-3' },
             h('div', null,
               h('p', { className: 'text-xs font-bold uppercase tracking-wider text-brand-700' }, bi('分享前核對', 'Before sharing')),
-              h('h2', { id: 'card-share-review-title', className: 'text-xl font-bold text-slate-900 mt-1' }, bi('分享前遮蓋卡號', 'Mask card numbers before sharing'))
+              h('h2', { id: 'card-share-review-title', className: 'text-xl font-bold text-slate-900 mt-1' }, bi('分享前遮蓋', 'Mask before sharing'))
             ),
             h('button', { type: 'button', onClick: close, 'aria-label': bi('取消分享', 'Cancel sharing'), className: 'w-10 h-10 shrink-0 rounded-xl border border-slate-400 text-slate-600 hover:bg-slate-100 text-2xl leading-none' }, '×')
           ),
-          h('div', { className: 'rounded-xl border border-amber-500 bg-amber-50 p-3 mb-4' },
-            h('p', { className: 'text-sm leading-relaxed font-semibold text-amber-900' }, bi('卡號只在本機辨識；請逐張檢查遮蓋副本。原圖不變；按分享後只會送出遮蓋版。未遮到的資料可用遮蓋筆補框。', 'Card scanning runs on this device. Check every redacted copy. Originals stay unchanged; only redacted copies are shared. Add a box if anything was missed.'))
+          h('div', { className: 'rounded-xl border border-amber-500 bg-amber-50 p-2 mb-2' },
+            h('p', { className: 'text-sm leading-relaxed font-semibold text-amber-900' }, bi('原圖不變，只分享遮蓋副本。自動偵測可能漏資料，請逐張核對；姓名、地址請手動畫框。', 'Originals stay unchanged; only redacted copies are shared. Detection can miss data, so check every image and draw boxes for names or addresses.'))
           ),
           phase === 'scanning' && h('div', { className: 'rounded-xl border border-slate-300 bg-slate-50 p-5 text-center', role: 'status', 'aria-live': 'polite', 'data-testid': 'card-redaction-scanning' },
             h('p', { className: 'font-bold text-slate-800' }, bi(`正在本機掃描第 ${Math.min(scanIndex + 1, files.length)} / ${files.length} 張…`, `Scanning image ${Math.min(scanIndex + 1, files.length)} of ${files.length} on this device…`)),
-            h('p', { className: 'text-sm text-slate-600 mt-2' }, bi('圖片不會上載作卡號辨識。首次使用需下載本機 OCR 工具。', 'Images are not uploaded for card detection. The on-device OCR engine may need to download on first use.'))
+            h('p', { className: 'text-sm text-slate-600 mt-2' }, bi('圖片不會上載作辨識。首次使用需下載本機 OCR 工具。', 'Images are not uploaded for detection. The on-device OCR engine may need to download on first use.'))
           ),
           phase === 'error' && h('div', { className: 'rounded-xl border border-red-400 bg-red-50 p-4', role: 'alert', 'data-testid': 'card-redaction-error' },
             h('p', { className: 'text-sm font-semibold text-red-800' }, error),
             h('button', { type: 'button', onClick: retryScan, className: `${buttonBase} mt-3 border border-red-600 bg-white text-red-800` }, bi('重新掃描', 'Scan again'))
           ),
           phase === 'ready' && prepared[imageIndex] && h(React.Fragment, null,
-            h('div', { className: `rounded-xl border p-3 mb-3 ${autoCount ? 'border-emerald-500 bg-emerald-50' : 'border-amber-500 bg-amber-50'}`, role: 'status', 'data-testid': 'card-redaction-status' },
-              h('p', { className: `text-sm leading-relaxed font-semibold ${autoCount ? 'text-emerald-900' : 'text-amber-900'}` }, autoCount
-                ? bi(`自動遮蓋 ${autoCount} 個疑似卡號；本張共遮蓋 ${maskCount} 處，請核對。`, `${autoCount} possible card number${autoCount === 1 ? '' : 's'} auto-masked; ${maskCount} area${maskCount === 1 ? '' : 's'} covered on this image. Please check.`)
-                : bi('未找到通過校驗的卡號；請仔細檢查，必要時手動加框。', 'No checksum-valid card number was found. Check carefully and add a box if needed.'))
+            h('div', { className: `rounded-xl border p-2 mb-2 ${autoCount + sensitiveCount ? 'border-emerald-500 bg-emerald-50' : 'border-amber-500 bg-amber-50'}`, role: 'status', 'data-testid': 'card-redaction-status' },
+              h('p', { className: `text-sm leading-relaxed font-semibold ${autoCount + sensitiveCount ? 'text-emerald-900' : 'text-amber-900'}` }, bi(`自動遮蓋卡號 ${autoCount} 處、其他資料 ${sensitiveCount} 處；共 ${maskCount} 處，請核對。`, `Auto-masked ${autoCount} card-number area${autoCount === 1 ? '' : 's'} and ${sensitiveCount} other area${sensitiveCount === 1 ? '' : 's'}; ${maskCount} areas total. Please check.`))
+            ),
+            h('label', { className: 'flex items-start gap-3 rounded-xl border border-slate-300 bg-slate-50 p-2 mb-2 text-sm font-semibold text-slate-800' },
+              h('input', { type: 'checkbox', checked: sensitiveAutoEnabled, onChange: toggleSensitiveAuto, disabled: busy, 'data-testid': 'card-redaction-sensitive-toggle', className: 'mt-0.5 h-5 w-5 shrink-0 accent-emerald-700' }),
+              h('span', null,
+                bi('自動遮蓋其他敏感資料', 'Automatically mask other sensitive information'),
+                h('span', { className: 'block mt-1 font-normal text-slate-600' }, bi('電話、電郵、香港身份證、標示戶口號碼／CVV。', 'Phone, email, Hong Kong ID, labelled account numbers/CVV.'))
+              )
             ),
             h('div', { className: 'flex items-center justify-between gap-2 mb-3' },
               h('button', { type: 'button', onClick: toggleDraw, 'aria-pressed': drawEnabled, 'data-testid': 'card-redaction-draw-toggle', disabled: busy, className: `${buttonBase} border-2 disabled:opacity-50 ${drawEnabled ? 'bg-brand-600 border-brand-700 text-white' : 'bg-white text-brand-900 border-brand-600 hover:bg-brand-50'}` }, drawEnabled ? bi('關閉遮蓋筆', 'Done drawing') : bi('手動加遮蓋框', 'Add a box')),
-              h('button', { type: 'button', onClick: undoMask, disabled: !maskCount || busy, className: `${buttonBase} border border-slate-400 bg-white text-slate-700 disabled:opacity-40` }, bi('撤銷上一框', 'Undo last'))
+              h('button', { type: 'button', onClick: undoMask, disabled: !manualMaskCount || busy, className: `${buttonBase} border border-slate-400 bg-white text-slate-700 disabled:opacity-40` }, bi('撤銷上一框', 'Undo last'))
             ),
             drawEnabled && h('p', { className: 'text-sm text-brand-900 font-semibold mb-2', role: 'status' }, bi('喺圖片上拖動畫黑框遮住資料。', 'Drag on the image to cover more information.')),
             h('div', { className: 'flex items-center justify-between gap-2 mb-2' },
