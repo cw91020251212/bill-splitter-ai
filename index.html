@@ -4381,9 +4381,13 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
         let conversionRate;
         try { conversionRate = ExchangeRates.requireRate(exchangeRate, detectedCurrency, currency); }
         catch (error) {
-          setStepError(exchangeRate.status === 'loading'
-            ? '⚠️ 正在取得最新匯率，請稍候再按「產生分帳報告」。'
-            : '⚠️ 未能取得這組貨幣的匯率，請重試或選擇其他結算貨幣；未換算前不會產生報告。');
+          const sourceCode = String(detectedCurrency || '').toUpperCase();
+          const settlementCode = String(currency || '').toUpperCase();
+          const ratePairMatches = exchangeRate.base === sourceCode && exchangeRate.quote === settlementCode;
+          const isStillLoading = exchangeRate.status === 'loading' || !ratePairMatches;
+          setStepError(isStillLoading
+            ? bi(`第 4 步結果尚未出現：正在取得 ${sourceCode} → ${settlementCode} 匯率，請稍候再按「產生分帳報告」。`, `Step 4 is not ready yet: fetching the ${sourceCode} → ${settlementCode} rate. Wait, then try generating the report again.`)
+            : bi(`第 4 步結果未能產生：未取得 ${sourceCode} → ${settlementCode} 匯率。請按「重試」，或選擇其他結算貨幣；完成換算前不會產生報告。`, `Step 4 was not generated: the ${sourceCode} → ${settlementCode} rate is unavailable. Retry or choose another settlement currency; no report is created until conversion succeeds.`));
           return false;
         }
 
@@ -4902,18 +4906,41 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
             push(2, 'S4', bi('未有有效認領', 'No usable claims'), bi('只有姓名不能分帳；至少認領一項，再結算。', 'A name alone cannot be settled. Claim at least one item first.'), { label: bi('查看認帳', 'View claims'), run: () => { setStep(2); window.setTimeout(() => focusField('replies'), 120); } });
         }
 
+        const sourceCode = String(detectedCurrency || '').toUpperCase();
+        const settlementCode = String(currency || '').toUpperCase();
+        let exchangeRateBlocksCalculation = false;
+        if (step === 3 && sourceCode && settlementCode && sourceCode !== settlementCode) {
+            const ratePairMatches = exchangeRate.base === sourceCode && exchangeRate.quote === settlementCode;
+            const hasValidRate = ratePairMatches && exchangeRate.status === 'ready' && Number.isFinite(Number(exchangeRate.rate)) && Number(exchangeRate.rate) > 0;
+            const rateFailed = ratePairMatches && (exchangeRate.status === 'error' || (exchangeRate.status === 'ready' && !hasValidRate));
+            if (rateFailed) {
+                exchangeRateBlocksCalculation = true;
+                const connectionIssue = /reach|connection|timeout|network|fetch|offline/i.test(String(exchangeRate.error || ''));
+                const sub = connectionIssue
+                    ? bi(`目前連接不到匯率服務，請檢查網絡。未完成換算，所以沒有產生報告。請按「重試匯率」；如仍失敗，可選擇其他結算貨幣。`, `The rate service could not be reached. Check your connection. No conversion or report was made. Retry the rate; if it still fails, choose another settlement currency.`)
+                    : bi(`匯率服務未能提供有效的 ${sourceCode} → ${settlementCode} 匯率，所以沒有產生報告。請按「重試匯率」；如仍失敗，可選擇其他結算貨幣。`, `The rate service did not provide a valid ${sourceCode} → ${settlementCode} rate, so no report was generated. Retry; if it still fails, choose another settlement currency.`);
+                push(1, 'FX1', bi('第 4 步未能產生：匯率未取得', 'Step 4 was not generated: rate unavailable'), sub, { label: bi('重試匯率', 'Retry rate'), run: () => setExchangeRateAttempt(current => current + 1) });
+            } else if (!hasValidRate) {
+                exchangeRateBlocksCalculation = true;
+                push(4, 'FX0', bi(`第 4 步尚未產生：正在取得 ${sourceCode} → ${settlementCode} 匯率`, `Step 4 is waiting for the ${sourceCode} → ${settlementCode} rate`), bi('未完成換算，報告尚未產生。請先等候；如果匯率取得失敗，這裏會說明原因和重試方法。', 'Conversion is not complete, so the report has not been generated. Wait; if fetching the rate fails, this panel will explain why and how to retry.'), null);
+            }
+        }
+        if (step === 3 && stepError.trim() && !exchangeRateBlocksCalculation) {
+            push(1, 'E5', bi('計算未能繼續', 'Calculation could not continue'), stepError, { label: bi('查看原因', 'View reason'), run: () => document.querySelector('[data-testid="step-error"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' }) });
+        }
+
         if (step === 3 && payer.trim() && items.length > 0 && friendsReplies.trim() && usableClaimants.length) {
             const issues = reconciliation?.issues || [];
             if (issues.some(issue => issue.difference < 0)) push(2, 'C3', '認帳數量超過單據總量', '返回修改後再計算', { label: '上一步', run: () => setStep(2) });
             else if (issues.length && !reconciliation.policy) push(3, 'C3', '實際數量未完全核對', '先揀邊個承擔剩餘數量', null);
             else if ((statusClaimInfo?.issues || []).some(issue => issue.type === 'unknown_id')) push(3, 'C1', bi('認帳引用已刪除項目', 'A claim refers to a deleted item'), bi('更新朋友回覆後再結算。', 'Update replies before settling.'), { label: bi('查看認帳', 'View claims'), run: () => { setStep(2); window.setTimeout(() => focusField('replies'), 120); } });
             else if (unclaimedItems.length) push(3, 'C2', bi('仍有金額未認領', 'Some amounts remain unclaimed'), bi('補認或刪除後才能結算。', 'Add claims or remove the items to settle.'), { label: bi('查看認帳', 'View claims'), run: () => { setStep(2); window.setTimeout(() => focusField('replies'), 120); } });
-            else push(5, 'G3', bi('可以產生分帳報告', 'Ready to generate the report'), bi('確認墊支人同收款方式', 'Confirm the payer and payment method.'), { label: bi('產生分帳報告', 'Generate report'), run: calculateSplit });
+            else if (!exchangeRateBlocksCalculation && !stepError.trim()) push(5, 'G3', bi('可以產生分帳報告', 'Ready to generate the report'), bi('確認墊支人同收款方式', 'Confirm the payer and payment method.'), { label: bi('產生分帳報告', 'Generate report'), run: calculateSplit });
         }
         if (step === 4 && !showHistory && !showSettings && !showTutorial) push(5, 'G4', bi('就緒', 'Ready'), bi('分享／儲存', 'Share / save'), { label: bi('查看', 'View'), run: () => document.getElementById('report-share-step')?.scrollIntoView({ behavior: 'smooth', block: 'center' }) });
 
         return list.sort((a, b) => a.level - b.level);
-      }, [isOnline, uploadError, lastImageData, apiKey, step, showSettings, showTutorial, showHistory, payer, items, friendsReplies, manualClaimsEnabled, claimInfo, reconciliation, isAnalyzing, progressText, currency, detectedCurrency, uiLang]);
+      }, [isOnline, uploadError, lastImageData, apiKey, step, showSettings, showTutorial, showHistory, payer, items, friendsReplies, manualClaimsEnabled, claimInfo, reconciliation, isAnalyzing, progressText, currency, detectedCurrency, exchangeRate, stepError, uiLang]);
 
       const StatusBar = ({ statuses, expanded, setExpanded, kbOpen }) => {
           if (!statuses.length) return null;
@@ -4962,13 +4989,14 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                               <div className="max-h-[60vh] overflow-y-auto p-3 space-y-3 bg-slate-50/50">
                                   {statuses.map(s => {
                                       const ST = { 1: { dot: '🔴', bg: 'bg-red-50', text: 'text-red-800', border: 'border-red-500' }, 2: { dot: '🟠', bg: 'bg-orange-50', text: 'text-orange-800', border: 'border-orange-500' }, 3: { dot: '🟡', bg: 'bg-amber-50', text: 'text-amber-900', border: 'border-amber-500' }, 4: { dot: '🔵', bg: 'bg-blue-50', text: 'text-blue-800', border: 'border-blue-500' }, 5: { dot: '🔵', bg: 'bg-blue-50', text: 'text-blue-800', border: 'border-blue-500' }, 6: { dot: '⚪', bg: 'bg-white', text: 'text-slate-700', border: 'border-slate-500' } }[s.level] || { dot: '⚪', bg: 'bg-white', text: 'text-slate-700', border: 'border-slate-500' };
+                                      const diagnosticTextSize = ['FX1', 'FX0', 'E5'].includes(s.id) ? 'text-base' : 'text-sm';
                                       return (
                                           <div key={s.id} className={`flex flex-col gap-2 p-3.5 rounded-xl border ${ST.border} shadow-sm ${ST.bg}`}>
                                               <div className="flex items-start gap-2.5">
                                                   <span className="shrink-0 text-base mt-0.5">{ST.dot}</span>
                                                   <div className="flex-1">
-                                                      <div className={`font-bold text-sm leading-relaxed ${ST.text}`}>{tr(s.main)}</div>
-                                                      {s.sub && <div className="text-sm text-slate-600 font-medium mt-1 leading-relaxed">{tr(s.sub)}</div>}
+                                                      <div className={`font-bold ${diagnosticTextSize} leading-relaxed ${ST.text}`}>{tr(s.main)}</div>
+                                                      {s.sub && <div className={`${diagnosticTextSize} text-slate-600 font-medium mt-1 leading-relaxed`}>{tr(s.sub)}</div>}
                                                   </div>
                                               </div>
                                               {s.action && (
@@ -5879,7 +5907,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                   <div data-testid="exchange-rate-status" role="status" aria-live="polite" className={`rounded-xl border p-3 text-sm ${exchangeRate.status === 'error' ? 'border-red-400 bg-red-50 text-red-900' : 'border-sky-300 bg-sky-50 text-slate-800'}`}>
                     {detectedCurrency === currency && <p className="font-semibold">{bi(`原幣與結算貨幣相同（${detectedCurrency}），不需換算。`, `Receipt and settlement currencies are both ${detectedCurrency}; no conversion is needed.`)}</p>}
                     {detectedCurrency !== currency && exchangeRate.status === 'loading' && <p className="font-semibold">{bi(`正在取得 ${detectedCurrency} → ${currency} 最新匯率…`, `Fetching the latest ${detectedCurrency} → ${currency} exchange rate…`)}</p>}
-                    {detectedCurrency !== currency && exchangeRate.status === 'error' && <div className="flex flex-wrap items-center justify-between gap-2"><p className="font-semibold">{bi('暫時未能取得匯率；為免錯誤計算，暫不能產生報告。', 'The rate is unavailable. Calculation is blocked to prevent an incorrect report.')}</p><button type="button" onClick={() => setExchangeRateAttempt(current => current + 1)} className="rounded-lg border border-red-500 bg-white px-3 py-2 font-bold">{bi('重試', 'Retry')}</button></div>}
+                    {detectedCurrency !== currency && exchangeRate.status === 'error' && exchangeRate.base === detectedCurrency && exchangeRate.quote === currency && <div className="flex flex-wrap items-center justify-between gap-2"><p className="font-semibold">{bi(`暫時未能取得 ${detectedCurrency} → ${currency} 匯率；第 4 步結果尚未產生。請重試，或選擇其他結算貨幣。`, `The ${detectedCurrency} → ${currency} rate is unavailable, so Step 4 has not been generated. Retry or choose another settlement currency.`)}</p><button type="button" onClick={() => setExchangeRateAttempt(current => current + 1)} className="rounded-lg border border-red-500 bg-white px-3 py-2 font-bold">{bi('重試', 'Retry')}</button></div>}
                     {detectedCurrency !== currency && exchangeRate.status === 'ready' && exchangeRate.base === detectedCurrency && exchangeRate.quote === currency && <div className="space-y-1"><p className="font-bold">{bi('最新匯率', 'Latest exchange rate')}: 1 {detectedCurrency} = {formatExchangeRate(exchangeRate.rate)} {currency} <span className="font-normal">({exchangeRate.date || bi('日期未提供', 'date unavailable')} · {exchangeRate.provider || 'Frankfurter'})</span></p><p>{bi('換算示例', 'Example')}: {formatMoney(1000, detectedCurrency)} {detectedCurrency} → {formatMoney(ExchangeRates.convertMoney(1000, exchangeRate.rate, currency, ReceiptMath), currency)} {currency}</p><p className="text-xs">{bi('報告會列出原單總額、換算後總額及本次採用的匯率。', 'The report will show the receipt total, converted total and rate used.')}</p></div>}
                   </div>
 

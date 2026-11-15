@@ -114,7 +114,8 @@ async function calculate(page) {
       await seed(page, staleDraft);
       assert.equal(await page.locator('[data-live-app] main').getAttribute('data-current-step'), '3');
       assert.equal(await page.getByTestId('final-summary-preview').count(), 0);
-      assert.equal(await page.getByText('分帳計算已更新，請重新產生結果。').isVisible(), true);
+      assert.equal(await page.getByTestId('step-error').isVisible(), true, 'the inline error remains visible');
+      assert.match(await page.getByTestId('status-compact-region').innerText(), /分帳計算已更新，請重新產生結果。/, 'the diagnostic bar also surfaces the reason');
       console.log('PASS stale active draft: old cross-currency results are not mislabelled; calculation is requested again.');
       await context.close();
     }
@@ -353,7 +354,7 @@ async function calculate(page) {
         items: [{ id: '01', name: '拉麵', price: 1000, total: 1000, totalQty: null, unit: '' }],
         replies: '姓名：阿明\n01 = 1'
       }));
-      await page.waitForFunction(() => document.querySelector('[data-testid="exchange-rate-status"]')?.textContent.includes('暫時未能取得匯率'), null, { timeout: 15000 });
+      await page.waitForFunction(() => document.querySelector('[data-testid="exchange-rate-status"]')?.textContent.includes('暫時未能取得 JPY → HKD 匯率'), null, { timeout: 15000 });
       await page.getByTestId('calculate-split').click();
       const blockedState = await page.evaluate(() => ({
         step: document.querySelector('[data-live-app] main')?.dataset.currentStep,
@@ -362,7 +363,7 @@ async function calculate(page) {
       }));
       assert.equal(blockedState.step, '3', 'calculation must stay on settings when the rate fetch fails');
       assert.equal(blockedState.reportExists, false, 'no settlement report may be generated without a rate');
-      assert.match(blockedState.statusText, /暫時未能取得匯率/, 'the exchange-rate error must remain visible');
+      assert.match(blockedState.statusText, /暫時未能取得 JPY → HKD 匯率/, 'the specific exchange-rate error must remain visible');
       console.log('PASS failed rate fetch: report remains blocked');
       await context.close();
     }
