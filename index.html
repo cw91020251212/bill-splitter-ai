@@ -4224,7 +4224,8 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
           const message = uiLang === 'en'
             ? `Open this link to enter your shares. After the organizer calculates, reopen this same link to view the result:\n${link}`
             : `請打開呢條連結填認帳；主辦人計算後，再開返同一條連結睇結果：\n${link}`;
-          shareTextWithFiles(message, [], tr('認帳連結'));
+          if (typeof navigator.share === 'function') shareTextWithFiles(message, [], tr('認帳連結'));
+          else window.location.assign(`https://wa.me/?text=${encodeURIComponent(message)}`);
         } catch (error) { if (error?.name !== 'AbortError') setStepError(`⚠️ ${error?.message || '未能建立共用認帳連結。'}`); }
       };
 
