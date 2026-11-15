@@ -40,7 +40,7 @@
     window.navigator.standalone === true;
 
   /* ---------------------------------------------------------- service worker */
-  var RELEASE_VERSION = 'v157-local-sensitive-redaction-20261116';
+  var RELEASE_VERSION = 'v158-strong-step-outlines-20261116';
   var waitingWorker = null;
   var registrationPromise = null;
   var reloadRequested = false;

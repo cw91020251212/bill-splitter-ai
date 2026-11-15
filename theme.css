@@ -1334,8 +1334,8 @@ html[lang="en"] #root [data-testid="open-free-key-settings"] span {
   text-shadow: 0 1px 1px rgba(0, 0, 0, .35);
 }
 
-/* Step outlines stay hairline-thin but use a firm, consistent dark ink.
-   Keep the first two marker fills distinct; avoid downward/bottom card shadows. */
+/* Step outlines use a firm, consistent dark 1px line; marker fills are distinct.
+   Restore the original card/dropzone shadow treatment. */
 #root .step-nav button,
 #root .step-nav button[class*="bg-brand-50"] {
   border: 1px solid #403d38;
@@ -1346,16 +1346,16 @@ html[lang="en"] #root [data-testid="open-free-key-settings"] span {
   border: 1px solid #403d38;
 }
 #root .step-nav button:nth-child(1) > span:first-child {
-  background: #e6eef8;
-  color: #25496f;
+  background: #355b87;
+  color: #ffffff;
 }
 #root .step-nav button:nth-child(2) > span:first-child {
   background: #eee9fa;
   color: #55458c;
 }
 #root .app-card {
-  box-shadow: -4px 0 9px #263c2d18;
+  box-shadow: 0 3px 0 #b4bac3, 0 8px 18px #263c2d14;
 }
 #root .upload-dropzone {
-  box-shadow: inset 0 0 0 5px #ffffff, -4px 0 9px #263c2d18;
+  box-shadow: inset 0 0 0 5px #ffffff, 0 3px 0 #b4bac3;
 }
