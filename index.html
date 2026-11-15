@@ -142,11 +142,11 @@
   ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
   ::-webkit-scrollbar-thumb:hover { background: #64748b; }
   </style>
-  <link rel="stylesheet" href="./theme.css?v=v151-result-item-numbers-20261115">
+  <link rel="stylesheet" href="./theme.css?v=v152-short-gemini-guide-20261115">
   <link rel="stylesheet" href="./tutorial.css?v=v86-free-models-only">
   <!-- R150: disable text processing until the import box has content. -->
-  <meta name="bill-app-release" content="v151-result-item-numbers-20261115">
-  <script defer src="./pwa.js?v=v151-result-item-numbers-20261115"></script>
+  <meta name="bill-app-release" content="v152-short-gemini-guide-20261115">
+  <script defer src="./pwa.js?v=v152-short-gemini-guide-20261115"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
@@ -5036,12 +5036,12 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
         <React.Fragment>
           {showGoogleAiGuide && <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-950/60 p-4" role="dialog" aria-modal="true" aria-labelledby="google-ai-guide-title" data-testid="google-ai-guide">
             <div className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-2xl border border-slate-300 bg-white p-5 shadow-2xl">
-              <h2 id="google-ai-guide-title" className="text-xl font-extrabold text-slate-900">{googleAiCopyStatus === 'failed' ? bi('提示詞未能複製', 'The prompt was not copied') : googleAiCopyStatus === 'pending' ? bi('正在複製提示詞…', 'Copying the prompt…') : bi('提示詞已複製，跟著做就可以', 'Prompt copied — follow these steps')}</h2>
+              <h2 id="google-ai-guide-title" className="text-xl font-extrabold text-slate-900">{googleAiCopyStatus === 'failed' ? bi('提示詞未能複製', 'The prompt was not copied') : googleAiCopyStatus === 'pending' ? bi('正在複製提示詞…', 'Copying the prompt…') : bi('提示詞已複製', 'Prompt copied')}</h2>
               {googleAiCopyStatus === 'failed' && <p role="alert" className="mt-2 rounded-lg bg-amber-50 p-3 text-sm leading-relaxed text-amber-950">{bi('請按「返回」，再用「複製讀圖提示詞」複製一次，然後重新開啟教學。', 'Press Back, then use “Copy photo-reading prompt” to copy it and try again.')}</p>}
               <ol className="mt-3 list-decimal space-y-2 pl-6 text-sm leading-relaxed text-slate-700">
-                <li>{bi('到 Gemini 輸入欄貼上提示詞，附上單據圖片，再按傳送。', 'In Gemini, paste the prompt, attach a photo of the bill, then press Send.')}</li>
-                <li>{bi('等 Gemini 整理好後，複製它的完整回答，再回到這個頁面。', 'When Gemini finishes, copy its complete answer and return to this page.')}</li>
-                <li>{bi('按「整理這段文字」；本頁會讀取你剛複製的回答並開始整理。若讀取被瀏覽器阻擋，再手動貼上即可。', 'Press “Process this text”; this page will read your copied answer and process it. If the browser blocks clipboard access, paste it manually.')}</li>
+                <li>{bi('在 Gemini 貼上提示詞，加入單據圖片，按傳送。', 'Paste the prompt in Gemini, add the bill photo, then press Send.')}</li>
+                <li>{bi('複製 Gemini 的完整回答，返回本頁。', 'Copy Gemini’s complete answer and return here.')}</li>
+                <li>{bi('按「整理這段文字」。', 'Press “Process this text”.')}</li>
               </ol>
               <div className="mt-5 flex gap-2">
                 <Button data-testid="google-ai-guide-cancel" variant="secondary" className="flex-1" onClick={() => setShowGoogleAiGuide(false)}>{bi('返回', 'Back')}</Button>
@@ -5055,7 +5055,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                 <div className="flex items-center gap-2 sm:gap-3 shrink-0">
                   <img src="./icons/icon.svg" alt="" width="48" height="48" className="app-brand-icon shrink-0" />
                   <div>
-                  <h1 className="text-xl font-extrabold text-slate-800 tracking-tight"><span className="app-brand-name block sm:inline whitespace-nowrap">{tr("分帳管家")}</span><span className="inline-flex items-baseline gap-1 sm:ml-1 whitespace-nowrap"><span data-testid="app-pro-label" className="text-brand-600 font-black">Pro</span><span data-testid="app-version-label" className="text-[10px] leading-3 font-semibold tracking-normal text-brand-700">R151</span></span></h1>
+                  <h1 className="text-xl font-extrabold text-slate-800 tracking-tight"><span className="app-brand-name block sm:inline whitespace-nowrap">{tr("分帳管家")}</span><span className="inline-flex items-baseline gap-1 sm:ml-1 whitespace-nowrap"><span data-testid="app-pro-label" className="text-brand-600 font-black">Pro</span><span data-testid="app-version-label" className="text-[10px] leading-3 font-semibold tracking-normal text-brand-700">R152</span></span></h1>
                   </div>
               </div>
               <div className="header-actions relative flex items-center gap-1.5 sm:gap-2">
