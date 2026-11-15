@@ -19,6 +19,34 @@
   const BLOCK_SPLIT = /\n+(?:➖{3,}|─{3,})\n+/;
   const BLOCK_SEP = '\n\n──────────\n\n';
 
+  function displayNumber(index) {
+    const value = Number(index);
+    return Number.isInteger(value) && value >= 0 ? String(value + 1).padStart(2, '0') : '';
+  }
+
+  function resolveClaimItemId(reference, line, items) {
+    const number = String(reference || '');
+    if (!/^\d{2}$/.test(number)) return null;
+    const list = Array.isArray(items) ? items : [];
+    const internal = list.find(item => String(item.id) === number) || null;
+    const displayIndex = Number(number) - 1;
+    const displayed = displayIndex >= 0 && displayIndex < list.length && displayNumber(displayIndex) === number
+      ? list[displayIndex] : null;
+    if (!internal) return displayed ? String(displayed.id) : null;
+    if (!displayed || String(displayed.id) === String(internal.id)) return String(internal.id);
+
+    const label = String(line || '').replace(/^\D*\d{2}\s*/, '').split(/[：:=＝]/, 1)[0].trim();
+    const normalize = value => String(value || '').normalize('NFKC').replace(/\s+/g, ' ').trim().toLocaleLowerCase();
+    const labelKey = normalize(label);
+    const candidates = [internal, displayed];
+    const matches = candidates.filter(item => [item.name, item.nameEn].some(name => {
+      const nameKey = normalize(name);
+      return nameKey && labelKey.startsWith(nameKey);
+    }));
+    if (matches.length === 1) return String(matches[0].id);
+    return null;
+  }
+
   function bytesToBase64Url(bytes) {
     let binary = '';
     for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
@@ -189,18 +217,20 @@
   function formatClaimReply(payload, items) {
     const clean = sanitizePayload(payload);
     if (!clean) return '';
-    const byId = new Map((items || []).map(item => [String(item.id), item]));
+    const byId = new Map((items || []).map((item, index) => [String(item.id), { item, index }]));
     const lines = ['姓名：' + clean.name, '認帳項目：'];
     clean.claims.forEach(claim => {
-      const item = byId.get(claim.id);
+      const match = byId.get(claim.id);
+      const item = match?.item;
       const name = cleanText((item && item.name) || '項目', 200) || '項目';
+      const number = item?.displayNumber || (match ? displayNumber(match.index) : claim.id);
       const qty = formatQty(claim.qty);
       let quantity = claim.mode === 'shared'
         ? claim.shareExplicit ? '共享份數 = ' + qty : '共享'
         : '認帳份數 = ' + qty;
       if (claim.unit) quantity = '實際數量 = ' + qty + ' ' + claim.unit;
       else if (claim.displayUnit) quantity = '認帳份數（' + claim.displayUnit + '） = ' + qty;
-      lines.push(claim.id + ' ' + name + '：' + quantity);
+      lines.push(number + ' ' + name + '：' + quantity);
     });
     lines.push('', '已填妥，請傳給發起人。');
     return lines.join('\n');
@@ -311,6 +341,8 @@
   return {
     NTFY_ORIGIN,
     MAX_MESSAGE_CHARS,
+    displayNumber,
+    resolveClaimItemId,
     isRoom,
     createRoom,
     readRoomFromHash,

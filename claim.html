@@ -998,10 +998,11 @@
         const text = messages[language];
         itemCount.textContent = text.itemCount(items.length);
         items.forEach((item, index) => {
+          const displayNumber = window.ClaimRelay.displayNumber(index);
           const displayName = language === 'en' && item.nameEn ? item.nameEn : item.name;
           const card = makeElement('article', 'item-card');
           const heading = makeElement('div', 'item-heading');
-          heading.append(makeElement('span', 'item-id', item.id));
+          heading.append(makeElement('span', 'item-id', displayNumber));
           heading.append(makeElement('h3', 'item-title', displayName));
           card.append(heading);
           if (item.original) {
@@ -1037,7 +1038,7 @@
           qtyInput.className = 'qty-input'; qtyInput.id = `qty-${index}`;
           qtyInput.type = 'text'; qtyInput.inputMode = 'text'; qtyInput.autocomplete = 'off';
           qtyInput.maxLength = 24; qtyInput.placeholder = text.qtyPlaceholder(card.dataset.claimMode);
-          qtyInput.setAttribute('aria-label', text.qtyAria(item.id, displayName));
+          qtyInput.setAttribute('aria-label', text.qtyAria(displayNumber, displayName));
           qtyInput.dataset.itemIndex = String(index);
           qtyInput.value = savedValues[index] ?? '';
           const qtyControl = makeElement('div', 'qty-control');
@@ -1064,7 +1065,7 @@
           qtyRow.append(qtyControl);
           const unitSelect = makeElement('select', 'unit-select');
           unitSelect.id = `unit-${index}`;
-          unitSelect.setAttribute('aria-label', `${item.id} ${displayName} — ${text.unitLabel}`);
+          unitSelect.setAttribute('aria-label', `${displayNumber} ${displayName} — ${text.unitLabel}`);
           unitSelect.title = text.unitLabel;
           const blankOption = makeElement('option', '', '');
           blankOption.value = ''; blankOption.label = text.noUnit;
@@ -1387,6 +1388,7 @@
           const item = items[index];
           const displayName = language === 'en' && item.nameEn ? item.nameEn : item.name;
           const safeDisplayName = displayName.replace(/[\r\n=＝]/g, ' ').replace(/\s+/g, ' ').trim();
+          const displayNumber = window.ClaimRelay.displayNumber(index);
           const mode = card.dataset.claimMode || 'personal';
           const unitSelect = card.querySelector('.unit-select');
           const selectedId = unitSelect.value;
@@ -1394,13 +1396,13 @@
           const selectedUnit = selectedId === 'receipt' ? item.unit : (selectedDefinition?.zh || '');
           const receiptDefinition = unitDefinition(item.unit);
           if (mode === 'none') {
-            lines.push(`${item.id} ${safeDisplayName}：${language === 'en' ? 'Didn’t order' : '冇叫'}`);
+            lines.push(`${displayNumber} ${safeDisplayName}：${language === 'en' ? 'Didn’t order' : '冇叫'}`);
             structured.push({ id: item.id, qty: 0, unit: '', mode: 'none', shareExplicit: false });
             responseRows++;
             continue;
           }
           if (mode === 'shared' && !raw) {
-            lines.push(`${item.id} ${safeDisplayName}：${language === 'en' ? 'Shared' : '共享'}`);
+            lines.push(`${displayNumber} ${safeDisplayName}：${language === 'en' ? 'Shared' : '共享'}`);
             structured.push({ id: item.id, qty: 0, unit: '', mode: 'shared', shareExplicit: false });
             responseRows++; payableClaims++;
             continue;
@@ -1441,11 +1443,11 @@
           }
 
           if (mode === 'shared') {
-            lines.push(`${item.id} ${safeDisplayName}：${language === 'en' ? `Shared shares = ${normalized}` : `共享份數 = ${normalized}`}`);
+            lines.push(`${displayNumber} ${safeDisplayName}：${language === 'en' ? `Shared shares = ${normalized}` : `共享份數 = ${normalized}`}`);
             structured.push({ id: item.id, qty: value, unit: '', mode: 'shared', shareExplicit: true });
           } else {
             const quantity = language === 'en' ? `Actual quantity = ${normalized} ${unitLabel(item.unit)}` : `實際數量 = ${normalized} ${item.unit}`;
-            lines.push(`${item.id} ${safeDisplayName}：${quantity}`);
+            lines.push(`${displayNumber} ${safeDisplayName}：${quantity}`);
             structured.push({ id: item.id, qty: value, unit: String(item.unit || '') });
           }
           responseRows++; payableClaims++;

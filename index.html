@@ -748,6 +748,7 @@ Format (keep every field; items may contain multiple entries, and adjustments mu
       let totalClaimLines = 0;
       const issues = [];
       const itemIds = new Set(items.map(i => i.id));
+      const resolveItemId = (number, line) => window.ClaimRelay.resolveClaimItemId(number, line, items);
 
       lines.forEach((line, index) => {
         const lineNo = index + 1;
@@ -779,11 +780,13 @@ Format (keep every field; items may contain multiple entries, and adjustments mu
         } else if (currentPerson) {
           const modeMatch = cleanLine.match(/^\D*(\d{2}).*[：:]\s*(共享(?:份數\s*=\s*.+)?|冇叫|Shared(?:\s+shares\s*=\s*.+)?|Didn['’]t order)$/i);
           if (modeMatch) {
-            const id = modeMatch[1];
+            const rawId = modeMatch[1];
+            const resolvedId = resolveItemId(rawId, cleanLine);
+            const id = resolvedId || rawId;
             const modeText = modeMatch[2];
-            if (!itemIds.has(id)) {
-              unknownIds.add(id);
-              issues.push({ type: 'unknown_id', line: lineNo, text: cleanLine.substring(0, 40), person: currentPerson, id });
+            if (!resolvedId || !itemIds.has(id)) {
+              unknownIds.add(rawId);
+              issues.push({ type: 'unknown_id', line: lineNo, text: cleanLine.substring(0, 40), person: currentPerson, id: rawId });
             }
             lastSeenId = null;
             if (/^(?:冇叫|Didn['’]t order)$/i.test(modeText)) {
@@ -817,10 +820,12 @@ Format (keep every field; items may contain multiple entries, and adjustments mu
             const qty = parsedValue.qty;
 
             if (idMatch) {
-                const id = idMatch[0];
-                if (!itemIds.has(id)) {
-                    unknownIds.add(id);
-                    issues.push({ type: 'unknown_id', line: lineNo, text: cleanLine.substring(0, 40), person: currentPerson, id });
+                const rawId = idMatch[0];
+                const resolvedId = resolveItemId(rawId, cleanLine);
+                const id = resolvedId || rawId;
+                if (!resolvedId || !itemIds.has(id)) {
+                    unknownIds.add(rawId);
+                    issues.push({ type: 'unknown_id', line: lineNo, text: cleanLine.substring(0, 40), person: currentPerson, id: rawId });
                 }
                 if (!isNaN(qty)) {
                     if (qty > 0) {
@@ -841,10 +846,12 @@ Format (keep every field; items may contain multiple entries, and adjustments mu
           } else if (cleanLine.match(/^\D*\d{2}/)) {
             const idMatch = cleanLine.match(/\d{2}/);
             if (idMatch) {
-              lastSeenId = idMatch[0];
-              if (!itemIds.has(lastSeenId)) {
-                  unknownIds.add(lastSeenId);
-                  issues.push({ type: 'unknown_id', line: lineNo, text: cleanLine.substring(0, 40), person: currentPerson, id: lastSeenId });
+              const rawId = idMatch[0];
+              const resolvedId = resolveItemId(rawId, cleanLine);
+              lastSeenId = resolvedId || rawId;
+              if (!resolvedId || !itemIds.has(lastSeenId)) {
+                  unknownIds.add(rawId);
+                  issues.push({ type: 'unknown_id', line: lineNo, text: cleanLine.substring(0, 40), person: currentPerson, id: rawId });
               }
             }
           } else if (lastSeenId && (cleanLine.includes('數量') || cleanLine.includes('='))) {
@@ -998,6 +1005,7 @@ Format (keep every field; items may contain multiple entries, and adjustments mu
       return Object.values(result?.personTotals || {}).reduce((sum, person) => sum + toNum(person?.total), 0);
     };
     const formatClaimItemId = value => String(value).padStart(2, '0');
+    const displayBillItemNumber = index => window.ClaimRelay.displayNumber(index);
     const roundAllocationAmount = (amount, currency = 'HKD') => {
       const value = Number(amount);
       if (!Number.isFinite(value)) return NaN;
@@ -2943,7 +2951,7 @@ Format (keep every field; items may contain multiple entries, and adjustments mu
         if (items.length === 0) { setStepError("⚠️ 請至少新增一個項目！"); return false; }
         if (!validateTaxAmount(true)) return false;
         for (let i = 0; i < items.length; i++) {
-            if (!items[i].name.trim()) { setStepError(`⚠️ 項目 ${items[i].id} 未填寫名稱！`); focusField(`item-name-${i}`); return false; }
+            if (!items[i].name.trim()) { setStepError(`⚠️ 項目 ${displayBillItemNumber(i)} 未填寫名稱！`); focusField(`item-name-${i}`); return false; }
         }
         if (legacyClaimReviewRequired) {
           setStepError(bi('舊草稿的項目編號可能曾改動；請先逐項核對認領。', 'Item IDs in this older draft may have changed. Review the claims before continuing.'));
@@ -2987,7 +2995,7 @@ Format (keep every field; items may contain multiple entries, and adjustments mu
         if (target >= 3 && items.length === 0) { setStepError('⚠️ 請先新增至少一個項目。'); return; }
         if (target >= 3) {
           for (let i = 0; i < items.length; i++) {
-              if (!String(items[i].name || '').trim()) { setStepError(`⚠️ 項目 ${items[i].id} 未填寫名稱！`); focusField(`item-name-${i}`); return; }
+              if (!String(items[i].name || '').trim()) { setStepError(`⚠️ 項目 ${displayBillItemNumber(i)} 未填寫名稱！`); focusField(`item-name-${i}`); return; }
           }
         }
         if (target === 4 && !results) { setStepError('⚠️ 請先完成運算。'); return; }
@@ -3958,7 +3966,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
         if (!item) return;
         const parsed = parseClaims(friendsReplies, items);
         const hasClaims = Object.values(parsed.claims || {}).some(personClaims => Number(personClaims[item.id]) > 0);
-        setPendingItemRemoval({ index, id: item.id, hasClaims, name: displayItemName(item).trim() || bi('此項目', 'this item') });
+        setPendingItemRemoval({ index, id: item.id, displayNumber: displayBillItemNumber(index), hasClaims, name: displayItemName(item).trim() || bi('此項目', 'this item') });
       };
       const confirmRemoveItem = () => {
         if (!pendingItemRemoval) return;
@@ -4111,7 +4119,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
         if (!items.length) { setStepError('⚠️ 請先新增至少一個賬單項目。'); return null; }
         const invalidIndex = items.findIndex(item => !String(item.name || '').trim());
         if (invalidIndex !== -1) {
-          setStepError(`⚠️ 項目 ${items[invalidIndex].id} 未填寫名稱，請先補上。`);
+          setStepError(`⚠️ 項目 ${displayBillItemNumber(invalidIndex)} 未填寫名稱，請先補上。`);
           focusField(`item-name-${invalidIndex}`);
           return null;
         }
@@ -4151,7 +4159,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
         setStepError('');
         if (!items.length) { setStepError('⚠️ 請先新增至少一個賬單項目。'); return null; }
         const invalidIndex = items.findIndex(item => !String(item.name || '').trim());
-        if (invalidIndex !== -1) { setStepError(`⚠️ 項目 ${items[invalidIndex].id} 未填寫名稱，請先補上。`); focusField(`item-name-${invalidIndex}`); return null; }
+        if (invalidIndex !== -1) { setStepError(`⚠️ 項目 ${displayBillItemNumber(invalidIndex)} 未填寫名稱，請先補上。`); focusField(`item-name-${invalidIndex}`); return null; }
         const metadata = getClaimLinkMetadata();
         const session = await ensureClaimSession(metadata);
         // Never distribute a link as protected until owner setup is confirmed.
@@ -4401,7 +4409,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
 
         const removedItemClaims = (parsed.issues || []).filter(issue => issue.type === 'unknown_id');
         if (removedItemClaims.length) {
-          setStepError(bi(`認帳引用已刪除或不存在的項目編號 ${removedItemClaims[0].id}；請更新朋友回覆後再結算。`, `A reply references removed or unknown item ${removedItemClaims[0].id}. Update the replies before settling.`));
+          setStepError(bi(`認帳編號 ${removedItemClaims[0].id} 無法安全對應到目前項目；請在回覆補上項目名稱後再結算。`, `Claim number ${removedItemClaims[0].id} cannot be safely matched to a current item. Add the item name to the reply before settling.`));
           setStep(2); window.setTimeout(() => focusField('replies'), 120); return false;
         }
         const claimants = Object.keys(personClaims).filter(person => calculationItems.some(item => Number(personClaims[person]?.[item.id]) > 0));
@@ -4414,25 +4422,26 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
         calculationItems.forEach(item => { itemClaimTotals[item.id] = claimants.reduce((sum, person) => sum + (Number(personClaims[person]?.[item.id]) || 0), 0); });
         const unclaimedItems = calculationItems.filter(item => toNum(item.total) > 0 && itemClaimTotals[item.id] <= 0);
         if (unclaimedItems.length) {
-          const missingNames = unclaimedItems.slice(0, 3).map(item => `${item.id} ${displayItemName(item).trim() || bi('未命名項目', 'unnamed item')}`).join('、');
+          const missingNames = unclaimedItems.slice(0, 3).map(item => `${displayBillItemNumber(items.findIndex(candidate => candidate.id === item.id))} ${displayItemName(item).trim() || bi('未命名項目', 'unnamed item')}`).join('、');
           const remaining = unclaimedItems.length > 3 ? bi(`，另有 ${unclaimedItems.length - 3} 項`, `, and ${unclaimedItems.length - 3} more`) : '';
           setStepError(bi(`有金額的項目尚未認領：${missingNames}${remaining}。請補認帳或刪除，不能略過。`, `Items with a price have no claim: ${missingNames}${remaining}. Add a claim or remove the item; it cannot be skipped.`));
           setStep(2); window.setTimeout(() => focusField('replies'), 120); return false;
         }
 
-        const sharedShareProblems = calculationItems.flatMap(item => {
+        const sharedShareProblems = calculationItems.flatMap((item, index) => {
           if (toNum(item.total) <= 0) return [];
+          const displayNumber = displayBillItemNumber(index);
           const actualPeople = claimants.filter(person => claimUnits[person]?.[item.id] && (personClaims[person]?.[item.id] || 0) > 0);
           const sharedPeople = claimants.filter(person => (personClaims[person]?.[item.id] || 0) > 0 && !actualPeople.includes(person));
           const newSharedPeople = sharedPeople.filter(person => claimModes[person]?.[item.id] === 'shared');
           const legacySharePeople = sharedPeople.filter(person => claimModes[person]?.[item.id] !== 'shared');
-          if (newSharedPeople.length && legacySharePeople.length) return [`${item.id} ${displayItemName(item).trim() || bi('項目', 'item')}：新舊份數回覆混用；請把舊份數改成「共享」模式後再結算。`];
+          if (newSharedPeople.length && legacySharePeople.length) return [`${displayNumber} ${displayItemName(item).trim() || bi('項目', 'item')}：新舊份數回覆混用；請把舊份數改成「共享」模式後再結算。`];
           if (!newSharedPeople.length) return [];
           const explicitPeople = newSharedPeople.filter(person => shareExplicit[person]?.[item.id] === true);
           const explicitTotal = explicitPeople.reduce((sum, person) => sum + (Number(personClaims[person]?.[item.id]) || 0), 0);
           const blankCount = newSharedPeople.length - explicitPeople.length;
-          if (explicitTotal > newSharedPeople.length + 0.000001) return [`${item.id} ${displayItemName(item).trim() || bi('項目', 'item')}：共享份數超過 ${newSharedPeople.length} 位共享者。`];
-          if (!blankCount && explicitTotal < newSharedPeople.length - 0.000001) return [`${item.id} ${displayItemName(item).trim() || bi('項目', 'item')}：尚有共享餘額未分配；請調整份數，或讓其他共享者留空平均分。`];
+          if (explicitTotal > newSharedPeople.length + 0.000001) return [`${displayNumber} ${displayItemName(item).trim() || bi('項目', 'item')}：共享份數超過 ${newSharedPeople.length} 位共享者。`];
+          if (!blankCount && explicitTotal < newSharedPeople.length - 0.000001) return [`${displayNumber} ${displayItemName(item).trim() || bi('項目', 'item')}：尚有共享餘額未分配；請調整份數，或讓其他共享者留空平均分。`];
           return [];
         });
         if (sharedShareProblems.length) {
@@ -4493,7 +4502,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
         const personTotals = {}; let totalItemsCost = 0;
         claimants.forEach(person => { personTotals[person] = { items: [], adjustments: [], subtotal: 0, discount: 0, tax: 0, sourceTotal: 0, total: 0 }; });
 
-        calculationItems.forEach(item => {
+        calculationItems.forEach((item, itemIndex) => {
           const totalClaimed = itemClaimTotals[item.id];
           if (totalClaimed <= 0) return;
           const totalQty = toNum(item.totalQty);
@@ -4543,7 +4552,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
             const explicitMode = claimModes[person]?.[item.id] === 'shared';
             const allocationTotal = isActualUnit ? totalQty : explicitMode ? newSharedPeople.length : (actualTotal > 0 ? shareTotal : totalClaimed);
             const cost = itemShares[person] || 0;
-            personTotals[person].items.push({ name: item.name, nameEn: item.nameEn || '', original: item.original || '', ja: item.ja || '', id: item.id, amount: cost, qty: claimedQty, totalClaimed, unit: enteredUnit, unitName: item.unit || '', allocationTotal, isActualUnit,
+            personTotals[person].items.push({ name: item.name, nameEn: item.nameEn || '', original: item.original || '', ja: item.ja || '', id: item.id, number: displayBillItemNumber(itemIndex), amount: cost, qty: claimedQty, totalClaimed, unit: enteredUnit, unitName: item.unit || '', allocationTotal, isActualUnit,
               claimMode: explicitMode ? 'shared' : '', shareExplicit: explicitMode && shareExplicit[person]?.[item.id] === true });
             personTotals[person].subtotal = roundSplitAmount(personTotals[person].subtotal + cost);
             totalItemsCost = roundSplitAmount(totalItemsCost + cost);
@@ -4870,7 +4879,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
         if (step === 3 && !payer.trim()) push(2, 'S1', '未填墊支人姓名', '填咗才可以出結果', { label: '跳去輸入', run: () => focusField('payer') });
         if (step === 2 && items.length > 0) {
             const emptyNameIdx = items.findIndex(i => !i.name.trim());
-            if (emptyNameIdx !== -1) push(2, 'S2', `項目 ${items[emptyNameIdx].id} 未填寫名稱`, '請填寫名稱以便認帳', { label: '填寫', run: () => focusField(`item-name-${emptyNameIdx}`) });
+            if (emptyNameIdx !== -1) push(2, 'S2', `項目 ${displayBillItemNumber(emptyNameIdx)} 未填寫名稱`, '請填寫名稱以便認帳', { label: '填寫', run: () => focusField(`item-name-${emptyNameIdx}`) });
         }
         if (step >= 2 && items.length === 0) push(2, 'S3', '請至少新增一個項目', '', { label: '新增', run: () => { setStep(2); addItemAndFocus(); } });
         if (step === 2 && !friendsReplies.trim() && items.length > 0) push(2, 'S4', manualClaimsEnabled
@@ -4882,7 +4891,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
         if (step === 3 && statusClaimInfo && statusClaimInfo.issues.length > 0) {
             const firstIssue = statusClaimInfo.issues[0];
             let msg = ''; const subMsg = bi(`在第 ${firstIssue.line} 行`, `At line ${firstIssue.line}`);
-            if (firstIssue.type === 'unknown_id') msg = bi(`有人填了項目「${firstIssue.id}」，單上冇此編號`, `Someone claimed item “${firstIssue.id}”, which is not on the bill.`);
+            if (firstIssue.type === 'unknown_id') msg = bi(`有人填了項目「${firstIssue.id}」，目前無法安全對應；請補上項目名稱`, `Item “${firstIssue.id}” cannot be safely matched; add its name to the reply.`);
             else if (firstIssue.type === 'qty_negative') msg = bi('數量不可為負數', 'Quantity cannot be negative.');
             else if (firstIssue.type === 'no_person') msg = bi('有數量但未指定姓名', 'A quantity has no name.');
             else msg = bi('回覆內容存在格式疑問', 'There is a formatting issue in the reply.');
@@ -5610,7 +5619,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                       {showVerifyRow ? (
                         <div className="flex items-start justify-between gap-3" data-testid="verify-item">
                           <div className="min-w-0">
-                            <p className="text-base font-semibold text-slate-800">{item.id} {displayItemName(item)}</p>
+                            <p className="text-base font-semibold text-slate-800"><span data-testid="bill-item-number">{displayBillItemNumber(idx)}</span> {displayItemName(item)}</p>
                             {(item.original || item.ja) && <div className="mt-1 text-xs font-normal text-slate-500 italic truncate" title={item.original || item.ja}>{tr("原文：")}{item.original || item.ja}</div>}
                             <p className="mt-1 text-base font-semibold text-slate-800">{item.needsAmountReview === true ? bi('金額待核對', 'Amount to verify') : formatMoney(itemAmount(item), detectedCurrency)}{pricingQtyLabel ? ` · ${pricingQtyLabel}` : ''}{billQtyLabel ? ` · ${billQtyLabel}` : ''}</p>
                             {item.needsAmountReview === true && <p data-testid="item-amount-review" role="alert" className="mt-2 rounded-lg border border-amber-500 bg-amber-50 p-2 text-sm font-semibold leading-relaxed text-amber-950">{item.amountReviewReason === 'ai-uncertain'
@@ -5631,7 +5640,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                       ) : (
                       <div className="grid gap-4">
                         <div>
-                          <label htmlFor={itemFieldId('name')} className="text-base font-bold text-slate-700 uppercase tracking-wider mb-1.5 block">{tr("編號 ")}{item.id}{tr(" - 名稱")}</label>
+                          <label htmlFor={itemFieldId('name')} className="text-base font-bold text-slate-700 uppercase tracking-wider mb-1.5 block">{tr("編號 ")}{displayBillItemNumber(idx)}{tr(" - 名稱")}</label>
                           <input id={itemFieldId('name')} type="text" data-testid="item-name" ref={el => fieldRefs.current[`item-name-${idx}`] = el} value={displayItemName(item)} onChange={(e) => updateItem(idx, uiLang === 'en' && (item.nameEn || item.nameEnEdited) ? 'nameEn' : 'name', e.target.value)} onKeyDown={(e) => handleItemKeyDown(e, 'name', idx)} className="field-round w-full text-base font-semibold text-slate-800 outline-none" placeholder={tr("輸入項目名稱...")} />
                           {(item.original || item.ja) && <div className="mt-1 text-xs font-normal text-slate-500 italic truncate" title={item.original || item.ja}>{tr("原文：")}{item.original || item.ja}</div>}
                         </div>
@@ -5668,7 +5677,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                     {pendingItemRemoval && <div className="space-y-4">
                       <h2 id="remove-item-dialog-title" className="text-lg font-extrabold">{bi('確定刪除項目？', 'Delete this item?')}</h2>
                       <p id="remove-item-dialog-description" className="text-base leading-relaxed">{bi(`確定從帳單刪除「${pendingItemRemoval.name}」？`, `Remove “${pendingItemRemoval.name}” from this bill?`)}</p>
-                      {pendingItemRemoval.hasClaims && <p id="remove-item-claim-warning" data-testid="remove-item-claim-warning" className="rounded-lg border border-amber-500 bg-amber-50 p-3 text-sm font-semibold leading-relaxed text-amber-950">{bi(`已有認帳引用編號 ${pendingItemRemoval.id}。刪除後舊回覆會被標示，不能套到其他項目；請通知朋友重新核對。`, `Existing replies reference item ${pendingItemRemoval.id}. After deletion they will be flagged, never mapped to another item; ask friends to review again.`)}</p>}
+                      {pendingItemRemoval.hasClaims && <p id="remove-item-claim-warning" data-testid="remove-item-claim-warning" className="rounded-lg border border-amber-500 bg-amber-50 p-3 text-sm font-semibold leading-relaxed text-amber-950">{bi(`已有認帳引用編號 ${pendingItemRemoval.displayNumber}。刪除後舊回覆會被標示，不能套到其他項目；請通知朋友重新核對。`, `Existing replies reference item ${pendingItemRemoval.displayNumber}. After deletion they will be flagged, never mapped to another item; ask friends to review again.`)}</p>}
                       <div className="grid grid-cols-2 gap-3">
                         <button type="button" ref={keepItemButtonRef} data-testid="keep-remove-item" onClick={() => setPendingItemRemoval(null)} className="min-h-[44px] rounded-lg border border-slate-500 bg-white px-4 py-2 font-bold text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700">{bi('保留項目', 'Keep item')}</button>
                         <button type="button" data-testid="confirm-remove-item" onClick={confirmRemoveItem} className="min-h-[44px] rounded-lg border border-red-800 bg-red-800 px-4 py-2 font-bold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-800">{bi('刪除項目', 'Delete item')}</button>
@@ -5777,7 +5786,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                   {legacyClaimReviewRequired && <Card data-testid="legacy-claim-review" role="alert" className="!p-4 space-y-3 border-amber-600 bg-amber-50">
                     <h3 className="text-base font-extrabold text-amber-950">{bi('舊草稿：先核對認領項目', 'Older draft: review item claims')}</h3>
                     <p className="text-sm leading-relaxed text-amber-950">{bi('舊版本可能曾在刪除項目後改動編號。請逐項對照下方編號、名稱及朋友回覆；核對前不會重新結算。', 'An older version may have changed item IDs after deletion. Compare the IDs and names below with each friend reply. Recalculation is blocked until you confirm.')}</p>
-                    <ul className="list-disc pl-5 text-sm font-semibold leading-relaxed text-amber-950">{items.map(item => <li key={item.id}>{item.id} — {displayItemName(item)}</li>)}</ul>
+                    <ul className="list-disc pl-5 text-sm font-semibold leading-relaxed text-amber-950">{items.map((item, idx) => <li key={item.id}>{displayBillItemNumber(idx)} — {displayItemName(item)}</li>)}</ul>
                     <button type="button" data-testid="confirm-legacy-claim-review" onClick={() => { setLegacyClaimReviewRequired(false); setStepError(''); }} className="min-h-[44px] w-full rounded-lg border border-amber-800 bg-white px-4 py-2 text-sm font-bold text-amber-950">{bi('已逐項核對，可以繼續', 'I checked each item; continue')}</button>
                   </Card>}
                   {stepError && <div role="alert" data-testid="step-error" className="rounded-xl border border-amber-600 bg-amber-50 p-3 text-sm font-semibold leading-relaxed text-amber-950">{stepError}</div>}
@@ -5797,7 +5806,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                   </textarea>
                   {manualClaimsEnabled && <div id="manual-claim-guidance" data-testid="manual-claim-guidance" className="mt-2 rounded-lg border border-slate-300 bg-slate-50 p-3 text-sm leading-relaxed text-slate-800" role="note">
                     <p>{bi('每人至少認領一項；只填姓名不會分帳。格式：', 'Each person must claim an item; a name alone is not counted. Format:')}</p>
-                    <pre data-testid="manual-claim-example" className="mt-1 whitespace-pre-wrap font-mono text-sm">{bi(`姓名：阿明\n${items[0]?.id || '01'} = 1`, `Name: Alex\n${items[0]?.id || '01'} = 1`)}</pre>
+                    <pre data-testid="manual-claim-example" className="mt-1 whitespace-pre-wrap font-mono text-sm">{bi(`姓名：阿明\n${displayBillItemNumber(0)} = 1`, `Name: Alex\n${displayBillItemNumber(0)} = 1`)}</pre>
                   </div>}
                 </div>
 
@@ -5846,7 +5855,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                     <div className="space-y-2">
                       {reconciliation.issues.map(issue => (
                         <div key={issue.itemId} className="bg-white border border-amber-300 rounded-lg p-3 text-sm text-slate-700">
-                          <strong>{issue.itemId} {displayItemName(items.find(item => item.id === issue.itemId) || issue)}</strong>{tr("：單據 ")}{issue.totalQty} {unitDisplay(issue.unit)}{tr("，已認帳 ")}{issue.claimedQty} {unitDisplay(issue.unit)}{' '}
+                          <strong>{displayBillItemNumber(items.findIndex(item => item.id === issue.itemId)) || issue.itemId} {displayItemName(items.find(item => item.id === issue.itemId) || issue)}</strong>{tr("：單據 ")}{issue.totalQty} {unitDisplay(issue.unit)}{tr("，已認帳 ")}{issue.claimedQty} {unitDisplay(issue.unit)}{' '}
                           {issue.difference > 0 ? <span className="font-bold text-amber-700">{tr("（尚欠 ")}{issue.difference} {unitDisplay(issue.unit)}{tr("，約 ")}{formatSourceMoney(issue.amount, detectedCurrency)}）</span> : issue.difference < 0 ? <span className="font-bold text-red-700">{tr("（超出 ")}{-issue.difference} {unitDisplay(issue.unit)}）</span> : <span className="font-bold text-blue-800">{bi('（已認帳數量相符）', '(counted quantity matches)')}</span>}
                           {issue.shareClaimCount > 0 && <p className="mt-2 font-semibold text-amber-900">{bi(`另有 ${issue.shareClaimCount} 位朋友只填份數（共 ${issue.shareClaimTotal} 份），沒有選實際單位；不能推定為 ${issue.unit}。`, `${issue.shareClaimCount} claimant(s) entered shares (${issue.shareClaimTotal} total) without a physical unit; these cannot be assumed to be ${issue.unit}.`)}</p>}
                         </div>
