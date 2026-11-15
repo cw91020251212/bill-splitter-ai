@@ -40,7 +40,7 @@
     window.navigator.standalone === true;
 
   /* ---------------------------------------------------------- service worker */
-  var RELEASE_VERSION = 'v150-disable-empty-text-import-20261115';
+  var RELEASE_VERSION = 'v151-result-item-numbers-20261115';
   var waitingWorker = null;
   var registrationPromise = null;
   var reloadRequested = false;
@@ -136,7 +136,7 @@
   }
 
   // The app can save its active draft before invoking this explicit navigation.
-  window.BillAppUpdate = { version: 'R150', reloadLatest: reloadLatest };
+  window.BillAppUpdate = { version: 'R151', reloadLatest: reloadLatest };
 
   if ('serviceWorker' in navigator && SECURE) {
     afterLoad(function () { registerWorker(); });

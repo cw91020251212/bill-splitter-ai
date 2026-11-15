@@ -57,6 +57,7 @@
     td { padding:19px 21px; border-top:1px solid var(--separator); vertical-align:top; }
     tbody tr:first-child td { border-top:0; }
     .item-name { color:#1e2d23; font-size:calc((16px) * var(--readable-text-scale, 1)); font-weight:760; overflow-wrap:anywhere; }
+    .item-number { display:inline-block; min-width:2.2em; color:#176a43; font-variant-numeric:tabular-nums; }
     .amount { color:#203729; font-size:calc((16px) * var(--readable-text-scale, 1)); font-weight:820; font-variant-numeric:tabular-nums; text-align:right; white-space:nowrap; }
     .empty-items { color:var(--muted); text-align:center; }
     .item-details { margin-top:8px; color:var(--muted); font-size:calc((12px) * var(--readable-text-scale, 1)); }
@@ -483,6 +484,10 @@
         $('#adjustment-note').textContent = bill.receiptAdjustmentNote;
       }
 
+      const formatItemNumber = (value, fallbackIndex) => {
+        const raw = String(value ?? '').trim();
+        return /^\d+$/.test(raw) ? raw.padStart(2, '0') : String(fallbackIndex + 1).padStart(2, '0');
+      };
       const renderSelectedMember = () => {
         syncEditClaimsButton();
         const selected = participants.find(person => person.name === memberSelect.value);
@@ -530,7 +535,7 @@
           $('#personal-breakdown').hidden = true;
         }
 
-        const rows = data.items.flatMap(item => {
+        const rows = data.items.flatMap((item, itemIndex) => {
           const itemShares = Array.isArray(item.shares) ? item.shares : [];
           const share = itemShares.find(entry => entry.person === selected.name);
           if (!share) return [];
@@ -578,7 +583,8 @@
               : countForText
                 ? `共 ${countForText} 人分食`
                 : '';
-          return [`<tr class="item-row" data-testid="personal-item-row"><td><div class="item-name">${escapeHtml(item.name || '未命名項目')}</div>${quantityText ? `<div class="item-subline">${escapeHtml(quantityText)}</div>` : ''}<details class="item-details"><summary>睇單據原文</summary><div class="item-extra">${extras.join('')}</div></details></td><td class="amount">${escapeHtml(formatBreakdownMoney(share.amount))}</td></tr>`];
+          const itemNumber = formatItemNumber(item.number ?? item.id, itemIndex);
+          return [`<tr class="item-row" data-testid="personal-item-row"><td><div class="item-name"><span class="item-number">${escapeHtml(itemNumber)}</span> ${escapeHtml(item.name || '未命名項目')}</div>${quantityText ? `<div class="item-subline">${escapeHtml(quantityText)}</div>` : ''}<details class="item-details"><summary>睇單據原文</summary><div class="item-extra">${extras.join('')}</div></details></td><td class="amount">${escapeHtml(formatBreakdownMoney(share.amount))}</td></tr>`];
         });
         adjustments.filter(entry => entry.person === selected.name).forEach(entry => {
           const quantity = number(entry.quantity);
