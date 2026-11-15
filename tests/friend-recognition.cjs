@@ -331,13 +331,31 @@ async function hostFixture() {
   await host.getByTestId('copy-friend-claim-link').click(); await host.waitForFunction(() => Boolean(document.querySelector('[data-testid="claim-link-actions"]')?.dataset.claimLink));
   const link = await host.getByTestId('claim-link-actions').evaluate(n => n.dataset.claimLink), c = remember(harness.requests.slice(before).find(r => r.path === '/api/shares/sessions' && r.status === 201)?.output);
   assert(c, 'actual host creates real session'); assert.equal(c.claimSecurity, 'password'); assert.equal(new URL(link).searchParams.get('session'), c.id); secretFree(link);
+  await host.evaluate(() => Object.defineProperty(navigator, 'share', { configurable: true, value: undefined }));
+  const waShareUrls = [];
+  await host.route('https://wa.me/**', async route => {
+    waShareUrls.push(route.request().url());
+    await route.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><title>WhatsApp test stub</title>' });
+  });
   await host.getByTestId('open-claim-share-button').click();
+  await host.waitForURL('https://wa.me/**');
+  const waMessage = new URL(waShareUrls[0]).searchParams.get('text');
+  assert(waShareUrls[0].startsWith('https://wa.me/?text='), 'fallback uses the WhatsApp share endpoint');
+  assert(waMessage.includes(link), 'WhatsApp message contains the same claim link');
+  assert.match(waMessage, /請打開呢條連結填認帳/, 'WhatsApp message retains the claim instructions');
+  await host.goBack(); await host.getByTestId('open-claim-share-button').waitFor({ state: 'visible' });
   assert.equal(await host.locator('dialog[aria-labelledby="claim-share-title"]').count(), 0, 'direct share no longer opens the duplicate attachment dialog');
   await host.getByTestId('header-action-menu-toggle').click();
   await host.getByTestId('header-language-toggle').click();
   await host.waitForFunction(() => document.querySelector('[data-testid="open-claim-share-button"]')?.textContent.includes('Share claim link'));
   assert.equal((await host.getByTestId('open-claim-share-button').innerText()).trim(), 'Share claim link');
   await host.getByTestId('open-claim-share-button').click();
+  await host.waitForURL('https://wa.me/**');
+  const enWaMessage = new URL(waShareUrls[1]).searchParams.get('text');
+  const enShareLink = enWaMessage.split('\n').at(-1).trim();
+  assert.equal(new URL(enShareLink).searchParams.get('session'), c.id, 'English WhatsApp message uses the same claim session');
+  assert.match(enWaMessage, /Open this link to enter your shares/, 'English WhatsApp message retains the claim instructions');
+  await host.goBack(); await host.getByTestId('open-claim-share-button').waitFor({ state: 'visible' });
   assert.equal(await host.locator('dialog[aria-labelledby="claim-share-title"]').count(), 0, 'English direct share also skips the duplicate attachment dialog');
   const languageToggle = host.getByTestId('header-language-toggle');
   if (!(await languageToggle.isVisible())) {
