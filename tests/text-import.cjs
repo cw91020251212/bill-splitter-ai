@@ -133,8 +133,8 @@ const ensureAIImportOpen = async page => {
     assert.equal(await noKeyPage.getByTestId('external-ai-provider-examples').innerText(), '（Google AI 模式、豆包等）');
     const googleAIButton = noKeyPage.getByTestId('copy-prompt-open-google-ai');
     assert.equal(await googleAIButton.isVisible(), true, 'the combined copy-and-open action is available');
-    assert.equal(await noKeyPage.locator('meta[name="bill-app-release"]').getAttribute('content'), 'v158-step2-link-spotlight-sequenced-20261115');
-    assert.equal((await noKeyPage.getByTestId('app-version-label').innerText()).trim(), 'R158');
+    assert.equal(await noKeyPage.locator('meta[name="bill-app-release"]').getAttribute('content'), 'v157-guided-step-action-spotlight-20261115');
+    assert.equal((await noKeyPage.getByTestId('app-version-label').innerText()).trim(), 'R157');
     const buttonPaint = async locator => locator.evaluate(button => {
       const style = getComputedStyle(button);
       const icon = button.querySelector('svg');
