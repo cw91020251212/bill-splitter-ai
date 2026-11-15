@@ -22,19 +22,35 @@ const site = new URL(base.pathname.endsWith('.html') ? './' : (base.pathname.end
 const OUT = '/home/ubuntu/bill-R105-qa';
 const A = 'QA無碼朋友', B = 'QA保護朋友', C = 'QA新暱稱', LATE = 'QA遲加入朋友';
 const INITIAL_QTY = 1.234, REVISED_QTY = 1.2345;
-const PIN = '0042', WRONG = '9937', SYMBOL_PIN = 'aZ#4', SYMBOL_WRONG = 'Az#4', PASSWORD = 'QA-legacy-password-2026!';
+const INITIAL_B_QTY = 2 - INITIAL_QTY, REVISED_B_QTY = 2 - REVISED_QTY;
+const PIN = '0042', WRONG = '9937', SYMBOL_PIN = 'aZ#', SYMBOL_WRONG = 'Az#', PASSWORD = 'QA-legacy-password-2026!';
 const secrets = new Set([PIN, WRONG, SYMBOL_PIN, SYMBOL_WRONG, PASSWORD]), owners = new Set(), steps = [], errors = [], blocked = [], pages = [], runtimes = new Map();
 let harness, browser, workerOrigin, stage = 'readiness', metrics = {};
 function pass(label) { steps.push(label); console.log(`PASS ${label}`); }
 function remember(body) { for (const key of ['editToken', 'setupCode', 'writeToken']) if (body?.[key]) { secrets.add(body[key]); if (key === 'writeToken') owners.add(body[key]); } return body; }
 function scrub(value) { let text = String(value); for (const secret of [...secrets].sort((a, b) => b.length - a.length)) text = text.split(secret).join('[REDACTED]'); return text; }
+function secretPath(value, secret, path = '$') {
+  if (typeof value === 'string') return value.includes(secret) ? path : '';
+  if (Array.isArray(value)) { for (let i = 0; i < value.length; i++) { const found = secretPath(value[i], secret, `${path}[${i}]`); if (found) return found; } return ''; }
+  if (value && typeof value === 'object') { for (const [key, entry] of Object.entries(value)) { const found = secretPath(entry, secret, `${path}.${key}`); if (found) return found; } }
+  return '';
+}
+function stripImagePayloads(value) {
+  if (Array.isArray(value)) return value.map(stripImagePayloads);
+  if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([key, entry]) => [key,
+    key === 'images' && Array.isArray(entry) ? entry.map(image => image && typeof image === 'object' ? Object.fromEntries(Object.entries(image).filter(([imageKey]) => imageKey !== 'data')) : image) : stripImagePayloads(entry)]));
+  return value;
+}
 function secretFree(value, host = false) {
-  const text = typeof value === 'string' ? value : JSON.stringify(value);
-  for (const secret of secrets) if (!(host && owners.has(secret))) assert(!text.includes(secret), 'Credential escaped to public result, URL or persistent storage');
-  assert(!/"(?:recognitionCode|password|salt|hash|tickets|editToken|setupCode)"\s*:/i.test(text), 'Private credential fields escaped the request-local boundary');
+  const fullText = typeof value === 'string' ? value : JSON.stringify(value);
+  const scanValue = stripImagePayloads(value);
+  const text = typeof scanValue === 'string' ? scanValue : JSON.stringify(scanValue);
+  for (const secret of secrets) if (!(host && owners.has(secret)) && text.includes(secret)) assert.fail(`Credential escaped to public result, URL or persistent storage (field ${secretPath(scanValue, secret) || 'unknown'})`);
+  assert(!/"(?:recognitionCode|password|salt|hash|tickets|editToken|setupCode|ownerProof|ownerProofHash)"\s*:/i.test(fullText), 'Private credential fields escaped the request-local boundary');
 }
 async function until(check, label, timeout = 20000) { const end = Date.now() + timeout; while (Date.now() < end) { if (await check()) return; await new Promise(r => setTimeout(r, 60)); } throw new Error(`Timed out: ${label}`); }
 const payload = (name, qty = 1, extra = {}) => ({ name, claims: [{ id: '01', qty, unit: '', displayUnit: '' }], ...extra });
+const sharedPayload = (name, qty = 1) => ({ name, claims: [{ id: '01', qty, unit: '', displayUnit: '', mode: 'shared', shareExplicit: true }] });
 const endpoint = (id, tail = '') => `/api/shares/${id}${tail}`;
 async function call(id, tail = '', options = {}) { const result = await harness.call(endpoint(id, tail), options); remember(result.body); return result; }
 const post = (id, op, body, extra = {}) => call(id, `/claims/${op}`, { method: 'POST', body, ...extra });
@@ -45,26 +61,28 @@ function data(entries) {
   const total = entries.reduce((n, entry) => n + entry.claims[0].qty, 0);
   return { version: 2, language: 'zh-HK', bill: { date: '2026-11-07', payer: A, currency: 'HKD', sourceCurrency: 'HKD', billTotal: 100, sourceTotal: 100, sourceBillTotal: 100, itemsSubtotal: 100, exchangeRate: 1 },
     participants: entries.map(e => ({ name: e.name, total: 100 * e.claims[0].qty / total, subtotal: 100 * e.claims[0].qty / total })),
-    items: [{ id: '01', number: '01', name: 'QA茶', quantity: 0, unit: '', sourceAmount: 100, allocatedAmount: 100, shares: entries.map(e => ({ person: e.name, quantity: e.claims[0].qty, unit: '份', isActualUnit: false, amount: 100 * e.claims[0].qty / total })) }], adjustments: [], images: [] };
+    items: [{ id: '01', number: '01', name: 'QA茶', quantity: 0, unit: '', sourceAmount: 100, allocatedAmount: 100, shares: entries.map(e => ({ person: e.name, quantity: e.claims[0].qty, unit: '份', isActualUnit: false, claimMode: e.claims[0].mode === 'shared' ? 'shared' : '', shareExplicit: e.claims[0].mode === 'shared' && e.claims[0].shareExplicit === true, amount: 100 * e.claims[0].qty / total })) }], adjustments: [], images: [] };
 }
 function linkFor(c) { const url = new URL('claim.html', site); url.searchParams.set('session', c.id); url.hash = relay.buildHash(Buffer.from(JSON.stringify([{ id: '01', name: 'QA茶', totalQty: null, unit: '' }])).toString('base64url'), relay.createRoom(), { title: 'QA識別碼驗收', createdAt: Date.parse(c.createdAt), expiresAt: Date.parse(c.expiresAt) }); secretFree(url.href); return url.href; }
 async function publish(c, entries) { status(await call(c.id, '', { method: 'PUT', owner: c.writeToken, body: data(entries) }), 200, 'publish current claims'); }
 async function backend() {
   stage = 'real backend optional code contracts';
+  const ownerProofA = 'A'.repeat(43); secrets.add(ownerProofA);
   const c = await create(); await kind(c.id, A, 'new');
-  status(await post(c.id, 'submit', payload(A, 1, { recognitionCode: '' })), 200, 'blank code first submit'); await kind(c.id, A, 'none');
-  const open = remember(status(await post(c.id, 'unlock', { name: A, recognitionCode: '' }), 200, 'name and blank code retrieve'));
+  status(await post(c.id, 'submit', payload(A, 1, { recognitionCode: '', ownerProof: ownerProofA })), 200, 'blank code first submit binds local owner proof'); await kind(c.id, A, 'local');
+  const nameOnly = await post(c.id, 'unlock', { name: A, recognitionCode: '' }); status(nameOnly, 403, 'name and blank code cannot retrieve'); assert.equal(nameOnly.body.code, 'owner_recovery_required'); assert.equal(nameOnly.body.payload, undefined);
+  const open = remember(status(await post(c.id, 'unlock', { name: A, ownerProof: ownerProofA }), 200, 'matching local owner proof retrieves'));
   assert.equal(open.payload.claims[0].qty, 1); secretFree(open.payload);
-  status(await post(c.id, 'submit', payload(A, 2, { recognitionCode: '' })), 200, 'blank code revision');
-  for (const invalid of ['123', '12345', 'a#3']) status(await post(c.id, 'submit', payload('QA格式測試', 1, { recognitionCode: invalid })), 400, 'only blank or exactly four printable ASCII characters');
+  status(await post(c.id, 'submit', payload(A, 2, { recognitionCode: '', ownerProof: ownerProofA })), 200, 'blank code revision requires local owner proof');
+  for (const invalid of ['12', '12345', 'a#', '1 2', '四aa', 1234]) status(await post(c.id, 'submit', payload('QA格式測試', 1, { recognitionCode: invalid })), 400, 'recognition codes are blank or three/four printable ASCII characters');
   status(await post(c.id, 'submit', payload(B, 1, { recognitionCode: PIN })), 200, 'leading-zero PIN first submit'); await kind(c.id, B, 'pin');
   for (const [n, code] of [WRONG, '', undefined].entries()) { const rejected = await post(c.id, 'unlock', { name: B, ...(code === undefined ? {} : { recognitionCode: code }) }, { ip: `203.0.113.${110 + n}` }); status(rejected, 403, 'wrong, blank or missing PIN retrieval denied'); assert.equal(rejected.body.code, 'wrong_recognition_code'); assert.equal(rejected.body.payload, undefined); secretFree(rejected.body); }
   status(await post(c.id, 'submit', payload(B, 99, { recognitionCode: '' }), { ip: '203.0.113.114' }), 403, 'blank cannot overwrite PIN member');
   const pin = remember(status(await post(c.id, 'unlock', { name: B, recognitionCode: PIN }), 200, 'correct 4-character numeric code retrieve'));
   assert.equal(pin.payload.claims[0].qty, 1);
-  status(await post(c.id, 'submit', payload('QA符號認證', 1, { recognitionCode: SYMBOL_PIN })), 200, 'mixed-case symbol code enrollment');
+  status(await post(c.id, 'submit', payload('QA符號認證', 1, { recognitionCode: SYMBOL_PIN })), 200, 'three-character mixed-case symbol code enrollment');
   assert.equal((await post(c.id, 'unlock', { name: 'QA符號認證', recognitionCode: SYMBOL_WRONG })).status, 403, 'code comparison preserves case');
-  assert.equal((await post(c.id, 'unlock', { name: 'QA符號認證', recognitionCode: SYMBOL_PIN })).status, 200, 'mixed-case symbol code unlock');
+  assert.equal((await post(c.id, 'unlock', { name: 'QA符號認證', recognitionCode: SYMBOL_PIN })).status, 200, 'three-character mixed-case symbol code unlock');
   status(await post(c.id, 'submit', payload(B, 3, { editToken: pin.editToken })), 200, 'PIN editor ticket revision');
   await kind(c.id, B, 'pin');
   assert.equal(status(await post(c.id, 'unlock', { name: B, recognitionCode: PIN }), 200, 'ticket-only revision retains PIN').payload.claims[0].qty, 3);
@@ -77,12 +95,16 @@ async function backend() {
   harness.values.set(`share:${legacy.id}`, { value: JSON.stringify(record), options: {} }); harness.objects.delete(legacy.id);
   status(await post(legacy.id, 'unlock', { name: B, recognitionCode: '' }), 409, 'unenabled legacy session still requires owner setup');
   status(await post(legacy.id, 'setup', { members: [] }, { owner: legacy.writeToken }), 200, 'seed old protected member'); await kind(legacy.id, B, 'reserved');
-  const reserved = status(await post(legacy.id, 'unlock', { name: B, recognitionCode: '' }), 200, 'enabled reserved name retrieves without per-name owner approval'); assert.equal(reserved.payload.claims[0].qty, 1);
+  const legacyApproval = status(await post(legacy.id, 'approve', { name: B }, { owner: legacy.writeToken }), 200, 'organizer approves cross-device recovery');
+  const reservedProof = 'R'.repeat(43); secrets.add(reservedProof);
+  status(await post(legacy.id, 'submit', payload(B, 1, { recognitionCode: '', setupCode: legacyApproval.setupCode, ownerProof: reservedProof })), 200, 'approved recovery keeps code optional and binds a new device proof'); await kind(legacy.id, B, 'local');
+  const reservedNameOnly = await post(legacy.id, 'unlock', { name: B, recognitionCode: '' }); status(reservedNameOnly, 403, 'reserved name remains protected after setup');
+  const reserved = status(await post(legacy.id, 'unlock', { name: B, ownerProof: reservedProof }), 200, 'approved owner proof retrieves reserved claim'); assert.equal(reserved.payload.claims[0].qty, 1);
   await publish(c, [payload(A, 2), payload(B, 3), payload('QA舊密碼'), payload('QA符號認證', 1)]); secretFree(status(await call(c.id), 200, 'public result'));
   secretFree(status(await call(c.id, '/claims/inbox?after=0', { owner: c.writeToken }), 200, 'organizer inbox'));
   harness.nowFor(c.id, Date.parse(c.expiresAt) + 1);
-  status(await post(c.id, 'submit', payload(A, 4, { recognitionCode: '' })), 410, 'expired optional-code mutation'); assert.equal(harness.record(c.id), null); assert.equal(harness.objects.get(c.id).ctx.data.size, 0);
-  pass('backend new/none/pin/password/reserved, blank revision, PIN denial, identity-bound ticket, legacy and expiry');
+  status(await post(c.id, 'submit', payload(A, 4, { recognitionCode: '', ownerProof: ownerProofA })), 410, 'expired optional-code mutation'); assert.equal(harness.record(c.id), null); assert.equal(harness.objects.get(c.id).ctx.data.size, 0);
+  pass('backend local owner proof, blank-name denial, optional 3/4-character PIN, password compatibility, organizer recovery, tickets and expiry');
 }
 async function preload() {
   await Promise.all(['https://cdn.tailwindcss.com', 'https://unpkg.com/react@18/umd/react.production.min.js', 'https://unpkg.com/react-dom@18/umd/react-dom.production.min.js', 'https://unpkg.com/@babel/standalone/babel.min.js'].map(async url => {
@@ -162,12 +184,12 @@ async function focusedCode(page, input, label) {
   assert.equal(await input.inputValue(), SYMBOL_PIN, `${label}: retains mixed-case letters and symbol`);
   const focused = await input.evaluate(n => ({ scrollLeft: n.scrollLeft, scrollWidth: n.scrollWidth, clientWidth: n.clientWidth }));
   assert.equal(focused.scrollLeft, 0, `${label}: caret at end must not scroll first digit out of view`);
-  assert(focused.scrollWidth <= focused.clientWidth, `${label}: four characters fit while focused`);
+  assert(focused.scrollWidth <= focused.clientWidth, `${label}: all code characters fit while focused`);
   await input.fill(SYMBOL_PIN); await input.press('End');
   const pasted = await input.evaluate(n => ({ value: n.value, scrollLeft: n.scrollLeft, scrollWidth: n.scrollWidth, clientWidth: n.clientWidth }));
   assert.equal(pasted.value, SYMBOL_PIN, `${label}: accepts mixed-case letters and symbol`);
   assert.equal(pasted.scrollLeft, 0, `${label}: pasted value remains visible with caret at end`);
-  assert(pasted.scrollWidth <= pasted.clientWidth, `${label}: pasted digits fit the compact field`);
+  assert(pasted.scrollWidth <= pasted.clientWidth, `${label}: pasted code characters fit the compact field`);
   await input.press('End'); assert.equal(await input.inputValue(), SYMBOL_PIN);
   await input.press('Backspace'); assert.equal(await input.inputValue(), SYMBOL_PIN.slice(0, -1));
   await input.pressSequentially(SYMBOL_PIN.slice(-1)); assert.equal(await input.inputValue(), SYMBOL_PIN);
@@ -188,12 +210,19 @@ async function gate(page, name) {
   const input = authCode(page); await focusedCode(page, input, 'authenticated edit'); return input;
 }
 async function submit(page, c, codeValue, qty) {
-  const before = harness.requests.length; await page.locator('#qty-0').fill(String(qty)); await until(() => page.locator('#submit-button').isEnabled(), 'blank or valid code permits submit'); await page.locator('#submit-button').click();
+  const before = harness.requests.length;
+  // This fixture has no known receipt total/unit, so a quantity-only claim must use the product's explicit Shared mode.
+  await page.locator('.claim-mode-option[data-claim-mode="shared"]').click(); await page.locator('#qty-0').fill(String(qty));
+  await until(() => page.locator('#submit-button').isEnabled(), 'blank or valid code permits submit'); await page.locator('#submit-button').click();
   await page.locator('#revision-waiting').waitFor({ state: 'visible' });
   await until(() => harness.requests.slice(before).some(r => r.id === c.id && r.path.endsWith('/claims/submit') && r.status === 200), 'real submit accepted');
   const r = harness.requests.slice(before).find(r => r.id === c.id && r.path.endsWith('/claims/submit') && r.status === 200);
   assert.equal(r.input.claims[0].qty, qty, 'request retains full quantity precision');
-  if (!r.input.editToken) { assert.equal(r.input.recognitionCode, codeValue, 'first submit sends explicit blank or four characters'); assert.equal(r.input.password, undefined); }
+  if (!r.input.editToken) {
+    assert.equal(r.input.recognitionCode, codeValue, 'first submit sends explicit blank or three/four characters');
+    assert.match(r.input.ownerProof, /^[A-Za-z0-9_-]{43}$/, 'first enrollment sends a random 256-bit per-device proof'); secrets.add(r.input.ownerProof);
+    assert.equal(r.input.password, undefined);
+  }
   else { assert.equal(r.input.password, undefined); assert.equal(r.input.recognitionCode, undefined, 'authorized editor sends editToken only, not replacement credentials'); }
   assert.equal(await page.locator('iframe.same-link-result').isVisible(), false, 'old result hidden pending recalculation'); await stored(page); return before;
 }
@@ -322,7 +351,7 @@ async function hostFixture() {
 }
 async function hostSettle(fixture, qty, initial = false, names = [A, B], claimsAlreadyReceived = false) {
   const { host, c, link } = fixture;
-  if (!host) return publish(c, [payload(A, qty), payload(B)]);
+  if (!host) return publish(c, [sharedPayload(A, qty), sharedPayload(B)]);
   await host.bringToFront(); await host.evaluate(() => window.dispatchEvent(new Event('focus')));
   const claimsNav = host.locator('.step-nav button[data-step="2"]');
   const calcNav = host.locator('.step-nav button[data-step="3"]');
@@ -336,7 +365,7 @@ async function hostSettle(fixture, qty, initial = false, names = [A, B], claimsA
       try { await refresh.click({ timeout: 1000 }); return true; }
       catch (error) { if (!await refresh.count()) return false; throw error; }
     }, 'owner refresh current inbox on Step 2');
-    await until(async () => { const replies = host.getByTestId('claim-replies'); if (!await replies.count()) { if (await claimsNav.count()) await claimsNav.click(); return false; } const text = await replies.inputValue(); return names.every(name => text.includes(`姓名：${name}`)) && Number(text.split(`姓名：${A}`)[1]?.match(/認帳份數\s*=\s*([\d.]+)/)?.[1]) === qty; }, 'host sees one exact current revision');
+    await until(async () => { const replies = host.getByTestId('claim-replies'); if (!await replies.count()) { if (await claimsNav.count()) await claimsNav.click(); return false; } const text = await replies.inputValue(); return names.every(name => text.includes(`姓名：${name}`)) && Number(text.split(`姓名：${A}`)[1]?.match(/(?:認帳份數|共享份數)\s*=\s*([\d.]+)/)?.[1]) === qty; }, 'host sees one exact current revision');
     const text = await host.getByTestId('claim-replies').inputValue(); assert.equal(text.split(`姓名：${A}`).length - 1, 1); secretFree(text);
     if (await calcNav.count()) await calcNav.click();
   }
@@ -354,12 +383,12 @@ async function hostSettle(fixture, qty, initial = false, names = [A, B], claimsA
       iconColor: icon ? getComputedStyle(icon).color : ''
     };
   });
-  assert.equal(ctaStyles.color, 'rgb(255, 229, 102)', 'active report title uses the shared yellow');
-  assert.match(ctaStyles.textShadow, /0px 1px 1px/, 'yellow title keeps a subtle shadow');
+  assert.equal(ctaStyles.color, 'rgb(255, 255, 255)', 'restored report action keeps its white title');
+  assert.match(ctaStyles.textShadow, /0px 1px 1px/, 'restored title keeps its subtle shadow');
   assert.equal(ctaStyles.hintColor, 'rgb(255, 255, 255)', 'CTA hint stays white');
   assert.match(ctaStyles.hintTextShadow, /0px 1px 1px/, 'CTA hint keeps a subtle text shadow');
   assert.equal(ctaStyles.hintFilter, 'none', 'CTA hint text has no drop-shadow filter');
-  assert.equal(ctaStyles.iconColor, 'rgb(255, 229, 102)', 'CTA check icon uses the same yellow as the title');
+  assert.equal(ctaStyles.iconColor, 'rgb(255, 229, 102)', 'CTA check icon retains the shared yellow accent');
   const payer = host.getByPlaceholder('輸入姓名', { exact: true }); if (await payer.inputValue() !== A) await payer.fill(A);
   const before = harness.requests.length;
   await host.getByTestId('calculate-split').click();
@@ -452,7 +481,7 @@ async function manualClaimEntry() {
   assert(!JSON.stringify(harness.requests.slice(beforeLink)).includes('QA本機手動'), 'manual reply text never enters a link-creation request');
 
   await until(async () => await host.getByTestId('claim-inbox-refresh').isEnabled(), 'existing online inbox becomes available after link creation');
-  status(await post(c.id, 'submit', payload('QA連結朋友', 1, { recognitionCode: '' })), 200, 'friend can submit through the later-created link');
+  status(await post(c.id, 'submit', payload('QA連結朋友', 1, { recognitionCode: '', ownerProof: 'M'.repeat(43) })), 200, 'friend can submit through the later-created link with a local owner proof');
   await host.getByTestId('claim-inbox-refresh').click();
   await until(async () => {
     const value = await host.getByTestId('claim-replies').inputValue();
@@ -472,7 +501,27 @@ async function ui() {
   const random = await visible(a, '#random-code');
   const randomBox = await random.boundingBox(); assert(randomBox.width <= 52 && randomBox.height <= 52, 'random control is tiny'); await random.click(); const generated = await code.inputValue(); assert.match(generated, /^[!-~]{4}$/); secrets.add(generated); await code.fill(''); assert.equal(await code.inputValue(), '');
   await shot(a, 'initial-compact-name-code'); await submit(a, c, '', INITIAL_QTY); assert.equal(a.url(), link);
-  await b.goto(link, { waitUntil: 'domcontentloaded' }); await b.locator('#claim-content').waitFor({ state: 'visible' }); await b.locator('#person-name').fill(B); const bCode = await firstCode(b); await bCode.fill(SYMBOL_PIN); await b.locator('#qty-0').fill('1'); await stored(b); assert.equal(await bCode.inputValue(), SYMBOL_PIN, 'draft storage check happens while code is still entered'); await submit(b, c, SYMBOL_PIN, 1); assert.equal(await bCode.inputValue(), '', 'successful enrollment clears recognition code');
+  const noProof = await pageFor('second device without local proof');
+  await noProof.goto(link, { waitUntil: 'domcontentloaded' }); await noProof.locator('#claim-content').waitFor({ state: 'visible' });
+  await noProof.locator('#person-name').fill(A); await (await firstCode(noProof)).click(); await noProof.locator('#first-retrieve').waitFor({ state: 'visible' }); await noProof.locator('#first-retrieve').click();
+  await noProof.locator('#claim-auth-panel').waitFor({ state: 'visible' }); await until(() => noProof.locator('#auth-confirm').isEnabled(), 'cross-device identity status ready');
+  const noProofStart = harness.requests.length; await noProof.locator('#auth-confirm').click();
+  assert.equal(await noProof.locator('#claim-content').isVisible(), false, 'knowing the name on a different device never opens or changes the claim');
+  assert.match(await noProof.locator('#claim-auth-panel').innerText(), /發起人|整理人|organizer/i, 'the recovery guidance tells the friend to contact the organizer');
+  assert.equal(harness.requests.slice(noProofStart).some(r => r.path.endsWith('/claims/unlock') && r.input?.name === A), false, 'the UI does not send a name-only unlock');
+  await stored(noProof); pass('a second browser cannot retrieve a blank-code claim by name; cross-device recovery guidance is visible');
+  const resetProbe = await a.context().newPage(); resetProbe.on('pageerror', error => errors.push(`reset proof preservation: ${error.message}`));
+  await resetProbe.goto(link, { waitUntil: 'domcontentloaded' }); await resetProbe.locator('#edit-claim-again').waitFor({ state: 'visible' }); await resetProbe.locator('#edit-claim-again').click();
+  await resetProbe.locator('#claim-auth-panel').waitFor({ state: 'visible' }); await until(() => resetProbe.locator('#auth-confirm').isEnabled(), 'reset proof identity ready');
+  await resetProbe.locator('#auth-reset').click(); await resetProbe.locator('#auth-owner-reset-label').click(); await resetProbe.locator('#auth-random-code').waitFor({ state: 'visible' }); await resetProbe.locator('#auth-setup-code').fill('not-a-real-setup-code');
+  const invalidResetStart = harness.requests.length; await resetProbe.locator('#auth-confirm').click();
+  await until(() => harness.requests.slice(invalidResetStart).some(r => r.path.endsWith('/claims/unlock') && r.status >= 400), 'invalid organizer recovery code rejected');
+  await resetProbe.locator('#auth-retry').click(); await until(() => resetProbe.locator('#auth-confirm').isEnabled(), 'retry uses existing local proof');
+  const proofRetryStart = harness.requests.length; await resetProbe.locator('#auth-confirm').click();
+  await until(() => harness.requests.slice(proofRetryStart).some(r => r.path.endsWith('/claims/unlock') && r.status === 200), 'existing owner proof still unlocks');
+  await resetProbe.locator('#claim-content').waitFor({ state: 'visible' }); await resetProbe.close();
+  pass('an invalid organizer recovery code leaves the existing local owner proof intact');
+  await b.goto(link, { waitUntil: 'domcontentloaded' }); await b.locator('#claim-content').waitFor({ state: 'visible' }); await b.locator('#person-name').fill(B); const bCode = await firstCode(b); await bCode.fill(SYMBOL_PIN); await b.locator('#qty-0').fill(String(INITIAL_B_QTY)); await stored(b); assert.equal(await bCode.inputValue(), SYMBOL_PIN, 'draft storage check happens while code is still entered'); await submit(b, c, SYMBOL_PIN, INITIAL_B_QTY); assert.equal(await bCode.inputValue(), '', 'successful enrollment clears recognition code');
   const pending = await friendState(a, c); assert.equal(pending.pending.payload.name, A);
   await a.locator('#edit-claim-again').click(); await a.locator('#claim-auth-panel').waitFor({ state: 'visible' }); await until(() => a.locator('#auth-confirm').isEnabled(), 'pending name identity ready');
   await a.locator('#auth-reset').click(); await a.locator('#auth-retry').click(); assert.equal(await (await authCode(a)).inputValue(), '');
@@ -562,6 +611,12 @@ async function ui() {
     await fixture.host.locator('.step-nav button[data-step="3"]').click();
     const recalculationStart = harness.requests.length;
     await fixture.host.getByTestId('calculate-split').click();
+    const receiptReview = fixture.host.getByTestId('receipt-total-review');
+    await receiptReview.waitFor({ state: 'visible' });
+    assert.match(await receiptReview.innerText(), /收據總額與計算總額不符/);
+    assert.equal(harness.requests.slice(recalculationStart).some(r => r.id === c.id && r.method === 'PUT' && r.status === 200), false, 'result is not published before acknowledging the tax/receipt difference');
+    await fixture.host.getByTestId('acknowledge-receipt-total').click();
+    await fixture.host.getByTestId('calculate-split').click();
     await until(() => harness.requests.slice(recalculationStart).some(r => r.id === c.id && r.method === 'PUT' && r.status === 200), 'recalculation publishes to existing friend session');
     await until(async () => {
       const src = await openResultFrame.getAttribute('src');
@@ -591,6 +646,10 @@ async function ui() {
     await until(async () => await fixture.host.getByTestId('calculate-split').isEnabled(), 'host can recalculate while friend edits');
     const editPublishStart = harness.requests.length;
     await fixture.host.getByTestId('calculate-split').click();
+    await fixture.host.getByTestId('receipt-total-review').waitFor({ state: 'visible' });
+    assert.equal(harness.requests.slice(editPublishStart).some(r => r.id === c.id && r.method === 'PUT' && r.status === 200), false, 'report remains unpublished until the second receipt difference is acknowledged');
+    await fixture.host.getByTestId('acknowledge-receipt-total').click();
+    await fixture.host.getByTestId('calculate-split').click();
     await until(() => harness.requests.slice(editPublishStart).some(r => r.id === c.id && r.method === 'PUT' && r.status === 200), 'second recalculation publishes to the same session');
     await until(() => harness.requests.slice(editPublishStart).some(r => r.id === c.id && r.method === 'GET' && r.path === endpoint(c.id) && r.output?.status === 'ready' && Number(r.output?.resultRevision) > editRevision), 'friend checks the new revision while edit remains open', 20000);
     assert.equal(await a.locator('#claim-content').isVisible(), true, 'concurrent publication does not close the friend editor');
@@ -616,6 +675,9 @@ async function ui() {
   assert.equal(harness.record(c.id).data.items[0].shares.find(s => s.person === A).quantity, INITIAL_QTY, 'old published allocation remains until host resettles');
   await until(() => harness.requests.slice(before).some(r => r.id === c.id && r.method === 'GET' && r.path === endpoint(c.id) && r.output?.status === 'ready'), 'friend polls stale full-precision result', 10000);
   assert.equal(await a.locator('iframe.same-link-result').isVisible(), false, '1.234 stale result does not match 1.2345 revision');
+  const bPin = await gate(b, B); await bPin.fill(SYMBOL_PIN); await b.locator('#auth-confirm').click(); await b.locator('#claim-content').waitFor({ state: 'visible' });
+  assert.equal(await b.locator('#qty-0').inputValue(), String(INITIAL_B_QTY));
+  await submit(b, c, SYMBOL_PIN, REVISED_B_QTY);
   await hostSettle(fixture, REVISED_QTY); await result(a, A); assert.equal(a.url(), link); await stored(a); pass('blank-name retrieval, ticket-only revision, exact 1.234 to 1.2345 matching and automatic host resettlement on original URL');
   stage = 'new friend can join after published result on the original link';
   const late = await pageFor('late friend after published result');
@@ -678,12 +740,12 @@ async function ui() {
   const retry = await visible(a, '#auth-retry,[data-testid="auth-retry"]'); await retry.click(); assert.equal(await (await authCode(a)).inputValue(), '', 'retry clears recognition code');
   if (!await a.locator('#auth-recovery').isVisible()) await (await visible(a, '#auth-reset,#auth-forgot')).click(); await (await visible(a, '#auth-new-name,#auth-new-nickname,[data-testid="auth-new-nickname"]')).click();
   await a.locator('#claim-content').waitFor({ state: 'visible' }); assert.equal(await a.locator('#person-name').inputValue(), '', 'new nickname starts blank'); assert.equal(await a.locator('#person-name').evaluate(n => n.readOnly), false); assert.equal(await (await firstCode(a)).inputValue(), '');
-  const protectedOwn = status(await post(c.id, 'unlock', { name: B, recognitionCode: SYMBOL_PIN }, { ip: '203.0.113.244' }), 200, 'new nickname flow leaves protected record untouched'); assert.equal(protectedOwn.payload.claims[0].qty, 1);
-  await a.locator('#person-name').fill(C); await submit(a, c, '', 1); await kind(c.id, C, 'none'); await kind(c.id, B, 'pin');
-  if (!fixture.host) await publish(c, [payload(A, REVISED_QTY), payload(B), payload(C)]);
+  const protectedOwn = status(await post(c.id, 'unlock', { name: B, recognitionCode: SYMBOL_PIN }, { ip: '203.0.113.244' }), 200, 'new nickname flow leaves protected record untouched'); assert.equal(protectedOwn.payload.claims[0].qty, REVISED_B_QTY);
+  await a.locator('#person-name').fill(C); await submit(a, c, '', 1); await kind(c.id, C, 'local'); await kind(c.id, B, 'pin');
+  if (!fixture.host) await publish(c, [sharedPayload(A, REVISED_QTY), sharedPayload(B, REVISED_B_QTY), sharedPayload(C)]);
   else await hostSettle(fixture, REVISED_QTY, false, [A, B, C, LATE]);
   await result(a, B);
-  entered = await gate(a, B); await entered.fill(SYMBOL_PIN); await a.locator('#auth-confirm').click(); await a.locator('#claim-content').waitFor({ state: 'visible' }); assert.equal(await a.locator('#qty-0').inputValue(), '1'); assert.equal(await (await authCodeIfPresent(a)), '', 'verified PIN clears input');
+  entered = await gate(a, B); await entered.fill(SYMBOL_PIN); await a.locator('#auth-confirm').click(); await a.locator('#claim-content').waitFor({ state: 'visible' }); assert.equal(await a.locator('#qty-0').inputValue(), String(REVISED_B_QTY)); assert.equal(await (await authCodeIfPresent(a)), '', 'verified PIN clears input');
   await shot(a, 'inline-pin-edit-masked-code-cleared'); await stored(a); await stored(b);
   assert(harness.requests.slice(before).some(r => r.method === 'PUT' && r.status === 200)); pass('wrong PIN lock, forgot inline choices, cleared retry, new nickname non-overwrite and correct PIN unlock');
   stage = 'legacy password optional UI mode';

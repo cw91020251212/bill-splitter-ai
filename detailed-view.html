@@ -23,6 +23,11 @@
     .font-size-option[aria-pressed="true"] { border-color:var(--green-dark); background:var(--green-dark); color:#fff; }
     .font-size-option:focus-visible { outline:3px solid rgba(50,111,174,.55); outline-offset:1px; }
     .local-tag { padding:4px 9px; border:1px solid #cee0d0; border-radius:99px; background:#f5faf5; color:#4b6652; font-size:calc((11px) * var(--readable-text-scale, 1)); font-weight:700; white-space:nowrap; }
+    .friend-local-save { display:grid; gap:7px; margin-top:12px; }
+    .friend-local-save button { min-height:44px; padding:9px 13px; border:1px solid #334e68; border-radius:10px; background:#c5d3df; color:#234f80; font:inherit; font-weight:750; cursor:pointer; }
+    .friend-local-save button:disabled { opacity:.6; cursor:not-allowed; }
+    .friend-local-save-status,.friend-local-save a { margin:0; color:#234f80; font-size:14px; }
+    .friend-local-save a { width:max-content; font-weight:750; }
     main { width:min(100% - 36px,1000px); margin:26px auto 64px; }
     .empty { max-width:480px; margin:14vh auto; padding:30px 24px; border:1px solid var(--line); border-radius:20px; background:#fff; box-shadow:var(--shadow); text-align:center; }
     .empty h1 { margin:0 0 8px; font-size:calc((23px) * var(--readable-text-scale, 1)); }
@@ -205,6 +210,11 @@
         <h1 id="member-gate-heading">朋友埋單</h1>
         <select id="member-select" data-testid="member-select" aria-label="請選擇成員"><option value="">請揀你個名</option></select>
         <p id="share-privacy" class="share-privacy" hidden>持有此連結者可查看全單及收據。<br><strong id="share-expiry" data-testid="share-expiry"></strong></p>
+        <div id="friend-local-save" class="friend-local-save" hidden>
+          <button id="save-friend-bill" type="button">保存我的帳單和收據到此裝置</button>
+          <p id="save-friend-bill-status" class="friend-local-save-status" role="status" aria-live="polite"></p>
+          <a id="view-friend-history" href="./friend-history.html" hidden>查看我的本機帳單</a>
+        </div>
       </section>
       <div id="member-content" hidden>
       <h1 id="page-title" class="page-title"></h1>
@@ -396,6 +406,10 @@
       const sharedImages = isSharedLink && Array.isArray(data.images) ? data.images.filter(image => image && typeof image.data === 'string' && /^[A-Za-z0-9+/]+={0,2}$/.test(image.data) && ['image/jpeg','image/png','image/webp'].includes(image.mimeType)) : [];
       const memberSelect = $('#member-select');
       const memberGateHeading = $('#member-gate-heading');
+      const friendLocalSave = $('#friend-local-save');
+      const saveFriendBillButton = $('#save-friend-bill');
+      const saveFriendBillStatus = $('#save-friend-bill-status');
+      const viewFriendHistory = $('#view-friend-history');
       const editClaimsButton = $('#edit-claims');
       let canEditClaims = false;
       let ownClaimName = '';
@@ -493,6 +507,9 @@
         const selected = participants.find(person => person.name === memberSelect.value);
         if (!selected) {
           $('#member-content').hidden = true;
+          friendLocalSave.hidden = true;
+          saveFriendBillStatus.textContent = '';
+          viewFriendHistory.hidden = true;
           $('#local-tag').hidden = true;
           $('#member-gate').classList.remove('member-gate--selected');
           memberGateHeading.textContent = '朋友埋單';
@@ -503,6 +520,10 @@
           return;
         }
         $('#member-content').hidden = false;
+        friendLocalSave.hidden = !isSharedLink;
+        saveFriendBillButton.disabled = !isSharedLink;
+        saveFriendBillStatus.textContent = '';
+        viewFriendHistory.hidden = true;
         copyPayableButton.disabled = false;
         copyPayableButton.textContent = '複製';
         $('#copy-payable-status').textContent = '';
@@ -526,7 +547,7 @@
           personalEntries.push([isSourceBreakdown ? `項目及額外分攤小計（${breakdownCurrency}）` : '項目及額外分攤小計', formatBreakdownMoney(preDiscount)]);
           if (number(selected.discount)) personalEntries.push([isSourceBreakdown ? `折扣（${breakdownCurrency}）` : '折扣', `−${formatBreakdownMoney(selected.discount)}`]);
           if (number(selected.tax)) personalEntries.push([isSourceBreakdown ? `稅項／服務費（${breakdownCurrency}）` : '稅項／服務費', formatBreakdownMoney(selected.tax)]);
-          if (settlementRoundingAdjustment) personalEntries.push([`換算分位調整（${currency}）`, formatMoney(settlementRoundingAdjustment, currency)]);
+          if (settlementRoundingAdjustment) personalEntries.push([`${sourceCurrency === currency ? '尾數調整' : '換算分位調整'}（${currency}）`, formatMoney(settlementRoundingAdjustment, currency)]);
           personalEntries.push([isSourceBreakdown ? `你要埋單（${currency}）` : '你要埋單', formatMoney(selected.total, currency)]);
           $('#personal-breakdown').hidden = false;
           $('#personal-title').textContent = '金額明細';
@@ -661,6 +682,46 @@
           showPhotoMessage('未能讀取收據相片，請稍後再試。');
         }
       };
+      const openFriendHistoryDb = () => new Promise((resolve,reject) => {
+        const request = indexedDB.open('billSplitterFriendHistory', 1);
+        request.onupgradeneeded = () => { if (!request.result.objectStoreNames.contains('bills')) request.result.createObjectStore('bills', { keyPath: 'id' }); };
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error || new Error('本機保存失敗'));
+      });
+      saveFriendBillButton.addEventListener('click', async () => {
+        const selected = getSelectedForNotice();
+        if (!isSharedLink || !shareId || !selected || !window.indexedDB) {
+          saveFriendBillStatus.textContent = '此瀏覽器未能保存本機帳單。'; return;
+        }
+        saveFriendBillButton.disabled = true;
+        saveFriendBillStatus.textContent = '正在保存至此裝置…';
+        try {
+          const ownItems = data.items.flatMap(item => {
+            const shares = (Array.isArray(item.shares) ? item.shares : []).filter(share => share?.person === selected.name).map(share => ({ ...share }));
+            return shares.length ? [{ ...item, shares }] : [];
+          });
+          const record = {
+            id: `${shareId}:${selected.name}`, shareId, name: selected.name, savedAt: new Date().toISOString(), expiresAt: shareExpiresAt,
+            bill: JSON.parse(JSON.stringify(bill)), person: { ...selected }, total: number(selected.total), items: ownItems,
+            adjustments: adjustments.filter(entry => entry.person === selected.name).map(entry => ({ ...entry })),
+            images: sharedImages.map(image => ({ mimeType: image.mimeType, data: image.data }))
+          };
+          const db = await openFriendHistoryDb();
+          try {
+            await new Promise((resolve,reject) => {
+              const tx = db.transaction('bills', 'readwrite');
+              tx.objectStore('bills').put(record);
+              tx.oncomplete = resolve;
+              tx.onerror = () => reject(tx.error || new Error('本機保存失敗'));
+              tx.onabort = () => reject(tx.error || new Error('本機保存失敗'));
+            });
+          } finally { db.close(); }
+          saveFriendBillStatus.textContent = `已保存你的明細及 ${record.images.length} 張收據至此裝置。`;
+          viewFriendHistory.hidden = false;
+        } catch (_) {
+          saveFriendBillStatus.textContent = '未能保存，請檢查此裝置的儲存空間後重試。';
+        } finally { saveFriendBillButton.disabled = false; }
+      });
       $('#close-photo').addEventListener('click', () => $('#photo-dialog').close());
       $('#photo-dialog').addEventListener('click', event => { if (event.target === $('#photo-dialog')) $('#photo-dialog').close(); });
       copyPayableButton.addEventListener('click', async () => {

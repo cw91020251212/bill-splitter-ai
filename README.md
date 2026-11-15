@@ -239,9 +239,21 @@ OpenRouter currently lists the Dots3-Note free variant as going away on December
 # 分帳管家 AI · Bill Splitter AI
 
 用 AI 讀單據、朋友自助認帳，自動計出每人應付幾錢。
-主程式及計算在瀏覽器內運作，本機草稿留在自己的裝置；朋友認帳自動回傳和可分享的詳細結果使用專用 Cloudflare Worker/KV 暫存，並按連結期限自動到期。
+主程式及分帳計算在瀏覽器內運作；本機草稿和原始收據留在自己的裝置。朋友認帳及分享結果會經專用 Cloudflare Worker，使用 KV 作活動索引／相容鏡像，並以每個活動的 SQLite Durable Object 保存最新結果與受保護認帳資料；資料按分享期限到期。
 
 已加入 **PWA 支援**：可以「加入主畫面」當 App 用，離線都開得。
+
+## 現行產品流程與技術結構（線上 R156 基準）
+
+- 主辦人在 GitHub Pages 開啟靜態前端（HTML／JavaScript，使用 React 18、Tailwind 與 Babel），讀取／核對單據、設定朋友認帳及結算。單據分攤計算在瀏覽器執行；前端透過 `bill-share-api.js` 呼叫 Cloudflare Worker。PWA Service Worker 快取網站程式，並不快取 AI API 回應。
+- 朋友開同一條認帳／結果連結，選自己的項目狀態：「按單位」、「共享」或「冇叫」。冇叫的人不付該項；共享數量只由選了該項的人作分母。例如六人選共享、某人認 2，該人付 2/6，餘下 4/6 再由其他選擇者均分。主辦人重新結算後仍更新原連結。
+- 認帳碼可自設 3 或 4 個可列印 ASCII 字元，也可留空。留空時，首次提交會建立隨機 256-bit 本機 owner proof：瀏覽器存於獨立 IndexedDB，Worker 只存其 SHA-256 雜湊。姓名本身不能取回或修改認帳；換裝置時需自設碼，或由主辦人一次性確認恢復。舊 PIN／密碼資料仍相容。
+- 朋友在結果頁選好自己後，可把自己的帳單明細及收據另存到該瀏覽器的 IndexedDB，從「我的本機帳單」查看；不改任何結算分配。此歷史不會自動跨裝置同步。
+- 認帳及結果連結是持有連結即可讀取的分享方式；任何收到連結的人都可看已發布結果及其中分享的收據。不要把連結當成私人登入，也不要公開轉發。
+
+### 本機審計候選（R157；未推送、未部署）
+
+本候選只在隔離副本中調整朋友編輯所有權證明、朋友本機帳單／收據保存、同幣別「尾數調整」文案、文件及 PWA 離線歷史頁快取。保留原 UI 與全部計算／分攤公式；正式網站和遠端儲存庫未修改。
 
 ---
 
@@ -250,8 +262,13 @@ OpenRouter currently lists the Dots3-Note free variant as going away on December
 ```
 bill-splitter-ai/
 ├── index.html                  ← 主程式（OCR 前遮蓋敏感資料；核對與分帳計算維持原流程）
-├── claim.html                  ← 手機認帳頁（朋友可一按「交返發起人」；WhatsApp 只作後備）
-├── claim-relay.js              ← 加密認帳轉送（免費 ntfy.sh，唔使帳號）
+├── claim.html                  ← 手機認帳頁及朋友認帳安全流程
+├── detailed-view.html          ← 朋友結果、個人明細與本機保存入口
+├── friend-history.html         ← 只讀取此瀏覽器 IndexedDB 的朋友帳單歷史
+├── bill-share-api.js           ← 朋友認帳／分享結果的 Worker API client
+├── share-config.js             ← Worker API origin 設定
+├── claim-relay.js              ← 舊版 relay 相容資產；不是目前認帳資料流
+├── worker/                     ← Cloudflare Worker、KV 與 SQLite Durable Object
 ├── i18n.js                     ← 中英文介面詞典
 ├── theme.css                   ← 灰階與綠色漸變主題
 ├── manifest.webmanifest        ← PWA 設定（App 名、顏色、圖示）
@@ -349,15 +366,15 @@ const CACHE_VERSION = 'v37';  // 下一次改成 'v38'，之後依序遞增
 
 ## 關於私隱
 
-- 冇後端、冇伺服器，你嘅單據同金額**唔會**傳去我哋任何地方。
-- 歷史紀錄存在瀏覽器 `localStorage`，只在你部機。
-- 認帳連結會在網址片段中帶有項目編號、中文名稱、已有的單據原文及可用單位資料；瀏覽器不會將網址片段傳送給網站伺服器，但任何收到連結的人都能看見這些項目。原文直接取自已保存的 OCR `original`，沒有原文時不猜譯。
+- 不是「無後端」：草稿、主辦人本機歷史及原始收據留在瀏覽器的 `localStorage`／IndexedDB；共享認帳、已發布結果及選擇分享的收據會送到 Cloudflare Worker。Worker 用私有 KV 保存活動索引／鏡像，並由每個活動的 SQLite Durable Object 提供最新結果和私有認帳紀錄；按分享期限到期。
+- 朋友本機歷史只存該朋友選中的帳單、個人明細和收據於本機 IndexedDB，不上傳、不包含其他朋友的認帳，也不會自動跨裝置同步。
+- 認帳網址片段可帶項目編號、名稱、單據原文及可用單位資料；瀏覽器不會把 `#` 後片段送到網站伺服器，但任何持有整條連結的人仍可查看其公開結果。原文直接取自已保存的 OCR `original`，沒有原文時不猜譯。
 - 認帳邀請先分享一個包含全部合併項目的連結，再由用家獨立按鈕分享整批附件；附件分享不帶連結文字或標題，避免 WhatsApp 在每張圖片重複附同一連結。
-- 朋友按「交返發起人」後，認帳會先加密，再送到免費公開轉送 [ntfy.sh](https://ntfy.sh)（唔使註冊、唔使 API 鎖匙、唔使付費）。網址片段入面先有房號同解鎖匙，GitHub Pages 睇唔到；ntfy 只保存密文，約 12 小時。發起人嘅分帳頁開住會自動接收，收埋之後再打開或按「重新接收」都會再檢查。收到之後只寫入呢部機嘅草稿。同一位朋友再交會取代舊認帳，幾位朋友可以各自交。
-- WhatsApp「分享回覆」同「複製回覆文字」仍然可用，只係後備。舊認帳連結冇房號，要重新分享先用到一按交返。
+- 目前朋友回覆及結果更新走專用 Worker API 和主辦人私有收件箱，不經公開 ntfy。`claim-relay.js` 保留作舊版相容／獨立測試資產，並非目前操作步驟。
+- 留空自設碼的朋友憑隨機本機 owner proof 編輯；proof 只存於朋友瀏覽器 IndexedDB，伺服器只留雜湊。自設碼為 3–4 個字元且大小寫敏感；跨裝置可用自設碼，或請主辦人發一次性恢復確認。只知道姓名不可以讀回或更改該人的認帳。舊密碼認帳仍向後相容。
 - 你嘅 AI API key 只存在你部機；`sw.js` 已明確設定**永不快取**
-  `openrouter.ai` 同 `ntfy.sh` 嘅請求。
-- 上傳嘅單據圖片只會直接傳到 OpenRouter 作 OCR 分析。
+  外部 AI API 回應。使用者選擇雲端 OCR／模型時，相關單據內容會由瀏覽器直接送到該服務；PaddleOCR.js 本機路由則在瀏覽器處理。
+- Worker 最多分享五張收據圖，每個活動資料上限 8 MiB；分享副本可壓縮，但不取代主辦人本機原圖。公開結果連結不是登入憑證，請只分享給需要的人。
 
 ⚠️ 提醒：如果你 fork 或公開個 repo，記住**唔好**將 API key 寫死在 code 入面。
 呢個 App 設計上係要用戶自己輸入 key，key 只留在瀏覽器。

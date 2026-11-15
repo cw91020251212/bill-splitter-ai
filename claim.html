@@ -578,7 +578,60 @@
       const firstCode = document.getElementById('first-setup-code');
       const firstFeedback = document.getElementById('first-identity-status');
       const normalizeName = value => String(value || '').normalize('NFC').replace(/\s+/g, ' ').trim();
-      const validRecognitionCode = value => value === '' || (value.length === 4 && /^[!-~]{4}$/.test(value));
+      const validRecognitionCode = value => value === '' || ([3, 4].includes(value.length) && /^[!-~]+$/.test(value));
+      const friendCredentialDbName = 'billSplitterFriendCredentialsV1';
+      const friendCredentialId = (sessionId, name) => `${sessionId}:${normalizeName(name)}`;
+      const ownerStoreFailure = () => Object.assign(new Error('local_credential_store_unavailable'), { code: 'owner_storage_unavailable' });
+      function openFriendCredentialDb() {
+        if (!window.indexedDB) return Promise.reject(ownerStoreFailure());
+        return new Promise((resolve, reject) => {
+          const request = indexedDB.open(friendCredentialDbName, 1);
+          request.onupgradeneeded = () => { if (!request.result.objectStoreNames.contains('owners')) request.result.createObjectStore('owners', { keyPath: 'id' }); };
+          request.onsuccess = () => resolve(request.result);
+          request.onerror = () => reject(ownerStoreFailure());
+        });
+      }
+      async function getFriendOwnerProof(sessionId, name) {
+        const db = await openFriendCredentialDb();
+        return new Promise((resolve, reject) => {
+          const tx = db.transaction('owners', 'readonly');
+          const request = tx.objectStore('owners').get(friendCredentialId(sessionId, name));
+          request.onsuccess = () => resolve(/^[A-Za-z0-9_-]{43}$/.test(request.result?.proof || '') ? request.result.proof : '');
+          request.onerror = () => reject(ownerStoreFailure());
+          tx.oncomplete = () => db.close();
+          tx.onerror = () => { db.close(); reject(ownerStoreFailure()); };
+        });
+      }
+      async function saveFriendOwnerProof(sessionId, name, proof) {
+        if (!/^[A-Za-z0-9_-]{43}$/.test(proof || '')) throw Object.assign(new Error('invalid_owner_proof'), { code: 'owner_storage_unavailable' });
+        const db = await openFriendCredentialDb();
+        return new Promise((resolve, reject) => {
+          const tx = db.transaction('owners', 'readwrite');
+          const request = tx.objectStore('owners').put({ id: friendCredentialId(sessionId, name), proof });
+          request.onerror = () => reject(ownerStoreFailure());
+          tx.oncomplete = () => { db.close(); resolve(); };
+          tx.onerror = () => { db.close(); reject(ownerStoreFailure()); };
+        });
+      }
+      async function verifyFriendOwnerProofStorage(sessionId, name, proof) {
+        if (!/^[A-Za-z0-9_-]{43}$/.test(proof || '')) throw ownerStoreFailure();
+        const db = await openFriendCredentialDb();
+        return new Promise((resolve, reject) => {
+          const tx = db.transaction('owners', 'readwrite');
+          const store = tx.objectStore('owners');
+          const probeId = `${friendCredentialId(sessionId, name)}:probe:${proof}`;
+          store.put({ id: probeId, proof });
+          store.delete(probeId);
+          tx.oncomplete = () => { db.close(); resolve(); };
+          tx.onerror = () => { db.close(); reject(ownerStoreFailure()); };
+          tx.onabort = () => { db.close(); reject(ownerStoreFailure()); };
+        });
+      }
+      function createFriendOwnerProof() {
+        if (!window.crypto?.getRandomValues) throw Object.assign(new Error('owner_proof_unavailable'), { code: 'owner_storage_unavailable' });
+        const bytes = window.crypto.getRandomValues(new Uint8Array(32));
+        return btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+      }
       const quantityPickerValues = Array.from({ length: 50 }, (_, index) => String(index + 1));
       const unitOptions = [
         { id: 'portion', zh: '份', en: 'portions', aliases: ['份', 'portion', 'portions', 'share', 'shares', 'serving', 'servings', 'serving(s)'] },
@@ -626,9 +679,9 @@
           waitingTitle: '認帳已修改，等候重新結算', initialWaitingTitle: '認帳已提交，等候結算', waitingDescription: '發起人收到新認帳後會重新計算。結果更新後，仍會顯示喺同一條連結。',
           addPersonTitle: '漏咗朋友？可補加另一位', addPersonDescription: '新朋友可用同一條連結填姓名和認帳；原有認帳不會被改。發起人收到後會重新計算。', addPersonButton: '新增一位',
           editHint: '保留同一姓名；重新提交會取代之前嘅認帳。', storageWarning: '此瀏覽器未能保存填寫資料；重新開啟後可能需要再填。', clearClaim: '取消之前所有認帳',
-          authTitle: '修改認帳', authDescription: '4 字碼（英數符號，分大小寫），可留空。', password: '舊密碼', recognitionCode: '認證碼（選填）', newCode: '新認證碼', passwordHint: '4 字碼（英數符號，分大小寫），可留空。', legacyHint: '用返之前設定嘅密碼。', noCodeHint: '之前冇設認證碼，留空就可以開啟。', pinHint: '填返之前設定嘅 4 字碼。',
+          authTitle: '修改認帳', authDescription: '3 或 4 字碼（英數符號，分大小寫），可留空。', password: '舊密碼', recognitionCode: '認證碼（選填）', newCode: '新認證碼', passwordHint: '3 或 4 字碼（英數符號，分大小寫），可留空。', legacyHint: '用返之前設定嘅密碼。', noCodeHint: '此裝置用已保存的本機憑證開啟；換裝置時請用認證碼，或向發起人拎確認碼。', pinHint: '填返之前設定嘅 3 或 4 字碼，或用此裝置已保存的認帳憑證。', ownerRecovery: '找不到本機認帳憑證。請用認證碼，或向發起人索取一次性確認碼重設。', ownerStorage: '此瀏覽器未能保存本機編輯憑證；請設定 3 或 4 字碼後再提交。',
           confirmPassword: '開啟認帳', setPassword: '重設並開啟', checkingPassword: '正在核對…', resetPassword: '忘記認證碼？', codeLabel: '發起人確認碼', codeHint: '填確認碼，再喺上面揀新認證碼。', initialCodeHint: '填確認碼，再喺上面揀新認證碼。', ownerReset: '已有發起人確認碼？', randomCode: '隨機', useLegacy: '使用舊密碼', useCode: '使用認證碼', retryCode: '再試一次', anotherName: '重新填寫（另一暱稱）', retrieve: '搵返認帳', knownName: '呢個名已有認帳；用返認證碼，或者搵返再修改。', anotherNameHint: '請用另一個暱稱；原本嘅認帳唔會改。',
-          pinInvalid: '填 4 字碼（不含空格），或留空。', pinRequired: '請填返 4 字碼。', passwordShort: '舊密碼至少 8 個字。', passwordWrong: '姓名或認證碼唔啱，再試一次。', legacyWrong: '舊密碼唔啱，再試一次。', approvalNeeded: '要重設嘅話，先向發起人拎確認碼。', protectionNeeded: '服務未準備好，請發起人更新連結。', authNetwork: '暫時連唔到，請再試。', authExpired: '修改時限已過，請再開啟認帳。', noProtectedSession: '呢條舊連結唔支援修改，請向發起人拎新連結。', tooManyPasswords: seconds => `試得太多，${Math.ceil(seconds / 60)} 分鐘後再試。`,
+          pinInvalid: '填 3 或 4 字碼（不含空格），或留空。', pinRequired: '請填返 3 或 4 字碼。', passwordShort: '舊密碼至少 8 個字。', passwordWrong: '姓名或認證碼唔啱，再試一次。', legacyWrong: '舊密碼唔啱，再試一次。', approvalNeeded: '要重設嘅話，先向發起人拎確認碼。', protectionNeeded: '服務未準備好，請發起人更新連結。', authNetwork: '暫時連唔到，請再試。', authExpired: '修改時限已過，請再開啟認帳。', noProtectedSession: '呢條舊連結唔支援修改，請向發起人拎新連結。', tooManyPasswords: seconds => `試得太多，${Math.ceil(seconds / 60)} 分鐘後再試。`,
           submitFail: '暫時未能提交，請重試或用 WhatsApp 後備。',
           rateLimit: '提交人數太多，請稍後重試。',
           tooLarge: '回覆太長，請用 WhatsApp 後備。',
@@ -673,9 +726,9 @@
           waitingTitle: 'Items updated; waiting for recalculation', initialWaitingTitle: 'Items submitted; waiting for calculation', waitingDescription: 'The organizer will calculate your updated items. The result will appear on this same link.',
           addPersonTitle: 'Forgot someone? Add another person', addPersonDescription: 'Use this same link to enter another name and their claims. Existing claims stay unchanged; the organizer will recalculate.', addPersonButton: 'Add person',
           editHint: 'Keep the same name. Resubmitting replaces your previous reply.', storageWarning: 'This browser cannot save your entries. You may need to enter them again after reopening.', clearClaim: 'Cancel all previous item claims',
-          authTitle: 'Edit items', authDescription: '4 letters, digits or symbols; case-sensitive. Optional.', password: 'Old password', recognitionCode: 'Code (optional)', newCode: 'New code', passwordHint: '4 letters, digits or symbols; case-sensitive. Optional.', legacyHint: 'Use the password you set before.', noCodeHint: 'You did not set a code; leave it blank to open.', pinHint: 'Enter the 4-character code you set.',
+          authTitle: 'Edit items', authDescription: '3 or 4 letters, digits or symbols; case-sensitive. Optional.', password: 'Old password', recognitionCode: 'Code (optional)', newCode: 'New code', passwordHint: '3 or 4 letters, digits or symbols; case-sensitive. Optional.', legacyHint: 'Use the password you set before.', noCodeHint: 'This device uses its saved local credential. On another device, use your code or ask the organizer for a confirmation code.', pinHint: 'Enter your 3- or 4-character code, or use the credential saved on this device.', ownerRecovery: 'This device has no saved ownership credential. Use your code or ask the organizer for a one-time confirmation code.', ownerStorage: 'This browser cannot save a local edit credential. Set a 3- or 4-character code, then submit.',
           confirmPassword: 'Open items', setPassword: 'Reset and open', checkingPassword: 'Checking…', resetPassword: 'Forgot code?', codeLabel: 'Organizer confirmation code', codeHint: 'Enter the confirmation code and choose a new code above.', initialCodeHint: 'Enter the confirmation code and choose a new code above.', ownerReset: 'Have an organizer code?', randomCode: 'Random', useLegacy: 'Use old password', useCode: 'Use code', retryCode: 'Try again', anotherName: 'Start again (another name)', retrieve: 'Find my items', knownName: 'This name has items already. Use your code or find them to edit.', anotherNameHint: 'Use another nickname. Your original items will not change.',
-          pinInvalid: 'Enter 4 characters (no spaces), or leave blank.', pinRequired: 'Enter your 4-character code.', passwordShort: 'Old passwords have at least 8 characters.', passwordWrong: 'Name or code does not match. Try again.', legacyWrong: 'Old password does not match. Try again.', approvalNeeded: 'To reset, ask the organizer for a confirmation code.', protectionNeeded: 'Service not ready. Ask the organizer to update the link.', authNetwork: 'Could not connect. Please retry.', authExpired: 'Editing access expired. Open your items again.', noProtectedSession: 'This old link cannot edit items. Ask for a new link.', tooManyPasswords: seconds => `Too many attempts. Try again in ${Math.ceil(seconds / 60)} minutes.`,
+          pinInvalid: 'Enter 3 or 4 characters (no spaces), or leave blank.', pinRequired: 'Enter your 3- or 4-character code.', passwordShort: 'Old passwords have at least 8 characters.', passwordWrong: 'Name or code does not match. Try again.', legacyWrong: 'Old password does not match. Try again.', approvalNeeded: 'To reset, ask the organizer for a confirmation code.', protectionNeeded: 'Service not ready. Ask the organizer to update the link.', authNetwork: 'Could not connect. Please retry.', authExpired: 'Editing access expired. Open your items again.', noProtectedSession: 'This old link cannot edit items. Ask for a new link.', tooManyPasswords: seconds => `Too many attempts. Try again in ${Math.ceil(seconds / 60)} minutes.`,
           submitFail: 'Could not submit. Try again or use the WhatsApp fallback.',
           rateLimit: 'Too many replies. Try again later.',
           tooLarge: 'Reply too long. Use the WhatsApp fallback.',
@@ -812,14 +865,13 @@
         const nextType = legacy ? 'password' : 'text';
         if (input.type !== nextType) input.value = '';
         input.type = nextType;
-        input.maxLength = legacy ? 128 : 4;
         input.inputMode = 'text';
         input.autocomplete = legacy ? 'current-password' : 'off';
         input.classList.toggle('pin-input', !legacy);
         input.classList.toggle('legacy-password', legacy);
         input.closest('.identity-row').classList.toggle('legacy-code', legacy);
-        if (legacy) { input.minLength = 8; input.removeAttribute('pattern'); }
-        else { input.removeAttribute('minlength'); input.setAttribute('pattern', '[!-~]{4}'); input.autocapitalize = 'none'; }
+        if (legacy) { input.maxLength = 128; input.minLength = 8; input.removeAttribute('pattern'); }
+        else { input.removeAttribute('minlength'); input.maxLength = 4; input.setAttribute('pattern', '[!-~]{3,4}'); input.autocapitalize = 'none'; }
       }
 
       function updateFirstIdentity() {
@@ -838,7 +890,7 @@
         document.getElementById('first-legacy-mode').hidden = reset || !(firstLegacyMode || firstStatus?.credentialKind === 'password');
         document.getElementById('first-forgot-code').textContent = text.resetPassword;
         document.getElementById('first-retrieve').textContent = text.retrieve;
-        document.getElementById('first-retrieve').hidden = !(firstStatus?.registered || firstStatus?.credentialKind === 'reserved');
+        document.getElementById('first-retrieve').hidden = !firstStatus?.registered;
         document.getElementById('first-retry').textContent = text.retryCode;
         document.getElementById('first-new-name').textContent = text.anotherName;
         document.getElementById('first-owner-reset-label').textContent = text.ownerReset;
@@ -879,7 +931,7 @@
         document.getElementById('claim-storage-warning').textContent = text.storageWarning;
         updateFirstIdentity();
         document.getElementById('claim-auth-title').textContent = text.authTitle;
-        document.getElementById('claim-auth-description').textContent = authResetMode ? text.codeHint : authLegacyMode ? text.legacyHint : authStatus?.credentialKind === 'none' ? text.noCodeHint : authStatus?.credentialKind === 'pin' ? text.pinHint : text.authDescription;
+        document.getElementById('claim-auth-description').textContent = authResetMode ? text.codeHint : authLegacyMode ? text.legacyHint : ['none', 'local'].includes(authStatus?.credentialKind) ? text.noCodeHint : authStatus?.credentialKind === 'pin' ? text.pinHint : text.authDescription;
         document.getElementById('auth-name-label').textContent = text.personLabel;
         document.getElementById('auth-password-label').textContent = authResetMode ? text.newCode : authLegacyMode ? text.password : text.recognitionCode;
         document.getElementById('auth-code-label').textContent = text.codeLabel;
@@ -1186,6 +1238,10 @@
 
       function passwordError(error) {
         const text = messages[language];
+        if (error?.code === 'owner_recovery_required' || error?.code === 'wrong_owner_proof') return text.ownerRecovery;
+        if (error?.code === 'owner_storage_unavailable') return text.ownerStorage;
+        if (error?.code === 'missing_recognition_code') return text.pinRequired;
+        if (error?.code === 'password_required') return text.passwordShort;
         if (error?.code === 'approval_required' || error?.code === 'invalid_code') return text.approvalNeeded;
         if (error?.code === 'invalid_recognition_code' || error?.code === 'invalid_pin') return text.pinInvalid;
         if (error?.code === 'protection_required') return text.protectionNeeded;
@@ -1269,16 +1325,32 @@
         if (!authStatus) { await loadAuthStatus(authName.value); return; }
         if (!authStatus.enabled) return;
         const text = messages[language];
-        const legacy = authLegacyMode && !authResetMode;
+        const sessionId = new URLSearchParams(location.search).get('session');
+        let localOwnerProof = '';
+        if (!authResetMode && authStatus.credentialKind !== 'none') {
+          try { localOwnerProof = await getFriendOwnerProof(sessionId, authName.value); } catch (_) {}
+        }
+        if (!authResetMode && ['none', 'local'].includes(authStatus.credentialKind) && !localOwnerProof) { authFeedback.textContent = text.ownerRecovery; return; }
+        const legacy = authLegacyMode && !authResetMode && !localOwnerProof;
         if (legacy && Array.from(authPassword.value).length < 8) { authFeedback.textContent = text.passwordShort; return; }
-        if (!legacy && !validRecognitionCode(authPassword.value)) { authFeedback.textContent = text.pinInvalid; return; }
-        if (!legacy && (authResetMode || authStatus.credentialKind === 'pin') && !authPassword.value) { authFeedback.textContent = text.pinRequired; return; }
+        if (!legacy && !localOwnerProof && !validRecognitionCode(authPassword.value)) { authFeedback.textContent = text.pinInvalid; return; }
+        if (!legacy && !localOwnerProof && !authResetMode && authStatus.credentialKind === 'pin' && !authPassword.value) { authFeedback.textContent = text.pinRequired; return; }
         if (authResetMode && !authCode.value.trim()) { authFeedback.textContent = text.approvalNeeded; return; }
         const generation = authGeneration;
         authBusy = true; authFeedback.textContent = ''; updateClaimView();
         try {
-          const input = { name: authName.value, ...(legacy ? { password: authPassword.value } : { recognitionCode: authPassword.value }), ...(authResetMode ? { setupCode: authCode.value.trim() } : {}) };
-          const unlocked = await window.BillShareApi.unlockClaim(new URLSearchParams(location.search).get('session'), input);
+          let resetOwnerProof = '';
+          let resetOwnerName = '';
+          if (authResetMode) {
+            resetOwnerName = authName.value;
+            try { resetOwnerProof = createFriendOwnerProof(); await verifyFriendOwnerProofStorage(sessionId, resetOwnerName, resetOwnerProof); } catch (_) { resetOwnerProof = ''; }
+            if (!resetOwnerProof && !authPassword.value) throw Object.assign(new Error(text.ownerStorage), { code: 'owner_storage_unavailable' });
+          }
+          const input = { name: authName.value,
+            ...(authResetMode ? { recognitionCode: authPassword.value, setupCode: authCode.value.trim(), ...(resetOwnerProof ? { ownerProof: resetOwnerProof } : {}) }
+              : localOwnerProof ? { ownerProof: localOwnerProof } : legacy ? { password: authPassword.value } : { recognitionCode: authPassword.value }) };
+          const unlocked = await window.BillShareApi.unlockClaim(sessionId, input);
+          if (resetOwnerProof) await saveFriendOwnerProof(sessionId, resetOwnerName, resetOwnerProof);
           if (generation !== authGeneration || !authOpen || !updateExpiryUI()) return;
           const payload = window.ClaimRelay.sanitizePayload(unlocked.payload);
           if (!payload || payload.name !== authName.value || !/^[A-Za-z0-9_-]{43}$/.test(unlocked.editToken || '') || !Number.isFinite(Date.parse(unlocked.tokenExpiresAt || ''))) throw new Error(text.authNetwork);
@@ -1519,13 +1591,19 @@
       async function loadFirstIdentityStatus() {
         if (editingClaim || !normalizeName(nameInput.value) || !/^[A-Za-z0-9_-]{22}$/.test(new URLSearchParams(location.search).get('session') || '')) return;
         const name = normalizeName(nameInput.value);
+        const sessionId = new URLSearchParams(location.search).get('session');
         const generation = ++firstStatusGeneration;
         try {
-          const status = await window.BillShareApi.getClaimStatus(new URLSearchParams(location.search).get('session'), name);
+          const status = await window.BillShareApi.getClaimStatus(sessionId, name);
           if (normalizeName(nameInput.value) !== name || editingClaim || generation !== firstStatusGeneration) return;
           firstStatus = status;
           firstLegacyMode = status.credentialKind === 'password' || (!status.credentialKind && status.registered === true);
-          firstFeedback.textContent = !status.enabled ? messages[language].protectionNeeded : status.registered ? messages[language].knownName : '';
+          let hasLocalProof = false;
+          try { hasLocalProof = Boolean(await getFriendOwnerProof(sessionId, name)); } catch (_) {}
+          if (normalizeName(nameInput.value) !== name || editingClaim || generation !== firstStatusGeneration) return;
+          firstFeedback.textContent = !status.enabled ? messages[language].protectionNeeded
+            : status.registered && ['none', 'local'].includes(status.credentialKind) && !hasLocalProof ? messages[language].ownerRecovery
+            : status.registered ? messages[language].knownName : '';
           updateFirstIdentity(); updatePreview();
         } catch (_) { /* Submission still verifies on the server; no insecure fallback. */ }
       }
@@ -1680,8 +1758,8 @@
         const reset = document.getElementById('first-code-row').open;
         const legacy = firstLegacyMode && !reset;
         if (!editingClaim && (legacy ? Array.from(firstPassword.value).length < 8 : !validRecognitionCode(firstPassword.value))) { updatePreview(); return; }
-        if (!editingClaim && reset && (!(firstPassword.value.length === 4 && /^[!-~]{4}$/.test(firstPassword.value)) || !firstCode.value.trim())) {
-          firstFeedback.textContent = firstCode.value.trim() ? text.pinRequired : text.approvalNeeded; return;
+        if (!editingClaim && reset && (!validRecognitionCode(firstPassword.value) || !firstCode.value.trim())) {
+          firstFeedback.textContent = firstCode.value.trim() ? text.pinInvalid : text.approvalNeeded; return;
         }
         submitting = true;
         submitButton.dataset.busy = '1';
@@ -1692,8 +1770,42 @@
           const activeClaims = result.claims.filter(claim => claim.mode !== 'none');
           const payload = { v: 1, name: result.person, claims: activeClaims, ...(!activeClaims.length ? { clear: true } : {}) };
           const isRevision = editingClaim || submittedClaim?.name === result.person;
-          const credentials = editingClaim ? { editToken } : { ...(legacy ? { password: firstPassword.value } : { recognitionCode: firstPassword.value }), ...(reset ? { setupCode: firstCode.value.trim() } : {}) };
+          let credentials;
+          if (editingClaim) credentials = { editToken };
+          else {
+            const authStatusForSubmit = await window.BillShareApi.getClaimStatus(sessionId, result.person);
+            firstStatus = authStatusForSubmit;
+            firstLegacyMode = authStatusForSubmit.credentialKind === 'password' || (!authStatusForSubmit.credentialKind && authStatusForSubmit.registered === true);
+            let localOwnerProof = '';
+            if (!reset) { try { localOwnerProof = await getFriendOwnerProof(sessionId, result.person); } catch (_) {} }
+            if (!authStatusForSubmit.enabled) throw Object.assign(new Error(text.protectionNeeded), { code: 'protection_required' });
+            if (reset) {
+            let resetOwnerProof = '';
+              try { resetOwnerProof = createFriendOwnerProof(); await verifyFriendOwnerProofStorage(sessionId, result.person, resetOwnerProof); } catch (_) { resetOwnerProof = ''; }
+              if (!resetOwnerProof && !firstPassword.value) throw Object.assign(new Error(text.ownerStorage), { code: 'owner_storage_unavailable' });
+              credentials = { recognitionCode: firstPassword.value, setupCode: firstCode.value.trim(), ...(resetOwnerProof ? { ownerProof: resetOwnerProof } : {}) };
+            } else if (authStatusForSubmit.registered && ['none', 'local'].includes(authStatusForSubmit.credentialKind) && !localOwnerProof) {
+              throw Object.assign(new Error(text.ownerRecovery), { code: 'owner_recovery_required' });
+            } else if ((authStatusForSubmit.credentialKind === 'password' || (!authStatusForSubmit.credentialKind && authStatusForSubmit.registered)) && localOwnerProof) {
+              credentials = { ownerProof: localOwnerProof };
+            } else if ((authStatusForSubmit.credentialKind === 'password' || (!authStatusForSubmit.credentialKind && authStatusForSubmit.registered)) && !localOwnerProof) {
+              if (Array.from(firstPassword.value).length < 8) throw Object.assign(new Error(text.passwordShort), { code: 'password_required' });
+              credentials = { password: firstPassword.value };
+            } else if (authStatusForSubmit.registered && authStatusForSubmit.credentialKind === 'pin' && !localOwnerProof && !firstPassword.value) {
+              throw Object.assign(new Error(text.pinRequired), { code: 'missing_recognition_code' });
+            } else if (!authStatusForSubmit.registered || authStatusForSubmit.credentialKind === 'reserved') {
+              if (!localOwnerProof) {
+                try { localOwnerProof = createFriendOwnerProof(); await saveFriendOwnerProof(sessionId, result.person, localOwnerProof); }
+                catch (_) { if (!firstPassword.value) throw Object.assign(new Error(text.ownerStorage), { code: 'owner_storage_unavailable' }); }
+              }
+              credentials = { recognitionCode: firstPassword.value, ...(localOwnerProof ? { ownerProof: localOwnerProof } : {}) };
+            } else if (authStatusForSubmit.credentialKind === 'pin' && localOwnerProof) credentials = { recognitionCode: firstPassword.value, ownerProof: localOwnerProof };
+            else if (localOwnerProof) credentials = { ownerProof: localOwnerProof };
+            else if (authStatusForSubmit.credentialKind === 'pin') credentials = { recognitionCode: firstPassword.value };
+            else throw Object.assign(new Error(text.ownerRecovery), { code: 'owner_recovery_required' });
+          }
           const accepted = await window.BillShareApi.submitSecureClaim(sessionId, { ...payload, ...credentials });
+          if (reset && credentials.ownerProof) await saveFriendOwnerProof(sessionId, result.person, credentials.ownerProof);
           const cleanPayload = window.ClaimRelay.sanitizePayload(accepted.payload);
           if (!cleanPayload || cleanPayload.name !== result.person) throw new Error(text.authNetwork);
           if (pendingClaim && pendingClaim.payload.name !== cleanPayload.name) {
@@ -1718,11 +1830,9 @@
           const code = error && error.code;
           submitStatus.textContent = passwordError(error);
           submitStatus.classList.add('error');
-          if (!editingClaim && (code === 'wrong_password' || code === 'wrong_code' || code === 'approval_required' || error?.status === 403)) {
+          if (!editingClaim && (['wrong_password', 'wrong_code', 'approval_required', 'owner_recovery_required', 'wrong_owner_proof', 'owner_storage_unavailable', 'missing_recognition_code', 'protection_required'].includes(code) || error?.status === 403)) {
             firstFeedback.textContent = passwordError(error);
-            if (!firstStatus) firstStatus = { registered: true, enabled: true, credentialKind: legacy ? 'password' : 'pin' };
             updateFirstIdentity();
-            loadFirstIdentityStatus();
           }
           if (editingClaim && (code === 'token_expired' || code === 'invalid_token' || error?.status === 403)) { beginClaimEdit(result.person); authFeedback.textContent = passwordError(error); }
           showToast(submitStatus.textContent);

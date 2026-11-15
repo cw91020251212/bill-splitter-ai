@@ -47,8 +47,8 @@ function published(qty = 1, shared = 2 / 3, actual = true, actualUnit = '杯') {
         { person: OTHER, quantity: 6 - qty, unit: '杯', isActualUnit: true, amount: (6 - qty) * 60, allocationTotal: 6 }
       ] },
       { id: '02', number: '02', name: '共享小食', quantity: 1, unit: '', sourceAmount: 60, allocatedAmount: 60, shares: [
-        ...(shared ? [{ person: PERSON, quantity: shared, unit: '份', isActualUnit: false, amount: shared * 60, allocationTotal: 1 }] : []),
-        { person: OTHER, quantity: 1 - shared, unit: '份', isActualUnit: false, amount: (1 - shared) * 60, allocationTotal: 1 }
+        ...(shared ? [{ person: PERSON, quantity: shared, unit: '份', isActualUnit: false, claimMode: 'shared', shareExplicit: true, amount: shared * 60, allocationTotal: 1 }] : []),
+        { person: OTHER, quantity: 1 - shared, unit: '份', isActualUnit: false, claimMode: 'shared', shareExplicit: true, amount: (1 - shared) * 60, allocationTotal: 1 }
       ] }
     ], adjustments: [], images: []
   };
@@ -95,6 +95,7 @@ async function resultFrame(page, timeout = 5000) {
 async function confirmEdit(page) {
   await visible(page, '#auth-confirm');
   await until(async () => !(await page.locator('#auth-confirm').isDisabled()), 'claim status enables optional-code confirmation');
+  await page.locator('#auth-password').fill('aZ#');
   await page.locator('#auth-confirm').click();
   await visible(page, '#claim-content');
 }
@@ -118,6 +119,9 @@ async function openEdit(page) {
   assert.equal(await page.locator('#person-name').evaluate(node => node.readOnly), true, 'revision name is locked');
   return frame;
 }
+async function setItemMode(page, index, mode) {
+  await page.locator('.item-card').nth(index).locator(`.claim-mode-option[data-claim-mode="${mode}"]`).click();
+}
 async function waiting(page, revision = true) {
   await visible(page, '#revision-waiting');
   assert.equal(await page.locator('#revision-waiting-title').innerText(), revision ? '認帳已修改，等候重新結算' : '認帳已提交，等候結算');
@@ -130,8 +134,9 @@ async function mockContext(browser, options = {}) {
   const state = {
     id: options.id || SHARE_ID, room, mode: options.mode || 'ready', data: published(),
     expiresAt: new Date(Date.now() + 86400000).toISOString(), postStatus: 200,
-    gets: [], statusGets: [], posts: [], relayPosts: [], claimStatuses: new Map(), revision: 0, errors: [], violations: []
+    gets: [], statusGets: [], posts: [], relayPosts: [], claimStatuses: new Map(), claimCredentialKinds: new Map(), revision: 0, errors: [], violations: []
   };
+  if (state.mode === 'ready' && state.data.participants.some(person => person.name === PERSON)) state.claimCredentialKinds.set(PERSON, 'pin');
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' });
   context.setDefaultTimeout(5000);
   context.setDefaultNavigationTimeout(10000);
@@ -165,10 +170,10 @@ async function mockContext(browser, options = {}) {
         state.statusGets.push({ name, url: url.href });
         const submitted = state.claimStatuses.get(name);
         const publishedMember = state.mode === 'ready' && state.data.participants.some(person => person.name === name);
-        const credentialKind = submitted ? 'none' : publishedMember ? 'reserved' : 'new';
+        const credentialKind = submitted ? (state.claimCredentialKinds.get(name) || 'none') : publishedMember ? (state.claimCredentialKinds.get(name) || 'reserved') : 'new';
         return json(200, {
           enabled: true, credentialKind,
-          registered: credentialKind === 'none', requiresApproval: false,
+          registered: ['none', 'local', 'pin', 'password'].includes(credentialKind), requiresApproval: credentialKind === 'reserved',
           claimSecurity: 'password', expiresAt: state.expiresAt, serverNow: new Date().toISOString()
         });
       }
@@ -188,6 +193,7 @@ async function mockContext(browser, options = {}) {
         };
         state.posts.push({ path: url.pathname, payload: clone(payload), status: state.postStatus });
         if (state.postStatus !== 200) return json(state.postStatus, { error: 'Too many attempts', code: 'rate_limit', retryAfter: 60 });
+        if (!input.editToken) state.claimCredentialKinds.set(payload.name, input.password ? 'password' : input.recognitionCode ? 'pin' : 'local');
         state.claimStatuses.set(payload.name, clone(payload));
         state.revision += 1;
         return json(200, { payload, revision: state.revision, expiresAt: state.expiresAt, serverNow: new Date().toISOString() });
@@ -227,7 +233,7 @@ async function mockContext(browser, options = {}) {
   return state;
 }
 function initialSubmission(qty = 1, shared = 2 / 3) {
-  return { v: 1, name: PERSON, claims: [{ id: '01', qty, unit: '杯', displayUnit: '' }, ...(shared ? [{ id: '02', qty: shared, unit: '', displayUnit: '' }] : [])] };
+  return { v: 1, name: PERSON, claims: [{ id: '01', qty, unit: '杯', displayUnit: '' }, ...(shared ? [{ id: '02', qty: shared, unit: '', displayUnit: '', mode: 'shared', shareExplicit: true }] : [])] };
 }
 async function seed(page, state, saved) {
   await page.goto(new URL('claim-revisions.js', base).href, { waitUntil: 'domcontentloaded' });
@@ -320,19 +326,20 @@ async function blockedEdit(page) {
       assert.equal(await page.evaluate(id => window.__revisionMessages.some(msg => msg.type === 'bill-claim-edit' && msg.sessionId === id && msg.name === '測試朋友' && msg.origin === location.origin && !msg.sourceIsSelf), state.id), true, 'real child edit postMessage contract observed');
 
       await page.locator('#qty-0').fill('3');
-      await page.locator('#qty-1').fill('0');
+      await setItemMode(page, 1, 'none');
       assert.equal(await page.locator('#submit-button').isDisabled(), false);
       const beforePostGets = state.gets.length;
       await page.locator('#submit-button').click();
       await waiting(page);
       await until(() => state.gets.length > beforePostGets, 'latest GET still returns old ready result');
       assert.equal(state.posts.length, 1);
-      assert.deepEqual(state.posts[0].payload, { v: 1, name: PERSON, claims: [{ id: '01', qty: 3, unit: '杯', displayUnit: '' }] });
+      assert.deepEqual(state.posts[0].payload, { v: 1, name: PERSON, claims: [{ id: '01', qty: 3, unit: '杯' }] });
       assert.equal(state.posts[0].path, `/api/shares/${state.id}/claims/submit`);
       assert.equal(state.relayPosts.length, 0, 'claims are submitted only to the mocked HTTPS Worker, not an external relay');
       saved = await stored(page, room);
       assert.equal(saved.fields.values[0].quantity, '3');
-      assert.equal(saved.fields.values[1].quantity, '0');
+      assert.equal(saved.fields.values[1].quantity, '');
+      assert.equal(saved.fields.values[1].mode, 'none');
       assert.equal(saved.pending.revision, true);
       assert.deepEqual(saved.pending.payload, saved.submitted);
       await waiting(page);
@@ -382,14 +389,14 @@ async function blockedEdit(page) {
       await page.goto(state.url, { waitUntil: 'domcontentloaded' });
       await openEdit(page);
       await page.locator('#qty-0').fill('2.5');
-      await page.locator('#qty-1').fill('0');
+      await setItemMode(page, 1, 'none');
       state.postStatus = 429;
       await page.locator('#submit-button').click();
       await until(async () => /試得太多/.test(await page.locator('#submit-status').innerText()), 'rate-limit feedback');
       await visible(page, '#claim-content');
       await hidden(page, '#revision-waiting', 'failed POST is not pending');
       assert.equal(await page.locator('#qty-0').inputValue(), '2.5');
-      assert.equal(await page.locator('#qty-1').inputValue(), '0');
+      assert.equal(await page.locator('#qty-1').inputValue(), '');
       assert.equal(await page.locator('#submit-button').isDisabled(), false, 'retry stays enabled');
       let saved = await stored(page, room);
       assert.equal(saved.pending, null);
@@ -408,13 +415,13 @@ async function blockedEdit(page) {
       assert.equal(saved.pending.payload.claims[0].qty, 2.5);
     });
 
-    await run('all-zero revision sends clear:true and waits for absent-person zero result', async state => {
+    await run('explicit no-order revision sends clear:true and waits for absent-person zero result', async state => {
       const { page, room } = state;
       await page.goto(state.url, { waitUntil: 'domcontentloaded' });
       await openEdit(page);
-      await page.locator('#qty-0').fill('0');
-      await page.locator('#qty-1').fill('0');
-      assert.equal(await page.locator('#submit-button').isDisabled(), false, 'all-zero is valid when clearing an existing claim');
+      await setItemMode(page, 0, 'none');
+      await setItemMode(page, 1, 'none');
+      assert.equal(await page.locator('#submit-button').isDisabled(), false, 'explicitly marking every item as not ordered clears an existing claim');
       await page.locator('#submit-button').click();
       await waiting(page);
       assert.deepEqual(state.posts[0].payload, { v: 1, name: PERSON, claims: [], clear: true });
@@ -451,7 +458,7 @@ async function blockedEdit(page) {
 
     await run('Worker expiresAt overrides future metadata and closes restored revision editor', async state => {
       const submitted = initialSubmission();
-      await seed(state.page, state, { schema: 1, fields: { name: PERSON, values: [{ id: '01', quantity: '4.25', unit: 'cup' }, { id: '02', quantity: '0', unit: '' }] }, submitted, pending: { payload: submitted, revision: true }, editing: true, lockedName: PERSON });
+      await seed(state.page, state, { schema: 1, fields: { name: PERSON, values: [{ id: '01', quantity: '4.25', unit: 'cup' }, { id: '02', quantity: String(2 / 3), unit: '', mode: 'shared' }] }, submitted, pending: { payload: submitted, revision: true }, editing: true, lockedName: PERSON });
       state.expiresAt = new Date(Date.now() - 60000).toISOString();
       await state.page.goto(state.url, { waitUntil: 'domcontentloaded' });
       await blockedEdit(state.page);
@@ -461,7 +468,7 @@ async function blockedEdit(page) {
 
     await run('expired Worker 410 with expiresAt blocks waiting-to-edit entry point', async state => {
       const submitted = initialSubmission();
-      await seed(state.page, state, { schema: 1, fields: { name: PERSON, values: [{ id: '01', quantity: '1', unit: 'cup' }, { id: '02', quantity: '0.667', unit: '' }] }, submitted, pending: { payload: submitted, revision: true }, editing: false, lockedName: PERSON });
+      await seed(state.page, state, { schema: 1, fields: { name: PERSON, values: [{ id: '01', quantity: '1', unit: 'cup' }, { id: '02', quantity: String(2 / 3), unit: '', mode: 'shared' }] }, submitted, pending: { payload: submitted, revision: true }, editing: false, lockedName: PERSON });
       state.mode = 'expired';
       state.expiresAt = new Date(Date.now() - 60000).toISOString();
       await state.page.goto(state.url, { waitUntil: 'domcontentloaded' });
@@ -477,11 +484,11 @@ async function blockedEdit(page) {
       await page.locator('#person-name').fill(PERSON);
       await page.locator('#qty-0').fill('2');
       await page.locator('#unit-0').selectOption('cup');
+      await setItemMode(page, 1, 'shared');
       await page.locator('#qty-1').fill('0.5');
-      await page.locator('#unit-1').selectOption('piece');
       await page.locator('#submit-button').click();
       await waiting(page, false);
-      assert.deepEqual(state.posts[0].payload, { v: 1, name: PERSON, claims: [{ id: '01', qty: 2, unit: '杯', displayUnit: '' }, { id: '02', qty: 0.5, unit: '', displayUnit: '件' }] });
+      assert.deepEqual(state.posts[0].payload, { v: 1, name: PERSON, claims: [{ id: '01', qty: 2, unit: '杯' }, { id: '02', qty: 0.5, unit: '', mode: 'shared', shareExplicit: true }] });
       await page.reload({ waitUntil: 'domcontentloaded' });
       await waiting(page, false);
       await page.locator('#edit-claim-again').click();
@@ -489,7 +496,8 @@ async function blockedEdit(page) {
       assert.equal(await page.locator('#person-name').evaluate(node => node.readOnly), true);
       assert.equal(await page.locator('#qty-0').inputValue(), '2');
       assert.equal(await page.locator('#qty-1').inputValue(), '0.5');
-      assert.equal(await page.locator('#unit-1').inputValue(), 'piece');
+      assert.equal(await page.locator('#unit-1').inputValue(), '');
+      assert.equal(await page.locator('#unit-1').isDisabled(), true, 'a unitless shared claim does not collect an item unit');
       assert.equal(await page.locator('#submit-button').isDisabled(), true);
       await page.locator('#qty-0').fill('2.75');
       await page.reload({ waitUntil: 'domcontentloaded' });

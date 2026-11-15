@@ -39,8 +39,12 @@ function passwordInput(password) {
   return password; // Deliberately do not normalize passwords; Unicode is supported verbatim.
 }
 function recognitionInput(code, allowBlank = true) {
-  if (typeof code !== 'string' || !(allowBlank && code === '') && !(code.length === 4 && /^[!-~]{4}$/.test(code))) fail(400, 'invalid_recognition_code');
+  if (typeof code !== 'string' || !(allowBlank && code === '') && !([3, 4].includes(code.length) && /^[!-~]+$/.test(code))) fail(400, 'invalid_recognition_code');
   return code; // Preserve exact text and case; never trim, coerce or normalize.
+}
+function ownerProofInput(value) {
+  if (typeof value !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(value)) fail(400, 'invalid_owner_proof');
+  return value;
 }
 async function credentialHash(pepper, credential, salt) {
   const prehash = await hmac(pepper, credential);
@@ -51,12 +55,13 @@ function credentialKind(member) {
   if (!member) return 'new';
   if (member.password) return 'password'; // R104 records have no credentialKind field.
   if (member.recognitionCode) return 'pin';
+  if (member.ownerProofHash) return 'local';
   if (member.credentialKind === 'none' || member.registered === true || member.updatedRevision > 0) return 'none';
   return 'reserved';
 }
 function credentialSummary(member) {
   const kind = credentialKind(member);
-  return { credentialKind: kind, registered: ['none', 'pin', 'password'].includes(kind), requiresApproval: false };
+  return { credentialKind: kind, registered: ['none', 'local', 'pin', 'password'].includes(kind), requiresApproval: kind === 'reserved' };
 }
 export function normalizeClaimName(value) {
   if (typeof value !== 'string' || CONTROL.test(value)) fail(400, 'invalid_name');
@@ -257,6 +262,8 @@ export class ClaimAuth {
       credential = passwordInput(input.password); // Preserve the R104 request path.
       kind = 'password';
     }
+    if (input.ownerProof !== undefined) member.ownerProofHash = await digest(ownerProofInput(input.ownerProof));
+    if (kind === 'none' && !member.ownerProofHash) fail(400, 'owner_proof_required');
     if (kind !== 'none') {
       const salt = hex(crypto.getRandomValues(new Uint8Array(16)));
       const stored = { salt, hash: await credentialHash(this.env.CLAIM_PASSWORD_PEPPER, credential, salt) };
@@ -267,7 +274,7 @@ export class ClaimAuth {
     // or explicit owner-code redemption. Ordinary blank edits never downgrade.
     if (kind !== 'password') delete member.password;
     if (kind !== 'pin') delete member.recognitionCode;
-    member.credentialKind = kind;
+    member.credentialKind = kind === 'none' && member.ownerProofHash ? 'local' : kind;
     member.generation = (member.generation || 0) + 1;
     member.tickets = [];
   }
@@ -278,13 +285,26 @@ export class ClaimAuth {
     if (input.setupCode !== undefined) {
       if (typeof input.setupCode !== 'string' || input.setupCode.length > 128 || !member?.code || member.code.expiresAt <= now ||
           !equal(member.code.hash, await digest(input.setupCode))) return this.wrong(keys, now, 'approval_required');
-      await this.setCredential(member, input, false);
+      await this.setCredential(member, input, input.recognitionCode === '' && input.ownerProof !== undefined);
+      if (input.ownerProof === undefined) delete member.ownerProofHash;
       delete member.code;
       return { reset: true, ticket: false };
     }
+    // A seeded identity already owns organizer claims; only setupCode can authorize its first credential.
+    if (credentialKind(member) === 'reserved' && op === 'submit') return this.wrong(keys, now, 'approval_required');
     if (await this.ownTicket(member, input.editToken, now)) {
       if (input.recognitionCode !== undefined) recognitionInput(input.recognitionCode);
       return { ticket: true };
+    }
+    if (input.ownerProof !== undefined) {
+      let proof;
+      try { proof = ownerProofInput(input.ownerProof); }
+      catch (_) { return this.wrong(keys, now, 'wrong_owner_proof'); }
+      if (member.ownerProofHash) {
+        if (equal(member.ownerProofHash, await digest(proof))) return { ownerProof: true };
+        return this.wrong(keys, now, 'wrong_owner_proof');
+      }
+      if (credentialKind(member) !== 'reserved' || op !== 'submit') return this.wrong(keys, now, 'owner_recovery_required');
     }
     const kind = credentialKind(member);
     if (kind === 'password') {
@@ -293,15 +313,14 @@ export class ClaimAuth {
       const hash = await credentialHash(this.env.CLAIM_PASSWORD_PEPPER, input.password, member.password.salt);
       if (!equal(member.password.hash, hash)) return this.wrong(keys, now, 'wrong_password');
     } else if (kind === 'pin') {
-      if (typeof input.recognitionCode !== 'string' || input.recognitionCode.length !== 4 || !/^[!-~]{4}$/.test(input.recognitionCode)) return this.wrong(keys, now, 'wrong_recognition_code');
+      if (typeof input.recognitionCode !== 'string' || ![3, 4].includes(input.recognitionCode.length) || !/^[!-~]+$/.test(input.recognitionCode)) return this.wrong(keys, now, 'wrong_recognition_code');
       const hash = await credentialHash(this.env.CLAIM_PASSWORD_PEPPER, input.recognitionCode, member.recognitionCode.salt);
       if (!equal(member.recognitionCode.hash, hash)) return this.wrong(keys, now, 'wrong_recognition_code');
     } else if (kind === 'reserved' && op === 'submit') {
       await this.setCredential(member, input);
     } else {
+      if (kind === 'none' || kind === 'local' || kind === 'reserved') return this.wrong(keys, now, 'owner_recovery_required');
       recognitionInput(input.recognitionCode);
-      // A submitted no-code identity is deliberately name-only for ordinary edits,
-      // but adding a PIN requires its own name-issued edit ticket first.
       if (input.recognitionCode !== '' || input.password !== undefined) return this.wrong(keys, now, 'recognition_change_requires_ticket');
     }
     return { ticket: false };
@@ -429,7 +448,7 @@ export class ClaimAuth {
       await this.setCredential(member, e.input);
     } else {
       const auth = await this.authorize(member, e.input, keys, e.now, e.op);
-      if (e.op === 'submit' && auth.ticket && e.input.recognitionCode) {
+      if (e.op === 'submit' && (auth.ticket || auth.ownerProof) && e.input.recognitionCode) {
         // Preserve R104 passwords unless an explicit owner reset is redeemed.
         if (member.password) fail(409, 'credential_change_requires_reset');
         const unchanged = member.recognitionCode && equal(member.recognitionCode.hash,

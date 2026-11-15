@@ -30,11 +30,14 @@ const PASSWORD_A = 'Synthetic-A-2026!';
 const PASSWORD_B = 'Synthetic-B-2026!';
 const PASSWORD_RESET = 'Synthetic-reset-2026!';
 const WRONG = 'Synthetic-wrong-2026!';
+const RESERVED_PIN = 'aZ#';
+const RESET_PIN = 'Z9#';
 const PRECISION = process.argv.includes('--precision-only');
 const HOST_ONLY = process.argv.includes('--host-only') || PRECISION;
 const NAME_A = PRECISION ? 'Ａlex Chan' : 'QA朋友甲';
 const NAME_B = 'QA朋友乙';
-const secrets = new Set([PASSWORD_A, PASSWORD_B, PASSWORD_RESET, WRONG]);
+const UNKNOWN_NAME = 'QA舊連結陌生人';
+const secrets = new Set([PASSWORD_A, PASSWORD_B, PASSWORD_RESET, WRONG, RESERVED_PIN, RESET_PIN]);
 const ownerSecrets = new Set();
 const steps = [];
 const runtimeSources = new Map();
@@ -74,6 +77,12 @@ async function call(id, suffix = '', options = {}) {
 }
 async function post(id, operation, body, options = {}) { return call(id, `/claims/${operation}`, { method: 'POST', body, ...options }); }
 function expectStatus(result, expected, label) { assert.equal(result.status, expected, `${label}: unexpected real backend status`); return result.body; }
+function storedClaims(id, name) {
+  const data = harness.objects.get(id)?.ctx?.data;
+  const member = data && [...data].find(([key, value]) => key.startsWith('member:') && value?.payload?.name === name)?.[1];
+  assert(member, `Missing in-memory member for ${name}`);
+  return structuredClone(member.payload.claims);
+}
 async function newSession() {
   const result = await harness.call('/api/shares/sessions', { method: 'POST', body: { ttlDays: 1 } });
   const created = remember(expectStatus(result, 201, 'create protected session'));
@@ -155,20 +164,34 @@ async function createLegacy() {
   record.status = 'ready'; record.data = dataFor([claims(NAME_A, 2), claims(NAME_B, 1)]);
   harness.values.set(`share:${created.id}`, { value: JSON.stringify(record), options: {} });
   harness.objects.delete(created.id);
-  for (const name of [NAME_A, 'QA舊連結陌生人']) {
-    const status = expectStatus(await call(created.id, `/claims/status?name=${encodeURIComponent(name)}`), 200, 'legacy status');
-    assert.equal(status.requiresApproval, true); assert.equal(status.registered, false);
-  }
+  const reservedStatus = expectStatus(await call(created.id, `/claims/status?name=${encodeURIComponent(NAME_A)}`), 200, 'unmigrated legacy status');
+  assert.equal(reservedStatus.enabled, false); assert.equal(reservedStatus.credentialKind, 'new');
+  assert.equal(reservedStatus.requiresApproval, false); assert.equal(reservedStatus.registered, false);
+  const unknownStatusBeforeSetup = expectStatus(await call(created.id, `/claims/status?name=${encodeURIComponent(UNKNOWN_NAME)}`), 200, 'unknown legacy-link name status');
+  assert.equal(unknownStatusBeforeSetup.enabled, false); assert.equal(unknownStatusBeforeSetup.credentialKind, 'new');
+  assert.equal(unknownStatusBeforeSetup.requiresApproval, false); assert.equal(unknownStatusBeforeSetup.registered, false);
   expectStatus(await post(created.id, 'setup', { members: [] }), 403, 'legacy setup must be owner');
   expectStatus(await post(created.id, 'setup', { members: [] }, { owner: created.writeToken }), 200, 'owner seeds baseline allocations');
-  for (const name of [NAME_A, 'QA舊連結陌生人']) {
-    const denied = await post(created.id, 'submit', claims(name, 99, { password: PASSWORD_A }));
-    expectStatus(denied, 409, 'legacy identity cannot self-enroll'); assert.equal(denied.body.payload, undefined); noSecrets(denied.body);
-  }
+  const beforeReservedClaims = storedClaims(created.id, NAME_A);
+  const nameOnly = await post(created.id, 'unlock', { name: NAME_A, recognitionCode: '' });
+  expectStatus(nameOnly, 403, 'name alone cannot open a reserved legacy identity');
+  assert.equal(nameOnly.body.code, 'owner_recovery_required'); assert.equal(nameOnly.body.payload, undefined); noSecrets(nameOnly.body);
+  const denied = await post(created.id, 'submit', claims(NAME_A, 99, { password: PASSWORD_A }));
+  expectStatus(denied, 409, 'reserved legacy identity cannot self-enroll');
+  assert.equal(denied.body.code, 'approval_required'); assert.equal(denied.body.payload, undefined); noSecrets(denied.body);
+  assert.deepEqual(storedClaims(created.id, NAME_A), beforeReservedClaims, 'denied self-binding leaves seeded claims unchanged');
+  const unknownStatus = expectStatus(await call(created.id, `/claims/status?name=${encodeURIComponent(UNKNOWN_NAME)}`), 200, 'new identity status after legacy setup');
+  assert.equal(unknownStatus.credentialKind, 'new'); assert.equal(unknownStatus.registered, false); assert.equal(unknownStatus.requiresApproval, false);
+  expectStatus(await post(created.id, 'submit', claims(UNKNOWN_NAME, 1, { password: PASSWORD_B })), 200, 'new identity may use the legacy password contract');
+  assert.equal((await expectStatus(await call(created.id, `/claims/status?name=${encodeURIComponent(UNKNOWN_NAME)}`), 200, 'legacy password identity status')).credentialKind, 'password');
+  await publish(created, [claims(NAME_A, 2), claims(NAME_B, 1), claims(UNKNOWN_NAME, 1)]);
   const inbox = expectStatus(await call(created.id, '/claims/inbox?after=0', { owner: created.writeToken }), 200, 'legacy seeded member summaries');
-  assert.equal(inbox.members.length, 2); assert(inbox.members.every(member => member.requiresApproval && !member.registered));
+  assert.equal(inbox.members.length, 3);
+  assert(inbox.members.filter(member => [NAME_A, NAME_B].includes(member.name)).every(member => member.requiresApproval && !member.registered));
+  assert.equal(inbox.members.find(member => member.name === UNKNOWN_NAME).credentialKind, 'password');
+  assert.equal(inbox.members.find(member => member.name === UNKNOWN_NAME).registered, true);
   noSecrets(inbox);
-  pass('legacy baseline and unknown identities cannot be hijacked without explicit owner approval');
+  pass('legacy reserved claims reject name-only/self-chosen binding while new names retain legacy-password compatibility');
   return created;
 }
 async function preloadRuntimes() {
@@ -222,7 +245,7 @@ async function storedNoSecrets(page, { host = false } = {}) {
 }
 async function resultFor(page, name) {
   await page.locator('iframe.same-link-result:not([hidden])').waitFor({ state: 'visible' });
-  const frame = page.frameLocator('iframe.same-link-result');
+  const frame = page.frameLocator('iframe.same-link-result:not([hidden])');
   await frame.locator('#member-select').waitFor({ state: 'visible' });
   await frame.locator('#member-select').selectOption({ label: name });
   return frame;
@@ -240,6 +263,13 @@ async function login(page, password, code) {
   await page.locator('#auth-password').fill(password);
   if (code) await page.locator('#auth-setup-code').fill(code);
   await page.locator('#auth-confirm').click();
+}
+async function revealAuthOwnerCode(page) {
+  const previousLabel = await page.locator('#auth-password-label').innerText();
+  await page.locator('#auth-reset').click();
+  await page.locator('#auth-code-row summary').click();
+  await page.locator('#auth-setup-code').waitFor({ state: 'visible' });
+  await until(async () => (await page.locator('#auth-password-label').innerText()) !== previousLabel, 'owner-code mode updates before entering the new PIN');
 }
 async function failedLogin(page, password, code) {
   const count = harness.requests.length;
@@ -452,56 +482,107 @@ async function friendsAndHost() {
   return fixture;
 }
 async function legacyUI(created) {
-  stage = 'legacy result gate and owner-code redemption/reset';
-  const page = await newPage('legacy-friend');
+  stage = 'legacy reserved claims reject name-only and self-selected binding';
   const link = linkFor(created);
-  await page.goto(link, { waitUntil: 'domcontentloaded' });
-  await openGate(page, NAME_A);
-  await page.locator('#auth-setup-code').waitFor({ state: 'visible' });
-  await failedLogin(page, PASSWORD_A);
-  const approved = expectStatus(await post(created.id, 'approve', { name: NAME_A }, { owner: created.writeToken }), 200, 'approve baseline identity');
-  await login(page, PASSWORD_A, approved.setupCode);
-  await page.locator('#claim-content').waitFor({ state: 'visible' });
-  assert.equal(await page.locator('#qty-0').inputValue(), '2', 'baseline data appears only after owner-code/password proof');
-  assert.equal(await page.locator('#person-name').inputValue(), NAME_A); await storedNoSecrets(page);
-  await page.locator('#cancel-claim-edit').click();
-  await openGate(page, NAME_A);
-  await page.locator('#auth-reset').click();
-  await page.locator('#auth-setup-code').waitFor({ state: 'visible' });
-  const reset = expectStatus(await post(created.id, 'approve', { name: NAME_A }, { owner: created.writeToken }), 200, 'approve forgotten-password reset');
-  await login(page, PASSWORD_RESET, reset.setupCode);
-  await page.locator('#claim-content').waitFor({ state: 'visible' });
-  await page.locator('#cancel-claim-edit').click();
-  await openGate(page, NAME_A);
-  await page.locator('#auth-reset').click();
-  await failedLogin(page, PASSWORD_B, reset.setupCode);
-  await page.locator('#auth-cancel').click();
-  await openGate(page, NAME_A);
-  await failedLogin(page, PASSWORD_A);
-  await login(page, PASSWORD_RESET);
-  await page.locator('#claim-content').waitFor({ state: 'visible' });
-  assert.equal(await page.locator('#qty-0').inputValue(), '2'); await storedNoSecrets(page);
-  await screenshot(page, 'legacy-owner-code-verified');
-  pass('legacy UI owner-code enrollment, explicit forgotten-password reset and single-use replay denial');
-  // Exercise first-enrollment approval field on a PENDING legacy fixture, not
-  // an already published iframe (a result takes precedence over initial form).
+  const reservedPage = await newPage('legacy-reserved-friend');
+  await reservedPage.goto(link, { waitUntil: 'domcontentloaded' });
+  await openGate(reservedPage, NAME_A);
+  const seededClaims = storedClaims(created.id, NAME_A);
+  await failedLogin(reservedPage, '');
+  await failedLogin(reservedPage, RESERVED_PIN);
+  assert.deepEqual(storedClaims(created.id, NAME_A), seededClaims, 'name-only and self-selected code attempts preserve organizer claims');
+  const approved = expectStatus(await post(created.id, 'approve', { name: NAME_A }, { owner: created.writeToken }), 200, 'approve reserved legacy identity');
+  await revealAuthOwnerCode(reservedPage);
+  await login(reservedPage, RESERVED_PIN, approved.setupCode);
+  await reservedPage.locator('#claim-content').waitFor({ state: 'visible' });
+  assert.equal(await reservedPage.locator('#qty-0').inputValue(), '2', 'baseline appears only after organizer confirmation');
+  assert.deepEqual(storedClaims(created.id, NAME_A), seededClaims, 'authorized first binding changes credentials, not claims');
+  assert.equal((await expectStatus(await call(created.id, `/claims/status?name=${encodeURIComponent(NAME_A)}`), 200, 'reserved identity after organizer binding')).credentialKind, 'pin');
+  await reservedPage.locator('#cancel-claim-edit').click();
+  await storedNoSecrets(reservedPage);
+  await screenshot(reservedPage, 'legacy-reserved-owner-code-verified');
+  pass('legacy reserved baseline rejects name-only/code-only access and binds only after one-time owner approval');
+
+  const reservedRecoveryPage = await newPage('legacy-reserved-cross-device');
+  await reservedRecoveryPage.goto(link, { waitUntil: 'domcontentloaded' });
+  await openGate(reservedRecoveryPage, NAME_A);
+  await failedLogin(reservedRecoveryPage, 'Qx#');
+  await login(reservedRecoveryPage, RESERVED_PIN);
+  await reservedRecoveryPage.locator('#claim-content').waitFor({ state: 'visible' });
+  assert.equal(await reservedRecoveryPage.locator('#qty-0').inputValue(), '2', 'three-character PIN works without the first device proof');
+  assert.deepEqual(storedClaims(created.id, NAME_A), seededClaims);
+  await storedNoSecrets(reservedRecoveryPage);
+
+  stage = 'real legacy password UI compatibility and organizer reset';
+  const passwordPage = await newPage('legacy-password-compatibility');
+  await passwordPage.goto(link, { waitUntil: 'domcontentloaded' });
+  await openGate(passwordPage, UNKNOWN_NAME);
+  assert.equal(await passwordPage.locator('#auth-password').getAttribute('type'), 'password', 'existing password credential uses current legacy-password input');
+  assert.equal(await passwordPage.locator('#auth-legacy-mode').isVisible(), true, 'legacy password mode is available for an existing password member');
+  await failedLogin(passwordPage, PASSWORD_A);
+  await login(passwordPage, PASSWORD_B);
+  await passwordPage.locator('#claim-content').waitFor({ state: 'visible' });
+  assert.equal(await passwordPage.locator('#qty-0').inputValue(), '1');
+  await storedNoSecrets(passwordPage);
+  await passwordPage.locator('#cancel-claim-edit').click();
+  await passwordPage.locator('#claim-content').waitFor({ state: 'hidden' });
+  await openGate(passwordPage, UNKNOWN_NAME);
+  await revealAuthOwnerCode(passwordPage);
+  const reset = expectStatus(await post(created.id, 'approve', { name: UNKNOWN_NAME }, { owner: created.writeToken }), 200, 'approve legacy password reset');
+  const stillWorks = expectStatus(await post(created.id, 'unlock', { name: UNKNOWN_NAME, password: PASSWORD_B }), 200, 'issuing owner code does not reset the existing password');
+  assert.equal(stillWorks.payload.name, UNKNOWN_NAME); noSecrets(stillWorks.payload);
+  await login(passwordPage, RESET_PIN, reset.setupCode);
+  await passwordPage.locator('#claim-content').waitFor({ state: 'visible' });
+  assert.equal(await passwordPage.locator('#qty-0').inputValue(), '1');
+  await storedNoSecrets(passwordPage);
+  await passwordPage.locator('#cancel-claim-edit').click();
+  const oldPasswordRejected = await post(created.id, 'unlock', { name: UNKNOWN_NAME, password: PASSWORD_B });
+  expectStatus(oldPasswordRejected, 403, 'old legacy password rejected after reset');
+  assert.equal(oldPasswordRejected.body.payload, undefined); noSecrets(oldPasswordRejected.body);
+
+  const replayPage = await newPage('legacy-password-reset-replay');
+  await replayPage.goto(link, { waitUntil: 'domcontentloaded' });
+  await openGate(replayPage, UNKNOWN_NAME);
+  await revealAuthOwnerCode(replayPage);
+  await failedLogin(replayPage, 'X1#', reset.setupCode);
+  await replayPage.locator('#auth-cancel').click();
+  await openGate(replayPage, UNKNOWN_NAME);
+  await failedLogin(replayPage, 'Bad!');
+  await login(replayPage, RESET_PIN);
+  await replayPage.locator('#claim-content').waitFor({ state: 'visible' });
+  assert.equal(await replayPage.locator('#qty-0').inputValue(), '1');
+  await storedNoSecrets(replayPage);
+  await screenshot(replayPage, 'legacy-password-reset-verified');
+  pass('existing legacy password remains usable until redemption; reset to three-character PIN is single-use and invalidates the old password');
+  // Exercise first-enrollment approval against an actual reserved allocation.
   const pending = await newSession();
-  const record = harness.record(pending.id); delete record.claimSecurity;
-  harness.values.set(`share:${pending.id}`, { value: JSON.stringify(record), options: {} }); harness.objects.delete(pending.id);
-  expectStatus(await post(pending.id, 'setup', { members: [] }, { owner: pending.writeToken }), 200, 'protect old pending session');
+  const pendingName = 'QA舊首次登記';
+  const originalClaims = [{ id: '01', qty: 2, unit: '', displayUnit: '' }];
+  expectStatus(await post(pending.id, 'setup', { members: [{ v: 1, name: pendingName, claims: originalClaims }] }, { owner: pending.writeToken }), 200, 'seed pending reserved claims');
   const first = await newPage('legacy-first-enrollment');
   await first.goto(linkFor(pending), { waitUntil: 'domcontentloaded' });
   await first.locator('#claim-content').waitFor({ state: 'visible' });
-  await first.locator('#person-name').fill('QA舊首次登記'); await first.locator('#qty-0').fill('1');
-  await first.locator('#first-setup-code').waitFor({ state: 'visible' });
-  await first.locator('#claim-password').fill(PASSWORD_A); await first.locator('#claim-password-repeat').fill(PASSWORD_A);
+  await first.locator('#person-name').fill(pendingName);
+  await first.locator('.item-card').nth(0).locator('.claim-mode-option[data-claim-mode="shared"]').click();
+  await first.locator('#qty-0').fill('1'); await first.locator('#claim-password').fill(RESERVED_PIN);
+  const firstSeededClaims = storedClaims(pending.id, pendingName);
   await first.locator('#submit-button').click();
-  await until(async () => (await first.locator('#submit-status').innerText()).length > 0, 'legacy initial self-enrollment rejected');
+  await until(async () => (await first.locator('#submit-status').innerText()).length > 0, 'reserved first submit rejected without organizer code');
   assert.equal(await first.locator('#revision-waiting').isVisible(), false);
-  const firstCode = expectStatus(await post(pending.id, 'approve', { name: 'QA舊首次登記' }, { owner: pending.writeToken }), 200, 'approve legacy unknown identity');
-  await first.locator('#first-setup-code').fill(firstCode.setupCode); await first.locator('#submit-button').click();
-  await first.locator('#revision-waiting').waitFor({ state: 'visible' }); await storedNoSecrets(first);
-  pass('legacy initial form shows required owner-code field and rejects unapproved enrollment');
+  assert.deepEqual(storedClaims(pending.id, pendingName), firstSeededClaims, 'denied first submit leaves organizer claims unchanged');
+  const firstCode = expectStatus(await post(pending.id, 'approve', { name: pendingName }, { owner: pending.writeToken }), 200, 'approve reserved initial identity');
+  await first.locator('#first-forgot-code').click();
+  const initialPasswordLabel = await first.locator('#first-password-label').innerText();
+  await first.locator('#first-code-row summary').click();
+  await first.locator('#first-setup-code').waitFor({ state: 'visible' });
+  await until(async () => (await first.locator('#first-password-label').innerText()) !== initialPasswordLabel, 'owner-code enrollment mode updates before entering credentials');
+  await first.locator('#first-setup-code').fill(firstCode.setupCode);
+  await first.locator('#claim-password').fill(RESERVED_PIN);
+  await first.locator('#submit-button').click();
+  await first.locator('#revision-waiting').waitFor({ state: 'visible' });
+  assert.equal(storedClaims(pending.id, pendingName)[0].qty, 1, 'claims change only after valid organizer approval');
+  await storedNoSecrets(first);
+  pass('current initial form blocks reserved claims without owner code and accepts them after one-time approval');
   stage = 'actual 410 expiry locks friend UI';
   const expiring = await newSession();
   const expiredPage = await newPage('expired-friend');
@@ -519,7 +600,8 @@ async function legacyUI(created) {
 }
 (async () => {
   const [html, api, config] = await Promise.all(['claim.html', 'bill-share-api.js', 'share-config.js'].map(file => fs.readFile(path.join(ROOT, file), 'utf8')));
-  assert(html.includes('id="claim-auth-panel"') && html.includes('id="claim-password-repeat"') && api.includes('submitSecureClaim') && api.includes('approveClaimPassword'), 'Application password contracts are not ready; rerun once implementation jobs finish');
+  const currentAuthControls = ['id="claim-auth-panel"', 'id="auth-legacy-mode"', 'id="auth-password"', 'id="auth-code-row"', 'id="auth-setup-code"', 'id="first-legacy-mode"', 'id="claim-password"', 'id="first-code-row"', 'id="first-setup-code"'];
+  assert(currentAuthControls.every(control => html.includes(control)) && api.includes('submitSecureClaim') && api.includes('approveClaimPassword'), 'Current authentication UI and legacy password compatibility controls are not ready');
   workerOrigin = new URL(config.match(/apiBaseUrl:\s*['"]([^'"]+)/)?.[1] || 'https://bill-splitter-share.cw9102025.workers.dev').origin;
   const { createPasswordTestServer } = await import(pathToFileURL(path.join(__dirname, 'password-test-server.mjs')).href);
   harness = await createPasswordTestServer({ origin: base.origin, publicStaticQA }); secrets.add(harness.env.CLAIM_PASSWORD_PEPPER);

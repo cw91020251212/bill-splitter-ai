@@ -1,14 +1,14 @@
 # 互動教學瀏覽器測試
 
-程式仍然是純靜態 GitHub Pages App，無需 build。Playwright 只用於開發驗收，不會載入到公開頁面；測試只可對本機執行。
+前端仍是無需 build 的靜態 GitHub Pages App；朋友認帳與共享結果另由 Cloudflare Worker/KV/SQLite Durable Object 提供。Playwright 只用於開發驗收，不會載入到公開頁面；一般狀態寫入測試只可對本機執行。
 
 ## R127 複查回歸
 
 `calculation-regressions.cjs` 驗證負／無效商品價與數量會在第二步顯示錯誤、舊草稿認領需要逐項核對、未提交的收據文字可在本機還原且新單確認後清除。`text-import.cjs` 覆蓋有效但有負稅／折扣／商品錯誤的 JSON 不會外送 AI。`recognition-retry-ui.cjs` 用 mock OCR 測試同名不同規格的順序變更會沿用正確認領編號；完全重複而無法唯一配對時，會改發新編號並停用舊認帳。它仍只使用 localhost／mock，不寫入正式或公開帳單 API。
 
-## R116 四字元英數符號選填認證碼
+## R157 本機所有權證明與朋友帳單保存（未部署候選）
 
-`node tests/friend-recognition.cjs` 使用本機記憶體 Worker／DO 驗證空白碼可認帳、姓名找回、數字／大小寫英文字母／符號碼、大小寫敏感、錯碼拒絕、小型修改入口、同一連結重算及舊密碼相容。認證碼不能出現在 URL、草稿或公開結果。`PUBLIC_STATIC_QA=1 BASE_URL=https://cw91020251212.github.io/bill-splitter-ai/` 只讀正式靜態頁面，所有認帳／结果 API 仍攔截到本機，不能讀寫真實帳單。後端仍用 `node --test worker/claim-auth.test.mjs worker/worker-core.test.mjs`。
+`node tests/friend-recognition.cjs --backend-only` 使用本機 Worker／DO harness 驗證姓名單獨不能解鎖、隨機 ownerProof 綁定、選填三／四字碼、PIN 錯誤拒絕、一次性主辦人恢復、舊密碼相容及到期。Worker 認證回歸亦驗證預置 reserved claims 不可用空碼、自選 ownerProof、3／4 字碼或密碼首綁；拒絕時原 claims 不變、狀態仍未註冊，只有有效的一次性主辦人碼可授權首綁。完整 UI 測試以 390px 手機瀏覽器檢查新裝置只知道姓名無法讀回、3 字元大小寫／符號碼可用，及同一連結重新結算；所有 API 寫入攔截至本機 harness。`node tests/friend-local-save.cjs` 使用合成帳單／收據，驗證朋友只保存自己的明細和原收據至本機 IndexedDB，並阻擋所有外部寫入。`node --test worker/claim-auth.test.mjs worker/worker-core.test.mjs` 執行 Worker 認證與分帳核心回歸。
 
 R107 另驗證四字元碼在最後一字時沒有水平捲動、首字仍可見；大小寫及符號輸入、刪除、重打、失焦及重新聚焦都涵蓋初次認帳及修改畫面。
 
@@ -44,9 +44,9 @@ R114/R115 的 `tutorial-ui.cjs` 驗證雙語 18 階段教學、第二步分享�
 
 `paddle-local-ocr-ui.cjs` 及 `text-import.cjs` 模擬 `showOpenFilePicker`，斷言收據圖片選擇器以 `startIn: "downloads"` 開始並提供 JPEG／PNG／WebP 類型篩選；文字匯入測試另確認 API 不可用時會回退至未限制目錄的檔案輸入，並檢查摺疊時箭頭向下、展開時向上。E2E 不會打開真實系統選檔視窗，也不使用私人收據。
 
-R104 下述八字强制密碼介面測試是歷史規格；R105 新介面以 `friend-recognition.cjs` 為準。姓名未設定碼時只能按姓名識別，不是强身份保護；保留舊密碼驗證、期限、主辦人權限及精確認帳比對測試。
+R104 八字強制密碼介面測試及 R105「未設碼按姓名識別」均屬歷史規格；目前無碼朋友使用本機 ownerProof，跨裝置需自設碼或主辦人一次性確認。舊密碼資料仍相容；分帳計算與認帳數量／單位比對測試保持原有規則。
 
-`friend-recognition.cjs` 另驗證外部 AI JSON 匯入建立的結果、遮蓋後相片寫入原 Worker session並在朋友詳情頁內嵌顯示；其後新裝置開啟同一認帳連結可見「新增一位」入口，繁中／英文切換後填新姓名和項目，主辦人返回收件匣重新接收及計算，更新結果仍使用原網址；原有朋友資料保留。API 全部路由到本機 Worker 測試 harness，零正式／公開 API 寫入。執行：`BASE_URL=http://127.0.0.1:4178/ node tests/friend-recognition.cjs`。
+`friend-recognition.cjs` 另驗證外部 AI JSON 匯入建立的結果、遮蓋後相片寫入原 Worker session 並在朋友詳情頁內嵌顯示；其後新裝置開啟同一認帳連結可見「新增一位」入口，填新姓名和項目，主辦人重新接收及計算，更新結果仍使用原網址；原有朋友資料保留。API 全部路由到本機 Worker 測試 harness，零正式／公開 API 寫入。完整測試執行：`BASE_URL=http://127.0.0.1:4178/ node tests/friend-recognition.cjs`。
 
 ## R104 姓名＋密碼
 
@@ -72,6 +72,8 @@ node tests/text-import.cjs
 node --test exchange-rates.test.cjs
 node tests/cross-currency-ui.cjs
 node tests/recognition-retry-ui.cjs
+node tests/friend-local-save.cjs
+node --test worker/claim-auth.test.mjs worker/worker-core.test.mjs
 ```
 
 同一條認帳／結果連結的 UI 測試（390px 手機視窗）會 mock Worker 寫入和 WhatsApp，不會建立正式分享資料；Worker 的 pending→ready、主辦人 token 和期限可另以 `node --test worker/worker-core.test.mjs` 測試。先啟動 localhost 靜態伺服器，再執行：
@@ -84,7 +86,7 @@ node tests/friend-whatsapp-details.cjs
 node --test worker/worker-core.test.mjs
 ```
 
-朋友結果頁導覽測試：`PLAYWRIGHT_MODULE=/path/to/playwright CHROMIUM_EXECUTABLE=/usr/bin/chromium BASE_URL=http://127.0.0.1:4178/ node tests/friend-navigation.cjs`。涵蓋載入、成功、失效、網絡失敗、空白分享 ID、同一連結 iframe 及本機預覽返回入口。此測試全部 Worker/ntfy 请求均被攔截，只在隔離瀏覽器建立合成預覽；也可把 `BASE_URL` 設為本專案正式 GitHub Pages 作唯讀部署驗收，不會讀取或修改任何真實帳單。`SCREENSHOT_DIR` 可指定驗收截圖輸出目錄。
+朋友結果頁導覽測試：`PLAYWRIGHT_MODULE=/path/to/playwright CHROMIUM_EXECUTABLE=/usr/bin/chromium BASE_URL=http://127.0.0.1:4178/ node tests/friend-navigation.cjs`。涵蓋載入、成功、失效、網絡失敗、空白分享 ID、同一連結 iframe 及本機預覽返回入口。此測試攔截所有 Worker／舊 relay 請求，只在隔離瀏覽器建立合成預覽；目前產品認帳流程不呼叫公開 ntfy。也可把 `BASE_URL` 設為本專案正式 GitHub Pages 作唯讀部署驗收，不會讀取或修改任何真實帳單。`SCREENSHOT_DIR` 可指定驗收截圖輸出目錄。
 
 修改認帳測試：`node --test claim-revisions.test.cjs` 及 `PLAYWRIGHT_MODULE=/path/to/playwright CHROMIUM_EXECUTABLE=/usr/bin/chromium BASE_URL=http://127.0.0.1:4178/ node tests/friend-revisions.cjs`。測試全部分享與認帳 API 均攔截使用合成資料，涵蓋返回修改、從結果恢復、本機保存、重新提交、舊結果等待、數量／實際單位比對、重新結算、失敗重試及到期封鎖。Relay 全部撤回與同名覆蓋以 `node --test --test-name-pattern='explicit clear|upsert keeps' claim-relay.test.cjs` 驗證，不會呼叫公開 ntfy。
 
