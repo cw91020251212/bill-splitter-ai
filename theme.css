@@ -1228,6 +1228,23 @@ html[lang="en"] #root [data-testid="open-free-key-settings"] span {
   opacity: 1 !important;
 }
 
+#root main button[data-testid="submit-receipt-text"]:disabled {
+  background-image: none !important;
+  background-color: #e7ebe8 !important;
+  border-color: #d2d8d4 !important;
+  color: #9aa39d !important;
+  -webkit-text-fill-color: #9aa39d !important;
+  text-shadow: none !important;
+  box-shadow: none !important;
+  opacity: 1 !important;
+}
+#root main button[data-testid="submit-receipt-text"]:disabled svg {
+  color: #9aa39d !important;
+  stroke: #9aa39d !important;
+  filter: none !important;
+  opacity: 1 !important;
+}
+
 /* Google AI lockup. Letter fills are the official wordmark hexes
    (G #4285F4, o #EA4335, o #FBBC05, g #4285F4, l #34A853, e #EA4335).
    All four fail 4.5:1 on #29835f (blue 1.31, red 1.19, yellow 2.73, green 1.53),

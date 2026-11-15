@@ -202,7 +202,8 @@ const ensureAIImportOpen = async page => {
     assert.notEqual(outlinePaint.backgroundColor, 'rgb(29, 115, 73)', 'the outline prompt button stays a secondary control');
     assert.equal(outlinePaint.backgroundImage, 'none');
     const submitDisabled = await buttonPaint(noKeyPage.getByTestId('submit-receipt-text'));
-    assert.equal(submitDisabled.disabled, false, '整理這段文字 stays available to read a copied Gemini answer');
+    assert.equal(submitDisabled.disabled, true, '整理這段文字 is disabled until the text box has content');
+    assert.equal(submitDisabled.backgroundColor, 'rgb(231, 235, 232)', '整理這段文字 is gray while the text box is empty');
     const fileLabel = await noKeyPage.getByTestId('choose-receipt-text-file').evaluate(button => {
       const aside = button.querySelector('.btn-aside');
       return {
