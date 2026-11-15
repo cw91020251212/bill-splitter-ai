@@ -5,7 +5,7 @@ const path = require('node:path');
 
 const root = path.join(__dirname, '..');
 const read = name => fs.readFileSync(path.join(root, name), 'utf8');
-const release = 'v152-short-gemini-guide-20261115';
+const release = 'v153-paste-gemini-guide-20261115';
 
 function linearize(channel) {
   const value = channel / 255;
@@ -123,7 +123,7 @@ test('R152 cache epoch is on the host shell and does not leak into friend pages'
   assert.match(index, new RegExp(`theme\\.css\\?v=${release}`));
   assert.match(index, new RegExp(`pwa\\.js\\?v=${release}`));
   assert.match(index, new RegExp(`name="bill-app-release" content="${release}"`));
-  assert.match(index, />R152</);
+  assert.match(index, />R153</);
   assert.doesNotMatch(index, /v142-dark-green-white-label-20261114/);
   assert.doesNotMatch(index, />R148</);
   assert.doesNotMatch(index, />R147</);
@@ -131,7 +131,7 @@ test('R152 cache epoch is on the host shell and does not leak into friend pages'
   assert.doesNotMatch(index, />R142</);
   assert.match(sw, new RegExp(`const CACHE_VERSION = '${release}'`));
   assert.match(pwa, new RegExp(`var RELEASE_VERSION = '${release}'`));
-  assert.match(pwa, /version: 'R152'/);
+  assert.match(pwa, /version: 'R153'/);
   for (const name of ['claim.html', 'detailed-view.html']) {
     const text = read(name);
     assert.equal(text.includes('theme.css'), false, `${name} must not load host theme.css`);
