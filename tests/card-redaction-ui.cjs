@@ -70,10 +70,17 @@ async function seed(page, width, height, failOcr = false) {
         setParameters: async () => {},
         recognize: async () => {
           if (shouldFail) throw new Error('synthetic OCR failure');
-          return { data: { lines: [{ words: [
-            { text: '41111111', bbox: { x0: 270, x1: 407, y0: 374, y1: 400 } },
-            { text: '11111111', bbox: { x0: 414, x1: 570, y0: 374, y1: 400 } }
-          ] }] } };
+          return { data: { lines: [
+            { words: [
+              { text: 'Phone:', bbox: { x0: 80, x1: 160, y0: 280, y1: 306 } },
+              { text: '9123', bbox: { x0: 168, x1: 240, y0: 280, y1: 306 } },
+              { text: '4567', bbox: { x0: 248, x1: 320, y0: 280, y1: 306 } }
+            ] },
+            { words: [
+              { text: '41111111', bbox: { x0: 270, x1: 407, y0: 374, y1: 400 } },
+              { text: '11111111', bbox: { x0: 414, x1: 570, y0: 374, y1: 400 } }
+            ] }
+          ] } };
         },
         terminate: async () => { window.__ocrWorkerTerminated = true; }
       })
@@ -120,7 +127,7 @@ async function openReview(page) {
   await page.getByTestId('share-receipt-images').click();
   await page.getByTestId('card-redaction-status').waitFor({ state: 'visible', timeout: 30000 });
   await page.getByTestId('card-redaction-preview').waitFor({ state: 'visible' });
-  assert.match(await page.getByTestId('card-redaction-status').innerText(), /自動遮蓋 1 個疑似卡號/);
+  assert.match(await page.getByTestId('card-redaction-status').innerText(), /自動遮蓋卡號 1 處、其他資料 1 處/);
 }
 
 (async () => {
@@ -137,6 +144,13 @@ async function openReview(page) {
     page320.on('pageerror', error => failures.push(`320px: ${error.message}`));
     await seed(page320, 320, 800, false);
     await openReview(page320);
+    const sensitiveToggle320 = page320.getByTestId('card-redaction-sensitive-toggle');
+    assert.equal(await sensitiveToggle320.count(), 1, `missing sensitive-data toggle; page errors: ${failures.join(' | ')}; review text: ${await page320.getByTestId('card-share-review').innerText()}`);
+    assert.equal(await sensitiveToggle320.isChecked(), true, 'extra sensitive-data masking is on by default');
+    await sensitiveToggle320.uncheck();
+    await page320.getByText('已遮蓋 1 處', { exact: false }).waitFor({ state: 'visible', timeout: 10000 });
+    await sensitiveToggle320.check();
+    await page320.getByText('已遮蓋 2 處', { exact: false }).waitFor({ state: 'visible', timeout: 10000 });
     await page320.evaluate(() => { window.__initialRedactionPreview = document.querySelector('[data-testid="card-redaction-preview"]'); });
     await page320.waitForTimeout(250);
     assert.equal(await page320.evaluate(() => window.__initialRedactionPreview === document.querySelector('[data-testid="card-redaction-preview"]')), true, 'the preview image remains mounted after loading');
@@ -216,10 +230,10 @@ async function openReview(page) {
     await page390.mouse.down();
     await page390.mouse.move(box.x + box.width * 0.30, box.y + box.height * 0.24, { steps: 3 });
     await page390.mouse.up();
-    await page390.getByText('已遮蓋 2 處', { exact: false }).waitFor({ state: 'visible', timeout: 10000 });
+    await page390.getByText('已遮蓋 3 處', { exact: false }).waitFor({ state: 'visible', timeout: 10000 });
     await page390.getByTestId('card-redaction-draw-toggle').click();
     await page390.getByRole('button', { name: '撤銷上一框' }).click();
-    await page390.getByText('已遮蓋 1 處', { exact: false }).waitFor({ state: 'visible', timeout: 10000 });
+    await page390.getByText('已遮蓋 2 處', { exact: false }).waitFor({ state: 'visible', timeout: 10000 });
     await page390.getByTestId('card-redaction-share').click();
     await page390.waitForFunction(() => window.__mockShareCalls.length === 1);
     await context390.close();
@@ -235,7 +249,7 @@ async function openReview(page) {
     await contextFail.close();
 
     assert.deepEqual(failures, [], failures.join('\n'));
-    console.log('PASS card-redaction UI: synthetic fake card masked in share-copy preview at 320px and 390px; original image preserved; share payload contains only redacted JPEG; manual mask/undo works; OCR failure blocks sharing.');
+    console.log('PASS card-redaction UI: synthetic card and phone masked in the share copy at 320px and 390px; extra-mask option toggles safely; original image preserved; manual mask/undo works; OCR failure blocks sharing.');
     console.log(`PREVIEWS ${path.join(outputDir, 'card-redaction-review-320.png')} ${path.join(outputDir, 'card-redaction-review-390.png')}`);
   } finally {
     await browser.close();

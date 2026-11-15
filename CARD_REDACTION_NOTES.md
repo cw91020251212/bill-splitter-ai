@@ -1,18 +1,20 @@
-# Receipt card-number redaction notes
+# 單據分享前遮蓋敏感資料
 
-## What the candidate does
+## 現有功能
 
-Before receipt images can enter the system share sheet, the app runs OCR in a browser worker on the current device. It checks contiguous digit groups on the same OCR line for 13–19 digit Luhn-valid numbers, draws black rectangles onto newly generated JPEG copies, and displays each copy for review. The original receipt image stays unchanged in the existing local history. OCR text is used only in memory to find box coordinates; it is not written to local storage or sent in the share payload. A user can add or undo boxes. If OCR or image export fails, the app does not offer a way to share the originals from that review step.
+分享單據圖片前，應用程式會在目前裝置用 Tesseract.js OCR 處理圖片，預設遮蓋通過 Luhn 校驗的 13–19 位卡號，並自動遮蓋香港電話、香港身份證格式及電郵；同一行有清楚英文標籤的銀行戶口號碼或 CVV 亦會遮蓋。額外敏感資料的自動遮蓋可在審閱畫面勾選或關閉，預設開啟。用戶仍可手動加黑框及撤銷自己畫的框。
 
-This is local OCR plus a checksum rule, not a remote generative-AI service. The pinned Tesseract.js library, worker/core code, and English trained data may be downloaded from their configured CDNs on first use; the receipt image itself is passed to the browser worker and is not uploaded for recognition. First use therefore may require an internet connection. The implementation is capped at 4096 pixels on the longest side for the generated copy.
+遮蓋會塗到新製作的 JPEG 副本，逐張顯示供檢查；分享時只會送出副本。原始圖片及本機歷史不變。OCR 文字只在記憶體中用來計算遮蓋座標，不會寫入本機儲存或分享資料。OCR 在本機執行，不會把收據圖片送到外部 AI。
 
-## Limits
+## 不能依賴自動偵測的資料
 
-Detection can miss numbers that are blurred, tiny, rotated, split across OCR lines, or otherwise misread; it may also flag a different Luhn-valid 13–19 digit number. It does not automatically identify names, addresses, expiry dates, CVVs, or other private information. The review is deliberate: inspect every image, and add a manual box when needed. Users should not treat automatic detection as a guarantee that a receipt contains no unmasked sensitive data.
+這些規則只識別常見格式，不會理解收據內容。姓名、地址、到期日、以中文標示的銀行戶口／CVV，以及其他沒有明確格式的資料，仍須由用戶手動框選。若圖片模糊、旋轉、細小、OCR 誤讀或格式不常見，自動偵測可能漏掉或誤遮。請逐張檢查分享副本；自動遮蓋不是「已清除全部敏感資料」的保證。
 
-## Technical reference
+首次使用可能需要連網下載固定版本的 Tesseract.js、OCR 核心及英文語言資料；圖片辨識本身不會上傳。輸出圖片長邊上限為 4096 像素。若 OCR 或圖片匯出失敗，審閱流程不會提供分享原圖的後備路徑。
 
-The browser worker setup, `createWorker`/`recognize` flow, worker configuration, and bounding-box output are based on the versioned Tesseract.js v5.1.1 API documentation:
+## 技術參考
+
+瀏覽器 worker、`createWorker`／`recognize` 及 bounding box 參考 Tesseract.js v5.1.1 文件：
 
 - https://raw.githubusercontent.com/naptha/tesseract.js/v5.1.1/docs/api.md
 - https://github.com/naptha/tesseract.js
