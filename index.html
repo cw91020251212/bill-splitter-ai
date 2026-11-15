@@ -142,11 +142,11 @@
   ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
   ::-webkit-scrollbar-thumb:hover { background: #64748b; }
   </style>
-  <link rel="stylesheet" href="./theme.css?v=v157-guided-step-action-spotlight-20261115">
+  <link rel="stylesheet" href="./theme.css?v=v158-step2-link-spotlight-sequenced-20261115">
   <link rel="stylesheet" href="./tutorial.css?v=v86-free-models-only">
-  <!-- R157: spotlight only the valid next action groups. -->
-  <meta name="bill-app-release" content="v157-guided-step-action-spotlight-20261115">
-  <script defer src="./pwa.js?v=v157-guided-step-action-spotlight-20261115"></script>
+  <!-- R158: offer the claim-link route before Step 2 navigation. -->
+  <meta name="bill-app-release" content="v158-step2-link-spotlight-sequenced-20261115">
+  <script defer src="./pwa.js?v=v158-step2-link-spotlight-sequenced-20261115"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
@@ -1306,7 +1306,9 @@ Format (keep every field; items may contain multiple entries, and adjustments mu
       const [showExternalAiActionOverlay, setShowExternalAiActionOverlay] = useState(false);
       const externalAiActionHandledRef = useRef(false);
       const [guidedActionSpotlight, setGuidedActionSpotlight] = useState('');
-      const guidedActionReadinessRef = useRef({ step2: false, step3: false });
+      const [step2LinkPromptRequested, setStep2LinkPromptRequested] = useState(false);
+      const [step2NavigationPromptRequested, setStep2NavigationPromptRequested] = useState(false);
+      const guidedActionReadinessRef = useRef({ step2Link: false, step2: false, step3: false });
       const [googleAiCopyStatus, setGoogleAiCopyStatus] = useState('copied');
       const [lastImageData, setLastImageData] = useState([]);
       const [reviewReceiptImageIndex, setReviewReceiptImageIndex] = useState(null);
@@ -2044,6 +2046,7 @@ Format (keep every field; items may contain multiple entries, and adjustments mu
         const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
         if (reducedMotion) {
           target.scrollIntoView({ behavior: 'auto', block: 'center' });
+          setStep2LinkPromptRequested(true);
           return;
         }
         const startY = window.scrollY;
@@ -2053,7 +2056,7 @@ Format (keep every field; items may contain multiple entries, and adjustments mu
         const desiredTop = Math.max(visibleTop, visibleBottom - rect.height - 24);
         const maxScroll = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
         const endY = Math.min(maxScroll, Math.max(startY, startY + rect.top - desiredTop));
-        if (endY <= startY + 8) return;
+        if (endY <= startY + 8) { setStep2LinkPromptRequested(true); return; }
 
         step2NextScrollCancelRef.current?.();
         let raf = 0;
@@ -2089,7 +2092,7 @@ Format (keep every field; items may contain multiple entries, and adjustments mu
           const progress = Math.min(1, (now - startTime) / duration);
           window.scrollTo({ top: startY + (endY - startY) * ease(progress), behavior: 'auto' });
           if (progress < 1) raf = requestAnimationFrame(frame);
-          else { cancelled = true; removeListeners(); }
+          else { cancelled = true; removeListeners(); setStep2LinkPromptRequested(true); }
         };
         raf = requestAnimationFrame(frame);
       };
@@ -4221,6 +4224,10 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
             ? `Open this link to enter your shares. After the organizer calculates, reopen this same link to view the result:\n${link}`
             : `請打開呢條連結填認帳；主辦人計算後，再開返同一條連結睇結果：\n${link}`;
           shareTextWithFiles(message, [], tr('認帳連結'));
+          if (step === 2 && step2LinkPromptRequested && !manualClaimsEnabled) {
+            setStep2LinkPromptRequested(false);
+            setStep2NavigationPromptRequested(true);
+          }
         } catch (error) { if (error?.name !== 'AbortError') setStepError(`⚠️ ${error?.message || '未能建立共用認帳連結。'}`); }
       };
 
@@ -5075,7 +5082,12 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
       const guidedSurfaceAvailable = draftReady && !tutorialDemo && !isAnalyzing && !uploadError
         && !showHistory && !showSettings && !showTutorial && !showGoogleAiGuide && !showExternalAiActionOverlay
         && !cameraOpen && !showRedaction;
-      const step2ActionReady = guidedSurfaceAvailable && step === 2 && guidedItemsReady && guidedTaxReady;
+      const step2LinkActionReady = guidedSurfaceAvailable && step === 2 && guidedItemsReady && guidedTaxReady
+        && !manualClaimsEnabled && (!claimLinkShared || !claimSession?.link);
+      const step2LinkSpotlightReady = guidedSurfaceAvailable && step === 2 && guidedItemsReady && guidedTaxReady
+        && !manualClaimsEnabled && step2LinkPromptRequested;
+      const step2ActionReady = guidedSurfaceAvailable && step === 2 && guidedItemsReady && guidedTaxReady
+        && step2NavigationPromptRequested && !step2LinkActionReady && !step2LinkSpotlightReady && !manualClaimsEnabled;
       const calculationActionReady = (() => {
         if (!guidedSurfaceAvailable || step !== 3 || !payer.trim() || !guidedItemsReady || !guidedTaxReady || receiptTotalReview || !friendsReplies.trim()) return false;
         const parsed = parseClaims(friendsReplies, items);
@@ -5150,20 +5162,28 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
 
       useEffect(() => {
         const previous = guidedActionReadinessRef.current;
-        if ((step2ActionReady || calculationActionReady) && stepError) setStepError('');
-        if (step2ActionReady && !previous.step2) setGuidedActionSpotlight('step2');
+        if ((step2LinkSpotlightReady || step2ActionReady || calculationActionReady) && stepError) setStepError('');
+        if (step2LinkSpotlightReady && !previous.step2Link) setGuidedActionSpotlight('step2-link');
+        else if (step2ActionReady && (!previous.step2 || guidedActionSpotlight === 'step2-link')) setGuidedActionSpotlight('step2');
         else if (calculationActionReady && !previous.step3) setGuidedActionSpotlight('step3');
-        else if ((!step2ActionReady && guidedActionSpotlight === 'step2') || (!calculationActionReady && guidedActionSpotlight === 'step3')) setGuidedActionSpotlight('');
-        guidedActionReadinessRef.current = { step2: step2ActionReady, step3: calculationActionReady };
-      }, [step2ActionReady, calculationActionReady, guidedActionSpotlight, stepError]);
+        else if ((!step2LinkSpotlightReady && guidedActionSpotlight === 'step2-link') || (!step2ActionReady && guidedActionSpotlight === 'step2') || (!calculationActionReady && guidedActionSpotlight === 'step3')) setGuidedActionSpotlight('');
+        guidedActionReadinessRef.current = { step2Link: step2LinkSpotlightReady, step2: step2ActionReady, step3: calculationActionReady };
+      }, [step2LinkSpotlightReady, step2ActionReady, calculationActionReady, guidedActionSpotlight, stepError]);
+
+      useEffect(() => {
+        if (step === 2) return;
+        if (step2LinkPromptRequested) setStep2LinkPromptRequested(false);
+        if (step2NavigationPromptRequested) setStep2NavigationPromptRequested(false);
+      }, [step, step2LinkPromptRequested, step2NavigationPromptRequested]);
 
       useEffect(() => {
         if (!guidedActionSpotlight) return undefined;
-        const target = document.querySelector(`[data-testid="${guidedActionSpotlight}-guided-actions"]`);
+        const targetTestId = guidedActionSpotlight === 'step2-link' ? 'step2-guided-claim-options' : `${guidedActionSpotlight}-guided-actions`;
+        const target = document.querySelector(`[data-testid="${targetTestId}"]`);
         if (!target) { setGuidedActionSpotlight(''); return undefined; }
         target.scrollIntoView({ behavior: 'smooth', block: 'center' });
         const focusFrame = window.requestAnimationFrame(() => {
-          const testId = guidedActionSpotlight === 'step2' ? 'go-to-payer' : 'calculate-split';
+          const testId = guidedActionSpotlight === 'step2-link' ? 'copy-friend-claim-link' : guidedActionSpotlight === 'step2' ? 'go-to-payer' : 'calculate-split';
           window.setTimeout(() => target.querySelector(`[data-testid="${testId}"]`)?.focus({ preventScroll: true }), 100);
         });
         return () => window.cancelAnimationFrame(focusFrame);
@@ -5171,7 +5191,8 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
 
       useEffect(() => {
         if (!guidedActionSpotlight) return undefined;
-        const target = document.querySelector(`[data-testid="${guidedActionSpotlight}-guided-actions"]`);
+        const targetTestId = guidedActionSpotlight === 'step2-link' ? 'step2-guided-claim-options' : `${guidedActionSpotlight}-guided-actions`;
+        const target = document.querySelector(`[data-testid="${targetTestId}"]`);
         const onKeyDown = event => {
           if (event.key === 'Escape') { event.preventDefault(); setGuidedActionSpotlight(''); return; }
           if (event.key !== 'Tab' || !target) return;
@@ -5211,7 +5232,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                 <div className="flex items-center gap-2 sm:gap-3 shrink-0">
                   <img src="./icons/icon.svg" alt="" width="48" height="48" className="app-brand-icon shrink-0" />
                   <div>
-                  <h1 className="text-xl font-extrabold text-slate-800 tracking-tight"><span className="app-brand-name block sm:inline whitespace-nowrap">{tr("分帳管家")}</span><span className="inline-flex items-baseline gap-1 sm:ml-1 whitespace-nowrap"><span data-testid="app-pro-label" className="text-brand-600 font-black">Pro</span><span data-testid="app-version-label" className="text-[10px] leading-3 font-semibold tracking-normal text-brand-700">R157</span></span></h1>
+                  <h1 className="text-xl font-extrabold text-slate-800 tracking-tight"><span className="app-brand-name block sm:inline whitespace-nowrap">{tr("分帳管家")}</span><span className="inline-flex items-baseline gap-1 sm:ml-1 whitespace-nowrap"><span data-testid="app-pro-label" className="text-brand-600 font-black">Pro</span><span data-testid="app-version-label" className="text-[10px] leading-3 font-semibold tracking-normal text-brand-700">R158</span></span></h1>
                   </div>
               </div>
               <div className="header-actions relative flex items-center gap-1.5 sm:gap-2">
@@ -5819,6 +5840,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                 </Card>
 
                 <div className="border-t border-slate-400 my-6 pt-6 space-y-6">
+                  <div data-testid="step2-guided-claim-options" role="group" aria-label={bi('認帳連結或手動輸入', 'Claim link or manual entry')} className={`space-y-4 ${guidedActionSpotlight === 'step2-link' ? 'guided-action-target' : ''}`}>
                   <div data-testid="claim-share-block" className="claim-share-block">
                     <Label className="flex items-center justify-between mb-3"><span>{tr("1. 分享認帳連結")}</span></Label>
                     <p className="text-base text-slate-700 mb-3 leading-relaxed">{claimRoom && !claimSession && !tutorialDemo ? bi('請建立新的受保護連結；舊連結只可手動交回及核對。', 'Create a protected link; the old link supports manual replies and checking only.') : bi('朋友填姓名和項目；4 字認證碼可選填。', 'Friends enter a name and items; the 4-character code is optional.')}</p>
@@ -5831,6 +5853,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                         <Icon path={icons.share} size={18}/><span>{bi('分享認帳連結', 'Share claim link')}</span></Button>
                     </div>
                   </div>
+                  {guidedActionSpotlight === 'step2-link' && claimLinkShared && <p data-testid="claim-link-created-guidance" className="rounded-lg bg-emerald-50 px-3 py-2 text-sm leading-relaxed text-emerald-900">{bi('認帳連結已建立。可再按「分享認帳連結」，或點擊空白位置繼續。', 'The claim link is ready. You can tap “Share claim link” above, or tap outside the highlight to continue.')}</p>}
                 {!tutorialDemo && !manualClaimsEnabled && !claimLinkShared && !claimSession && !claimRoom && !hasInboundClaim && (
                   <Card data-testid="manual-claim-entry-option" className="!p-4 mb-4 border-slate-400 bg-slate-50 !shadow-none">
                     <h3 className="text-base font-bold text-slate-800">{bi('不建立連結？可手動輸入認帳', 'No link? Enter claims manually')}</h3>
@@ -5846,6 +5869,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                     }}>{bi('手動輸入認帳', 'Enter claims manually')}</Button>
                   </Card>
                 )}
+                  </div>
                 <div
                   ref={claimFollowupRef}
                   data-testid="claim-followup"

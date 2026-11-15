@@ -50,29 +50,44 @@ async function preload() {
     await page.getByTestId('start-manual').waitFor({ state: 'visible', timeout: 60000 });
     await page.getByTestId('start-manual').click();
 
-    await page.getByTestId('enable-manual-claim-entry').click();
-    await page.getByTestId('claim-replies').fill('Name: QA Friend\n01 = 1');
     await page.getByTestId('item-name').first().fill('QA 飲品');
     assert.equal(await page.getByTestId('guided-action-backdrop').count(), 0, 'no spotlight is shown while the line amount is still missing');
     await page.getByTestId('item-price').first().fill('10');
 
-    const step2Backdrop = page.getByTestId('guided-action-backdrop');
-    const step2Group = page.getByTestId('step2-guided-actions');
-    await step2Backdrop.waitFor({ state: 'visible' });
-    await step2Group.waitFor({ state: 'visible' });
-    assert.match(await step2Group.getAttribute('class'), /guided-action-target/);
-    assert.equal(await step2Group.locator('button').count(), 2, 'Step 2 reveals both Previous and Next choices');
-    assert.equal(await page.getByTestId('go-to-payer').isVisible(), true);
-    const step2Layering = await page.evaluate(() => ({
+    const linkBackdrop = page.getByTestId('guided-action-backdrop');
+    const linkGroup = page.getByTestId('step2-guided-claim-options');
+    assert.equal(await linkBackdrop.count(), 0, 'entering Step 2 does not auto-scroll away from receipt review');
+    await page.getByTestId('activity-settings-next').click();
+    await linkBackdrop.waitFor({ state: 'visible' });
+    await linkGroup.waitFor({ state: 'visible' });
+    assert.match(await linkGroup.getAttribute('class'), /guided-action-target/);
+    assert.equal(await linkGroup.locator('button').count(), 3, 'Step 2 first reveals Copy link, Share link, and manual-entry choices');
+    for (const testId of ['copy-friend-claim-link', 'open-claim-share-button', 'enable-manual-claim-entry']) {
+      assert.equal(await page.getByTestId(testId).isVisible(), true, `${testId} remains visible in the first Step 2 spotlight`);
+      assert.equal(await page.getByTestId(testId).isEnabled(), true, `${testId} remains enabled in the first Step 2 spotlight`);
+    }
+    await page.getByTestId('copy-friend-claim-link').click({ trial: true });
+    await page.getByTestId('open-claim-share-button').click({ trial: true });
+    const linkLayering = await page.evaluate(() => ({
       backdrop: getComputedStyle(document.querySelector('[data-testid="guided-action-backdrop"]')).zIndex,
-      target: getComputedStyle(document.querySelector('[data-testid="step2-guided-actions"]')).zIndex,
-      buttons: [...document.querySelectorAll('[data-testid="step2-guided-actions"] button')].map(button => button.getBoundingClientRect().width)
+      target: getComputedStyle(document.querySelector('[data-testid="step2-guided-claim-options"]')).zIndex,
+      buttons: [...document.querySelectorAll('[data-testid="step2-guided-claim-options"] button')].map(button => button.getBoundingClientRect().width)
     }));
-    assert.equal(step2Layering.backdrop, '2147483000');
-    assert.equal(step2Layering.target, '2147483001');
-    assert.ok(step2Layering.buttons.every(width => width > 40), 'both Step 2 buttons remain large enough to tap');
+    assert.equal(linkLayering.backdrop, '2147483000');
+    assert.equal(linkLayering.target, '2147483001');
+    assert.ok(linkLayering.buttons.every(width => width > 40), 'all link/manual choices remain large enough to tap');
 
-    await page.getByTestId('go-to-payer').click();
+    await page.getByTestId('enable-manual-claim-entry').click();
+    await linkBackdrop.waitFor({ state: 'hidden' });
+    await page.getByTestId('claim-replies').fill('Name: QA Friend\n01 = 1');
+    assert.equal(await linkBackdrop.count(), 0, 'manual mode keeps both claim-entry and later-link controls accessible without a second mask');
+    assert.doesNotMatch(await linkGroup.getAttribute('class'), /guided-action-target/);
+    assert.doesNotMatch(await page.getByTestId('step2-guided-actions').getAttribute('class'), /guided-action-target/);
+    const next = page.getByTestId('go-to-payer');
+    assert.equal(await next.isVisible(), true, 'the ordinary Next control remains visible in manual mode');
+    assert.equal(await next.isEnabled(), true, 'the ordinary Next control remains usable in manual mode');
+
+    await next.click();
     await page.locator('#payer-name').fill('QA 墊支人');
     const step3Backdrop = page.getByTestId('guided-action-backdrop');
     const step3Group = page.getByTestId('step3-guided-actions');
@@ -88,7 +103,7 @@ async function preload() {
     await page.locator('[data-step="4"][aria-current="step"]').waitFor({ state: 'visible' });
     assert.equal(await page.getByTestId('guided-action-backdrop').count(), 0, 'spotlight closes after successful calculation');
     assert.deepEqual(errors, [], `browser errors: ${errors.join('; ')}`);
-    console.log('PASS Step 2 and Step 3 spotlight groups reveal both choices, obey readiness, and complete a synthetic bill');
+    console.log('PASS Step 2 offers link/manual choices, manual entry stays unmasked, and Step 3 calculates when ready');
     await context.close();
   } finally {
     await browser.close();
