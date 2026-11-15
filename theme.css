@@ -916,15 +916,16 @@ body.bg-slate-50 { background: var(--page-grey); color: var(--ink); }
 
 /* After external-AI text is pasted, keep the user's attention on the only next action. */
 #root .external-ai-action-backdrop {
-  position: fixed;
+  position: fixed !important;
   inset: 0;
-  z-index: 9990;
-  background: rgba(15, 23, 42, .68);
+  z-index: 2147483000 !important;
+  display: block !important;
+  background: rgba(15, 23, 42, .78) !important;
   cursor: default;
 }
 #root .external-ai-action-target {
   position: relative !important;
-  z-index: 9991 !important;
+  z-index: 2147483001 !important;
 }
 #root button.external-ai-action-target {
   outline: 4px solid #facc15 !important;
