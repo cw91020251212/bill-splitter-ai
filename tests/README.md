@@ -74,6 +74,7 @@ node tests/text-import.cjs
 node --test exchange-rates.test.cjs
 node tests/cross-currency-ui.cjs
 node tests/recognition-retry-ui.cjs
+node tests/step-swipe.cjs
 ```
 
 同一條認帳／結果連結的 UI 測試（390px 手機視窗）會 mock Worker 寫入和 WhatsApp，不會建立正式分享資料；Worker 的 pending→ready、主辦人 token 和期限可另以 `node --test worker/worker-core.test.mjs` 測試。先啟動 localhost 靜態伺服器，再執行：
