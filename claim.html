@@ -9,7 +9,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="分帳管家">
   <title>賬單認帳｜分帳管家 AI</title>
-  <link rel="manifest" href="./manifest.webmanifest?v=v171-visible-r162-20261116">
+  <link rel="manifest" href="./manifest.webmanifest?v=v172-visible-r163-20261116">
   <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" sizes="180x180">
   <link rel="icon" href="./icons/icon.svg" type="image/svg+xml">
   <link rel="icon" href="./icons/favicon-32.png" type="image/png" sizes="32x32">
@@ -77,6 +77,7 @@
     .revision-panel { padding: 18px; margin-bottom: 16px; border: 1px solid #bd963d; border-radius: 15px; background: #fff8e6; color: #66491a; line-height: 1.6; }
     .revision-panel h2 { margin: 0 0 8px; font-size: 19px; }
     .revision-panel p { margin: 0 0 12px; }
+    .revision-panel #return-main-app { display: block; width: 100%; margin-top: 10px; text-align: center; text-decoration: none; }
     .revision-panel .add-another-person-button { display: block; width: auto; min-height: 44px; margin: 2px 0 0 auto; padding: 8px 0; font-size: 15px; font-weight: 700; }
     .revision-actions { margin-bottom: 14px; }
     .revision-actions .button { width: 100%; }
@@ -413,6 +414,7 @@
         <h2 id="revision-waiting-title">認帳已修改，等候重新結算</h2>
         <p id="revision-waiting-description">發起人收到新認帳後會重新計算。結果更新後，仍會顯示喺同一條連結。</p>
         <button id="edit-claim-again" class="button" type="button">再次修改認帳</button>
+        <a id="return-main-app" data-testid="return-main-app" class="button" href="./">返回主程式</a>
         <button id="add-another-person-waiting" class="text-action add-another-person-button" type="button" data-testid="add-another-person-waiting">同一手機新增另一位</button>
       </section>
       <div id="revision-actions" class="revision-actions" hidden>
@@ -624,7 +626,7 @@
           fallbackSummary: 'WhatsApp 後備',
           submit: '交返發起人', submitting: '正在交返…', submittedToast: '已交返發起人',
           submitted: '已提交；發起人 12 小時內開啟分帳頁即可收到。修改後可重交。',
-          editTitle: '修改你的認帳', resubmit: '重新提交', cancelEdit: '返回結果', cancelWaiting: '返回等候頁', editAgain: '再次修改認帳',
+          editTitle: '修改你的認帳', resubmit: '重新提交', cancelEdit: '返回結果', cancelWaiting: '返回等候頁', editAgain: '再次修改認帳', returnMainApp: '返回主程式',
           waitingTitle: '認帳已修改，等候重新結算', initialWaitingTitle: '認帳已提交，等候結算', waitingDescription: '發起人收到新認帳後會重新計算。結果更新後，仍會顯示喺同一條連結。',
           sameDeviceAddPerson: '同一手機新增另一位',
           addPersonTitle: '漏咗朋友？可補加另一位', addPersonDescription: '新朋友可用同一條連結填姓名和認帳；原有認帳不會被改。發起人收到後會重新計算。', addPersonButton: '新增一位',
@@ -672,7 +674,7 @@
           fallbackSummary: 'WhatsApp fallback',
           submit: 'Send to organizer', submitting: 'Sending…', submittedToast: 'Sent to the organizer',
           submitted: 'Sent; the organizer receives it when opening the bill within 12 hours. Edit to resend.',
-          editTitle: 'Edit your items', resubmit: 'Resubmit', cancelEdit: 'Back to result', cancelWaiting: 'Back to waiting page', editAgain: 'Edit items again',
+          editTitle: 'Edit your items', resubmit: 'Resubmit', cancelEdit: 'Back to result', cancelWaiting: 'Back to waiting page', editAgain: 'Edit items again', returnMainApp: 'Back to main app',
           waitingTitle: 'Items updated; waiting for recalculation', initialWaitingTitle: 'Items submitted; waiting for calculation', waitingDescription: 'The organizer will calculate your updated items. The result will appear on this same link.',
           sameDeviceAddPerson: 'Add another person',
           addPersonTitle: 'Forgot someone? Add another person', addPersonDescription: 'Use this same link to enter another name and their claims. Existing claims stay unchanged; the organizer will recalculate.', addPersonButton: 'Add person',
@@ -880,6 +882,7 @@
         document.getElementById('add-another-person-waiting').textContent = text.sameDeviceAddPerson;
         document.getElementById('revision-edit-hint').textContent = text.editHint;
         document.getElementById('edit-claim-again').textContent = text.editAgain;
+        document.getElementById('return-main-app').textContent = text.returnMainApp;
         document.getElementById('cancel-claim-edit').textContent = pendingClaim ? text.cancelWaiting : text.cancelEdit;
         document.getElementById('claim-storage-warning').textContent = text.storageWarning;
         updateFirstIdentity();

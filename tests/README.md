@@ -54,7 +54,7 @@ R104 下述八字强制密碼介面測試是歷史規格；R105 新介面以 `fr
 
 `node --test worker/claim-auth.test.mjs worker/worker-core.test.mjs` 使用本機假的 DO／KV 執行實際驗證程式，覆蓋姓名密碼、跨姓名 token、同名並行、舊認帳搶綁、主辦人單次確認碼、重設、限流及到期。`BASE_URL=http://127.0.0.1:4192/ node tests/friend-password.cjs` 使用實際 Worker／DO 邏輯的記憶體服務，並在手機瀏覽器驗證首次設定、密碼閘、保存及同一連結重新結算；不呼叫正式 Cloudflare 或 ntfy，不讀寫真實帳單。
 
-R103 免密碼的 `friend-revisions.cjs` 及舊 relay 收帳 mock 不代表 R104 驗收，修改流程以 `friend-password.cjs` 為準。純數量比對仍可用 `node --test claim-revisions.test.cjs`。`friend-navigation.cjs` 保留朋友頁無主程式入口的檢查。
+R103 免密碼的 `friend-revisions.cjs` 及舊 relay 收帳 mock 不代表 R104 驗收，修改流程以 `friend-password.cjs` 為準。純數量比對仍可用 `node --test claim-revisions.test.cjs`。認帳等待頁的「返回主程式」只會開啟同源主程式；帳單仍保存在各自裝置，不會因連結而分享給朋友。
 
 ## 執行
 
@@ -216,3 +216,7 @@ R119 漏人指引：`friend-recognition.cjs` 驗證結果卡預設收起、向�
 
 ## R142：深綠實心按鈕改白字
 `text-import.cjs` 檢查「直接影相」、Google AI 按鈕與「選單」為白字白圖示，外框「複製讀圖提示詞」、白底「選擇圖片」和「整理這段文字」維持深色字。`google-ai-button.test.cjs` 鎖定 host-primary 每個綠色色標對白字至少 4.5:1，提示字為白，停用提示維持灰色。`friend-recognition.cjs` 檢查啟用的「產生分帳報告」及其提示為白字。可見版本為 R142。
+
+
+## R163：認帳後返回主程式及 Step 2 活動欄定位
+`claim-return.test.cjs` 確認認帳等待畫面提供中英文「返回主程式」連結，連回同一網站根目錄且不把認帳憑證帶入網址；主程式仍只從本機儲存恢復帳單。`mobile-layout.cjs` 在手機及桌面由第一步按頂部第二步後，檢查活動名輸入欄已移至固定頂欄下方並可見。可見版本為 R163。

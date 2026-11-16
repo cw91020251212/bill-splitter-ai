@@ -71,7 +71,7 @@ async function assertOriginalFirstStep(page, width, height) {
   assert.equal(await progress.isVisible(), true, `${label}: progress bar is visible above the step buttons`);
   assert.equal(await progress.getAttribute('aria-valuenow'), '1', `${label}: progress bar reports Step 1`);
   assert.equal(await progress.getAttribute('aria-valuemax'), '4', `${label}: progress bar reports four total stages`);
-  assert.equal(await page.getByTestId('app-version-label').innerText(), 'R162', `${label}: R161 is loaded`);
+  assert.equal(await page.getByTestId('app-version-label').innerText(), 'R163', `${label}: R163 is loaded`);
 
   const keyCard = page.locator('.api-settings-card');
   assert.equal(await keyCard.isVisible(), true, `${label}: original Key status/action card is visible`);
@@ -263,6 +263,22 @@ async function assertOriginalStep2Order(page, width) {
   assert(positions.activity < positions.firstItem, `R127 shows activity/link settings before the full item list (${JSON.stringify(positions)})`);
   assert(positions.firstItem < positions.share, `R127 keeps friend-link sharing after item review (${JSON.stringify(positions)})`);
   assert.equal(await page.getByTestId('claim-activity-name').isVisible(), true, 'activity name remains directly available');
+  await page.locator('.step-nav button[data-step="1"]').click();
+  await page.waitForFunction(() => document.querySelector('main')?.dataset.currentStep === '1');
+  await page.locator('.step-nav button[data-step="2"]').click();
+  await page.waitForFunction(() => document.querySelector('main')?.dataset.currentStep === '2');
+  await page.waitForFunction(() => {
+    const card = document.querySelector('[data-testid="activity-settings"]');
+    const header = document.querySelector('header');
+    return card && header && Math.abs(card.getBoundingClientRect().top - header.getBoundingClientRect().bottom - 12) < 3;
+  }, null, { timeout: 5000 });
+  const activityFieldVisible = await page.evaluate(() => {
+    const input = document.querySelector('[data-testid="claim-activity-name"]');
+    const header = document.querySelector('header');
+    const box = input.getBoundingClientRect();
+    return box.top >= header.getBoundingClientRect().bottom && box.bottom <= innerHeight;
+  });
+  assert.equal(activityFieldVisible, true, `${width}px: activity name input is visible below the sticky header after entering Step 2`);
   assert.equal(await page.getByTestId('claim-expiry-days').isVisible(), true, 'link validity remains directly available');
   assert.equal(await page.getByTestId('manual-claim-entry-option').isVisible(), true, 'manual claim remains available in Step 2');
   await assertNoOverflow(page, width, 'R127 Step 2');
