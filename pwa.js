@@ -40,7 +40,7 @@
     window.navigator.standalone === true;
 
   /* ---------------------------------------------------------- service worker */
-  var RELEASE_VERSION = 'v173-visible-r164-20261116';
+  var RELEASE_VERSION = 'v174-visible-r164-20261116';
   var waitingWorker = null;
   var registrationPromise = null;
   var reloadRequested = false;

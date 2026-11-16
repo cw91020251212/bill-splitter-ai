@@ -5,7 +5,7 @@ const path = require('node:path');
 
 const root = path.join(__dirname, '..');
 const read = name => fs.readFileSync(path.join(root, name), 'utf8');
-const release = 'v173-visible-r164-20261116';
+const release = 'v174-visible-r164-20261116';
 
 function linearize(channel) {
   const value = channel / 255;
@@ -98,9 +98,10 @@ test('Google AI copies the receipt prompt before opening Gemini and does not cla
   assert.ok(fn.indexOf('startClipboardWrite(prompt)') >= 0 && fn.indexOf('copyTextForGoogleAI(prompt)') > fn.indexOf('startClipboardWrite(prompt)'), 'prompt copy is initiated before showing the guide');
   assert.match(fn, /setShowGoogleAiGuide\(true\)/);
   assert.match(html, /data-testid=\"google-ai-guide-continue\"/);
-  assert.match(fn, /setGoogleAiPromptPreview\(prompt\)/);
-  assert.match(html, /value=\{receiptTextDraft \|\| googleAiPromptPreview\}/);
-  assert.match(html, /text === String\(googleAiPromptPreview \|\| ''\)\.trim\(\)/);
+  assert.match(fn, /setGoogleAiClipboardPending\(true\)/);
+  assert.match(html, /value=\{receiptTextDraft\}/);
+  assert.match(html, /disabled=\{tutorialDemo \|\| isAnalyzing \|\| \(!String\(receiptTextDraft \|\| ''\)\.trim\(\) && !googleAiClipboardPending\)\}/);
+  assert.match(html, /if \(!text\)/);
   assert.equal(fn.slice(0, fn.indexOf('const continueToGoogleAI')).includes('window.open('), false, 'the first action does not leave the page');
   assert.equal(fn.includes('copyToClipboard('), false, 'the combined action does not use the toast-on-attempt helper');
   assert.match(html, /提示詞未能複製/);
@@ -140,7 +141,7 @@ test('PWA icon launches navigate an existing app window to the main app start UR
   assert.match(claim, manifestLink);
 });
 
-test('R173 cache epoch and R164 app version are consistent on the host shell', () => {
+test('R174 cache epoch and R164 app version are consistent on the host shell', () => {
   const index = read('index.html');
   const sw = read('sw.js');
   const pwa = read('pwa.js');

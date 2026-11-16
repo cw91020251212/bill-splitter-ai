@@ -8,7 +8,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="分帳管家">
-  <link rel="manifest" href="./manifest.webmanifest?v=v173-visible-r164-20261116">
+  <link rel="manifest" href="./manifest.webmanifest?v=v174-visible-r164-20261116">
   <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" sizes="180x180">
   <link rel="icon" href="./icons/icon.svg" type="image/svg+xml">
   <link rel="icon" href="./icons/favicon-32.png" type="image/png" sizes="32x32">
@@ -142,11 +142,11 @@
   ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
   ::-webkit-scrollbar-thumb:hover { background: #64748b; }
   </style>
-  <link rel="stylesheet" href="./theme.css?v=v173-visible-r164-20261116">
+  <link rel="stylesheet" href="./theme.css?v=v174-visible-r164-20261116">
   <link rel="stylesheet" href="./tutorial.css?v=v86-free-models-only">
   <!-- R157: on-device sensitive-data masking before receipt sharing. -->
-  <meta name="bill-app-release" content="v173-visible-r164-20261116">
-  <script defer src="./pwa.js?v=v173-visible-r164-20261116"></script>
+  <meta name="bill-app-release" content="v174-visible-r164-20261116">
+  <script defer src="./pwa.js?v=v174-visible-r164-20261116"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
@@ -158,9 +158,9 @@
   <script src="./receipt-adjustments.js"></script>
   <script src="./share-config.js"></script>
   <script src="./bill-share-api.js?v=v107-code-focus-visible"></script>
-  <script src="./sync-diagnostics.js?v=v173-visible-r164-20261116"></script>
-  <script src="./card-redaction.js?v=v173-visible-r164-20261116"></script>
-  <script src="./card-share-review.js?v=v173-visible-r164-20261116"></script>
+  <script src="./sync-diagnostics.js?v=v174-visible-r164-20261116"></script>
+  <script src="./card-redaction.js?v=v174-visible-r164-20261116"></script>
+  <script src="./card-share-review.js?v=v174-visible-r164-20261116"></script>
   <script src="./exchange-rates.js?v=v90-cross-currency-settlement"></script>
     <script src="./tutorial.js?v=v139-gemini-button-order-20261113"></script>
   <script type="text/babel">
@@ -1311,7 +1311,7 @@ Format (keep every field; items may contain multiple entries, and adjustments mu
       const [progressText, setProgressText] = useState('');
       const [uploadError, setUploadError] = useState('');
       const [receiptTextDraft, setReceiptTextDraft] = useState('');
-      const [googleAiPromptPreview, setGoogleAiPromptPreview] = useState('');
+      const [googleAiClipboardPending, setGoogleAiClipboardPending] = useState(false);
       const [showGoogleAiGuide, setShowGoogleAiGuide] = useState(false);
       const [showExternalAiActionOverlay, setShowExternalAiActionOverlay] = useState(false);
       const externalAiActionHandledRef = useRef(false);
@@ -3887,7 +3887,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
         externalAiActionHandledRef.current = true;
         setShowExternalAiActionOverlay(false);
         let text = String(receiptTextDraft || '').trim();
-        if (!text || text === String(googleAiPromptPreview || '').trim()) {
+        if (!text) {
           text = '';
           try {
             if (!navigator.clipboard?.readText) throw new Error('Clipboard read unavailable');
@@ -3901,7 +3901,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
             return;
           }
           setReceiptTextDraft(text);
-          setGoogleAiPromptPreview('');
+          setGoogleAiClipboardPending(false);
         }
         setUploadError('');
         handleFileUpload({ target: { files: [], value: '' } }, true, false, text);
@@ -4389,7 +4389,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
         setShowReceiptTextImport(true);
         writeUiDisclosure('receipt-ai-import-r133', true);
         const prompt = uiLang === 'en' ? RECEIPT_JSON_IMPORT_PROMPT_EN : RECEIPT_JSON_IMPORT_PROMPT_ZH;
-        if (!String(receiptTextDraft || '').trim()) setGoogleAiPromptPreview(prompt);
+        if (!String(receiptTextDraft || '').trim()) setGoogleAiClipboardPending(true);
         const clipboardPromise = startClipboardWrite(prompt);
         const copiedSync = copyTextForGoogleAI(prompt);
         setGoogleAiCopyStatus(copiedSync ? 'copied' : 'pending');
@@ -5385,11 +5385,11 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                           <li>{bi('第二步可加原圖，朋友可在連結查看。', 'Add the original in Step 2 for friends to view.')}</li>
                         </ol>
                         <label htmlFor="receipt-text-draft" className="step1-compact-copy block text-xs font-bold text-slate-700">{bi('貼上其他 AI 的 JSON 或文字', 'Paste JSON or text from another AI')}</label>
-                        <textarea id="receipt-text-draft" data-testid="receipt-text-draft" rows={5} maxLength={200000} value={receiptTextDraft || googleAiPromptPreview} onPaste={activateExternalAiAction} onInput={event => { if (event.currentTarget.value.trim()) activateExternalAiAction(); }} onChange={event => { const value = event.target.value; setGoogleAiPromptPreview(''); setReceiptTextDraft(value); if (value.trim()) activateExternalAiAction(); else { externalAiActionHandledRef.current = false; setShowExternalAiActionOverlay(false); } }} disabled={tutorialDemo || isAnalyzing} placeholder={bi('貼上 JSON、收據文字或 AI 結果。', 'Paste JSON, receipt text, or AI output.')} className={`field-round w-full text-base text-slate-800 leading-relaxed shadow-none ${showExternalAiActionOverlay ? 'external-ai-action-target' : ''}`} />
+                        <textarea id="receipt-text-draft" data-testid="receipt-text-draft" rows={5} maxLength={200000} value={receiptTextDraft} onPaste={activateExternalAiAction} onInput={event => { if (event.currentTarget.value.trim()) activateExternalAiAction(); }} onChange={event => { const value = event.target.value; setGoogleAiClipboardPending(false); setReceiptTextDraft(value); if (value.trim()) activateExternalAiAction(); else { externalAiActionHandledRef.current = false; setShowExternalAiActionOverlay(false); } }} disabled={tutorialDemo || isAnalyzing} placeholder={bi('貼上 JSON、收據文字或 AI 結果。', 'Paste JSON, receipt text, or AI output.')} className={`field-round w-full text-base text-slate-800 leading-relaxed shadow-none ${showExternalAiActionOverlay ? 'external-ai-action-target' : ''}`} />
                         <input ref={receiptTextFileInputRef} data-testid="receipt-text-file" type="file" accept=".txt,.md,.csv,.json,text/plain,text/csv,application/json" className="hidden" onChange={handleReceiptTextFileUpload} />
                         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                           <Button data-testid="choose-receipt-text-file" variant="secondary" className="!text-sm" disabled={tutorialDemo || isAnalyzing} onClick={() => receiptTextFileInputRef.current?.click()}><Icon path={icons.fileImage} size={18}/><span className="inline-flex items-baseline gap-0.5"><span>{bi('上載文字檔', 'Upload text file')}</span><span className="btn-aside">{bi('（≤1 MB）', '(≤1 MB)')}</span></span></Button>
-                          <Button data-testid="submit-receipt-text" variant="primary" className={`host-primary !text-sm ${showExternalAiActionOverlay ? 'external-ai-action-target' : ''}`} disabled={tutorialDemo || isAnalyzing || !String(receiptTextDraft || googleAiPromptPreview || '').trim()} onClick={submitReceiptTextImport}>{isAnalyzing ? bi('整理中…', 'Processing…') : bi('整理這段文字', 'Process this text')}</Button>
+                          <Button data-testid="submit-receipt-text" variant="primary" className={`host-primary !text-sm ${showExternalAiActionOverlay ? 'external-ai-action-target' : ''}`} disabled={tutorialDemo || isAnalyzing || (!String(receiptTextDraft || '').trim() && !googleAiClipboardPending)} onClick={submitReceiptTextImport}>{isAnalyzing ? bi('整理中…', 'Processing…') : bi('整理這段文字', 'Process this text')}</Button>
                         </div>
                         {uploadError && <p data-testid="receipt-text-import-error" role="alert" className="step1-compact-copy rounded-lg border border-amber-400 bg-amber-50 p-2 text-xs text-amber-900">{typeof uploadError === 'string' ? tr(uploadError) : tr(uploadError.sub || uploadError.main || '讀取失敗')}</p>}
                       </div>
