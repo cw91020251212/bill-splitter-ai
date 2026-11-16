@@ -5,7 +5,7 @@ const path = require('node:path');
 
 const root = path.join(__dirname, '..');
 const read = name => fs.readFileSync(path.join(root, name), 'utf8');
-const release = 'v165-ai-translation-heading-20261116';
+const release = 'v166-launch-home-navigation-20261116';
 
 function linearize(channel) {
   const value = channel / 255;
@@ -128,7 +128,19 @@ test('AI translation heading uses the requested copy and heading size with mobil
   assert.doesNotMatch(css, /\[data-testid="receipt-text-import-title"\]\s*\{\s*font-size:\s*(?:14|15)px/);
 });
 
-test('R165 cache epoch is on the host shell and does not leak into friend pages', () => {
+test('PWA icon launches navigate an existing app window to the main app start URL', () => {
+  const index = read('index.html');
+  const claim = read('claim.html');
+  const manifest = JSON.parse(read('manifest.webmanifest'));
+  const manifestLink = new RegExp(`rel="manifest" href="\\./manifest\\.webmanifest\\?v=${release}"`);
+  assert.equal(manifest.start_url, './');
+  assert.equal(manifest.scope, './');
+  assert.equal(manifest.launch_handler?.client_mode, 'navigate-existing');
+  assert.match(index, manifestLink);
+  assert.match(claim, manifestLink);
+});
+
+test('R166 cache epoch is on the host shell and does not leak into friend pages', () => {
   const index = read('index.html');
   const sw = read('sw.js');
   const pwa = read('pwa.js');
@@ -148,11 +160,12 @@ test('R165 cache epoch is on the host shell and does not leak into friend pages'
   assert.match(index, /setShowExternalAiActionOverlay\(true\)/);
   for (const name of ['claim.html', 'detailed-view.html']) {
     const text = read(name);
+    const withoutVersionedManifestLink = text.replace(/<link rel="manifest" href="\.\/manifest\.webmanifest\?v=[^"]+">/, '');
     assert.equal(text.includes('theme.css'), false, `${name} must not load host theme.css`);
     assert.equal(text.includes('pwa.js'), false, `${name} must not load host pwa.js`);
     assert.equal(text.includes('copy-prompt-open-google-ai'), false, name);
     assert.equal(text.includes('host-primary'), false, name);
-    assert.equal(text.includes(release), false, name);
+    assert.equal(withoutVersionedManifestLink.includes(release), false, name);
     assert.equal(text.includes('copyPromptAndOpenGoogleAI'), false, name);
     assert.equal(text.includes('icons.refresh'), false, name);
     assert.equal(text.includes('#ffe566'), false, name);

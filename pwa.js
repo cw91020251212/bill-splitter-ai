@@ -40,7 +40,7 @@
     window.navigator.standalone === true;
 
   /* ---------------------------------------------------------- service worker */
-  var RELEASE_VERSION = 'v165-ai-translation-heading-20261116';
+  var RELEASE_VERSION = 'v166-launch-home-navigation-20261116';
   var waitingWorker = null;
   var registrationPromise = null;
   var reloadRequested = false;

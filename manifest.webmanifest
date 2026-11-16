@@ -7,6 +7,9 @@
   "id": "./",
   "start_url": "./",
   "scope": "./",
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  },
   "display": "standalone",
   "display_override": ["standalone", "minimal-ui", "browser"],
   "orientation": "portrait",
