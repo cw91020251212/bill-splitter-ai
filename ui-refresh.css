@@ -515,6 +515,13 @@ body :is(h1, h2, h3, h4, h5, h6, label, button, input, textarea, select,
 #root .step-nav-number {
   font-size: 15px !important;
 }
+/* 覆盖 theme.css 中的高优先级规则 */
+#root:has(main[data-current-step]) .step-nav button:nth-child(n) > span:first-child {
+  font-size: 15px !important;
+}
+#root:has(main[data-current-step]) .step-nav button:nth-child(n) > span:nth-child(2) {
+  font-size: 15px !important;
+}
 #root .step-nav-label,
 #root .whitespace-nowrap.text-xs.font-semibold.leading-tight {
   font-size: 15px !important;
