@@ -4386,6 +4386,8 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
       );
       const copyPromptAndOpenGoogleAI = () => {
         if (tutorialDemo) return;
+        setShowReceiptTextImport(true);
+        writeUiDisclosure('receipt-ai-import-r133', true);
         const prompt = uiLang === 'en' ? RECEIPT_JSON_IMPORT_PROMPT_EN : RECEIPT_JSON_IMPORT_PROMPT_ZH;
         if (!String(receiptTextDraft || '').trim()) setGoogleAiPromptPreview(prompt);
         const clipboardPromise = startClipboardWrite(prompt);
