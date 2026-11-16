@@ -140,18 +140,15 @@ async function compactInitial(page) {
     const style = selector => { const node = document.querySelector(selector); const css = getComputedStyle(node); return { border: css.borderTopColor, width: css.borderTopWidth, background: css.backgroundColor }; };
     return { panel: style('#claim-content .panel'), item: style('#claim-content .item-card'), input: style('#person-name'), unit: style('.unit-select'), page: getComputedStyle(document.body).backgroundColor };
   });
-  const isDarkOutline = color => {
-    const channels = color.match(/\d+(?:\.\d+)?/g)?.slice(0, 3).map(Number) || [];
-    return channels.length === 3 && channels.every(channel => channel < 128);
-  };
-  assert(isDarkOutline(palette.panel.border)); assert.equal(palette.panel.width, '1px');
-  assert(isDarkOutline(palette.item.border)); assert(isDarkOutline(palette.input.border)); assert.equal(palette.input.width, '1px');
-  assert(isDarkOutline(palette.unit.border)); assert.equal(palette.input.background, 'rgb(198, 212, 224)');
-  assert.equal(palette.panel.background, 'rgb(213, 223, 232)');
-  assert.equal(palette.page, 'rgb(188, 202, 215)');
+  const outline = 'rgb(107, 146, 179)';
+  assert.equal(palette.panel.border, outline); assert.equal(palette.panel.width, '1px');
+  assert.equal(palette.item.border, outline); assert.equal(palette.input.border, outline); assert.equal(palette.input.width, '1px');
+  assert.equal(palette.unit.border, outline); assert.equal(palette.input.background, 'rgb(217, 233, 245)');
+  assert.equal(palette.panel.background, 'rgb(234, 243, 249)');
+  assert.equal(palette.page, 'rgb(220, 235, 245)');
   const lightPage = palette.page;
   await page.emulateMedia({ colorScheme: 'dark' });
-  assert(isDarkOutline(await page.locator('#person-name').evaluate(node => getComputedStyle(node).borderTopColor)), 'OS dark preference retains a dark outline');
+  assert.equal(await page.locator('#person-name').evaluate(node => getComputedStyle(node).borderTopColor), outline, 'OS dark preference keeps the blue outline');
   assert.equal(await page.locator('body').evaluate(node => getComputedStyle(node).backgroundColor), lightPage, 'friend claim page keeps its independent blue-gray surface');
   await page.emulateMedia({ colorScheme: 'light' });
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, '390px has no horizontal overflow');
@@ -273,8 +270,8 @@ async function hostFixture() {
   assert.equal(await host.getByTestId('claim-replies').count(), 0, 'reply field is not duplicated on Step 3');
   const step3Accent = await host.getByTestId('calculation-step').evaluate(el => getComputedStyle(el).borderLeftColor);
   assert.equal(step3Accent, 'rgb(169, 121, 34)', 'Step 3 work area uses its amber accent');
-  assert.equal(await host.getByTestId('calculate-split').isDisabled(), true, 'report remains disabled before any friend reply');
-  assert.match(await host.getByTestId('calculate-split-hint').innerText(), /按下後會計算並產生分帳報告/, 'disabled CTA still explains its action');
+  assert.equal(await host.getByTestId('calculate-split').isEnabled(), true, 'report CTA stays available before replies and explains what is missing');
+  assert.match(await host.getByTestId('calculate-split-hint').innerText(), /按下後會計算/, 'CTA still explains its action');
   await host.getByPlaceholder('輸入姓名', { exact: true }).fill('QA墊支人');
   assert.equal(await host.getByTestId('receipt-currency-control').isVisible(), true, 'organizer can fill currency before replies');
   const sectionOrder = await host.evaluate(() => {

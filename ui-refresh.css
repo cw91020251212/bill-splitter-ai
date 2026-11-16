@@ -1,0 +1,500 @@
+/* =========================================================
+   UI Refresh · visual modernisation layer for 分帳管家 AI Pro
+   Loaded after theme.css. Only appearance is changed:
+   no calculation, claim, sharing or storage logic is touched.
+   ========================================================= */
+
+:root {
+  --ui-bg: #f4f6f3;
+  --ui-surface: #ffffff;
+  --ui-ink: #1d2a24;
+  --ui-muted: #5d6b64;
+  --ui-line: #dce4dd;
+  --ui-line-strong: #c6d3c9;
+  --ui-brand: #1d8a5b;
+  --ui-brand-dark: #126642;
+  --ui-brand-soft: #e7f4ec;
+  --ui-radius: 18px;
+  --ui-shadow: 0 8px 24px rgba(24, 54, 37, .06), 0 1px 2px rgba(24, 54, 37, .04);
+  --ui-font: "Inter", "Noto Sans TC", "Noto Sans HK", "PingFang TC", "PingFang HK",
+             "Microsoft JhengHei", "Microsoft YaHei", system-ui, -apple-system,
+             "Segoe UI", Roboto, sans-serif;
+}
+
+/* ---------- 1. Typography: kill the serif Chinese fallback ----------
+   Only the main app gets the new page colour. The friend claim and result
+   pages keep their own blue / paper surfaces by design. */
+html, body {
+  font-family: var(--ui-font) !important;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+body.bg-slate-50, #root {
+  background: var(--ui-bg) !important;
+  color: var(--ui-ink) !important;
+}
+#root :is(h1, h2, h3, h4, h5, h6, label, button, input, textarea, select, p, span, li) {
+  font-family: var(--ui-font) !important;
+}
+#root h1, #root h2, #root h3, #root h4 {
+  letter-spacing: -.02em;
+  line-height: 1.35;
+}
+#root main :is(h2.text-xl, h2.text-2xl) {
+  font-size: clamp(21px, 5vw, 25px) !important;
+  font-weight: 800 !important;
+}
+#root main h3 { font-weight: 800 !important; }
+/* Stage headings stay neutral ink; stage identity lives in the progress bar. */
+#root main[data-current-step] .page-section-heading h2:not(.verify-hint) {
+  color: var(--ui-ink) !important;
+}
+#root .verify-hint {
+  font-size: 21px !important;
+  font-weight: 800 !important;
+  color: var(--ui-ink) !important;
+}
+
+/* ---------- 2. Header ---------- */
+#root .app-header {
+  background: rgba(255, 255, 255, .94) !important;
+  border-bottom: 1px solid var(--ui-line) !important;
+  box-shadow: 0 1px 0 rgba(24, 54, 37, .03), 0 6px 18px rgba(24, 54, 37, .04) !important;
+  -webkit-backdrop-filter: blur(14px) !important;
+  backdrop-filter: blur(14px) !important;
+}
+#root .app-header-row { padding-top: 11px; padding-bottom: 9px; }
+#root .app-header-row h1 {
+  font-size: 18px !important;
+  font-weight: 800 !important;
+  color: var(--ui-ink) !important;
+}
+html[lang="en"] #root .app-header-row h1 { font-size: 17px !important; }
+#root .app-brand-name, #root [data-testid="app-pro-label"],
+#root [data-testid="app-version-label"] {
+  background-image: none !important;
+  color: var(--ui-brand) !important;
+  -webkit-text-fill-color: var(--ui-brand) !important;
+}
+#root [data-testid="app-version-label"] { font-size: 10px !important; }
+#root button#header-action-menu-toggle {
+  background: var(--ui-brand) !important;
+  background-image: none !important;
+  border-color: var(--ui-brand-dark) !important;
+  box-shadow: 0 3px 10px rgba(29, 138, 91, .22) !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  text-shadow: none !important;
+  border-radius: 11px !important;
+}
+#root .language-switch-control {
+  background: #eef3ef !important;
+  border-color: var(--ui-line) !important;
+}
+
+/* ---------- 3. Stepper: lighter chips, calm progress ---------- */
+#root .stepper-panel {
+  background: #fff !important;
+  border-top: 1px solid var(--ui-line) !important;
+  padding-top: 9px !important;
+  padding-bottom: 9px !important;
+}
+#root .step-progress {
+  height: 5px !important;
+  background: #e7ece7 !important;
+}
+#root .step-progress-fill { background: var(--ui-brand) !important; }
+#root .step-nav { gap: 6px !important; }
+#root .step-nav button,
+#root .step-nav button[class*="bg-brand-50"] {
+  min-height: 44px !important;
+  border: 1px solid var(--ui-line-strong) !important;
+  border-radius: 999px !important;
+  background: #fff !important;
+  color: var(--ui-muted) !important;
+  box-shadow: none !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+}
+#root .step-nav button > span:first-child {
+  background: transparent !important;
+  border: 0 !important;
+  color: inherit !important;
+  font-size: 12px !important;
+  font-weight: 800 !important;
+}
+/* Active stage */
+#root .step-nav button[aria-current="step"],
+#root:has(main[data-current-step="1"]) .step-nav button:nth-child(1),
+#root:has(main[data-current-step="2"]) .step-nav button:nth-child(2),
+#root:has(main[data-current-step="3"]) .step-nav button:nth-child(3),
+#root:has(main[data-current-step="4"]) .step-nav button:nth-child(4) {
+  background: var(--ui-brand-soft) !important;
+  border-color: var(--ui-brand) !important;
+  color: var(--ui-brand-dark) !important;
+  box-shadow: none !important;
+}
+/* Neutralise the four hard-coded active colours from theme.css */
+#root:has(main[data-current-step="1"]) .step-nav button:nth-child(1) { background: #edf1f5 !important; border-color: #8c9bab !important; color: #3d4d60 !important; }
+#root:has(main[data-current-step="2"]) .step-nav button:nth-child(2) { background: #f0edfa !important; border-color: #9a92c8 !important; color: #4a427e !important; }
+#root:has(main[data-current-step="3"]) .step-nav button:nth-child(3) { background: #fff3dc !important; border-color: #d7ae63 !important; color: #7a530d !important; }
+#root:has(main[data-current-step="4"]) .step-nav button:nth-child(4) { background: var(--ui-brand-soft) !important; border-color: var(--ui-brand) !important; color: var(--ui-brand-dark) !important; }
+#root:has(main[data-current-step="4"]) .step-nav button:nth-child(4) > span:first-child {
+  background-image: none !important;
+  background-color: transparent !important;
+  border: 0 !important;
+  color: var(--ui-brand-dark) !important;
+  box-shadow: none !important;
+}
+
+/* ---------- 4. Cards: soft paper, not heavy outlines ---------- */
+#root .app-card,
+#root .app-card[class*="from-amber-50"],
+#root .api-settings-card,
+#root [data-testid="claim-link-actions"],
+#root [data-testid="claim-followup"],
+#root [data-testid="friend-network-option"],
+#root [data-testid="friend-share-ready"],
+#root [data-testid="friend-share-create"],
+#root [data-testid="add-missing-person-guide"],
+#root [data-testid="missing-bill-guide"],
+#root [data-testid="settlement-summary"] {
+  background: var(--ui-surface) !important;
+  background-image: none !important;
+  border: 1px solid var(--ui-line) !important;
+  border-radius: var(--ui-radius) !important;
+  box-shadow: var(--ui-shadow) !important;
+}
+#root .app-card { padding: 18px !important; }
+#root main[data-current-step] [data-stage-surface] {
+  background: #fff !important;
+  border: 1px solid var(--ui-line) !important;
+  border-left: 3px solid var(--stage-accent) !important;
+  border-radius: 20px !important;
+  box-shadow: var(--ui-shadow) !important;
+}
+#root .page-section-heading {
+  border-bottom: 1px solid var(--ui-line) !important;
+  padding-bottom: 12px !important;
+  margin-bottom: 4px !important;
+}
+#root .page-section-heading > span {
+  background: var(--ui-brand-soft) !important;
+  border-color: var(--ui-brand) !important;
+  color: var(--ui-brand-dark) !important;
+  border-radius: 10px !important;
+}
+
+/* ---------- 5. Inputs and buttons ---------- */
+#root :is(input[type="text"], input[type="number"], input[type="password"],
+           input[type="search"], input[type="tel"], input[type="email"],
+           input[type="url"], textarea, select, .field-round) {
+  border: 1px solid var(--ui-line-strong) !important;
+  border-radius: 12px !important;
+  background-color: #fff !important;
+  color: var(--ui-ink) !important;
+  box-shadow: none !important;
+}
+#root :is(input, textarea, select):focus,
+#root .field-round:focus-within {
+  border-color: var(--ui-brand) !important;
+  outline: 3px solid rgba(29, 138, 91, .14) !important;
+  outline-offset: 1px !important;
+  box-shadow: none !important;
+}
+#root button.bg-brand-600:not(:disabled),
+#root button.green-action:not(:disabled),
+#root button.host-primary.green-action:not(:disabled),
+#root main button.green-action:not(.host-primary):not(:disabled) {
+  background-image: linear-gradient(135deg, #1d8a5b 0%, #126642 100%) !important;
+  background-color: var(--ui-brand) !important;
+  border-color: var(--ui-brand-dark) !important;
+  box-shadow: 0 4px 12px rgba(18, 102, 66, .18) !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  text-shadow: none !important;
+  border-radius: 12px !important;
+}
+#root button.green-action:not(:disabled) svg,
+#root button.bg-brand-600:not(:disabled) svg {
+  color: #fff !important;
+  stroke: #fff !important;
+  filter: none !important;
+}
+#root button.host-primary.green-action:not(:disabled):not([data-testid="copy-prompt-open-google-ai"]) svg {
+  color: #ffe566 !important;
+  stroke: #ffe566 !important;
+}
+#root main button.green-action:not(.host-primary):not(:disabled),
+#root main button.green-action:not(.host-primary):not(:disabled):hover {
+  box-shadow: 0 4px 12px rgba(18, 102, 66, .18) !important;
+}
+#root button.green-action:disabled,
+#root button.bg-brand-600:disabled {
+  background-image: none !important;
+  background-color: #e9ede9 !important;
+  border-color: var(--ui-line) !important;
+  color: #8a948d !important;
+  -webkit-text-fill-color: #8a948d !important;
+  text-shadow: none !important;
+  box-shadow: none !important;
+}
+#root button[class*="border-slate-"]:not(.green-action):not(.bg-brand-600) {
+  border-color: var(--ui-line-strong) !important;
+  box-shadow: none !important;
+}
+#root button, #root a { -webkit-tap-highlight-color: transparent; }
+#root :is(button, a, input, select, textarea):focus-visible {
+  outline: 3px solid rgba(29, 138, 91, .55) !important;
+  outline-offset: 2px !important;
+}
+
+/* ---------- 6. Step 1: keep the intended order ----------
+   Google AI translation stays first on purpose: friends who are afraid of
+   applying for an API key can use Gemini instead. This block only makes the
+   spacing consistent; the original card order is preserved. */
+#root .step1-stack {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 14px !important;
+}
+#root .step1-stack > * { margin-top: 0 !important; }
+#root .step1-stack > .page-section-heading { order: 1 !important; }
+#root .step1-stack > [data-testid="step-one-methods-intro"] { order: 2 !important; }
+#root .step1-stack > [data-testid="receipt-text-import"] { order: 3 !important; }
+#root .step1-stack > [data-testid="choice-divider"] { order: 4 !important; display: flex !important; }
+#root .step1-stack > .upload-dropzone { order: 5 !important; }
+#root .step1-stack > .api-settings-card { order: 6 !important; }
+#root .step1-stack > [data-testid="entry-method-choice"] { order: 7 !important; }
+
+#root .upload-dropzone.step1-hero {
+  border: 1.5px dashed var(--ui-brand) !important;
+  background: #f7fbf8 !important;
+  box-shadow: none !important;
+  padding: 18px !important;
+  border-radius: 18px !important;
+}
+#root .upload-dropzone.step1-hero h3 {
+  font-size: 17px !important;
+  font-weight: 800 !important;
+  color: var(--ui-ink) !important;
+}
+#root .upload-dropzone [data-testid="receipt-source-actions"] button {
+  min-height: 52px !important;
+  border-radius: 12px !important;
+  font-size: 15px !important;
+}
+
+/* Key card: no truncated warning, help sits below on narrow phones. */
+#root .api-settings-card {
+  padding: 14px !important;
+  border-left: 3px solid var(--ui-brand) !important;
+}
+#root .api-settings-card > div { gap: 10px !important; }
+#root [data-testid="open-free-key-settings"] {
+  min-height: 64px !important;
+  border-radius: 14px !important;
+  background: #fff8ea !important;
+  border-color: #d8b674 !important;
+}
+#root [data-testid="open-free-key-settings"] .truncate {
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  line-height: 1.35 !important;
+  font-size: 14px !important;
+}
+#root [data-testid="toggle-key-guidance"] {
+  border-radius: 12px !important;
+  border-color: #d8b674 !important;
+  color: #7a530d !important;
+  background: #fffdf7 !important;
+}
+@media (max-width: 479px) {
+  #root .api-settings-card > div { flex-direction: column !important; }
+  #root [data-testid="toggle-key-guidance"] { width: 100% !important; min-height: 44px !important; }
+}
+
+/* Google AI button label stays on one tidy line when space allows. */
+#root button[data-testid="copy-prompt-open-google-ai"] .google-ai-label {
+  flex-direction: row !important;
+  flex-wrap: wrap !important;
+  justify-content: center !important;
+  gap: 0 6px !important;
+  line-height: 1.25 !important;
+}
+#root button[data-testid="copy-prompt-open-google-ai"] .google-ai-brand {
+  white-space: nowrap !important;
+}
+#root [data-testid="receipt-text-import"] { padding: 16px !important; }
+#root [data-testid="receipt-text-import-title"] { font-size: 17px !important; font-weight: 800 !important; }
+#root main [data-testid="external-ai-provider-examples"] { font-size: 13px !important; }
+
+/* ---------- 7. Step 2: calmer item forms ---------- */
+#root main[data-current-step="2"] .app-card.relative.overflow-visible {
+  border-color: var(--ui-line) !important;
+}
+#root .item-price-quantity-row label,
+#root main label.uppercase,
+#root main .uppercase.tracking-wider {
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+  font-size: 14px !important;
+  color: var(--ui-ink) !important;
+}
+#root main[data-current-step="2"] [data-testid="claim-link-actions"] {
+  background: var(--ui-surface) !important;
+  border-color: var(--ui-line) !important;
+  border-left: 3px solid #8c82c4 !important;
+}
+#root main[data-current-step="2"] [data-testid="claim-link-actions"] button:not(.bg-brand-600) {
+  background: #fff !important;
+  border-color: var(--ui-line-strong) !important;
+  color: var(--ui-ink) !important;
+}
+#root [data-testid="activity-settings"] { padding: 16px !important; }
+#root [data-testid="activity-settings-next"] { box-shadow: 0 3px 10px rgba(18, 102, 66, .18) !important; }
+
+/* ---------- 8. Result and guidance cards ---------- */
+#root main[data-current-step="4"] [data-testid="add-missing-person-guide"],
+#root [data-testid="missing-bill-guide"] {
+  border-left: 3px solid #7ba0c4 !important;
+}
+#root [data-testid="final-summary-preview"],
+#root [data-testid="final-detail-preview"] {
+  background: #fbfcfa !important;
+  border-top: 1px solid var(--ui-line) !important;
+  color: var(--ui-ink) !important;
+  border-radius: 0 0 18px 18px !important;
+}
+#root .result-person-row {
+  background: #fff !important;
+  border-color: var(--ui-line) !important;
+  border-radius: 12px !important;
+}
+#root [data-person-role="payer"] { border-left-color: var(--ui-brand) !important; }
+#root [data-person-role="due"] { border-left-color: #8a5aa3 !important; }
+
+/* ---------- 9. Status bar: quiet, readable, not a second header ---------- */
+#root [data-testid="status-compact-region"] {
+  background: rgba(255, 255, 255, .95) !important;
+  border-top: 1px solid var(--ui-line) !important;
+  box-shadow: 0 -4px 16px rgba(24, 54, 37, .05) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+  backdrop-filter: blur(10px) !important;
+}
+#root [data-testid="status-compact-region"] .font-bold { color: var(--ui-ink) !important; font-size: 13px !important; }
+#root [data-testid="status-compact-region"] .line-clamp-1 { font-size: 13px !important; }
+#root [data-testid="status-compact-region"] .bg-white\/80 {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  font-size: 12px !important;
+  color: var(--ui-muted) !important;
+}
+@media (max-width: 639px) {
+  #root [data-testid="status-compact-region"] .bg-white\/80 { display: none !important; }
+}
+
+/* ---------- 10. Shared pages: font consistency only ----------
+   The claim page deliberately uses blue surfaces and dark outlines; those
+   colours are regression-tested and must not be restyled here. */
+body :is(h1, h2, h3, h4, h5, h6, label, button, input, textarea, select,
+         strong, b, dt, dd, td, th, summary, legend, option, caption) {
+  font-family: var(--ui-font) !important;
+}
+
+/* ---------- 11. Mobile-first refinements ----------
+   This app is used mainly on phones. Keep desktop geometry untouched. */
+@media (max-width: 639px) {
+  #root main { padding-bottom: 112px !important; }
+  #root .step1-stack { gap: 12px !important; }
+  #root .app-card { padding: 16px !important; }
+  #root button[data-ui-language],
+  #root .api-settings-card button { min-height: 44px !important; }
+  #root .page-section-heading > span { width: 30px; height: 30px; }
+}
+
+/* ---------- 12. Lighter greys, same hues ---------- */
+:root {
+  --outline: #8c8478;
+  --muted-ink: #6b756f;
+}
+#root :is(.border-slate-200, .border-slate-300, .border-slate-400, .border-slate-500) {
+  border-color: var(--ui-line-strong) !important;
+}
+#root .choice-divider { color: #a89f92 !important; }
+#root ::-webkit-scrollbar-thumb { background: #c2cbc4 !important; }
+#root button.green-action:disabled,
+#root button.bg-brand-600:disabled {
+  color: #b6bdb7 !important;
+  -webkit-text-fill-color: #b6bdb7 !important;
+}
+/* Stage 1 used the darkest slate grey; lift it without changing the hue. */
+#root:has(main[data-current-step="1"]) .step-nav button:nth-child(1) {
+  border-color: #b9c0cf !important;
+  color: #5f657c !important;
+}
+#root:has(main[data-current-step="1"]) .step-progress-fill { background: #9ba1b3 !important; }
+
+/* ---------- 13. Flow changes confirmed from the clickable prototype ---------- */
+/* 1. Step 2: the top button only scrolls, so make it read like a link. */
+#root [data-testid="activity-settings-next"].host-primary.green-action {
+  background: transparent !important;
+  background-image: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  color: var(--brand-dark) !important;
+  -webkit-text-fill-color: var(--brand-dark) !important;
+  text-decoration: underline;
+  min-height: 44px !important;
+  font-weight: 800 !important;
+}
+/* 2. Step 2: make the claim-method choice prominent, and mark the locked
+      inbox visually until a method is chosen. Text/content are unchanged. */
+#root [data-testid="manual-claim-entry-option"] {
+  border-left: 3px solid var(--brand) !important;
+  background: #f7fbf8 !important;
+}
+#root [data-testid="manual-claim-entry-option"]::before {
+  content: "先揀一個方式收集認帳";
+  display: block;
+  font-weight: 800;
+  font-size: 14px;
+  margin-bottom: 6px;
+  color: var(--brand-dark);
+}
+#root [data-testid="claim-followup"].claim-await-share {
+  opacity: .72;
+}
+#root [data-testid="claim-followup"].claim-await-share::before {
+  content: "選定收集方式後，呢度先會啟動。";
+  display: block;
+  padding: 8px 12px;
+  margin-bottom: 8px;
+  border-radius: 10px;
+  background: #fff8ea;
+  border: 1px solid #d8b674;
+  color: #7a530d;
+  font-size: 13px;
+  font-weight: 700;
+}
+/* 4. Step 4: amount first, web link next, help guides last. */
+#root [data-testid="results-step"] {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 14px !important;
+}
+#root [data-testid="results-step"] > * { margin-top: 0 !important; }
+#root [data-testid="results-step"] > .page-section-heading { order: 1 !important; }
+#root [data-testid="settlement-summary"] { order: 2 !important; }
+#root [data-testid="receipt-total-confirmed"] { order: 3 !important; }
+#root [data-testid="same-link-sync-status"] { order: 4 !important; }
+#root #report-share-step { order: 5 !important; }
+#root [data-testid="add-missing-person-guide"] { order: 6 !important; }
+#root [data-testid="missing-bill-guide"] { order: 7 !important; }
+#root [data-testid="results-step"] > div:last-child { order: 8 !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  #root *, #root *::before, #root *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}

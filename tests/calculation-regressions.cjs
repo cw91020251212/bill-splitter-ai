@@ -200,7 +200,7 @@ async function readSavedResults(page) {
       items: [{ id: '01', name: '茶', price: 20, total: 20, totalQty: null, unit: '' }],
       friendsReplies: '姓名：只寫姓名', payer: '主辦人', taxAmount: '1', discountAmount: '0', reconciliation: null
     }, { expectCalculateEnabled: false });
-    assert.equal(await nameOnly.page.getByTestId('calculate-split').isDisabled(), true, 'a name without an item claim cannot enable calculation');
+    assert.equal(await nameOnly.page.getByTestId('calculate-split').isEnabled(), true, 'CTA stays available and explains that a claim is missing instead of silently disabling');
     assert.match(await nameOnly.page.getByTestId('status-compact-region').innerText(), /未有有效認領/);
     console.log('PASS name-only replies do not enable settlement');
     await nameOnly.context.close();

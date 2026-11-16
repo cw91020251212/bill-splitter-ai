@@ -13,7 +13,7 @@
  * Bump CACHE_VERSION whenever you edit index.html so returning users get the
  * new build instead of the cached one.
  */
-const CACHE_VERSION = 'v179-logo-gradient-r169-20261116';
+const CACHE_VERSION = 'v6-ui-refresh-20261117';
 const SHELL_CACHE = `bill-splitter-shell-${CACHE_VERSION}`;
 const ASSET_CACHE = `bill-splitter-assets-${CACHE_VERSION}`;
 const CDN_CACHE = `bill-splitter-cdn-${CACHE_VERSION}`;
@@ -38,6 +38,7 @@ const SHELL_URLS = [
   './exchange-rates.js',
   './i18n.js',
   './theme.css',
+  './ui-refresh.css',
   './tutorial.js',
   './tutorial.css',
   './manifest.webmanifest',

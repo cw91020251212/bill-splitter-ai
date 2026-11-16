@@ -248,7 +248,8 @@ const success = payload => ({
     assert.deepEqual(ambiguousDuplicates.items.map(item => String(item.id)), ['05', '06'], 'ambiguous identical items get fresh IDs rather than inheriting FIFO IDs');
     assert.match(ambiguousDuplicates.friendsReplies, /03 = 1碗[\s\S]*04 = 1碗/, 'old replies remain visible for explicit repair');
     await page.getByTestId('go-to-payer').click();
-    assert.equal(await page.getByTestId('calculate-split').isDisabled(), true, 'stale IDs block calculation instead of silently assigning claims');
+    await page.getByTestId('calculate-split').click();
+    assert.equal(await page.locator('main').getAttribute('data-current-step'), '2', 'stale IDs send the user back to review instead of silently assigning claims');
 
     await page.locator('.step-nav button').first().click();
     await page.getByTestId('receipt-upload').click();

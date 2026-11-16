@@ -144,6 +144,8 @@
   </style>
   <link rel="stylesheet" href="./theme.css?v=v179-logo-gradient-r169-20261116">
   <link rel="stylesheet" href="./tutorial.css?v=v86-free-models-only">
+  <!-- UI Refresh: visual-only layer. Remove this line to restore the original appearance. -->
+  <link rel="stylesheet" href="./ui-refresh.css?v=v6-ui-refresh-20261117">
   <!-- R157: on-device sensitive-data masking before receipt sharing. -->
   <meta name="bill-app-release" content="v179-logo-gradient-r169-20261116">
   <script defer src="./pwa.js?v=v179-logo-gradient-r169-20261116"></script>
@@ -4437,7 +4439,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
         const shareExplicit = parsed.shareExplicit || {};
 
         if (parsed.people.length === 0) {
-          setStepError(bi('未有可用認帳；請貼上朋友認領項目和數量。', 'No usable claims yet. Paste a friend’s item and quantity.'));
+          setStepError(bi('未收到可用認帳：請先分享認帳連結或手動輸入；墊支人和貨幣可以照樣先填，收到認帳後再按產生報告。', 'No claims received yet: share the claim link or enter claims manually. You can still set the payer and currency first, then generate the report once claims arrive.'));
           setStep(2); window.setTimeout(() => focusField('replies'), 120); return false;
         }
 
@@ -6022,7 +6024,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
 
                 <div className="flex gap-3 pt-2">
                   <Button variant="secondary" className="w-1/3 !px-2 border-slate-500" onClick={() => setStep(2)}>{tr("上一步")}</Button>
-                  <Button data-testid="calculate-split" variant="primary" className="host-primary w-2/3 flex-col gap-1 text-center leading-tight" disabled={!friendsReplies.trim() || !Object.keys(claimInfo?.claims || {}).some(person => items.some(item => Number(claimInfo.claims[person]?.[item.id]) > 0))} onClick={() => { const calculated = calculateSplit(); if (tutorialDemo) onTutorialAction?.(calculated ? 'calculated' : 'calculation-error', !payer.trim() ? 'payer' : 'replies'); }}>
+                  <Button data-testid="calculate-split" variant="primary" className="host-primary w-2/3 flex-col gap-1 text-center leading-tight" onClick={() => { const calculated = calculateSplit(); if (tutorialDemo) onTutorialAction?.(calculated ? 'calculated' : 'calculation-error', !payer.trim() ? 'payer' : 'replies'); }}>
                     <span data-testid="calculate-split-title" className="inline-flex items-center justify-center gap-2">{tr("產生分帳報告 ")}<Icon path={icons.check} size={18}/></span>
                     <span data-testid="calculate-split-hint" className="host-action-hint w-full text-[11px] font-medium leading-snug text-white">{claimSession?.link ? bi('按下後會計算，朋友可在原本連結查看結果。', 'Calculate; friends can view the result on their original link.') : bi('按下後會計算並產生分帳報告。', 'Calculate and create the bill-splitting report.')}</span>
                   </Button>

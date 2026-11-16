@@ -44,16 +44,16 @@ async function assertBlueLinkContrast(page) {
     const get = selector => { const node = document.querySelector(selector); const css = getComputedStyle(node); return { border: css.borderTopColor, width: css.borderTopWidth, background: css.backgroundColor }; };
     return { page: getComputedStyle(document.body).backgroundColor, card: get('#preview-content .card'), member: get('#member-select'), control: get('#font-size-toggle'), optional: get('.optional'), icon: getComputedStyle(document.querySelector('.optional > summary'), '::after').borderTopColor };
   });
-  assert.equal(styles.page, 'rgb(188, 202, 215)');
+  assert.equal(styles.page, 'rgb(220, 235, 245)');
   for (const key of ['card', 'member', 'control', 'optional']) {
-    assert.equal(styles[key].border, 'rgb(51, 78, 104)', `${key} has a dark blue outline`);
+    assert.equal(styles[key].border, 'rgb(107, 146, 179)', `${key} has a clear blue outline`);
     assert.equal(styles[key].width, '1px', `${key} keeps a thin outline`);
   }
-  assert.equal(styles.card.background, 'rgb(213, 223, 232)');
-  assert.equal(styles.member.background, 'rgb(198, 212, 224)');
-  assert.equal(styles.control.background, 'rgb(197, 211, 223)');
-  assert.equal(styles.optional.background, 'rgb(213, 223, 232)');
-  assert.equal(styles.icon, 'rgb(51, 78, 104)');
+  assert.equal(styles.card.background, 'rgb(234, 243, 249)');
+  assert.equal(styles.member.background, 'rgb(217, 233, 245)');
+  assert.equal(styles.control.background, 'rgb(216, 234, 246)');
+  assert.equal(styles.optional.background, 'rgb(234, 243, 249)');
+  assert.equal(styles.icon, 'rgb(107, 146, 179)');
 }
 (async () => {
   const browser = await chromium.launch({ headless: true, executablePath: process.env.CHROMIUM_EXECUTABLE || undefined, args: ['--no-sandbox', '--disable-dev-shm-usage'] });
