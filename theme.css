@@ -608,6 +608,9 @@ body.bg-slate-50 { background: var(--page-grey); color: var(--ink); }
 @media (max-width: 359px) {
   #root main [data-testid="external-ai-provider-examples"] { font-size: calc(10.5px * var(--app-font-scale, 1)); }
 }
+/* Keep Step 1 method labels compact while respecting the user's chosen text scale. */
+#root main .step1-compact-heading { font-size: calc(14px * var(--app-font-scale, 1)) !important; line-height: 1.35; }
+#root main .step1-compact-copy { font-size: calc(12px * var(--app-font-scale, 1)) !important; line-height: 1.45; }
 #root .language-switch-control { background: #e4eaf3; border-color: #7d93b3; }
 #root .app-header-row .header-actions > div > #header-action-menu-toggle {
   min-height: 38px; border-width: 1px; border-color: #064b35; background-color: #047857;

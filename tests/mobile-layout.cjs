@@ -71,7 +71,7 @@ async function assertOriginalFirstStep(page, width, height) {
   assert.equal(await progress.isVisible(), true, `${label}: progress bar is visible above the step buttons`);
   assert.equal(await progress.getAttribute('aria-valuenow'), '1', `${label}: progress bar reports Step 1`);
   assert.equal(await progress.getAttribute('aria-valuemax'), '4', `${label}: progress bar reports four total stages`);
-  assert.equal(await page.getByTestId('app-version-label').innerText(), 'R160', `${label}: R160 is loaded`);
+  assert.equal(await page.getByTestId('app-version-label').innerText(), 'R161', `${label}: R161 is loaded`);
 
   const keyCard = page.locator('.api-settings-card');
   assert.equal(await keyCard.isVisible(), true, `${label}: original Key status/action card is visible`);
@@ -84,6 +84,8 @@ async function assertOriginalFirstStep(page, width, height) {
   assert((await keyHelpToggle.boundingBox()).height >= 44, `${label}: Key help control is at least 44px high`);
   await keyHelpToggle.click();
   assert.equal(await page.getByTestId('key-guidance-content').isVisible(), true, `${label}: application and no-key alternatives are explained`);
+  const keyGuidance = (await page.getByTestId('key-guidance-summary').innerText()).trim();
+  assert(keyGuidance.length <= 80 && keyGuidance.includes('Key') && keyGuidance.includes('手動'), `${label}: Key guidance stays short and keeps the no-Key alternative (${keyGuidance})`);
   assert.equal(await page.getByTestId('scan-model-settings').isVisible(), true, `${label}: model choice is grouped under Key guidance`);
   assert.equal(await page.getByTestId('scan-model-select').isVisible(), true, `${label}: original model selector remains available`);
   assert.equal(await page.getByTestId('toggle-scan-model-description').getAttribute('aria-expanded'), 'false', `${label}: model details start collapsed`);
@@ -113,7 +115,7 @@ async function assertOriginalFirstStep(page, width, height) {
   const methodsIntro = page.getByTestId('step-one-methods-intro');
   assert.equal((await methodsIntro.innerText()).trim(), '以下三種方法處理單據：', `${label}: the Step 1 instructions are concise`);
   const introMetrics = await methodsIntro.evaluate(node => ({ height: node.getBoundingClientRect().height, fontSize: parseFloat(getComputedStyle(node).fontSize), width: node.clientWidth, scrollWidth: node.scrollWidth }));
-  assert(introMetrics.height <= introMetrics.fontSize * 1.6 && introMetrics.fontSize >= 14 && introMetrics.scrollWidth <= introMetrics.width, `${label}: the methods prompt fits on one readable line (${JSON.stringify(introMetrics)})`);
+  assert(introMetrics.height <= introMetrics.fontSize * 1.6 && introMetrics.fontSize === 12 && introMetrics.scrollWidth <= introMetrics.width, `${label}: the methods prompt uses compact text on one line (${JSON.stringify(introMetrics)})`);
   const heroOrder = await page.evaluate(() => {
     const top = selector => document.querySelector(selector).getBoundingClientRect().top;
     return {
@@ -123,7 +125,7 @@ async function assertOriginalFirstStep(page, width, height) {
       manual: top('[data-testid="start-manual"]')
     };
   });
-  assert(heroOrder.upload < heroOrder.key && heroOrder.key < heroOrder.ai && heroOrder.ai < heroOrder.manual, `${label}: upload is the Step 1 hero, ahead of key help and the other paths (${JSON.stringify(heroOrder)})`);
+  assert(heroOrder.ai < heroOrder.upload && heroOrder.upload < heroOrder.key && heroOrder.key < heroOrder.manual, `${label}: Google AI appears first, direct upload and Key second, manual entry last (${JSON.stringify(heroOrder)})`);
   const cameraBox = await page.getByTestId('receipt-camera').boundingBox();
   assert(cameraBox.y >= 0 && cameraBox.y + cameraBox.height <= height, `${label}: the photo action is on the first screen`);
   const aiHeading = page.getByTestId('toggle-receipt-text-import');
@@ -131,9 +133,9 @@ async function assertOriginalFirstStep(page, width, height) {
   assert.equal(await aiHeading.getAttribute('aria-expanded'), 'false', `${label}: other-AI translation starts collapsed`);
   await aiHeading.click();
   assert.equal(await aiHeading.getAttribute('aria-expanded'), 'true', `${label}: other-AI translation can be opened`);
-  assert.equal(await page.getByTestId('receipt-text-import-title').getAttribute('aria-label'), '其他 AI 翻譯', `${label}: title is concise and accessible`);
+  assert.equal(await page.getByTestId('receipt-text-import-title').getAttribute('aria-label'), '揾其他 AI 翻譯', `${label}: title is concise and accessible`);
   assert.match(await aiHeading.innerText(), /AI.*翻譯/);
-  assert.match(await aiHeading.innerText(), /提示詞＋賬單＝專用翻譯檔（\.json）/);
+  assert.match(await aiHeading.innerText(), /複製提示詞，附上單據，再貼回結果。/);
   const inlineAIExamples = await page.evaluate(() => {
     const title = document.querySelector('[data-testid="receipt-text-import-title"]');
     const referenceHeading = document.querySelector('[data-testid="receipt-upload-prompt"] h3');
@@ -152,12 +154,12 @@ async function assertOriginalFirstStep(page, width, height) {
     const inputRect = input.getBoundingClientRect();
     return { text: examples.innerText, titleTop: titleRect.top, titleBottom: titleRect.bottom, examplesTop: examplesRect.top, examplesBottom: examplesRect.bottom, titleRight: titleRect.right, examplesLeft: examplesRect.left, examplesRight: examplesRect.right, examplesClientWidth: examples.clientWidth, examplesScrollWidth: examples.scrollWidth, rowRight: rowRect.right, chevronTop: chevron.top, chevronBottom: chevron.bottom, chevronRight: chevron.right, chevronWidth: chevron.width, chevronHeight: chevron.height, chevronStrokeWidth: parseFloat(getComputedStyle(chevronSvg).strokeWidth), cardTop: cardRect.top, cardRight: cardRect.right, toggleRight: toggleRect.right, inputRight: inputRect.right, titleFont: parseFloat(getComputedStyle(title).fontSize), referenceFont: parseFloat(getComputedStyle(referenceHeading).fontSize), titleWeight: parseInt(getComputedStyle(title).fontWeight, 10), referenceWeight: parseInt(getComputedStyle(referenceHeading).fontWeight, 10), examplesFont: parseFloat(getComputedStyle(examples).fontSize), rowHeight: rowRect.height };
   });
-  assert.equal(inlineAIExamples.text, '（Google AI 模式、豆包等）', `${label}: provider examples retain both full-width parentheses`);
+  assert.equal(inlineAIExamples.text, '（Google AI 等）', `${label}: provider examples retain full-width parentheses`);
   assert(inlineAIExamples.titleWeight === inlineAIExamples.referenceWeight && inlineAIExamples.titleWeight >= 700, `${label}: heading retains the regular bold upload-heading weight (${JSON.stringify(inlineAIExamples)})`);
-  assert(inlineAIExamples.titleFont >= 15 && (width < 360 ? inlineAIExamples.titleFont < inlineAIExamples.referenceFont : inlineAIExamples.titleFont === inlineAIExamples.referenceFont), `${label}: compact title sizing is limited to the narrow 320px layout (${JSON.stringify(inlineAIExamples)})`);
+  assert(inlineAIExamples.titleFont === 14 && inlineAIExamples.titleFont < inlineAIExamples.referenceFont, `${label}: the method title uses compact 14px text (${JSON.stringify(inlineAIExamples)})`);
   const sameLine = Math.min(inlineAIExamples.titleBottom, inlineAIExamples.examplesBottom) - Math.max(inlineAIExamples.titleTop, inlineAIExamples.examplesTop) >= inlineAIExamples.examplesFont * 0.6;
   assert(sameLine && inlineAIExamples.examplesLeft >= inlineAIExamples.titleRight - 1, `${label}: provider examples stay on the title row without overlapping it (${JSON.stringify(inlineAIExamples)})`);
-  assert(inlineAIExamples.examplesRight >= inlineAIExamples.rowRight - 1, `${label}: examples align to the right edge of the full text row (${JSON.stringify(inlineAIExamples)})`);
+  assert(inlineAIExamples.examplesRight <= inlineAIExamples.rowRight + 1, `${label}: examples stay within the full text row (${JSON.stringify(inlineAIExamples)})`);
   if (width < 640) {
     assert(inlineAIExamples.chevronTop >= inlineAIExamples.cardTop - 1 && inlineAIExamples.chevronTop <= inlineAIExamples.cardTop + 8, `${label}: chevron stays at the card's top edge (${JSON.stringify(inlineAIExamples)})`);
     assert(inlineAIExamples.toggleRight <= inlineAIExamples.inputRight + 1 && inlineAIExamples.inputRight - inlineAIExamples.toggleRight <= 1 && inlineAIExamples.chevronRight <= inlineAIExamples.inputRight + 1, `${label}: chevron and its toggle hit area do not cross the input's right edge (${JSON.stringify(inlineAIExamples)})`);

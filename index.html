@@ -8,7 +8,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="分帳管家">
-  <link rel="manifest" href="./manifest.webmanifest?v=v169-visible-r160-20261116">
+  <link rel="manifest" href="./manifest.webmanifest?v=v170-visible-r161-20261116">
   <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" sizes="180x180">
   <link rel="icon" href="./icons/icon.svg" type="image/svg+xml">
   <link rel="icon" href="./icons/favicon-32.png" type="image/png" sizes="32x32">
@@ -142,11 +142,11 @@
   ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
   ::-webkit-scrollbar-thumb:hover { background: #64748b; }
   </style>
-  <link rel="stylesheet" href="./theme.css?v=v169-visible-r160-20261116">
+  <link rel="stylesheet" href="./theme.css?v=v170-visible-r161-20261116">
   <link rel="stylesheet" href="./tutorial.css?v=v86-free-models-only">
   <!-- R157: on-device sensitive-data masking before receipt sharing. -->
-  <meta name="bill-app-release" content="v169-visible-r160-20261116">
-  <script defer src="./pwa.js?v=v169-visible-r160-20261116"></script>
+  <meta name="bill-app-release" content="v170-visible-r161-20261116">
+  <script defer src="./pwa.js?v=v170-visible-r161-20261116"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
@@ -158,9 +158,9 @@
   <script src="./receipt-adjustments.js"></script>
   <script src="./share-config.js"></script>
   <script src="./bill-share-api.js?v=v107-code-focus-visible"></script>
-  <script src="./sync-diagnostics.js?v=v169-visible-r160-20261116"></script>
-  <script src="./card-redaction.js?v=v169-visible-r160-20261116"></script>
-  <script src="./card-share-review.js?v=v169-visible-r160-20261116"></script>
+  <script src="./sync-diagnostics.js?v=v170-visible-r161-20261116"></script>
+  <script src="./card-redaction.js?v=v170-visible-r161-20261116"></script>
+  <script src="./card-share-review.js?v=v170-visible-r161-20261116"></script>
   <script src="./exchange-rates.js?v=v90-cross-currency-settlement"></script>
     <script src="./tutorial.js?v=v139-gemini-button-order-20261113"></script>
   <script type="text/babel">
@@ -5149,7 +5149,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                 <div className="flex items-center gap-2 sm:gap-3 shrink-0">
                   <img src="./icons/icon.svg" alt="" width="48" height="48" className="app-brand-icon shrink-0" />
                   <div>
-                  <h1 className="text-xl font-extrabold text-slate-800 tracking-tight"><span className="app-brand-name block sm:inline whitespace-nowrap">{tr("分帳管家")}</span><span className="inline-flex items-baseline gap-1 sm:ml-1 whitespace-nowrap"><span data-testid="app-pro-label" className="text-brand-600 font-black">Pro</span><span data-testid="app-version-label" className="text-[10px] leading-3 font-semibold tracking-normal text-brand-700">R160</span></span></h1>
+                  <h1 className="text-xl font-extrabold text-slate-800 tracking-tight"><span className="app-brand-name block sm:inline whitespace-nowrap">{tr("分帳管家")}</span><span className="inline-flex items-baseline gap-1 sm:ml-1 whitespace-nowrap"><span data-testid="app-pro-label" className="text-brand-600 font-black">Pro</span><span data-testid="app-version-label" className="text-[10px] leading-3 font-semibold tracking-normal text-brand-700">R161</span></span></h1>
                   </div>
               </div>
               <div className="header-actions relative flex items-center gap-1.5 sm:gap-2">
@@ -5334,7 +5334,48 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                   <span className="w-8 h-8 rounded-full bg-brand-100 border border-brand-500 text-brand-700 flex items-center justify-center font-bold">1</span>
                   <h2 className="text-2xl font-bold text-slate-800 tracking-tight">{tr("上載並分析單據")}</h2>
                 </div>
-                <p data-testid="step-one-methods-intro" className="text-sm text-slate-700 leading-5 whitespace-nowrap">{bi('以下三種方法處理單據：', 'Three ways to handle a bill:')}</p>
+                <p data-testid="step-one-methods-intro" className="step1-compact-copy text-sm text-slate-700 leading-5 whitespace-nowrap">{bi('以下三種方法處理單據：', 'Three ways to handle a bill:')}</p>
+
+                <Card data-testid="receipt-text-import" className="step1-option border-slate-400 bg-white">
+                  <button type="button" data-testid="toggle-receipt-text-import" aria-controls="receipt-text-import-content" aria-expanded={showReceiptTextImport} onClick={() => { const nextOpen = !showReceiptTextImport; setShowReceiptTextImport(nextOpen); if (!tutorialDemo) writeUiDisclosure('receipt-ai-import-r133', nextOpen); }} className="relative -mx-5 w-[calc(100%+1.25rem)] sm:mx-0 sm:w-full min-h-[44px] flex items-center justify-between gap-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700">
+                      <span className="min-w-0 flex-1 pl-3 sm:pl-0">
+                        <span data-testid="receipt-text-import-title-row" className="flex min-w-0 flex-nowrap items-baseline justify-between gap-0">
+                          <span data-testid="receipt-text-import-title" aria-label={bi('揾其他 AI 翻譯', 'Find other AI translation')} className="step1-compact-heading shrink-0 whitespace-nowrap text-sm font-bold leading-tight text-slate-800">
+                            {bi('揾其他 AI 翻譯', 'Find other AI translation')}
+                          </span>
+                          <span data-testid="external-ai-provider-examples" aria-label={bi('Google AI 等', 'Google AI, etc.')} className="step1-compact-copy shrink-0 whitespace-nowrap text-right text-xs font-normal leading-tight text-slate-500">{bi('（Google AI 等）', '(Google AI, etc.)')}</span>
+                        </span>
+                        <span className="step1-compact-copy block mt-1 text-xs leading-relaxed text-slate-600">{bi('複製提示詞，附上單據，再貼回結果。', 'Copy the prompt, attach the bill, then paste the result back.')}</span>
+                      </span>
+                      <span aria-hidden="true" data-testid="receipt-text-import-toggle-icon" data-direction={showReceiptTextImport ? 'up' : 'down'} className="absolute -top-5 right-0 z-10 sm:-right-4"><Icon path={showReceiptTextImport ? icons.chevronUp : icons.chevronDown} size={20} className="text-slate-600"/></span>
+                    </button>
+                    <div className="mt-4 space-y-3">
+                      <Button data-testid="copy-prompt-open-google-ai" variant="primary" className="host-primary w-full !text-sm" disabled={tutorialDemo || isAnalyzing} onClick={copyPromptAndOpenGoogleAI}><Icon path={icons.send} size={18}/><span className="google-ai-label"><span className="google-ai-lead">{bi('複製提示詞並開啟 ', 'Copy prompt & open ')}</span><span className="google-ai-brand"><span className="gw gw-blue">G</span><span className="gw gw-red">o</span><span className="gw gw-yellow">o</span><span className="gw gw-blue">g</span><span className="gw gw-green">l</span><span className="gw gw-red">e</span><span className="gw gw-ai"> AI</span></span></span></Button>
+                    </div>
+                    {showReceiptTextImport && (
+                      <div id="receipt-text-import-content" data-testid="receipt-text-import-content" className="space-y-3">
+                        <div className="grid grid-cols-1 gap-2">
+                          <Button data-testid="copy-receipt-json-prompt" variant="outline" className="w-full border-slate-400 bg-white !text-sm" disabled={tutorialDemo || isAnalyzing} onClick={copyReceiptJsonImportPrompt}><Icon path={icons.copy} size={18}/>{bi('複製讀圖提示詞', 'Copy photo-reading prompt')}</Button>
+                        </div>
+                        <p className="step1-compact-copy text-xs leading-relaxed text-slate-600">{bi('開啟 Google AI 後自行附上單據圖片；本程式不會上載圖片。', 'Attach the bill yourself in Google AI; this app does not upload it.')}</p>
+                        <ol data-testid="external-ai-steps" className="step1-compact-copy list-decimal space-y-1 rounded-lg border border-slate-300 bg-slate-50 p-3 pl-8 text-xs leading-relaxed text-slate-700">
+                          <li>{bi('開啟 Google AI，附上單據並送出。', 'Open Google AI, attach the bill, and send.')}</li>
+                          <li>{bi('把結果貼在下方，再按「整理」。', 'Paste the result below, then tap Process.')}</li>
+                          <li>{bi('第二步可加原圖，朋友可在連結查看。', 'Add the original in Step 2 for friends to view.')}</li>
+                        </ol>
+                        <label htmlFor="receipt-text-draft" className="step1-compact-copy block text-xs font-bold text-slate-700">{bi('貼上其他 AI 的 JSON 或文字', 'Paste JSON or text from another AI')}</label>
+                        <textarea id="receipt-text-draft" data-testid="receipt-text-draft" rows={5} maxLength={200000} value={receiptTextDraft || googleAiPromptPreview} onPaste={activateExternalAiAction} onInput={event => { if (event.currentTarget.value.trim()) activateExternalAiAction(); }} onChange={event => { const value = event.target.value; setGoogleAiPromptPreview(''); setReceiptTextDraft(value); if (value.trim()) activateExternalAiAction(); else { externalAiActionHandledRef.current = false; setShowExternalAiActionOverlay(false); } }} disabled={tutorialDemo || isAnalyzing} placeholder={bi('貼上 JSON、收據文字或 AI 結果。', 'Paste JSON, receipt text, or AI output.')} className={`field-round w-full text-base text-slate-800 leading-relaxed shadow-none ${showExternalAiActionOverlay ? 'external-ai-action-target' : ''}`} />
+                        <input ref={receiptTextFileInputRef} data-testid="receipt-text-file" type="file" accept=".txt,.md,.csv,.json,text/plain,text/csv,application/json" className="hidden" onChange={handleReceiptTextFileUpload} />
+                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                          <Button data-testid="choose-receipt-text-file" variant="secondary" className="!text-sm" disabled={tutorialDemo || isAnalyzing} onClick={() => receiptTextFileInputRef.current?.click()}><Icon path={icons.fileImage} size={18}/><span className="inline-flex items-baseline gap-0.5"><span>{bi('上載文字檔', 'Upload text file')}</span><span className="btn-aside">{bi('（≤1 MB）', '(≤1 MB)')}</span></span></Button>
+                          <Button data-testid="submit-receipt-text" variant="primary" className={`host-primary !text-sm ${showExternalAiActionOverlay ? 'external-ai-action-target' : ''}`} disabled={tutorialDemo || isAnalyzing || !String(receiptTextDraft || googleAiPromptPreview || '').trim()} onClick={submitReceiptTextImport}>{isAnalyzing ? bi('整理中…', 'Processing…') : bi('整理這段文字', 'Process this text')}</Button>
+                        </div>
+                        {uploadError && <p data-testid="receipt-text-import-error" role="alert" className="step1-compact-copy rounded-lg border border-amber-400 bg-amber-50 p-2 text-xs text-amber-900">{typeof uploadError === 'string' ? tr(uploadError) : tr(uploadError.sub || uploadError.main || '讀取失敗')}</p>}
+                      </div>
+                    )}
+                </Card>
+
+                <ChoiceDivider />
 
                 <div className={`upload-dropzone step1-hero w-full rounded-2xl border border-dashed flex flex-col text-center transition-all ${isAnalyzing ? 'is-analyzing border-brand-500 bg-brand-50 shadow-inner' : 'upload-dropzone-compact items-center justify-center border-slate-500 bg-white hover:border-brand-500 hover:bg-slate-50 shadow-sm'}`}>
                   <input data-testid="receipt-ocr-file-input" type="file" multiple className="hidden" ref={fileInputRef} onChange={handleFileUpload} />
@@ -5447,11 +5488,10 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                       <Icon path={showKeyGuidance ? icons.chevronUp : icons.chevronDown} size={18}/>
                     </button>
                   </div>
-                  {showKeyGuidance && <div id="key-guidance-content" data-testid="key-guidance-content" className="mt-3 space-y-1 border-t border-brand-200 pt-3 text-sm leading-relaxed text-slate-700">
-                    <p>{apiKey.trim()
-                      ? bi('相片及一般文字用已設定的免費 Key；指定 JSON 可本機匯入，手動輸入亦免 Key。', 'Photos and free-form text use the configured free key; formatted JSON imports locally and manual entry needs no key.')
-                      : bi('相片及一般文字辨識需要 OpenRouter 免費 Key；指定 JSON 可本機匯入，手動輸入亦免 Key。', 'Photo and free-form text recognition needs a free OpenRouter key; formatted JSON imports locally and manual entry needs no key.')}</p>
-                    <p>{bi('按「鎖匙設定」開啟申請入口及免費 Key 教學影片。', 'Tap “Key settings” for the application link and free-key tutorial.')}</p>
+                  {showKeyGuidance && <div id="key-guidance-content" data-testid="key-guidance-content" className="mt-3 space-y-1 border-t border-brand-200 pt-3 text-xs leading-relaxed text-slate-700">
+                    <p data-testid="key-guidance-summary" className="step1-compact-copy">{apiKey.trim()
+                      ? bi('相片／文字會用已設定的 Key；手動／JSON 免 Key。', 'Photos/text use this key; manual/JSON needs no key.')
+                      : bi('相片／文字需免費 OpenRouter Key；按「鎖匙設定」申請。手動／JSON 免 Key。', 'Photos/text need a free OpenRouter key; get one in Key settings. Manual/JSON needs no key.')}</p>
                     <div data-testid="scan-model-settings" className="mt-3 space-y-2 border-t border-brand-200 pt-3">
                       <Label htmlFor="scan-model-select" className="text-base">{bi('今次辨識用邊個模型？', 'Choose a model for this scan')}</Label>
                       <select
@@ -5474,51 +5514,10 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                   </div>}
                 </Card>
 
-                <ChoiceDivider />
-
-                <Card data-testid="receipt-text-import" className="step1-option border-slate-400 bg-white">
-                  <button type="button" data-testid="toggle-receipt-text-import" aria-controls="receipt-text-import-content" aria-expanded={showReceiptTextImport} onClick={() => { const nextOpen = !showReceiptTextImport; setShowReceiptTextImport(nextOpen); if (!tutorialDemo) writeUiDisclosure('receipt-ai-import-r133', nextOpen); }} className="relative -mx-5 w-[calc(100%+1.25rem)] sm:mx-0 sm:w-full min-h-[44px] flex items-center justify-between gap-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700">
-                      <span className="min-w-0 flex-1 pl-3 sm:pl-0">
-                        <span data-testid="receipt-text-import-title-row" className="flex min-w-0 flex-nowrap items-baseline justify-between gap-0">
-                          <span data-testid="receipt-text-import-title" aria-label={bi('揾其他 AI 翻譯', 'Find other AI translation')} className="shrink-0 whitespace-nowrap text-lg font-bold leading-tight text-slate-800">
-                            {bi('揾其他 AI 翻譯', 'Find other AI translation')}
-                          </span>
-                          <span data-testid="external-ai-provider-examples" aria-label={bi('Google AI 模式、豆包等', 'Google AI, Doubao, etc.')} className="shrink-0 whitespace-nowrap text-right font-normal leading-tight text-slate-500">{bi('（Google AI 模式、豆包等）', '(Google AI, Doubao, etc.)')}</span>
-                        </span>
-                        <span className="block mt-1 text-sm leading-relaxed text-slate-600">{bi('提示詞＋賬單＝專用翻譯檔（.json）', 'Prompt + bill = ready-to-import .json file')}</span>
-                      </span>
-                      <span aria-hidden="true" data-testid="receipt-text-import-toggle-icon" data-direction={showReceiptTextImport ? 'up' : 'down'} className="absolute -top-5 right-0 z-10 sm:-right-4"><Icon path={showReceiptTextImport ? icons.chevronUp : icons.chevronDown} size={20} className="text-slate-600"/></span>
-                    </button>
-                  <div className="mt-4 space-y-3">
-                    <Button data-testid="copy-prompt-open-google-ai" variant="primary" className="host-primary w-full" disabled={tutorialDemo || isAnalyzing} onClick={copyPromptAndOpenGoogleAI}><Icon path={icons.send} size={18}/><span className="google-ai-label"><span className="google-ai-lead">{bi('複製提示詞並開啟 ', 'Copy prompt & open ')}</span><span className="google-ai-brand"><span className="gw gw-blue">G</span><span className="gw gw-red">o</span><span className="gw gw-yellow">o</span><span className="gw gw-blue">g</span><span className="gw gw-green">l</span><span className="gw gw-red">e</span><span className="gw gw-ai"> AI</span></span></span></Button>
-                  </div>
-                  {showReceiptTextImport && (
-                    <div id="receipt-text-import-content" data-testid="receipt-text-import-content" className="space-y-3">
-                      <div className="grid grid-cols-1 gap-2">
-                        <Button data-testid="copy-receipt-json-prompt" variant="outline" className="w-full border-slate-400 bg-white" disabled={tutorialDemo || isAnalyzing} onClick={copyReceiptJsonImportPrompt}><Icon path={icons.copy} size={18}/>{bi('複製讀圖提示詞', 'Copy photo-reading prompt')}</Button>
-                      </div>
-                      <p className="text-xs leading-relaxed text-slate-600">{bi('開啟 Gemini 後，請手動附上帳單圖片並按送出；此按鈕不會上載圖片。', 'In Gemini, manually attach the receipt and press Send; this button does not upload images.')}</p>
-                      <ol data-testid="external-ai-steps" className="list-decimal space-y-1 rounded-lg border border-slate-300 bg-slate-50 p-3 pl-8 text-sm leading-relaxed text-slate-700">
-                        <li>{bi('按上方按鈕複製提示詞並開啟 Google AI，再手動附上賬單圖片及送出。', 'Use the button above to copy the prompt and open Google AI, then manually attach the receipt and send.')}</li>
-                        <li>{bi('在下方輸入欄貼上其他 AI 產生的 JSON 或純文字。', 'Paste the AI JSON; the selected model processes plain text.')}</li>
-                        <li>{bi('第二步可加入原圖；朋友打開分享連結後，會在同一頁看到原圖。', 'Add the original photo in Step 2; it appears on the same shared link.')}</li>
-                      </ol>
-                      <label htmlFor="receipt-text-draft" className="block text-sm font-bold text-slate-700">{bi('貼上其他 AI 的 JSON 或翻譯文字', 'Paste JSON or translated text from another AI')}</label>
-                      <textarea id="receipt-text-draft" data-testid="receipt-text-draft" rows={5} maxLength={200000} value={receiptTextDraft || googleAiPromptPreview} onPaste={activateExternalAiAction} onInput={event => { if (event.currentTarget.value.trim()) activateExternalAiAction(); }} onChange={event => { const value = event.target.value; setGoogleAiPromptPreview(''); setReceiptTextDraft(value); if (value.trim()) activateExternalAiAction(); else { externalAiActionHandledRef.current = false; setShowExternalAiActionOverlay(false); } }} disabled={tutorialDemo || isAnalyzing} placeholder={bi('貼上 JSON、收據文字或 AI 結果。', 'Paste JSON, receipt text, or AI output.')} className={`field-round w-full text-base text-slate-800 leading-relaxed shadow-none ${showExternalAiActionOverlay ? 'external-ai-action-target' : ''}`} />
-                      <input ref={receiptTextFileInputRef} data-testid="receipt-text-file" type="file" accept=".txt,.md,.csv,.json,text/plain,text/csv,application/json" className="hidden" onChange={handleReceiptTextFileUpload} />
-                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                        <Button data-testid="choose-receipt-text-file" variant="secondary" disabled={tutorialDemo || isAnalyzing} onClick={() => receiptTextFileInputRef.current?.click()}><Icon path={icons.fileImage} size={18}/><span className="inline-flex items-baseline gap-0.5"><span>{bi('上載文字檔', 'Upload text file')}</span><span className="btn-aside">{bi('（≤1 MB）', '(≤1 MB)')}</span></span></Button>
-                        <Button data-testid="submit-receipt-text" variant="primary" className={`host-primary ${showExternalAiActionOverlay ? 'external-ai-action-target' : ''}`} disabled={tutorialDemo || isAnalyzing || !String(receiptTextDraft || googleAiPromptPreview || '').trim()} onClick={submitReceiptTextImport}>{isAnalyzing ? bi('整理中…', 'Processing…') : bi('整理這段文字', 'Process this text')}</Button>
-                      </div>
-                      {uploadError && <p data-testid="receipt-text-import-error" role="alert" className="rounded-lg border border-amber-400 bg-amber-50 p-2 text-sm text-amber-900">{typeof uploadError === 'string' ? tr(uploadError) : tr(uploadError.sub || uploadError.main || '讀取失敗')}</p>}
-                    </div>
-                  )}
-                </Card>
-
                 <div data-testid="entry-method-choice" className="text-center py-2">
                   <ChoiceDivider />
-                  <Button data-testid="start-manual" variant="secondary" className="w-full mt-4 border-slate-500" onClick={startManualEntry}>{bi('手動輸入項目', 'Enter items manually')}<Icon path={icons.arrowRight} size={18}/></Button>
-                  <p className="text-base text-slate-600 mt-2 leading-relaxed">{bi('讀唔到？手動輸入。', 'Could not scan? Enter items manually.')}</p>
+                  <Button data-testid="start-manual" variant="secondary" className="w-full mt-4 border-slate-500 !text-sm" onClick={startManualEntry}>{bi('手動輸入項目', 'Enter items manually')}<Icon path={icons.arrowRight} size={18}/></Button>
+                  <p className="step1-compact-copy text-sm text-slate-600 mt-2 leading-relaxed">{bi('讀唔到？手動輸入。', 'Could not scan? Enter items manually.')}</p>
                 </div>
               </div>
             )}

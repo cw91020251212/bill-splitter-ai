@@ -5,7 +5,7 @@ const path = require('node:path');
 
 const root = path.join(__dirname, '..');
 const read = name => fs.readFileSync(path.join(root, name), 'utf8');
-const release = 'v169-visible-r160-20261116';
+const release = 'v170-visible-r161-20261116';
 
 function linearize(channel) {
   const value = channel / 255;
@@ -117,13 +117,13 @@ test('Google AI copies the receipt prompt before opening Gemini and does not cla
   assert.ok(prompt.length > 400);
 });
 
-test('AI translation heading uses the requested copy and heading size with mobile wrapping', () => {
+test('AI translation heading uses the requested copy and compact size with mobile wrapping', () => {
   const index = read('index.html');
   const css = read('theme.css');
   const title = index.split('\n').find(row => row.includes('data-testid="receipt-text-import-title"'));
   assert.match(title, /揾其他 AI 翻譯/);
-  assert.match(title, /text-lg/);
-  assert.doesNotMatch(title, /text-base/);
+  assert.match(title, /text-sm/);
+  assert.doesNotMatch(title, /text-lg|text-base/);
   assert.match(css, /\[data-testid="receipt-text-import-title-row"\][\s\S]*?flex-wrap:\s*wrap/);
   assert.doesNotMatch(css, /\[data-testid="receipt-text-import-title"\]\s*\{\s*font-size:\s*(?:14|15)px/);
 });
@@ -140,14 +140,14 @@ test('PWA icon launches navigate an existing app window to the main app start UR
   assert.match(claim, manifestLink);
 });
 
-test('R169 cache epoch and R160 app version are consistent on the host shell', () => {
+test('R170 cache epoch and R161 app version are consistent on the host shell', () => {
   const index = read('index.html');
   const sw = read('sw.js');
   const pwa = read('pwa.js');
   assert.match(index, new RegExp(`theme\\.css\\?v=${release}`));
   assert.match(index, new RegExp(`pwa\\.js\\?v=${release}`));
   assert.match(index, new RegExp(`name="bill-app-release" content="${release}"`));
-  assert.match(index, />R160</);
+  assert.match(index, />R161</);
   assert.doesNotMatch(index, /v142-dark-green-white-label-20261114/);
   assert.doesNotMatch(index, />R148</);
   assert.doesNotMatch(index, />R147</);
@@ -155,7 +155,7 @@ test('R169 cache epoch and R160 app version are consistent on the host shell', (
   assert.doesNotMatch(index, />R142</);
   assert.match(sw, new RegExp(`const CACHE_VERSION = '${release}'`));
   assert.match(pwa, new RegExp(`var RELEASE_VERSION = '${release}'`));
-  assert.match(pwa, /version: 'R160'/);
+  assert.match(pwa, /version: 'R161'/);
   assert.match(index, /data-testid="external-ai-action-backdrop"/);
   assert.match(index, /setShowExternalAiActionOverlay\(true\)/);
   for (const name of ['claim.html', 'detailed-view.html']) {
