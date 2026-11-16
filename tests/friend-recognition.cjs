@@ -494,7 +494,7 @@ async function sameDeviceMultiPerson() {
   const addAnother = page.getByTestId('add-another-person-waiting');
   await addAnother.waitFor({ state: 'visible' });
   const returnMainApp = page.getByTestId('return-main-app');
-  assert.equal(await returnMainApp.isVisible(), true, 'submitted-claim waiting screen offers a return to the main app');
+  assert.equal(await returnMainApp.isVisible(), false, 'a friend without the matching local bill does not see a return-to-app button');
   assert.equal(await returnMainApp.getAttribute('href'), './', 'return action opens the same-origin main app without adding claim credentials');
   assert.equal(await page.locator('#person-name').inputValue(), firstName, 'waiting keeps the first person name unchanged');
   assert.equal((await friendState(page, c)).pending.payload.name, firstName, 'first claim remains pending before the explicit choice');

@@ -9,7 +9,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="分帳管家">
   <title>賬單認帳｜分帳管家 AI</title>
-  <link rel="manifest" href="./manifest.webmanifest?v=v172-visible-r163-20261116">
+  <link rel="manifest" href="./manifest.webmanifest?v=v173-visible-r164-20261116">
   <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" sizes="180x180">
   <link rel="icon" href="./icons/icon.svg" type="image/svg+xml">
   <link rel="icon" href="./icons/favicon-32.png" type="image/png" sizes="32x32">
@@ -414,7 +414,7 @@
         <h2 id="revision-waiting-title">認帳已修改，等候重新結算</h2>
         <p id="revision-waiting-description">發起人收到新認帳後會重新計算。結果更新後，仍會顯示喺同一條連結。</p>
         <button id="edit-claim-again" class="button" type="button">再次修改認帳</button>
-        <a id="return-main-app" data-testid="return-main-app" class="button" href="./">返回主程式</a>
+        <a id="return-main-app" data-testid="return-main-app" class="button" href="./" hidden>返回主程式</a>
         <button id="add-another-person-waiting" class="text-action add-another-person-button" type="button" data-testid="add-another-person-waiting">同一手機新增另一位</button>
       </section>
       <div id="revision-actions" class="revision-actions" hidden>
@@ -858,6 +858,11 @@
       function updateClaimView() {
         const sessionId = new URLSearchParams(location.search).get('session');
         const checkingClock = /^[A-Za-z0-9_-]{22}$/.test(sessionId || '') && serverTimeAnchorMs === null;
+        let hasMatchingLocalBill = false;
+        try {
+          const localBill = JSON.parse(localStorage.getItem('billSplitterActiveDraftV1') || 'null');
+          hasMatchingLocalBill = localBill?.schema === 1 && localBill?.data?.claimSession?.id === sessionId;
+        } catch (_) {}
         const text = messages[language];
         const showResult = showingSharedResult && !editingClaim && !pendingClaim && !authOpen && !fillingAnotherName && !isExpired && !checkingClock;
         document.querySelector('.hero').hidden = showResult;
@@ -871,6 +876,7 @@
         syncResultFrameLayout();
         const showWaiting = Boolean(pendingClaim) && !editingClaim && !authOpen && !fillingAnotherName && !isExpired && !checkingClock;
         document.getElementById('revision-waiting').hidden = !showWaiting;
+        document.getElementById('return-main-app').hidden = !hasMatchingLocalBill;
         document.getElementById('revision-actions').hidden = !editingClaim || isExpired || checkingClock;
         authPanel.hidden = !authOpen || isExpired || checkingClock;
         content.hidden = showResult || showWaiting || authOpen || isExpired || checkingClock;

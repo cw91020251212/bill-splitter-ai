@@ -10,7 +10,10 @@ test('submitted-claim waiting panel links back to the local main app without lin
   const claim = read('claim.html');
   const waitingPanel = claim.match(/<section id="revision-waiting"[\s\S]*?<\/section>/)?.[0];
   assert.ok(waitingPanel, 'waiting panel exists');
-  assert.match(waitingPanel, /<a id="return-main-app" data-testid="return-main-app" class="button" href="\.\/">/);
+  assert.match(waitingPanel, /<a id="return-main-app" data-testid="return-main-app" class="button" href="\.\/" hidden>/);
+  assert.match(claim, /localStorage\.getItem\('billSplitterActiveDraftV1'\)/);
+  assert.match(claim, /localBill\?\.schema === 1 && localBill\?\.data\?\.claimSession\?\.id === sessionId/);
+  assert.match(claim, /document\.getElementById\('return-main-app'\)\.hidden = !hasMatchingLocalBill/);
   assert.match(claim, /returnMainApp: '返回主程式'/);
   assert.match(claim, /returnMainApp: 'Back to main app'/);
   assert.match(claim, /document\.getElementById\('return-main-app'\)\.textContent = text\.returnMainApp/);
