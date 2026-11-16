@@ -22,7 +22,7 @@ body.bg-slate-50 { background: var(--page-grey); color: var(--ink); }
 #root .app-header-row { padding-top: 14px; padding-bottom: 12px; }
 #root .app-header-row h1 { color: var(--ink); line-height: 1.3; }
 #root .app-header-row .header-actions > .header-back-button { border-color: #528e6b; background: #e5ebe2; color: #304437; }
-#root .app-header-row .header-actions > div > #header-action-menu-toggle { border-color: #0f6b42; background-color: #127a4c; }
+#root .app-header-row .header-actions > div > #header-action-menu-toggle { border-color: #0f6b42; background-color: #26763d; }
 #root .language-switch-control {
   background: #dce4d9;
   border: 1px solid #639f7c;
@@ -230,11 +230,11 @@ body.bg-slate-50 { background: var(--page-grey); color: var(--ink); }
   #root .item-price-quantity-row > div:last-child { width: 100%; }
 }
 
-/* Primary actions: logo greens, shaded gently to preserve white-label contrast. */
+/* Primary actions: clear lower-left to upper-right brand-green gradient with readable white labels. */
 :root {
-  --brand-action-gradient: linear-gradient(to top right, #0f6b42 0%, #127a4c 55%, #188657 100%);
-  --brand-action-gradient-hover: linear-gradient(to top right, #0e653f 0%, #117449 55%, #167f53 100%);
-  --brand-action-gradient-active: linear-gradient(to top right, #0c5b38 0%, #106a43 55%, #14774e 100%);
+  --brand-action-gradient: linear-gradient(to top right, #0f6b42 0%, #26763d 55%, #4b8028 100%);
+  --brand-action-gradient-hover: linear-gradient(to top right, #0e653f 0%, #24713a 55%, #47802b 100%);
+  --brand-action-gradient-active: linear-gradient(to top right, #0c5b38 0%, #216b31 55%, #407227 100%);
   --brand-action-gradient-dark: var(--brand-action-gradient);
   --brand-action-gradient-dark-hover: var(--brand-action-gradient-hover);
   --brand-action-gradient-dark-active: var(--brand-action-gradient-active);
@@ -242,7 +242,7 @@ body.bg-slate-50 { background: var(--page-grey); color: var(--ink); }
 }
 #root button.bg-brand-600:not(:disabled) {
   background-image: var(--brand-action-gradient);
-  background-color: #127a4c;
+  background-color: #26763d;
   border-color: #0f6b42 !important;
 }
 #root button.bg-brand-600:not(:disabled):hover { background-image: var(--brand-action-gradient-hover); }
@@ -981,7 +981,7 @@ body.bg-slate-50 { background: var(--page-grey); color: var(--ink); }
    Non-host-primary actions in main stay white with a thin left edge. */
 #root button.host-primary.green-action:not(.green-action-dark):not(:disabled) {
   background-image: var(--brand-action-gradient) !important;
-  background-color: #127a4c !important;
+  background-color: #26763d !important;
   border-color: #0f6b42 !important;
   color: #fff !important;
   -webkit-text-fill-color: #fff !important;
@@ -990,11 +990,11 @@ body.bg-slate-50 { background: var(--page-grey); color: var(--ink); }
 }
 #root button.host-primary.green-action:not(.green-action-dark):not(:disabled):hover {
   background-image: var(--brand-action-gradient-hover) !important;
-  background-color: #117449 !important;
+  background-color: #24713a !important;
 }
 #root button.host-primary.green-action:not(.green-action-dark):not(:disabled):active {
   background-image: var(--brand-action-gradient-active) !important;
-  background-color: #106a43 !important;
+  background-color: #216b31 !important;
 }
 #root button.host-primary.green-action:not(.green-action-dark):not(:disabled) svg {
   color: #fff !important;
@@ -1003,7 +1003,7 @@ body.bg-slate-50 { background: var(--page-grey); color: var(--ink); }
 }
 #root main button.green-action:not(.host-primary):not(:disabled) {
   background-image: var(--brand-action-gradient) !important;
-  background-color: #127a4c !important;
+  background-color: #26763d !important;
   border-color: #0f6b42 !important;
   color: #fff !important;
   -webkit-text-fill-color: #fff !important;
@@ -1113,7 +1113,7 @@ html[lang="en"] #root [data-testid="open-free-key-settings"] span {
 #root .choice-divider::after { background: #e0d8cc; }
 #root button[data-ui-language][aria-pressed="true"] {
   background-image: var(--brand-action-gradient) !important;
-  background-color: #127a4c !important;
+  background-color: #26763d !important;
   color: #fff !important;
   -webkit-text-fill-color: #fff !important;
   text-shadow: 0 1px 1px rgba(0, 0, 0, .35) !important;
@@ -1422,7 +1422,7 @@ html[lang="en"] #root [data-testid="open-free-key-settings"] span {
 /* Green controls outside the primary Button component use the same direction. */
 #root button[class*="bg-emerald-700"]:not(:disabled) {
   background-image: var(--brand-action-gradient) !important;
-  background-color: #127a4c !important;
+  background-color: #26763d !important;
   border-color: #0f6b42 !important;
   color: #fff !important;
   -webkit-text-fill-color: #fff !important;
@@ -1432,7 +1432,7 @@ html[lang="en"] #root [data-testid="open-free-key-settings"] span {
 #root button[class*="bg-emerald-700"]:not(:disabled):active { background-image: var(--brand-action-gradient-active) !important; }
 #root:has(main[data-current-step="4"]) .step-nav button:nth-child(4) {
   background-image: var(--brand-action-gradient) !important;
-  background-color: #127a4c !important;
+  background-color: #26763d !important;
   border-color: #0f6b42 !important;
   color: #fff !important;
 }

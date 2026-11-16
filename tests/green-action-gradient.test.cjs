@@ -47,9 +47,9 @@ function colorStops(value, name) {
 }
 
 const expectedGradients = {
-  'brand-action-gradient': ['#0f6b42', '#127a4c', '#188657'],
-  'brand-action-gradient-hover': ['#0e653f', '#117449', '#167f53'],
-  'brand-action-gradient-active': ['#0c5b38', '#106a43', '#14774e'],
+  'brand-action-gradient': ['#0f6b42', '#26763d', '#4b8028'],
+  'brand-action-gradient-hover': ['#0e653f', '#24713a', '#47802b'],
+  'brand-action-gradient-active': ['#0c5b38', '#216b31', '#407227'],
 };
 
 test('green action gradients match the logo green and keep white labels accessible', () => {
@@ -58,13 +58,14 @@ test('green action gradients match the logo green and keep white labels accessib
 
   for (const [name, expected] of Object.entries(expectedGradients)) {
     const colors = colorStops(theme, name);
+    const [dark, middle, bright] = colors;
+    const minimumEndpointDistance = name === 'brand-action-gradient' ? 65 : 55;
+    assert.ok(Math.hypot(...rgb(dark).map((channel, index) => rgb(bright)[index] - channel)) >= minimumEndpointDistance, `${name} must stay visibly distinct; R166's near-flat stops are below this threshold`);
     assert.deepEqual(colors, expected, `${name} must stay in the logo-green family`);
     for (const color of colors) {
       assert.ok(contrastWithWhite(color) >= 4.5, `${name} ${color} vs white must meet 4.5:1`);
     }
-    const [dark, middle, bright] = colors;
     assert.ok(relativeLuminance(dark) < relativeLuminance(middle) && relativeLuminance(middle) < relativeLuminance(bright), `${name} must visibly brighten toward the upper right`);
-    assert.ok(Math.hypot(...rgb(dark).map((channel, index) => rgb(bright)[index] - channel)) >= 30, `${name} stops must remain distinct enough to see`);
     assert.deepEqual(colorStops(detailed, name), colors, `the detail page must use the same ${name}`);
   }
 
@@ -73,7 +74,7 @@ test('green action gradients match the logo green and keep white labels accessib
   const language = lastRuleBlock(theme, '#root button[data-ui-language][aria-pressed="true"] {');
   const activeStep = lastRuleBlock(theme, '#root:has(main[data-current-step="4"]) .step-nav button:nth-child(4) {');
   assert.match(host, /background-image:\s*var\(--brand-action-gradient\)/);
-  assert.match(host, /background-color:\s*#127a4c/);
+  assert.match(host, /background-color:\s*#26763d/);
   assert.match(host, /border-color:\s*#0f6b42/);
   assert.match(light, /background-image:\s*var\(--brand-action-gradient\)/);
   assert.match(light, /color:\s*#fff\s*!important/);
