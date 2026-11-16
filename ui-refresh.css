@@ -76,7 +76,7 @@ html[lang="en"] #root .app-header-row h1 { font-size: 17px !important; }
   color: var(--ui-brand) !important;
   -webkit-text-fill-color: var(--ui-brand) !important;
 }
-#root [data-testid="app-version-label"] { font-size: 10px !important; }
+#root [data-testid="app-version-label"] { font-size: 14px !important; line-height: 1.2 !important; }
 #root button#header-action-menu-toggle {
   background: var(--ui-brand) !important;
   background-image: none !important;
@@ -113,14 +113,14 @@ html[lang="en"] #root .app-header-row h1 { font-size: 17px !important; }
   background: #fff !important;
   color: var(--ui-muted) !important;
   box-shadow: none !important;
-  font-size: 13px !important;
+  font-size: 15px !important;
   font-weight: 700 !important;
 }
 #root .step-nav button > span:first-child {
   background: transparent !important;
   border: 0 !important;
   color: inherit !important;
-  font-size: 12px !important;
+  font-size: 15px !important;
   font-weight: 800 !important;
 }
 /* Active stage */
@@ -328,7 +328,7 @@ html[lang="en"] #root .app-header-row h1 { font-size: 17px !important; }
 }
 #root [data-testid="receipt-text-import"] { padding: 16px !important; }
 #root [data-testid="receipt-text-import-title"] { font-size: 17px !important; font-weight: 800 !important; }
-#root main [data-testid="external-ai-provider-examples"] { font-size: 13px !important; }
+#root main [data-testid="external-ai-provider-examples"] { font-size: 15px !important; }
 
 /* ---------- 7. Step 2: calmer item forms ---------- */
 #root main[data-current-step="2"] .app-card.relative.overflow-visible {
@@ -383,13 +383,13 @@ html[lang="en"] #root .app-header-row h1 { font-size: 17px !important; }
   -webkit-backdrop-filter: blur(10px) !important;
   backdrop-filter: blur(10px) !important;
 }
-#root [data-testid="status-compact-region"] .font-bold { color: var(--ui-ink) !important; font-size: 13px !important; }
-#root [data-testid="status-compact-region"] .line-clamp-1 { font-size: 13px !important; }
+#root [data-testid="status-compact-region"] .font-bold { color: var(--ui-ink) !important; font-size: 15px !important; }
+#root [data-testid="status-compact-region"] .line-clamp-1 { font-size: 15px !important; }
 #root [data-testid="status-compact-region"] .bg-white\/80 {
   background: transparent !important;
   border: 0 !important;
   box-shadow: none !important;
-  font-size: 12px !important;
+  font-size: 15px !important;
   color: var(--ui-muted) !important;
 }
 @media (max-width: 639px) {
@@ -476,7 +476,7 @@ body :is(h1, h2, h3, h4, h5, h6, label, button, input, textarea, select,
   background: #fff8ea;
   border: 1px solid #d8b674;
   color: #7a530d;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 700;
 }
 /* 4. Step 4: amount first, web link next, help guides last. */
