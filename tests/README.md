@@ -152,7 +152,7 @@ node tests/card-redaction-ui.cjs
 UI 測試只對 localhost 執行，使用合成收據和假測試號碼，並 mock 本機 OCR／系統分享；它會在 320×800 和 390×844 擷取預覽、確認原圖逐 byte 不變、只分享遮蓋 JPEG 副本、手動補框／撤銷有效，以及 OCR 失敗時禁止分享。它不代表已在真實手機瀏覽器驗收。
 
 
-認帳連結區兩個操作都明確標示給朋友：`複製連結給朋友`／`分享連結及附件給朋友`；繁中名稱由 `friend-recognition.cjs` 驗證。
+認帳連結區兩個操作都明確標示給朋友：`複製認帳連結給朋友`／`分享認帳連結給朋友`；繁中名稱由 `friend-recognition.cjs` 驗證。
 
 本次 `friend-recognition.cjs` 通過 12/12，包含兩個標籤和認帳連結建立。
 `friend-password.cjs` 未進入 UI：其舊 preflight 仍要求 `claim.html` 存在 `id="claim-password-repeat"`；此欄位已不存在。
@@ -206,7 +206,7 @@ R119 漏人指引：`friend-recognition.cjs` 驗證結果卡預設收起、向�
 `mobile-layout.cjs` 驗證「其他 AI 翻譯」標題字級與粗度完全等同單據上載標題（繁中及英文均適用）；標題旁只顯示 e.g. Gemini、豆包，320px 時由例子換行，360px 以上同列，且不溢出或遮擋箭嘴。`text-import.cjs` 確認範例文案不影響 JSON 匯入。
 
 ## R139：AI 翻譯例子文字
-`mobile-layout.cjs` 驗證例子文案為「（Google AI 模式，豆包…）」；標題維持既有字級與粗度，長例子會在卡片寬度不足時自然換行，不遮住箭嘴或造成橫向溢出。`text-import.cjs` 確認提示詞與 JSON 匯入正常。
+`mobile-layout.cjs` 驗證例子文案為「（Google AI 模式，豆包…）」；標題使用 16px 字級並維持粗度，長例子會在卡片寬度不足時自然換行，不遮住箭嘴或造成橫向溢出。`text-import.cjs` 確認提示詞與 JSON 匯入正常。
 
 ## R140：AI 翻譯標題同列與輸入標籤
 `mobile-layout.cjs` 在 320px、390px 及桌面檢查「其他 AI 翻譯」與右側例子維持同一行，右對齊、不裁切、不遮住箭嘴且沒有水平溢位；320px 使用較緊湊的標題與例子字級。`text-import.cjs` 確認輸入標籤改為「貼上其他 AI 的 JSON 或翻譯文字」，提示詞與 JSON 匯入保持正常。

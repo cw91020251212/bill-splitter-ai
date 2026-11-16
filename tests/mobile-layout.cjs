@@ -71,7 +71,7 @@ async function assertOriginalFirstStep(page, width, height) {
   assert.equal(await progress.isVisible(), true, `${label}: progress bar is visible above the step buttons`);
   assert.equal(await progress.getAttribute('aria-valuenow'), '1', `${label}: progress bar reports Step 1`);
   assert.equal(await progress.getAttribute('aria-valuemax'), '4', `${label}: progress bar reports four total stages`);
-  assert.equal(await page.getByTestId('app-version-label').innerText(), 'R161', `${label}: R161 is loaded`);
+  assert.equal(await page.getByTestId('app-version-label').innerText(), 'R162', `${label}: R161 is loaded`);
 
   const keyCard = page.locator('.api-settings-card');
   assert.equal(await keyCard.isVisible(), true, `${label}: original Key status/action card is visible`);
@@ -155,8 +155,10 @@ async function assertOriginalFirstStep(page, width, height) {
     return { text: examples.innerText, titleTop: titleRect.top, titleBottom: titleRect.bottom, examplesTop: examplesRect.top, examplesBottom: examplesRect.bottom, titleRight: titleRect.right, examplesLeft: examplesRect.left, examplesRight: examplesRect.right, examplesClientWidth: examples.clientWidth, examplesScrollWidth: examples.scrollWidth, rowRight: rowRect.right, chevronTop: chevron.top, chevronBottom: chevron.bottom, chevronRight: chevron.right, chevronWidth: chevron.width, chevronHeight: chevron.height, chevronStrokeWidth: parseFloat(getComputedStyle(chevronSvg).strokeWidth), cardTop: cardRect.top, cardRight: cardRect.right, toggleRight: toggleRect.right, inputRight: inputRect.right, titleFont: parseFloat(getComputedStyle(title).fontSize), referenceFont: parseFloat(getComputedStyle(referenceHeading).fontSize), titleWeight: parseInt(getComputedStyle(title).fontWeight, 10), referenceWeight: parseInt(getComputedStyle(referenceHeading).fontWeight, 10), examplesFont: parseFloat(getComputedStyle(examples).fontSize), rowHeight: rowRect.height };
   });
   assert.equal(inlineAIExamples.text, '（Google AI 等）', `${label}: provider examples retain full-width parentheses`);
+  assert.equal(await page.getByTestId('receipt-text-import-content').getByTestId('choice-divider').innerText(), '或', `${label}: the two AI actions are clearly separated by “or”`);
+  assert.equal(await page.getByTestId('receipt-text-draft').evaluate(node => getComputedStyle(node).backgroundColor), 'rgb(255, 253, 231)', `${label}: paste field has a very light yellow background`);
   assert(inlineAIExamples.titleWeight === inlineAIExamples.referenceWeight && inlineAIExamples.titleWeight >= 700, `${label}: heading retains the regular bold upload-heading weight (${JSON.stringify(inlineAIExamples)})`);
-  assert(inlineAIExamples.titleFont === 14 && inlineAIExamples.titleFont < inlineAIExamples.referenceFont, `${label}: the method title uses compact 14px text (${JSON.stringify(inlineAIExamples)})`);
+  assert(inlineAIExamples.titleFont === 16 && inlineAIExamples.titleFont <= inlineAIExamples.referenceFont, `${label}: the method title uses 16px text and is no smaller than the upload heading (${JSON.stringify(inlineAIExamples)})`);
   const sameLine = Math.min(inlineAIExamples.titleBottom, inlineAIExamples.examplesBottom) - Math.max(inlineAIExamples.titleTop, inlineAIExamples.examplesTop) >= inlineAIExamples.examplesFont * 0.6;
   assert(sameLine && inlineAIExamples.examplesLeft >= inlineAIExamples.titleRight - 1, `${label}: provider examples stay on the title row without overlapping it (${JSON.stringify(inlineAIExamples)})`);
   assert(inlineAIExamples.examplesRight <= inlineAIExamples.rowRight + 1, `${label}: examples stay within the full text row (${JSON.stringify(inlineAIExamples)})`);

@@ -8,7 +8,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="分帳管家">
-  <link rel="manifest" href="./manifest.webmanifest?v=v170-visible-r161-20261116">
+  <link rel="manifest" href="./manifest.webmanifest?v=v171-visible-r162-20261116">
   <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" sizes="180x180">
   <link rel="icon" href="./icons/icon.svg" type="image/svg+xml">
   <link rel="icon" href="./icons/favicon-32.png" type="image/png" sizes="32x32">
@@ -142,11 +142,11 @@
   ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
   ::-webkit-scrollbar-thumb:hover { background: #64748b; }
   </style>
-  <link rel="stylesheet" href="./theme.css?v=v170-visible-r161-20261116">
+  <link rel="stylesheet" href="./theme.css?v=v171-visible-r162-20261116">
   <link rel="stylesheet" href="./tutorial.css?v=v86-free-models-only">
   <!-- R157: on-device sensitive-data masking before receipt sharing. -->
-  <meta name="bill-app-release" content="v170-visible-r161-20261116">
-  <script defer src="./pwa.js?v=v170-visible-r161-20261116"></script>
+  <meta name="bill-app-release" content="v171-visible-r162-20261116">
+  <script defer src="./pwa.js?v=v171-visible-r162-20261116"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
@@ -158,9 +158,9 @@
   <script src="./receipt-adjustments.js"></script>
   <script src="./share-config.js"></script>
   <script src="./bill-share-api.js?v=v107-code-focus-visible"></script>
-  <script src="./sync-diagnostics.js?v=v170-visible-r161-20261116"></script>
-  <script src="./card-redaction.js?v=v170-visible-r161-20261116"></script>
-  <script src="./card-share-review.js?v=v170-visible-r161-20261116"></script>
+  <script src="./sync-diagnostics.js?v=v171-visible-r162-20261116"></script>
+  <script src="./card-redaction.js?v=v171-visible-r162-20261116"></script>
+  <script src="./card-share-review.js?v=v171-visible-r162-20261116"></script>
   <script src="./exchange-rates.js?v=v90-cross-currency-settlement"></script>
     <script src="./tutorial.js?v=v139-gemini-button-order-20261113"></script>
   <script type="text/babel">
@@ -5149,7 +5149,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                 <div className="flex items-center gap-2 sm:gap-3 shrink-0">
                   <img src="./icons/icon.svg" alt="" width="48" height="48" className="app-brand-icon shrink-0" />
                   <div>
-                  <h1 className="text-xl font-extrabold text-slate-800 tracking-tight"><span className="app-brand-name block sm:inline whitespace-nowrap">{tr("分帳管家")}</span><span className="inline-flex items-baseline gap-1 sm:ml-1 whitespace-nowrap"><span data-testid="app-pro-label" className="text-brand-600 font-black">Pro</span><span data-testid="app-version-label" className="text-[10px] leading-3 font-semibold tracking-normal text-brand-700">R161</span></span></h1>
+                  <h1 className="text-xl font-extrabold text-slate-800 tracking-tight"><span className="app-brand-name block sm:inline whitespace-nowrap">{tr("分帳管家")}</span><span className="inline-flex items-baseline gap-1 sm:ml-1 whitespace-nowrap"><span data-testid="app-pro-label" className="text-brand-600 font-black">Pro</span><span data-testid="app-version-label" className="text-[10px] leading-3 font-semibold tracking-normal text-brand-700">R162</span></span></h1>
                   </div>
               </div>
               <div className="header-actions relative flex items-center gap-1.5 sm:gap-2">
@@ -5340,7 +5340,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                   <button type="button" data-testid="toggle-receipt-text-import" aria-controls="receipt-text-import-content" aria-expanded={showReceiptTextImport} onClick={() => { const nextOpen = !showReceiptTextImport; setShowReceiptTextImport(nextOpen); if (!tutorialDemo) writeUiDisclosure('receipt-ai-import-r133', nextOpen); }} className="relative -mx-5 w-[calc(100%+1.25rem)] sm:mx-0 sm:w-full min-h-[44px] flex items-center justify-between gap-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700">
                       <span className="min-w-0 flex-1 pl-3 sm:pl-0">
                         <span data-testid="receipt-text-import-title-row" className="flex min-w-0 flex-nowrap items-baseline justify-between gap-0">
-                          <span data-testid="receipt-text-import-title" aria-label={bi('揾其他 AI 翻譯', 'Find other AI translation')} className="step1-compact-heading shrink-0 whitespace-nowrap text-sm font-bold leading-tight text-slate-800">
+                          <span data-testid="receipt-text-import-title" aria-label={bi('揾其他 AI 翻譯', 'Find other AI translation')} className="step1-compact-heading shrink-0 whitespace-nowrap text-base font-bold leading-tight text-slate-800">
                             {bi('揾其他 AI 翻譯', 'Find other AI translation')}
                           </span>
                           <span data-testid="external-ai-provider-examples" aria-label={bi('Google AI 等', 'Google AI, etc.')} className="step1-compact-copy shrink-0 whitespace-nowrap text-right text-xs font-normal leading-tight text-slate-500">{bi('（Google AI 等）', '(Google AI, etc.)')}</span>
@@ -5354,6 +5354,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                     </div>
                     {showReceiptTextImport && (
                       <div id="receipt-text-import-content" data-testid="receipt-text-import-content" className="space-y-3">
+                        <ChoiceDivider />
                         <div className="grid grid-cols-1 gap-2">
                           <Button data-testid="copy-receipt-json-prompt" variant="outline" className="w-full border-slate-400 bg-white !text-sm" disabled={tutorialDemo || isAnalyzing} onClick={copyReceiptJsonImportPrompt}><Icon path={icons.copy} size={18}/>{bi('複製讀圖提示詞', 'Copy photo-reading prompt')}</Button>
                         </div>
@@ -5762,10 +5763,10 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                     <p className="text-sm text-emerald-800 mb-3 leading-relaxed">{bi('朋友先認帳；你結算後，結果更新到同一連結。', 'Share one link: friends enter their items, and your calculated result updates the same link automatically.')}</p>
                     <div data-testid="claim-link-actions" className="flex flex-col gap-3">
                       <Button data-testid="copy-friend-claim-link" variant="secondary" onClick={generateFriendClaimLink} className="!w-full text-sm bg-white hover:bg-slate-50 border-slate-500">
-                        <Icon path={icons.copy} size={18} className="text-slate-600"/>{tr(" 複製連結給朋友")}</Button>
+                        <Icon path={icons.copy} size={18} className="text-slate-600"/>{tr(" 複製認帳連結給朋友")}</Button>
                       <ChoiceDivider />
                         <Button data-testid="open-claim-share-button" data-tutorial-target="open-claim-share" variant="primary" onClick={shareFriendClaimLink} className="host-primary !w-full text-sm">
-                        <Icon path={icons.share} size={18}/><span>{bi('分享認帳連結', 'Share claim link')}</span></Button>
+                        <Icon path={icons.share} size={18}/><span>{bi('分享認帳連結給朋友', 'Share claim link with friends')}</span></Button>
                     </div>
                   </div>
                 {!tutorialDemo && !manualClaimsEnabled && !claimLinkShared && !claimSession && !claimRoom && !hasInboundClaim && (

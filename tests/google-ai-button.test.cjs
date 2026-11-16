@@ -5,7 +5,7 @@ const path = require('node:path');
 
 const root = path.join(__dirname, '..');
 const read = name => fs.readFileSync(path.join(root, name), 'utf8');
-const release = 'v170-visible-r161-20261116';
+const release = 'v171-visible-r162-20261116';
 
 function linearize(channel) {
   const value = channel / 255;
@@ -122,10 +122,10 @@ test('AI translation heading uses the requested copy and compact size with mobil
   const css = read('theme.css');
   const title = index.split('\n').find(row => row.includes('data-testid="receipt-text-import-title"'));
   assert.match(title, /揾其他 AI 翻譯/);
-  assert.match(title, /text-sm/);
-  assert.doesNotMatch(title, /text-lg|text-base/);
+  assert.match(title, /text-base/);
+  assert.doesNotMatch(title, /text-sm|text-lg/);
   assert.match(css, /\[data-testid="receipt-text-import-title-row"\][\s\S]*?flex-wrap:\s*wrap/);
-  assert.doesNotMatch(css, /\[data-testid="receipt-text-import-title"\]\s*\{\s*font-size:\s*(?:14|15)px/);
+  assert.match(css, /\.step1-compact-heading\s*\{\s*font-size:\s*calc\(16px \* var\(--app-font-scale, 1\)\)/);
 });
 
 test('PWA icon launches navigate an existing app window to the main app start URL', () => {
@@ -140,14 +140,14 @@ test('PWA icon launches navigate an existing app window to the main app start UR
   assert.match(claim, manifestLink);
 });
 
-test('R170 cache epoch and R161 app version are consistent on the host shell', () => {
+test('R171 cache epoch and R162 app version are consistent on the host shell', () => {
   const index = read('index.html');
   const sw = read('sw.js');
   const pwa = read('pwa.js');
   assert.match(index, new RegExp(`theme\\.css\\?v=${release}`));
   assert.match(index, new RegExp(`pwa\\.js\\?v=${release}`));
   assert.match(index, new RegExp(`name="bill-app-release" content="${release}"`));
-  assert.match(index, />R161</);
+  assert.match(index, />R162</);
   assert.doesNotMatch(index, /v142-dark-green-white-label-20261114/);
   assert.doesNotMatch(index, />R148</);
   assert.doesNotMatch(index, />R147</);
@@ -155,7 +155,7 @@ test('R170 cache epoch and R161 app version are consistent on the host shell', (
   assert.doesNotMatch(index, />R142</);
   assert.match(sw, new RegExp(`const CACHE_VERSION = '${release}'`));
   assert.match(pwa, new RegExp(`var RELEASE_VERSION = '${release}'`));
-  assert.match(pwa, /version: 'R161'/);
+  assert.match(pwa, /version: 'R162'/);
   assert.match(index, /data-testid="external-ai-action-backdrop"/);
   assert.match(index, /setShowExternalAiActionOverlay\(true\)/);
   for (const name of ['claim.html', 'detailed-view.html']) {
@@ -224,7 +224,7 @@ test('R146 white action labels, yellow icons, Google wordmark, and bold labels s
   const copyClaim = index.split('\n').find(row => row.includes('<Button data-testid="copy-friend-claim-link"'));
   assert.match(shareClaim, /\bhost-primary\b/);
   assert.doesNotMatch(copyClaim, /\bhost-primary\b/);
-  assert.match(index, /分享認帳連結/);
+  assert.match(index, /分享認帳連結給朋友/);
   const shareLabel = ruleBlock(css, '#root button.host-primary.green-action[data-testid="open-claim-share-button"]:not(:disabled):not([data-testid="copy-prompt-open-google-ai"])');
   const shareIcon = ruleBlock(css, '#root button.host-primary.green-action[data-testid="open-claim-share-button"]:not(:disabled) svg');
   assert.match(shareLabel, /color:\s*#fff\s*!important/);

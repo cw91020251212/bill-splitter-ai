@@ -297,8 +297,8 @@ async function hostFixture() {
   assert.equal(await host.getByTestId('claim-inbox').count(), 1, 'inbox is available once on Step 2');
   assert.equal(await host.getByTestId('claim-replies').count(), 1, 'reply field is available once on Step 2');
   await host.getByTestId('claim-activity-name').fill('QA識別碼驗收'); await host.getByTestId('claim-expiry-days').selectOption('1'); const before = harness.requests.length;
-  assert.equal((await host.getByTestId('copy-friend-claim-link').innerText()).trim(), '複製連結給朋友');
-  assert.equal((await host.getByTestId('open-claim-share-button').innerText()).trim(), '分享認帳連結');
+  assert.equal((await host.getByTestId('copy-friend-claim-link').innerText()).trim(), '複製認帳連結給朋友');
+  assert.equal((await host.getByTestId('open-claim-share-button').innerText()).trim(), '分享認帳連結給朋友');
   await host.getByTestId('copy-friend-claim-link').click(); await host.waitForFunction(() => Boolean(document.querySelector('[data-testid="claim-link-actions"]')?.dataset.claimLink));
   const link = await host.getByTestId('claim-link-actions').evaluate(n => n.dataset.claimLink), c = remember(harness.requests.slice(before).find(r => r.path === '/api/shares/sessions' && r.status === 201)?.output);
   assert(c, 'actual host creates real session'); assert.equal(c.claimSecurity, 'password'); assert.equal(new URL(link).searchParams.get('session'), c.id); secretFree(link);
@@ -318,8 +318,8 @@ async function hostFixture() {
   assert.equal(await host.locator('dialog[aria-labelledby="claim-share-title"]').count(), 0, 'direct share no longer opens the duplicate attachment dialog');
   await host.getByTestId('header-action-menu-toggle').click();
   await host.getByTestId('header-language-toggle').click();
-  await host.waitForFunction(() => document.querySelector('[data-testid="open-claim-share-button"]')?.textContent.includes('Share claim link'));
-  assert.equal((await host.getByTestId('open-claim-share-button').innerText()).trim(), 'Share claim link');
+  await host.waitForFunction(() => document.querySelector('[data-testid="open-claim-share-button"]')?.textContent.includes('Share claim link with friends'));
+  assert.equal((await host.getByTestId('open-claim-share-button').innerText()).trim(), 'Share claim link with friends');
   await host.getByTestId('open-claim-share-button').click();
   await host.waitForURL('https://wa.me/**');
   const enWaMessage = new URL(waShareUrls[1]).searchParams.get('text');
@@ -334,7 +334,7 @@ async function hostFixture() {
     await languageToggle.waitFor({ state: 'visible' });
   }
   await languageToggle.click();
-  await host.waitForFunction(() => document.querySelector('[data-testid="open-claim-share-button"]')?.textContent.includes('分享認帳連結'));
+  await host.waitForFunction(() => document.querySelector('[data-testid="open-claim-share-button"]')?.textContent.includes('分享認帳連結給朋友'));
   if (await languageToggle.isVisible()) await host.getByTestId('header-action-menu-toggle').click();
   return { host, c, link };
 }
