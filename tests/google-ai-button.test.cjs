@@ -5,7 +5,7 @@ const path = require('node:path');
 
 const root = path.join(__dirname, '..');
 const read = name => fs.readFileSync(path.join(root, name), 'utf8');
-const release = 'v167-visible-r158-20261116';
+const release = 'v168-visible-r159-20261116';
 
 function linearize(channel) {
   const value = channel / 255;
@@ -140,14 +140,14 @@ test('PWA icon launches navigate an existing app window to the main app start UR
   assert.match(claim, manifestLink);
 });
 
-test('R167 cache epoch and R158 app version are consistent on the host shell', () => {
+test('R168 cache epoch and R159 app version are consistent on the host shell', () => {
   const index = read('index.html');
   const sw = read('sw.js');
   const pwa = read('pwa.js');
   assert.match(index, new RegExp(`theme\\.css\\?v=${release}`));
   assert.match(index, new RegExp(`pwa\\.js\\?v=${release}`));
   assert.match(index, new RegExp(`name="bill-app-release" content="${release}"`));
-  assert.match(index, />R158</);
+  assert.match(index, />R159</);
   assert.doesNotMatch(index, /v142-dark-green-white-label-20261114/);
   assert.doesNotMatch(index, />R148</);
   assert.doesNotMatch(index, />R147</);
@@ -155,7 +155,7 @@ test('R167 cache epoch and R158 app version are consistent on the host shell', (
   assert.doesNotMatch(index, />R142</);
   assert.match(sw, new RegExp(`const CACHE_VERSION = '${release}'`));
   assert.match(pwa, new RegExp(`var RELEASE_VERSION = '${release}'`));
-  assert.match(pwa, /version: 'R158'/);
+  assert.match(pwa, /version: 'R159'/);
   assert.match(index, /data-testid="external-ai-action-backdrop"/);
   assert.match(index, /setShowExternalAiActionOverlay\(true\)/);
   for (const name of ['claim.html', 'detailed-view.html']) {

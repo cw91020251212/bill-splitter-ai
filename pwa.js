@@ -40,7 +40,7 @@
     window.navigator.standalone === true;
 
   /* ---------------------------------------------------------- service worker */
-  var RELEASE_VERSION = 'v167-visible-r158-20261116';
+  var RELEASE_VERSION = 'v168-visible-r159-20261116';
   var waitingWorker = null;
   var registrationPromise = null;
   var reloadRequested = false;
@@ -136,7 +136,7 @@
   }
 
   // The app can save its active draft before invoking this explicit navigation.
-  window.BillAppUpdate = { version: 'R158', reloadLatest: reloadLatest };
+  window.BillAppUpdate = { version: 'R159', reloadLatest: reloadLatest };
 
   if ('serviceWorker' in navigator && SECURE) {
     afterLoad(function () { registerWorker(); });

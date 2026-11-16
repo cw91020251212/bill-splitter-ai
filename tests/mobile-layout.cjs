@@ -52,6 +52,10 @@ async function assertOriginalFirstStep(page, width, height) {
     ariaLabel: node.getAttribute('aria-label'),
     width: Math.round(node.getBoundingClientRect().width),
     height: Math.round(node.getBoundingClientRect().height),
+    pillRadius: getComputedStyle(node).borderTopLeftRadius,
+    number: node.children[0].innerText.trim(),
+    numberBorder: getComputedStyle(node.children[0]).borderTopWidth,
+    numberRadius: getComputedStyle(node.children[0]).borderTopLeftRadius,
     inline: Math.abs(
       (node.children[0].getBoundingClientRect().top + node.children[0].getBoundingClientRect().height / 2) -
       (node.children[1].getBoundingClientRect().top + node.children[1].getBoundingClientRect().height / 2)
@@ -59,13 +63,15 @@ async function assertOriginalFirstStep(page, width, height) {
   })));
   assert.deepEqual(navInfo.map(item => item.label), expectedSteps, `${label}: concise step labels are present`);
   assert.equal(navInfo.length, 4, `${label}: all four step buttons remain`);
-  assert(navInfo.every(item => item.width >= 44 && item.height >= 44 && item.height <= 56), `${label}: buttons are touchable and compact (${JSON.stringify(navInfo)})`);
+  assert.deepEqual(navInfo.map(item => item.number), ['1', '2', '3', '4'], `${label}: every stage uses a plain numeral`);
+  assert(navInfo.every(item => item.numberBorder === '0px' && item.numberRadius === '0px'), `${label}: numeral badges are removed (${JSON.stringify(navInfo)})`);
+  assert(navInfo.every(item => item.width >= 44 && item.height === 32 && item.pillRadius === '999px'), `${label}: four wide pill buttons remain clickable at 32px high (${JSON.stringify(navInfo)})`);
   assert(navInfo.every((item, index) => item.inline && item.ariaLabel.includes(expectedAriaSteps[index])), `${label}: number and short label share a row while full labels remain accessible (${JSON.stringify(navInfo)})`);
   const progress = page.getByTestId('step-progress');
   assert.equal(await progress.isVisible(), true, `${label}: progress bar is visible above the step buttons`);
   assert.equal(await progress.getAttribute('aria-valuenow'), '1', `${label}: progress bar reports Step 1`);
   assert.equal(await progress.getAttribute('aria-valuemax'), '4', `${label}: progress bar reports four total stages`);
-  assert.equal(await page.getByTestId('app-version-label').innerText(), 'R146', `${label}: R146 is loaded`);
+  assert.equal(await page.getByTestId('app-version-label').innerText(), 'R159', `${label}: R159 is loaded`);
 
   const keyCard = page.locator('.api-settings-card');
   assert.equal(await keyCard.isVisible(), true, `${label}: original Key status/action card is visible`);

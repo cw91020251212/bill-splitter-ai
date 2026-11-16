@@ -8,7 +8,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="分帳管家">
-  <link rel="manifest" href="./manifest.webmanifest?v=v167-visible-r158-20261116">
+  <link rel="manifest" href="./manifest.webmanifest?v=v168-visible-r159-20261116">
   <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" sizes="180x180">
   <link rel="icon" href="./icons/icon.svg" type="image/svg+xml">
   <link rel="icon" href="./icons/favicon-32.png" type="image/png" sizes="32x32">
@@ -142,11 +142,11 @@
   ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
   ::-webkit-scrollbar-thumb:hover { background: #64748b; }
   </style>
-  <link rel="stylesheet" href="./theme.css?v=v167-visible-r158-20261116">
+  <link rel="stylesheet" href="./theme.css?v=v168-visible-r159-20261116">
   <link rel="stylesheet" href="./tutorial.css?v=v86-free-models-only">
   <!-- R157: on-device sensitive-data masking before receipt sharing. -->
-  <meta name="bill-app-release" content="v167-visible-r158-20261116">
-  <script defer src="./pwa.js?v=v167-visible-r158-20261116"></script>
+  <meta name="bill-app-release" content="v168-visible-r159-20261116">
+  <script defer src="./pwa.js?v=v168-visible-r159-20261116"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
@@ -158,9 +158,9 @@
   <script src="./receipt-adjustments.js"></script>
   <script src="./share-config.js"></script>
   <script src="./bill-share-api.js?v=v107-code-focus-visible"></script>
-  <script src="./sync-diagnostics.js?v=v167-visible-r158-20261116"></script>
-  <script src="./card-redaction.js?v=v167-visible-r158-20261116"></script>
-  <script src="./card-share-review.js?v=v167-visible-r158-20261116"></script>
+  <script src="./sync-diagnostics.js?v=v168-visible-r159-20261116"></script>
+  <script src="./card-redaction.js?v=v168-visible-r159-20261116"></script>
+  <script src="./card-share-review.js?v=v168-visible-r159-20261116"></script>
   <script src="./exchange-rates.js?v=v90-cross-currency-settlement"></script>
     <script src="./tutorial.js?v=v139-gemini-button-order-20261113"></script>
   <script type="text/babel">
@@ -5122,7 +5122,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                 <div className="flex items-center gap-2 sm:gap-3 shrink-0">
                   <img src="./icons/icon.svg" alt="" width="48" height="48" className="app-brand-icon shrink-0" />
                   <div>
-                  <h1 className="text-xl font-extrabold text-slate-800 tracking-tight"><span className="app-brand-name block sm:inline whitespace-nowrap">{tr("分帳管家")}</span><span className="inline-flex items-baseline gap-1 sm:ml-1 whitespace-nowrap"><span data-testid="app-pro-label" className="text-brand-600 font-black">Pro</span><span data-testid="app-version-label" className="text-[10px] leading-3 font-semibold tracking-normal text-brand-700">R158</span></span></h1>
+                  <h1 className="text-xl font-extrabold text-slate-800 tracking-tight"><span className="app-brand-name block sm:inline whitespace-nowrap">{tr("分帳管家")}</span><span className="inline-flex items-baseline gap-1 sm:ml-1 whitespace-nowrap"><span data-testid="app-pro-label" className="text-brand-600 font-black">Pro</span><span data-testid="app-version-label" className="text-[10px] leading-3 font-semibold tracking-normal text-brand-700">R159</span></span></h1>
                   </div>
               </div>
               <div className="header-actions relative flex items-center gap-1.5 sm:gap-2">
@@ -5192,7 +5192,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                     const active = step === num;
                     return (
                       <button key={num} type="button" data-step={num} aria-current={active ? 'step' : undefined} aria-label={bi(`第 ${num} 步：${STEP_ACCESSIBLE_LABELS[i]}`, `Step ${num}: ${STEP_LABELS_EN[i]}`)} onClick={() => jumpToStep(num)} className={`flex min-h-[44px] min-w-0 flex-row justify-center items-center gap-1.5 rounded-lg px-1.5 py-1 text-center transition-all active:scale-[0.98] outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-1 ${active ? 'text-brand-700 bg-brand-50' : done ? 'text-slate-600 hover:bg-slate-100' : 'text-slate-400'}`}>
-                        <span className={`w-5 h-5 shrink-0 rounded-full flex items-center justify-center text-[11px] font-bold border ${active ? 'bg-brand-600 border-brand-600 text-white shadow-sm' : done ? 'bg-white border-brand-500 text-brand-600' : 'bg-white border-slate-400 text-slate-500'}`}>{done ? '✓' : num}</span>
+                        <span className="step-nav-number shrink-0 text-sm font-bold leading-none">{num}</span>
                         <span className="whitespace-nowrap text-xs font-semibold leading-tight">{bi(label, STEP_LABELS_EN[i])}</span>
                       </button>
                     );
