@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#145c3b">
   <title>朋友埋單表格</title>
   <style>
-    :root { color-scheme:light; --ink:#1d2a21; --muted:#68756c; --line:#68766c; --separator:#9aa69c; --paper:#f4f6f2; --green:#176a43; --green-dark:#104d31; --green-pale:#e7f2e9; --brand-action-gradient:linear-gradient(to top right,#104d31 0%,#1e7138 55%,#3b7f24 100%); --brand-action-gradient-hover:linear-gradient(to top right,#0d452b 0%,#1b6732 55%,#34721f 100%); --brand-action-gradient-active:linear-gradient(to top right,#083b25 0%,#16592e 55%,#28651d 100%); --shadow:0 12px 32px rgba(27,54,35,.07); --readable-text-scale:1; }
+    :root { color-scheme:light; --ink:#1d2a21; --muted:#68756c; --line:#68766c; --separator:#9aa69c; --paper:#f4f6f2; --green:#176a43; --green-dark:#104d31; --green-pale:#e7f2e9; --brand-action-gradient:linear-gradient(to top right,#0f6b42 0%,#127a4c 55%,#188657 100%); --brand-action-gradient-hover:linear-gradient(to top right,#0e653f 0%,#117449 55%,#167f53 100%); --brand-action-gradient-active:linear-gradient(to top right,#0c5b38 0%,#106a43 55%,#14774e 100%); --shadow:0 12px 32px rgba(27,54,35,.07); --readable-text-scale:1; }
     * { box-sizing:border-box; }
     body { margin:0; background:var(--paper); color:var(--ink); font:calc(16px * var(--readable-text-scale, 1))/1.5 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
     body.small-text { --readable-text-scale:.9; }
@@ -21,7 +21,7 @@
     .font-size-toggle { display:flex; flex:0 0 auto; align-items:center; gap:2px; min-height:44px; padding:2px; border:1px solid #b9cbbb; border-radius:9px; background:#f7faf7; }
     .font-size-option { min-width:38px; min-height:38px; padding:5px 7px; border:1px solid transparent; border-radius:6px; background:transparent; color:var(--green-dark); font:inherit; font-size:14px; font-weight:850; cursor:pointer; }
     .font-size-option[aria-pressed="true"] { border-color:var(--green-dark); background:var(--green-dark); color:#fff; }
-    body:not(.shared-link-view) .font-size-option[aria-pressed="true"] { border-color:#104d31; background-color:#1e7138; background-image:var(--brand-action-gradient); color:#fff; }
+    body:not(.shared-link-view) .font-size-option[aria-pressed="true"] { border-color:#0f6b42; background-color:#127a4c; background-image:var(--brand-action-gradient); color:#fff; }
     body:not(.shared-link-view) .font-size-option[aria-pressed="true"]:hover { background-image:var(--brand-action-gradient-hover); }
     body:not(.shared-link-view) .font-size-option[aria-pressed="true"]:active { background-image:var(--brand-action-gradient-active); }
     .font-size-option:focus-visible { outline:3px solid rgba(50,111,174,.55); outline-offset:1px; }
@@ -90,7 +90,7 @@
     #payment-recipient { color:#203729; font-size:calc((24px) * var(--readable-text-scale, 1)); font-weight:850; }
     .personal-breakdown .detail-list dt:last-of-type,.personal-breakdown .detail-list dd:last-of-type { color:var(--green-dark); font-weight:850; }
     .paid-notice-card { margin:0 0 18px; padding:16px 18px; }
-    .paid-notice-button { width:100%; min-height:48px; padding:10px 14px; border:1px solid #104d31; border-radius:11px; background-color:#1e7138; background-image:var(--brand-action-gradient); color:#fff; box-shadow:none; text-shadow:0 1px 1px rgba(0,0,0,.35); font:inherit; font-weight:800; cursor:pointer; transition:background-color .15s ease,transform .15s ease; }
+    .paid-notice-button { width:100%; min-height:48px; padding:10px 14px; border:1px solid #0f6b42; border-radius:11px; background-color:#127a4c; background-image:var(--brand-action-gradient); color:#fff; box-shadow:none; text-shadow:0 1px 1px rgba(0,0,0,.35); font:inherit; font-weight:800; cursor:pointer; transition:background-color .15s ease,transform .15s ease; }
     .paid-notice-button svg { color:#fff; stroke:#fff; filter:none; }
     .paid-notice-button:not(:disabled):hover { background-image:var(--brand-action-gradient-hover); }
     .paid-notice-button:not(:disabled):active { background-image:var(--brand-action-gradient-active); }
