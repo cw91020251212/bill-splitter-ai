@@ -230,23 +230,24 @@ body.bg-slate-50 { background: var(--page-grey); color: var(--ink); }
   #root .item-price-quantity-row > div:last-child { width: 100%; }
 }
 
-/* Primary actions and the brand: dark lower-left to light upper-right. */
+/* Primary actions: dark lower-left to fresh yellow-green upper-right. */
 :root {
-  --brand-action-gradient: linear-gradient(to top right, #49b88b 0%, #80d9aa 55%, #b5f2cf 100%);
-  --brand-action-gradient-hover: linear-gradient(to top right, #3fa87d 0%, #72d29f 55%, #a5e9c1 100%);
-  --brand-action-gradient-active: linear-gradient(to top right, #35996f 0%, #62c68f 55%, #95ddb4 100%);
-  --brand-action-gradient-dark: linear-gradient(to top right, #034f3a 0%, #047857 55%, #0c8260 100%);
-  --brand-action-gradient-dark-hover: linear-gradient(to top right, #02442f 0%, #035f45 55%, #0a7254 100%);
-  --brand-action-gradient-dark-active: linear-gradient(to top right, #023b29 0%, #034f3a 55%, #04694b 100%);
+  --brand-action-gradient: linear-gradient(to top right, #104d31 0%, #1e7138 55%, #3b7f24 100%);
+  --brand-action-gradient-hover: linear-gradient(to top right, #0d452b 0%, #1b6732 55%, #34721f 100%);
+  --brand-action-gradient-active: linear-gradient(to top right, #083b25 0%, #16592e 55%, #28651d 100%);
+  --brand-action-gradient-dark: var(--brand-action-gradient);
+  --brand-action-gradient-dark-hover: var(--brand-action-gradient-hover);
+  --brand-action-gradient-dark-active: var(--brand-action-gradient-active);
   --brand-wordmark-gradient: linear-gradient(to top right, #29835f 0%, #2a845f 55%, #2b8560 100%);
 }
-#root button.bg-brand-600:not(:disabled), #root .app-brand-icon {
+#root button.bg-brand-600:not(:disabled) {
   background-image: var(--brand-action-gradient);
-  background-color: #80d9aa;
-  border-color: #60b68d !important;
+  background-color: #1e7138;
+  border-color: #104d31 !important;
 }
-#root button.bg-brand-600:not(:disabled):hover { background-image: var(--brand-action-gradient); }
-/* The icon and primary actions share the same lighter directional green. */
+#root button.bg-brand-600:not(:disabled):hover { background-image: var(--brand-action-gradient-hover); }
+#root button.bg-brand-600:not(:disabled):active { background-image: var(--brand-action-gradient-active); }
+/* Keep the logo's original light mint gradient. */
 #root .app-brand-icon { background-image: linear-gradient(to top right, #49b88b 0%, #80d9aa 55%, #b5f2cf 100%); }
 #root .app-brand-name, #root [data-testid="app-pro-label"] { color: #29835f; }
 @supports ((-webkit-background-clip: text) or (background-clip: text)) {
@@ -502,13 +503,13 @@ body.bg-slate-50 { background: var(--page-grey); color: var(--ink); }
   --action-icon-shadow: drop-shadow(0 1px 1px rgba(17, 77, 49, .85)) drop-shadow(0 0 1px rgba(17, 77, 49, .65));
 }
 #root button.bg-brand-600:not(:disabled) {
-  color: #000;
+  color: #fff !important;
   font-weight: 700;
-  text-shadow: none;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, .35) !important;
 }
 #root button.bg-brand-600:not(:disabled) svg {
   color: #fff;
-  filter: var(--action-icon-shadow);
+  filter: none;
 }
 
 /* The top row keeps one compact menu beside the brand. */
@@ -943,17 +944,16 @@ body.bg-slate-50 { background: var(--page-grey); color: var(--ink); }
   box-shadow: 0 0 0 8px rgba(250, 204, 21, .3), 0 8px 20px rgba(0, 0, 0, .24) !important;
 }
 
-/* Light green-action fills keep black labels. Dark fills (host-primary and
-   green-action-dark) set their own white labels and are excluded here. */
+/* All enabled green actions use white labels on the darker gradient stops. */
 #root button.green-action:not(.green-action-dark):not(.host-primary):not(:disabled) {
-  color: #000 !important;
-  -webkit-text-fill-color: #000 !important;
-  text-shadow: none !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, .35) !important;
   box-shadow: none !important;
 }
 #root button.green-action:not(.green-action-dark):not(.host-primary):not(:disabled) svg {
-  color: #000 !important;
-  stroke: #000 !important;
+  color: #fff !important;
+  stroke: #fff !important;
   filter: none !important;
 }
 
@@ -982,8 +982,8 @@ body.bg-slate-50 { background: var(--page-grey); color: var(--ink); }
    (#29835f 4.66:1, #1d7349 5.83:1, #176a43 6.61:1). The shadow is a lift only.
    Non-host-primary actions in main stay white with a thin left edge. */
 #root button.host-primary.green-action:not(.green-action-dark):not(:disabled) {
-  background-image: linear-gradient(to top right, #176a43 0%, #1d7349 55%, #29835f 100%) !important;
-  background-color: #1d7349 !important;
+  background-image: var(--brand-action-gradient) !important;
+  background-color: #1e7138 !important;
   border-color: #104d31 !important;
   color: #fff !important;
   -webkit-text-fill-color: #fff !important;
@@ -991,12 +991,12 @@ body.bg-slate-50 { background: var(--page-grey); color: var(--ink); }
   box-shadow: none !important;
 }
 #root button.host-primary.green-action:not(.green-action-dark):not(:disabled):hover {
-  background-image: linear-gradient(to top right, #104d31 0%, #176a43 55%, #1d7349 100%) !important;
-  background-color: #176a43 !important;
+  background-image: var(--brand-action-gradient-hover) !important;
+  background-color: #1b6732 !important;
 }
 #root button.host-primary.green-action:not(.green-action-dark):not(:disabled):active {
-  background-image: linear-gradient(to top right, #064b35 0%, #104d31 55%, #176a43 100%) !important;
-  background-color: #104d31 !important;
+  background-image: var(--brand-action-gradient-active) !important;
+  background-color: #16592e !important;
 }
 #root button.host-primary.green-action:not(.green-action-dark):not(:disabled) svg {
   color: #fff !important;
@@ -1005,16 +1005,16 @@ body.bg-slate-50 { background: var(--page-grey); color: var(--ink); }
 }
 #root main button.green-action:not(.host-primary):not(:disabled) {
   background-image: var(--brand-action-gradient) !important;
-  background-color: #80d9aa !important;
-  border-color: #60b68d !important;
-  color: #123d2c !important;
-  -webkit-text-fill-color: #123d2c !important;
-  text-shadow: none !important;
+  background-color: #1e7138 !important;
+  border-color: #104d31 !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, .35) !important;
   box-shadow: inset 3px 0 0 #8a8176 !important;
 }
 #root main button.green-action:not(.host-primary):not(:disabled) svg {
-  color: #123d2c !important;
-  stroke: #123d2c !important;
+  color: #fff !important;
+  stroke: #fff !important;
   filter: none !important;
 }
 #root main button.green-action:not(.host-primary):not(:disabled):hover {
@@ -1114,12 +1114,15 @@ html[lang="en"] #root [data-testid="open-free-key-settings"] span {
 #root .choice-divider::before,
 #root .choice-divider::after { background: #e0d8cc; }
 #root button[data-ui-language][aria-pressed="true"] {
-  background: #047857 !important;
+  background-image: var(--brand-action-gradient) !important;
+  background-color: #1e7138 !important;
   color: #fff !important;
   -webkit-text-fill-color: #fff !important;
   text-shadow: 0 1px 1px rgba(0, 0, 0, .35) !important;
   box-shadow: none !important;
 }
+#root button[data-ui-language][aria-pressed="true"]:hover:not(:disabled) { background-image: var(--brand-action-gradient-hover) !important; }
+#root button[data-ui-language][aria-pressed="true"]:active:not(:disabled) { background-image: var(--brand-action-gradient-active) !important; }
 
 #root .provider-status {
   display: flex;
@@ -1417,3 +1420,23 @@ html[lang="en"] #root [data-testid="open-free-key-settings"] span {
   font-size: 0.8125rem !important;
   line-height: 1.1 !important;
 }
+
+/* Green controls outside the primary Button component use the same direction. */
+#root button[class*="bg-emerald-700"]:not(:disabled) {
+  background-image: var(--brand-action-gradient) !important;
+  background-color: #1e7138 !important;
+  border-color: #104d31 !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, .35) !important;
+}
+#root button[class*="bg-emerald-700"]:not(:disabled):hover { background-image: var(--brand-action-gradient-hover) !important; }
+#root button[class*="bg-emerald-700"]:not(:disabled):active { background-image: var(--brand-action-gradient-active) !important; }
+#root:has(main[data-current-step="4"]) .step-nav button:nth-child(4) {
+  background-image: var(--brand-action-gradient) !important;
+  background-color: #1e7138 !important;
+  border-color: #104d31 !important;
+  color: #fff !important;
+}
+#root:has(main[data-current-step="4"]) .step-nav button:nth-child(4):hover { background-image: var(--brand-action-gradient-hover) !important; }
+#root:has(main[data-current-step="4"]) .step-nav button:nth-child(4):active { background-image: var(--brand-action-gradient-active) !important; }
