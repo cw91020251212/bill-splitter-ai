@@ -41,27 +41,27 @@ function relativeLuminance(hex) {
 }
 
 function colorStops(value, name) {
-  const match = value.match(new RegExp(`--${name}:\\s*linear-gradient\\(to top right,\\s*(#[0-9a-f]{6}) 0%,\\s*(#[0-9a-f]{6}) 55%,\\s*(#[0-9a-f]{6}) 100%\\)`, 'i'));
+  const match = value.match(new RegExp(`--${name}:\\s*linear-gradient\\(to top right,\\s*(#[0-9a-f]{6}) 0%,\\s*(#[0-9a-f]{6}) 45%,\\s*(#[0-9a-f]{6}) 100%\\)`, 'i'));
   assert.ok(match, `${name} must be an explicit lower-left to upper-right three-stop gradient`);
   return match.slice(1).map(color => color.toLowerCase());
 }
 
 const expectedGradients = {
-  'brand-action-gradient': ['#0f6b42', '#26763d', '#4b8028'],
-  'brand-action-gradient-hover': ['#0e653f', '#24713a', '#47802b'],
-  'brand-action-gradient-active': ['#0c5b38', '#216b31', '#407227'],
+  'brand-action-gradient': ['#043d2b', '#34701a', '#5a7f0b'],
+  'brand-action-gradient-hover': ['#033b29', '#306519', '#55790a'],
+  'brand-action-gradient-active': ['#012e20', '#2a5a15', '#55790a'],
 };
 
-test('green action gradients match the logo green and keep white labels accessible', () => {
-  assert.ok(icon.includes('stop-color="#0f6b42"'), 'the button gradient starts with the logo background green');
-  assert.ok(icon.includes('fill="#127a4c"'), 'the button gradient uses the logo mark green');
+test('green action gradients run dark-green lower-left to yellow-green upper-right with white text and shadows', () => {
+  assert.ok(icon.includes('stop-color="#0f6b42"'), 'the original logo background green stays unchanged');
+  assert.ok(icon.includes('fill="#127a4c"'), 'the original logo mark green stays unchanged');
 
   for (const [name, expected] of Object.entries(expectedGradients)) {
     const colors = colorStops(theme, name);
     const [dark, middle, bright] = colors;
     const minimumEndpointDistance = name === 'brand-action-gradient' ? 65 : 55;
     assert.ok(Math.hypot(...rgb(dark).map((channel, index) => rgb(bright)[index] - channel)) >= minimumEndpointDistance, `${name} must stay visibly distinct; R166's near-flat stops are below this threshold`);
-    assert.deepEqual(colors, expected, `${name} must stay in the logo-green family`);
+    assert.deepEqual(colors, expected, `${name} must visibly run from dark lower-left green to light yellow-green upper-right`);
     for (const color of colors) {
       assert.ok(contrastWithWhite(color) >= 4.5, `${name} ${color} vs white must meet 4.5:1`);
     }
@@ -74,19 +74,34 @@ test('green action gradients match the logo green and keep white labels accessib
   const language = lastRuleBlock(theme, '#root button[data-ui-language][aria-pressed="true"] {');
   const activeStep = lastRuleBlock(theme, '#root:has(main[data-current-step="4"]) .step-nav button:nth-child(4) {');
   assert.match(host, /background-image:\s*var\(--brand-action-gradient\)/);
-  assert.match(host, /background-color:\s*#26763d/);
-  assert.match(host, /border-color:\s*#0f6b42/);
+  assert.match(host, /background-color:\s*#34701a/);
+  assert.match(host, /border-color:\s*#043d2b/);
+  assert.match(host, /color:\s*#fff\s*!important/);
+  assert.match(host, /text-shadow:\s*0 1px 2px/);
+  assert.match(host, /box-shadow:\s*var\(--brand-action-shadow\)\s*!important/);
   assert.match(light, /background-image:\s*var\(--brand-action-gradient\)/);
   assert.match(light, /color:\s*#fff\s*!important/);
+  assert.match(light, /text-shadow:\s*0 1px 2px/);
+  assert.match(light, /box-shadow:[^;]*var\(--brand-action-shadow\)/);
   assert.match(language, /background-image:\s*var\(--brand-action-gradient\)/);
+  assert.match(language, /box-shadow:\s*var\(--brand-action-shadow\)/);
   assert.match(theme, /button\[class\*="bg-emerald-700"\][\s\S]*?background-image:\s*var\(--brand-action-gradient\)/);
   assert.match(activeStep, /background-image:\s*var\(--brand-action-gradient\)/);
+  assert.match(activeStep, /box-shadow:\s*var\(--brand-action-shadow\)/);
+  assert.match(theme, /#root:has\(main\[data-current-step="4"\]\) \.step-nav button:nth-child\(4\) > span:first-child \{ color: #fff !important; \}/);
+  assert.match(theme, /#root button\.bg-brand-600:not\(:disabled\)[\s\S]*?text-shadow:\s*0 1px 2px/);
   assert.match(theme, /#root \.app-brand-icon \{ background-image: linear-gradient\(to top right, #49b88b 0%, #80d9aa 55%, #b5f2cf 100%\); \}/);
   assert.match(theme, /button\.green-action:disabled[\s\S]*?background-image:\s*none\s*!important/);
 });
 
 test('the detail page uses the same directional gradient only for green controls', () => {
   assert.match(detailed, /\.paid-notice-button\s*\{[^}]*background-image:\s*var\(--brand-action-gradient\)/);
+  assert.match(detailed, /\.paid-notice-button\s*\{[^}]*box-shadow:\s*var\(--brand-action-shadow\)/);
   assert.match(detailed, /\.font-size-option\[aria-pressed="true"\]\s*\{[^}]*background-image:\s*var\(--brand-action-gradient\)/);
+  assert.match(detailed, /\.font-size-option\[aria-pressed="true"\]\s*\{[^}]*text-shadow:/);
   assert.match(detailed, /body\.shared-link-view \.paid-notice-button\s*\{[^}]*background-image:\s*linear-gradient/);
+  const sharedBlueButton = detailed.match(/body\.shared-link-view \.paid-notice-button\s*\{[^}]*\}/)?.[0] || '';
+  assert.match(sharedBlueButton, /background-image:linear-gradient\(to top right,#326fae 0%,#3978b6 60%,#4c8dc9 100%\)/);
+  assert.match(sharedBlueButton, /box-shadow:none/);
+  assert.match(sharedBlueButton, /text-shadow:0 1px 1px rgba\(0,0,0,\.35\)/);
 });

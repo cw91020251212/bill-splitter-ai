@@ -56,6 +56,25 @@ R104 下述八字强制密碼介面測試是歷史規格；R105 新介面以 `fr
 
 R103 免密碼的 `friend-revisions.cjs` 及舊 relay 收帳 mock 不代表 R104 驗收，修改流程以 `friend-password.cjs` 為準。純數量比對仍可用 `node --test claim-revisions.test.cjs`。認帳等待頁的「返回主程式」只會開啟同源主程式；帳單仍保存在各自裝置，不會因連結而分享給朋友。
 
+## R168 綠色操作按鈕像素回歸
+
+`green-action-gradient.test.cjs` 檢查色票方向、白字對比與按鈕陰影；`green-action-gradient-rendered.cjs` 以 Chromium 取樣實際按鈕 PNG 的左下與右上角，覆蓋原本綠色的主操作按鈕及只在結果狀態變綠的第 4 步頁籤在正常、hover、按下時的渲染，並測 320／390／430px。中性灰色步驟頁籤保持不變。測試會確認本機伺服器提供 R168 資源標記，避免接到舊預覽。請在未佔用的埠（例如 4220）啟動靜態伺服器：
+
+```sh
+python3 -m http.server 4220 --bind 127.0.0.1
+```
+
+另一個終端執行：
+
+```sh
+PLAYWRIGHT_MODULE=/path/to/playwright \
+CHROMIUM_EXECUTABLE=/usr/bin/chromium \
+BASE_URL=http://127.0.0.1:4220/ \
+SCREENSHOT_DIR=/tmp/green-gradient-r168 \
+node tests/green-action-gradient-rendered.cjs
+node --test tests/green-action-gradient.test.cjs tests/google-ai-button.test.cjs
+```
+
 ## 執行
 
 先準備 Node.js、Playwright 及 Chromium。在專案根目錄啟動靜態伺服器：

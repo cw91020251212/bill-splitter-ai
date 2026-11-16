@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#145c3b">
   <title>朋友埋單表格</title>
   <style>
-    :root { color-scheme:light; --ink:#1d2a21; --muted:#68756c; --line:#68766c; --separator:#9aa69c; --paper:#f4f6f2; --green:#176a43; --green-dark:#104d31; --green-pale:#e7f2e9; --brand-action-gradient:linear-gradient(to top right,#0f6b42 0%,#26763d 55%,#4b8028 100%); --brand-action-gradient-hover:linear-gradient(to top right,#0e653f 0%,#24713a 55%,#47802b 100%); --brand-action-gradient-active:linear-gradient(to top right,#0c5b38 0%,#216b31 55%,#407227 100%); --shadow:0 12px 32px rgba(27,54,35,.07); --readable-text-scale:1; }
+    :root { color-scheme:light; --ink:#1d2a21; --muted:#68756c; --line:#68766c; --separator:#9aa69c; --paper:#f4f6f2; --green:#176a43; --green-dark:#104d31; --green-pale:#e7f2e9; --brand-action-gradient:linear-gradient(to top right,#043d2b 0%,#34701a 45%,#5a7f0b 100%); --brand-action-gradient-hover:linear-gradient(to top right,#033b29 0%,#306519 45%,#55790a 100%); --brand-action-gradient-active:linear-gradient(to top right,#012e20 0%,#2a5a15 45%,#55790a 100%); --brand-action-shadow:0 2px 0 rgba(1,46,32,.58),0 5px 10px rgba(1,46,32,.22); --brand-action-shadow-hover:0 2px 0 rgba(1,46,32,.60),0 7px 14px rgba(1,46,32,.28); --brand-action-shadow-active:0 1px 0 rgba(1,46,32,.62),0 2px 5px rgba(1,46,32,.20); --shadow:0 12px 32px rgba(27,54,35,.07); --readable-text-scale:1; }
     * { box-sizing:border-box; }
     body { margin:0; background:var(--paper); color:var(--ink); font:calc(16px * var(--readable-text-scale, 1))/1.5 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
     body.small-text { --readable-text-scale:.9; }
@@ -20,10 +20,9 @@
     .edit-claims-button:disabled { opacity:.55; cursor:not-allowed; }
     .font-size-toggle { display:flex; flex:0 0 auto; align-items:center; gap:2px; min-height:44px; padding:2px; border:1px solid #b9cbbb; border-radius:9px; background:#f7faf7; }
     .font-size-option { min-width:38px; min-height:38px; padding:5px 7px; border:1px solid transparent; border-radius:6px; background:transparent; color:var(--green-dark); font:inherit; font-size:14px; font-weight:850; cursor:pointer; }
-    .font-size-option[aria-pressed="true"] { border-color:var(--green-dark); background:var(--green-dark); color:#fff; }
-    body:not(.shared-link-view) .font-size-option[aria-pressed="true"] { border-color:#0f6b42; background-color:#26763d; background-image:var(--brand-action-gradient); color:#fff; }
-    body:not(.shared-link-view) .font-size-option[aria-pressed="true"]:hover { background-image:var(--brand-action-gradient-hover); }
-    body:not(.shared-link-view) .font-size-option[aria-pressed="true"]:active { background-image:var(--brand-action-gradient-active); }
+    .font-size-option[aria-pressed="true"] { border-color:#043d2b; background-color:#34701a; background-image:var(--brand-action-gradient); color:#fff; text-shadow:0 1px 2px rgba(0,0,0,.42); box-shadow:var(--brand-action-shadow); }
+    .font-size-option[aria-pressed="true"]:hover { background-image:var(--brand-action-gradient-hover); box-shadow:var(--brand-action-shadow-hover); }
+    .font-size-option[aria-pressed="true"]:active { background-image:var(--brand-action-gradient-active); box-shadow:var(--brand-action-shadow-active); }
     .font-size-option:focus-visible { outline:3px solid rgba(50,111,174,.55); outline-offset:1px; }
     .local-tag { padding:4px 9px; border:1px solid #cee0d0; border-radius:99px; background:#f5faf5; color:#4b6652; font-size:calc((11px) * var(--readable-text-scale, 1)); font-weight:700; white-space:nowrap; }
     main { width:min(100% - 36px,1000px); margin:26px auto 64px; }
@@ -90,11 +89,11 @@
     #payment-recipient { color:#203729; font-size:calc((24px) * var(--readable-text-scale, 1)); font-weight:850; }
     .personal-breakdown .detail-list dt:last-of-type,.personal-breakdown .detail-list dd:last-of-type { color:var(--green-dark); font-weight:850; }
     .paid-notice-card { margin:0 0 18px; padding:16px 18px; }
-    .paid-notice-button { width:100%; min-height:48px; padding:10px 14px; border:1px solid #0f6b42; border-radius:11px; background-color:#26763d; background-image:var(--brand-action-gradient); color:#fff; box-shadow:none; text-shadow:0 1px 1px rgba(0,0,0,.35); font:inherit; font-weight:800; cursor:pointer; transition:background-color .15s ease,transform .15s ease; }
+    .paid-notice-button { width:100%; min-height:48px; padding:10px 14px; border:1px solid #043d2b; border-radius:11px; background-color:#34701a; background-image:var(--brand-action-gradient); color:#fff; box-shadow:var(--brand-action-shadow); text-shadow:0 1px 2px rgba(0,0,0,.42); font:inherit; font-weight:800; cursor:pointer; transition:background-color .15s ease,transform .15s ease; }
     .paid-notice-button svg { color:#fff; stroke:#fff; filter:none; }
-    .paid-notice-button:not(:disabled):hover { background-image:var(--brand-action-gradient-hover); }
-    .paid-notice-button:not(:disabled):active { background-image:var(--brand-action-gradient-active); }
-    .paid-notice-button:focus-visible { outline:3px solid #173c2e; outline-offset:3px; box-shadow:none; }
+    .paid-notice-button:not(:disabled):hover { background-image:var(--brand-action-gradient-hover); box-shadow:var(--brand-action-shadow-hover); }
+    .paid-notice-button:not(:disabled):active { background-image:var(--brand-action-gradient-active); box-shadow:var(--brand-action-shadow-active); }
+    .paid-notice-button:focus-visible { outline:3px solid #173c2e; outline-offset:3px; box-shadow:var(--brand-action-shadow-hover); }
     .paid-notice-button:disabled { opacity:.58; cursor:not-allowed; }
     .paid-notice-status { margin:7px 0 0; color:#3d5d47; font-size:calc((12px) * var(--readable-text-scale, 1)); }
     .item-subline { margin-top:4px; color:#718076; font-size:calc((12px) * var(--readable-text-scale, 1)); font-weight:500; }
@@ -155,11 +154,12 @@
     body.shared-link-view .paid-notice-button {
       border-color:#334e68; background-color:#3978b6;
       background-image:linear-gradient(to top right,#326fae 0%,#3978b6 60%,#4c8dc9 100%);
+      box-shadow:none; text-shadow:0 1px 1px rgba(0,0,0,.35);
     }
     body.shared-link-view .paid-notice-button:not(:disabled):hover {
       background-image:linear-gradient(to top right,#2d68a3 0%,#3674ae 60%,#4683bd 100%);
     }
-    body.shared-link-view .paid-notice-button:focus-visible { outline-color:#326fae; }
+    body.shared-link-view .paid-notice-button:focus-visible { outline-color:#326fae; box-shadow:none; }
     body.shared-link-view .paid-notice-status,
     body.shared-link-view .personal-breakdown .detail-list dt:last-of-type,
     body.shared-link-view .personal-breakdown .detail-list dd:last-of-type { color:#326fae; }
