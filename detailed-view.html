@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#145c3b">
   <title>朋友埋單表格</title>
   <style>
-    :root { color-scheme:light; --ink:#1d2a21; --muted:#68756c; --line:#68766c; --separator:#9aa69c; --paper:#f4f6f2; --green:#176a43; --green-dark:#104d31; --green-pale:#e7f2e9; --brand-action-gradient:linear-gradient(to top right,#0F6B42 0%,#1F9A64 50%,#62D29A 100%); --brand-action-gradient-hover:linear-gradient(to top right,#0F6B42 0%,#1F9A64 50%,#62D29A 100%); --brand-action-gradient-active:linear-gradient(to top right,#0F6B42 0%,#1F9A64 50%,#62D29A 100%); --brand-action-shadow:0 2px 0 rgba(1,46,32,.58),0 5px 10px rgba(1,46,32,.22); --brand-action-shadow-hover:0 2px 0 rgba(1,46,32,.60),0 7px 14px rgba(1,46,32,.28); --brand-action-shadow-active:0 1px 0 rgba(1,46,32,.62),0 2px 5px rgba(1,46,32,.20); --shadow:0 12px 32px rgba(27,54,35,.07); --readable-text-scale:1; }
+    :root { color-scheme:light; --ink:#1d2a21; --muted:#68756c; --line:#68766c; --separator:#9aa69c; --paper:#f4f6f2; --green:#176a43; --green-dark:#104d31; --green-pale:#e7f2e9; --brand-action-gradient:linear-gradient(to top right,#043d2b 0%,#34701a 45%,#5a7f0b 100%); --brand-action-gradient-hover:linear-gradient(to top right,#033b29 0%,#306519 45%,#55790a 100%); --brand-action-gradient-active:linear-gradient(to top right,#012e20 0%,#2a5a15 45%,#55790a 100%); --brand-action-shadow:0 2px 0 rgba(1,46,32,.58),0 5px 10px rgba(1,46,32,.22); --brand-action-shadow-hover:0 2px 0 rgba(1,46,32,.60),0 7px 14px rgba(1,46,32,.28); --brand-action-shadow-active:0 1px 0 rgba(1,46,32,.62),0 2px 5px rgba(1,46,32,.20); --shadow:0 12px 32px rgba(27,54,35,.07); --readable-text-scale:1; }
     * { box-sizing:border-box; }
     body { margin:0; background:var(--paper); color:var(--ink); font:calc(16px * var(--readable-text-scale, 1))/1.5 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
     body.small-text { --readable-text-scale:.9; }
@@ -20,7 +20,7 @@
     .edit-claims-button:disabled { opacity:.55; cursor:not-allowed; }
     .font-size-toggle { display:flex; flex:0 0 auto; align-items:center; gap:2px; min-height:44px; padding:2px; border:1px solid #b9cbbb; border-radius:9px; background:#f7faf7; }
     .font-size-option { min-width:38px; min-height:38px; padding:5px 7px; border:1px solid transparent; border-radius:6px; background:transparent; color:var(--green-dark); font:inherit; font-size:14px; font-weight:850; cursor:pointer; }
-    .font-size-option[aria-pressed="true"] { border-color:#043d2b; background-color:#0F6B42; background-image:var(--brand-action-gradient); color:#fff; text-shadow:0 1px 2px rgba(0,0,0,.42); box-shadow:var(--brand-action-shadow); }
+    .font-size-option[aria-pressed="true"] { border-color:#043d2b; background-color:#34701a; background-image:var(--brand-action-gradient); color:#fff; text-shadow:0 1px 2px rgba(0,0,0,.42); box-shadow:var(--brand-action-shadow); }
     .font-size-option[aria-pressed="true"]:hover { background-image:var(--brand-action-gradient-hover); box-shadow:var(--brand-action-shadow-hover); }
     .font-size-option[aria-pressed="true"]:active { background-image:var(--brand-action-gradient-active); box-shadow:var(--brand-action-shadow-active); }
     .font-size-option:focus-visible { outline:3px solid rgba(50,111,174,.55); outline-offset:1px; }
@@ -89,7 +89,7 @@
     #payment-recipient { color:#203729; font-size:calc((24px) * var(--readable-text-scale, 1)); font-weight:850; }
     .personal-breakdown .detail-list dt:last-of-type,.personal-breakdown .detail-list dd:last-of-type { color:var(--green-dark); font-weight:850; }
     .paid-notice-card { margin:0 0 18px; padding:16px 18px; }
-    .paid-notice-button { width:100%; min-height:48px; padding:10px 14px; border:1px solid #043d2b; border-radius:11px; background-color:#0F6B42; background-image:var(--brand-action-gradient); color:#fff; box-shadow:var(--brand-action-shadow); text-shadow:0 1px 2px rgba(0,0,0,.42); font:inherit; font-weight:800; cursor:pointer; transition:background-color .15s ease,transform .15s ease; }
+    .paid-notice-button { width:100%; min-height:48px; padding:10px 14px; border:1px solid #043d2b; border-radius:11px; background-color:#34701a; background-image:var(--brand-action-gradient); color:#fff; box-shadow:var(--brand-action-shadow); text-shadow:0 1px 2px rgba(0,0,0,.42); font:inherit; font-weight:800; cursor:pointer; transition:background-color .15s ease,transform .15s ease; }
     .paid-notice-button svg { color:#fff; stroke:#fff; filter:none; }
     .paid-notice-button:not(:disabled):hover { background-image:var(--brand-action-gradient-hover); box-shadow:var(--brand-action-shadow-hover); }
     .paid-notice-button:not(:disabled):active { background-image:var(--brand-action-gradient-active); box-shadow:var(--brand-action-shadow-active); }

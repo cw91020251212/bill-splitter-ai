@@ -107,12 +107,10 @@ async function assertRenderedDirection(button, label) {
   const contrastLL = whiteContrast(lowerLeft), contrastUR = whiteContrast(upperRight);
   const metrics = JSON.stringify({ lowerLeft, upperRight, luminanceDelta: +(upperL - lowerL).toFixed(3), contrastLL: +contrastLL.toFixed(2), contrastUR: +contrastUR.toFixed(2), hueLL: +hue(lowerLeft).toFixed(1), hueUR: +hue(upperRight).toFixed(1) });
   assert.ok(lowerL + 0.07 <= upperL, `${label}: rendered lower-left must be visibly darker than upper-right (${metrics})`);
-  const channelIncrease = upperRight.map((value, index) => value - lowerLeft[index]);
-  assert.ok(channelIncrease.every(value => value >= 35), `${label}: all rendered RGB channels must brighten toward the upper-right (${metrics})`);
+  assert.ok(hue(lowerLeft) >= 115 && hue(lowerLeft) <= 175, `${label}: lower-left pixel must be dark green (${metrics})`);
+  assert.ok(hue(upperRight) >= 50 && hue(upperRight) <= 100, `${label}: upper-right pixel must be light yellow-green (${metrics})`);
+  assert.ok(contrastLL >= 4.5 && contrastUR >= 4.5, `${label}: rendered white text must have at least 4.5:1 contrast at both ends (${metrics})`);
   assert.match(style.image, /^linear-gradient\(/, `${label}: clickable green button must render a gradient`);
-  for (const stop of ['rgb(15, 107, 66) 0%', 'rgb(31, 154, 100) 50%', 'rgb(98, 210, 154) 100%']) {
-    assert.ok(style.image.includes(stop), `${label}: computed gradient must include the original logo stop ${stop} (${style.image})`);
-  }
   assert.equal(style.color, 'rgb(255, 255, 255)', `${label}: button label must be white`);
   assert.equal(style.textFill, 'rgb(255, 255, 255)', `${label}: rendered text fill must be white`);
   assert.notEqual(style.textShadow, 'none', `${label}: white label must retain its shadow`);
@@ -137,10 +135,10 @@ async function assertRenderedDirection(button, label) {
       });
       await page.goto(base.toString(), { waitUntil: 'networkidle', timeout: 60000 });
       const release = await page.locator('meta[name="bill-app-release"]').getAttribute('content');
-      assert.equal(release, 'v179-logo-gradient-r169-20261116', `served page must be the R169 candidate, not a stale local preview (${release})`);
+      assert.equal(release, 'v178-directional-green-r168-20261116', `served page must be the R168 candidate, not a stale local preview (${release})`);
       const themeHref = await page.locator('link[rel="stylesheet"][href*="theme.css"]').getAttribute('href');
-      assert.ok(themeHref?.includes(release), `theme.css must use the same R169 cache token (${themeHref})`);
-      assert.equal(await page.getByTestId('app-version-label').innerText(), 'R169');
+      assert.ok(themeHref?.includes(release), `theme.css must use the same R168 cache token (${themeHref})`);
+      assert.equal(await page.getByTestId('app-version-label').innerText(), 'R168');
       await page.getByTestId('receipt-camera').waitFor({ state: 'visible', timeout: 60000 });
       await page.screenshot({ path: path.join(screenshotDir, `green-actions-${width}.png`), fullPage: true, animations: 'disabled' });
 

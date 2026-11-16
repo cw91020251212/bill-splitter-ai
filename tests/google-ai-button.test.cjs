@@ -5,7 +5,7 @@ const path = require('node:path');
 
 const root = path.join(__dirname, '..');
 const read = name => fs.readFileSync(path.join(root, name), 'utf8');
-const release = 'v179-logo-gradient-r169-20261116';
+const release = 'v178-directional-green-r168-20261116';
 
 function linearize(channel) {
   const value = channel / 255;
@@ -66,7 +66,7 @@ test('Google AI button keeps a green host-primary default without repainting eve
   assert.match(host, /color:\s*#fff\s*!important/);
   assert.match(host, /text-shadow:\s*0 1px 2px rgba\(0,\s*0,\s*0,\s*\.42\)\s*!important/);
   assert.doesNotMatch(host, /color:\s*#000/);
-  assert.match(host, /background-color:\s*#0f6b42\s*!important/i);
+  assert.match(host, /background-color:\s*#34701a\s*!important/);
   assert.doesNotMatch(css, /background-color:\s*#2f9d68\s*!important/);
   assert.match(hostSvg, /color:\s*#fff\s*!important/);
   assert.match(hintRule, /color:\s*#fff\s*!important/);
@@ -74,7 +74,7 @@ test('Google AI button keeps a green host-primary default without repainting eve
   assert.doesNotMatch(hintRule, /#123d2c/);
   assert.match(disabledHint, /color:\s*#5c6560\s*!important/);
   assert.match(light, /background-image:\s*var\(--brand-action-gradient\)\s*!important/);
-  assert.match(light, /background-color:\s*#0f6b42\s*!important/i);
+  assert.match(light, /background-color:\s*#34701a\s*!important/);
   assert.match(light, /(?:^|\n)\s*color:\s*#fff\s*!important/);
   for (const [label, block] of [['host-primary', host], ['host-primary hover', ruleBlock(css, '#root button.host-primary.green-action:not(.green-action-dark):not(:disabled):hover')], ['host-primary active', ruleBlock(css, '#root button.host-primary.green-action:not(.green-action-dark):not(:disabled):active')]]) {
     const fills = fillColors(block);
@@ -141,14 +141,14 @@ test('PWA icon launches navigate an existing app window to the main app start UR
   assert.match(claim, manifestLink);
 });
 
-test('R179 cache epoch and R169 app version are consistent on the host shell', () => {
+test('R178 cache epoch and R168 app version are consistent on the host shell', () => {
   const index = read('index.html');
   const sw = read('sw.js');
   const pwa = read('pwa.js');
   assert.match(index, new RegExp(`theme\\.css\\?v=${release}`));
   assert.match(index, new RegExp(`pwa\\.js\\?v=${release}`));
   assert.match(index, new RegExp(`name="bill-app-release" content="${release}"`));
-  assert.match(index, />R169</);
+  assert.match(index, />R168</);
   assert.doesNotMatch(index, /v142-dark-green-white-label-20261114/);
   assert.doesNotMatch(index, />R148</);
   assert.doesNotMatch(index, />R147</);
@@ -156,7 +156,7 @@ test('R179 cache epoch and R169 app version are consistent on the host shell', (
   assert.doesNotMatch(index, />R142</);
   assert.match(sw, new RegExp(`const CACHE_VERSION = '${release}'`));
   assert.match(pwa, new RegExp(`var RELEASE_VERSION = '${release}'`));
-  assert.match(pwa, /version: 'R169'/);
+  assert.match(pwa, /version: 'R168'/);
   assert.match(index, /data-testid="external-ai-action-backdrop"/);
   assert.match(index, /setShowExternalAiActionOverlay\(true\)/);
   for (const name of ['claim.html', 'detailed-view.html']) {
