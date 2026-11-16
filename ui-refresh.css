@@ -498,3 +498,143 @@ body :is(h1, h2, h3, h4, h5, h6, label, button, input, textarea, select,
 @media (prefers-reduced-motion: reduce) {
   #root *, #root *::before, #root *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
+
+/* ---------- 14. 老花眼友善：放大所有過細字體 ----------
+   目標：手機上最小可讀字體 15px。
+   只改 font-size，不改佈局、顏色、邏輯。 */
+
+/* --- 主辦人 App (index.html) --- */
+
+/* 版本號 R170 等：10px → 14px */
+#root [data-testid="app-version-label"] {
+  font-size: 14px !important;
+  line-height: 1.2 !important;
+}
+
+/* 步驟導航欄數字和標籤：13px → 15px */
+#root .step-nav-number {
+  font-size: 15px !important;
+}
+#root .step-nav-label,
+#root .whitespace-nowrap.text-xs.font-semibold.leading-tight {
+  font-size: 15px !important;
+}
+
+/* 系統提示條（展開前的摘要）：13px → 15px */
+#root [data-testid="system-hint-summary"],
+#root .system-hint-summary {
+  font-size: 15px !important;
+}
+#root .system-hint-summary .text-sm {
+  font-size: 15px !important;
+}
+
+/* Step 1 說明文字：12px → 15px */
+#root .step1-compact-copy {
+  font-size: 15px !important;
+  line-height: 1.5 !important;
+}
+#root [data-testid="step-one-methods-intro"] {
+  font-size: 15px !important;
+}
+#root [data-testid="external-ai-provider-examples"] {
+  font-size: 15px !important;
+}
+
+/* Step 1 「讀唔到？手動輸入。」：12px → 15px */
+#root .step1-compact-copy.text-sm.text-slate-600 {
+  font-size: 15px !important;
+}
+
+/* 系統提示條內的子文字：13px → 15px */
+#root .text-sm.text-slate-600.font-medium,
+#root .text-sm.text-slate-700,
+#root .font-bold.text-sm.leading-tight.line-clamp-1 {
+  font-size: 15px !important;
+}
+
+/* input/select 的 placeholder 和標籤：確保 ≥15px */
+#root input::placeholder,
+#root select,
+#root input[type="text"],
+#root input[type="number"] {
+  font-size: 15px !important;
+}
+
+/* 按鈕內的輔助說明文字（hint）：11px → 14px */
+#root .host-action-hint,
+#root [data-testid="calculate-split-hint"] {
+  font-size: 14px !important;
+}
+
+/* 所有 text-xs 在主程式手機版放大到 15px */
+@media (max-width: 639px) {
+  #root .text-xs { font-size: 15px !important; line-height: 1.4 !important; }
+  #root .text-\[10px\] { font-size: 14px !important; }
+  #root .text-\[11px\] { font-size: 14px !important; }
+  #root .text-sm { font-size: 15px !important; line-height: 1.5 !important; }
+}
+
+/* --- 朋友認帳頁 (claim.html) --- */
+
+/* 品牌名：13px → 16px */
+body:not(.shared-link-view) .brand,
+body:not(.shared-link-view) .brand span {
+  font-size: 16px !important;
+}
+
+/* 標籤文字：12px → 15px */
+body:not(.shared-link-view) .field-label {
+  font-size: 15px !important;
+}
+
+/* 文字按鈕（隨機、忘記認證碼）：10-12px → 15px */
+body:not(.shared-link-view) .text-action {
+  font-size: 15px !important;
+}
+
+/* 提示文字：13px → 15px */
+body:not(.shared-link-view) .hint,
+body:not(.shared-link-view) .identity-hint {
+  font-size: 15px !important;
+  line-height: 1.5 !important;
+}
+
+/* 認帳示例文字：13px → 15px */
+body:not(.shared-link-view) .claim-examples-content,
+body:not(.shared-link-view) .claim-examples-content p {
+  font-size: 15px !important;
+  line-height: 1.5 !important;
+}
+
+/* 計數「N 項」：13px → 15px */
+body:not(.shared-link-view) .count {
+  font-size: 15px !important;
+}
+
+/* 朋友頁 input 字體確保 ≥15px */
+body:not(.shared-link-view) input,
+body:not(.shared-link-view) select,
+body:not(.shared-link-view) textarea,
+body:not(.shared-link-view) input::placeholder {
+  font-size: 15px !important;
+}
+
+/* 朋友頁所有 12-13px 文字在手機版放大 */
+@media (max-width: 639px) {
+  body:not(.shared-link-view) .text-xs { font-size: 15px !important; }
+  body:not(.shared-link-view) .text-sm { font-size: 15px !important; }
+  body:not(.shared-link-view) .text-\[10px\] { font-size: 14px !important; }
+  body:not(.shared-link-view) .text-\[11px\] { font-size: 14px !important; }
+  body:not(.shared-link-view) .text-\[12px\] { font-size: 15px !important; }
+  body:not(.shared-link-view) .text-\[13px\] { font-size: 15px !important; }
+}
+
+/* --- 結果頁 (detailed-view.html) --- */
+/* 結果頁本身字體已 ≥14px，但仍確保手機版 ≥15px */
+@media (max-width: 639px) {
+  body.shared-link-view .text-xs { font-size: 15px !important; }
+  body.shared-link-view .text-sm { font-size: 15px !important; }
+  body.shared-link-view .text-\[12px\] { font-size: 15px !important; }
+  body.shared-link-view .text-\[13px\] { font-size: 15px !important; }
+}
