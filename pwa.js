@@ -40,7 +40,7 @@
     window.navigator.standalone === true;
 
   /* ---------------------------------------------------------- service worker */
-  var RELEASE_VERSION = 'v182-step-one-method-badges-20261117';
+  var RELEASE_VERSION = 'v183-step-one-method-layout-20261117';
   var waitingWorker = null;
   var registrationPromise = null;
   var reloadRequested = false;

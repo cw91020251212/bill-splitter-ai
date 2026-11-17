@@ -617,8 +617,15 @@ body.bg-slate-50 { background: var(--page-grey); color: var(--ink); }
 /* Keep Step 1 method labels compact while respecting the user's chosen text scale. */
 #root main .step1-compact-heading { font-size: calc(16px * var(--app-font-scale, 1)) !important; line-height: 1.35; }
 #root main .step1-compact-copy { font-size: calc(12px * var(--app-font-scale, 1)) !important; line-height: 1.45; }
-#root main .step1-method-count { color: #047857; font-size: 2em !important; font-weight: 800; line-height: 1; vertical-align: -0.15em; }
+#root main .step1-method-count { color: #1d4e89; font-size: 2em !important; font-weight: 800; line-height: 1; vertical-align: baseline; margin-inline: 0.15em; }
 #root main .step1-method-badge { box-sizing: border-box; display: inline-flex; flex: 0 0 22px; width: 22px; height: 22px; align-items: center; justify-content: center; border: 1px solid #047857; border-radius: 9999px; background: #e6f4ee; color: #065f46; font-size: 13px; font-weight: 800; line-height: 1; }
+#root main .step1-method-panel { position: relative; }
+#root main .step1-method-panel > .step1-method-badge { position: absolute; inset-block-start: 10px; inset-inline-start: 10px; z-index: 2; }
+#root main .step1-method-copy { padding-left: 40px; }
+#root main .step1-manual-method { padding-left: 40px !important; }
+@media (max-width: 639px) {
+  #root main .step1-upload-method-heading { margin-top: 24px !important; }
+}
 #root .language-switch-control { background: #e4eaf3; border-color: #7d93b3; }
 #root .app-header-row .header-actions > div > #header-action-menu-toggle {
   min-height: 38px; border-width: 1px; border-color: #064b35; background-color: #047857;
