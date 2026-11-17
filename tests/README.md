@@ -58,7 +58,7 @@ R103 免密碼的 `friend-revisions.cjs` 及舊 relay 收帳 mock 不代表 R104
 
 ## R170 樣式、快取與手機可讀性回歸
 
-`green-action-gradient.test.cjs` 對照原始 `icons/icon.svg` 色標與陰影，並盤點結果頁所有啟用綠色主操作：建立／更新同一連結、WhatsApp、簡版／詳細版分享、兩個補認帳入口、保存及新單。Chromium 渲染測試以合成報告展開結果面板，在 320／390／430px 檢查有／無連結兩種狀態下每顆按鈕的原標誌漸層方向與正常、hover、按下像素；主選單仍維持 R170 實心綠色，結果步驟標籤一般狀態仍為淡綠底／深色字。原標誌最亮色的白字對比低於 4.5:1；測試記錄左下／右上實際像素及對比，不以 4.5:1 拒絕這組既有色標。`claim-mobile-accessibility.cjs` 在 390／320px 驗證提示至少 15px、文字操作觸控區至少 44px、提示及選中藍色按鈕對比至少 4.5:1，並檢查補加朋友控制項。`google-ai-button.test.cjs` 驗證 R185 service worker cache epoch、各頁共用樣式查詢版本及 R170 app 標籤。此前無認領案例逾時是測試先等第三步、未按實際流程由第二步前進所致，不是頁面卡住；測試現改為點擊真實導覽並固定供應 runtime。請在未佔用的埠（例如 4220）啟動靜態伺服器：
+`green-action-gradient.test.cjs` 對照原始 `icons/icon.svg` 色標與陰影，並盤點結果頁所有啟用綠色主操作：建立／更新同一連結、WhatsApp、簡版／詳細版分享、兩個補認帳入口、保存及新單。Chromium 渲染測試以合成報告展開結果面板，在 320／390／430px 檢查有／無連結兩種狀態下每顆按鈕的原標誌漸層方向與正常、hover、按下像素；主選單仍維持 R170 實心綠色，結果步驟標籤一般狀態仍為淡綠底／深色字。原標誌最亮色的白字對比低於 4.5:1；測試記錄左下／右上實際像素及對比，不以 4.5:1 拒絕這組既有色標。`claim-mobile-accessibility.cjs` 在 390／320px 驗證提示至少 15px、文字操作觸控區至少 44px、提示及選中藍色按鈕對比至少 4.5:1，並檢查補加朋友控制項。`choice-divider-geometry.cjs` 以 Chromium 驗證翻譯按鈕之間「或」分隔列在 320／390／430px 的上下留白相等；`google-ai-button.test.cjs` 驗證 R186 service worker cache epoch、各頁共用樣式查詢版本及 R170 app 標籤。此前無認領案例逾時是測試先等第三步、未按實際流程由第二步前進所致，不是頁面卡住；測試現改為點擊真實導覽並固定供應 runtime。請在未佔用的埠（例如 4220）啟動靜態伺服器：
 
 ```sh
 python3 -m http.server 4220 --bind 127.0.0.1

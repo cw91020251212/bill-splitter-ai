@@ -8,7 +8,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="分帳管家">
-  <link rel="manifest" href="./manifest.webmanifest?v=v185-step4-green-actions-20261117">
+  <link rel="manifest" href="./manifest.webmanifest?v=v186-divider-centered-20261117">
   <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" sizes="180x180">
   <link rel="icon" href="./icons/icon.svg" type="image/svg+xml">
   <link rel="icon" href="./icons/favicon-32.png" type="image/png" sizes="32x32">
@@ -142,13 +142,13 @@
     ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
     ::-webkit-scrollbar-thumb:hover { background: #64748b; }
   </style>
-  <link rel="stylesheet" href="./theme.css?v=v185-step4-green-actions-20261117">
+  <link rel="stylesheet" href="./theme.css?v=v186-divider-centered-20261117">
   <link rel="stylesheet" href="./tutorial.css?v=v86-free-models-only">
   <!-- UI Refresh: visual-only layer. Remove this line to restore the original appearance. -->
-  <link rel="stylesheet" href="./ui-refresh.css?v=v185-step4-green-actions-20261117">
+  <link rel="stylesheet" href="./ui-refresh.css?v=v186-divider-centered-20261117">
   <!-- R157: on-device sensitive-data masking before receipt sharing. -->
-  <meta name="bill-app-release" content="v185-step4-green-actions-20261117">
-  <script defer src="./pwa.js?v=v185-step4-green-actions-20261117"></script>
+  <meta name="bill-app-release" content="v186-divider-centered-20261117">
+  <script defer src="./pwa.js?v=v186-divider-centered-20261117"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
@@ -160,9 +160,9 @@
   <script src="./receipt-adjustments.js"></script>
   <script src="./share-config.js"></script>
   <script src="./bill-share-api.js?v=v107-code-focus-visible"></script>
-  <script src="./sync-diagnostics.js?v=v185-step4-green-actions-20261117"></script>
-  <script src="./card-redaction.js?v=v185-step4-green-actions-20261117"></script>
-  <script src="./card-share-review.js?v=v185-step4-green-actions-20261117"></script>
+  <script src="./sync-diagnostics.js?v=v186-divider-centered-20261117"></script>
+  <script src="./card-redaction.js?v=v186-divider-centered-20261117"></script>
+  <script src="./card-share-review.js?v=v186-divider-centered-20261117"></script>
   <script src="./exchange-rates.js?v=v90-cross-currency-settlement"></script>
     <script src="./tutorial.js?v=v139-gemini-button-order-20261113"></script>
   <script type="text/babel">
@@ -5376,7 +5376,6 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                     </button>
                     <div className="mt-4 space-y-3">
                       <Button data-testid="copy-prompt-open-google-ai" variant="primary" className="host-primary w-full !text-sm" disabled={tutorialDemo || isAnalyzing} onClick={copyPromptAndOpenGoogleAI}><Icon path={icons.send} size={18}/><span className="google-ai-label"><span className="google-ai-lead">{bi('複製提示詞並開啟 ', 'Copy prompt & open ')}</span><span className="google-ai-brand"><span className="gw gw-blue">G</span><span className="gw gw-red">o</span><span className="gw gw-yellow">o</span><span className="gw gw-blue">g</span><span className="gw gw-green">l</span><span className="gw gw-red">e</span><span className="gw gw-ai"> AI</span></span></span></Button>
-                    </div>
                     {showReceiptTextImport && (
                       <div id="receipt-text-import-content" data-testid="receipt-text-import-content" className="space-y-3">
                         <ChoiceDivider />
@@ -5399,6 +5398,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                         {uploadError && <p data-testid="receipt-text-import-error" role="alert" className="step1-compact-copy rounded-lg border border-amber-400 bg-amber-50 p-2 text-xs text-amber-900">{typeof uploadError === 'string' ? tr(uploadError) : tr(uploadError.sub || uploadError.main || '讀取失敗')}</p>}
                       </div>
                     )}
+                    </div>
                 </Card>
 
                 <ChoiceDivider />

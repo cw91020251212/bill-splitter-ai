@@ -13,7 +13,7 @@
  * Bump CACHE_VERSION whenever you edit index.html so returning users get the
  * new build instead of the cached one.
  */
-const CACHE_VERSION = 'v185-step4-green-actions-20261117';
+const CACHE_VERSION = 'v186-divider-centered-20261117';
 const SHELL_CACHE = `bill-splitter-shell-${CACHE_VERSION}`;
 const ASSET_CACHE = `bill-splitter-assets-${CACHE_VERSION}`;
 const CDN_CACHE = `bill-splitter-cdn-${CACHE_VERSION}`;

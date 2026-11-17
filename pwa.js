@@ -40,7 +40,7 @@
     window.navigator.standalone === true;
 
   /* ---------------------------------------------------------- service worker */
-  var RELEASE_VERSION = 'v185-step4-green-actions-20261117';
+  var RELEASE_VERSION = 'v186-divider-centered-20261117';
   var waitingWorker = null;
   var registrationPromise = null;
   var reloadRequested = false;
