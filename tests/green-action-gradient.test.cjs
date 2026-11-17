@@ -7,6 +7,7 @@ const root = path.join(__dirname, '..');
 const theme = fs.readFileSync(path.join(root, 'theme.css'), 'utf8');
 const detailed = fs.readFileSync(path.join(root, 'detailed-view.html'), 'utf8');
 const refresh = fs.readFileSync(path.join(root, 'ui-refresh.css'), 'utf8');
+const app = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 const icon = fs.readFileSync(path.join(root, 'icons/icon.svg'), 'utf8').toLowerCase();
 
 function ruleBlock(source, selector) {
@@ -85,6 +86,30 @@ test('green action gradients reuse the original logo stops in every state and ke
   assert.match(brandButton, expectedFallback);
   assert.match(theme, /#root \.app-brand-icon \{ background-image: linear-gradient\(to top right, #49b88b 0%, #80d9aa 55%, #b5f2cf 100%\); \}/, 'do not repaint the static logo surface');
   assert.match(theme, /button\.green-action:disabled[\s\S]*?background-image:\s*none\s*!important/);
+});
+
+test('enabled green actions in result step 4 reuse the exact logo gradient', () => {
+  const ids = ['publish-same-link-result', 'friend-whatsapp-share', 'create-friend-share-link'];
+  const resultsStep = app.indexOf('{/* Step 4: Results */}');
+  for (const id of ids) {
+    const index = app.indexOf(`data-testid="${id}"`, resultsStep);
+    assert.ok(index >= 0, `${id} is a real fourth-step control`);
+    assert.match(app.slice(index, index + 500), /className="[^"]*green-action-dark/, `${id} retains the existing green-action class`);
+  }
+
+  const resultActions = ruleBlock(refresh, '#root main[data-current-step="4"] [data-testid="results-step"] button:is(');
+  for (const id of ids) assert.ok(resultActions.includes(`[data-testid="${id}"]`), `result-step override includes ${id}`);
+  assert.match(resultActions, /:not\(:disabled\)/, 'disabled controls are excluded');
+  assert.match(resultActions, /background-image:\s*var\(--brand-action-gradient\)\s*!important/);
+  assert.match(resultActions, expectedFallback);
+  assert.match(resultActions, /color:\s*#fff\s*!important/);
+  assert.match(resultActions, /text-shadow:\s*0 1px 2px rgba\(0,\s*0,\s*0,\s*\.42\)\s*!important/);
+  assert.match(resultActions, /box-shadow:\s*var\(--brand-action-shadow\)\s*!important/);
+
+  const resultHover = ruleBlock(refresh, '#root main[data-current-step="4"] [data-testid="results-step"] button:is([data-testid="publish-same-link-result"], [data-testid="friend-whatsapp-share"], [data-testid="create-friend-share-link"]):not(:disabled):hover {');
+  const resultActive = ruleBlock(refresh, '#root main[data-current-step="4"] [data-testid="results-step"] button:is([data-testid="publish-same-link-result"], [data-testid="friend-whatsapp-share"], [data-testid="create-friend-share-link"]):not(:disabled):active {');
+  assert.match(resultHover, /background-image:\s*var\(--brand-action-gradient-hover\)\s*!important/);
+  assert.match(resultActive, /background-image:\s*var\(--brand-action-gradient-active\)\s*!important/);
 });
 
 test('the detail page uses the exact logo gradient only for green controls and preserves the blue exception', () => {

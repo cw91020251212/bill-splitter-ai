@@ -170,12 +170,40 @@ async function assertRenderedSoftActiveStep(button, label) {
 }
 
 (async () => {
+  function resultDraft(withSession = false) {
+    const item = { id: '01', name: '原有帳單項目', original: 'Original item', price: '99', total: 99, totalQty: null, unit: '' };
+    const data = {
+      step: 4, claimItemIdVersion: 2, legacyClaimReviewRequired: false, items: [item], readReceipt: true,
+      taxAmount: '9.9', taxNote: '原有備註', friendsReplies: '姓名：原有朋友\n01 = 1', payer: '原有墊支人',
+      detectedCurrency: 'HKD', currency: 'HKD', taxSplitMethod: 'equal', paymentMethods: ['現金'],
+      reconciliation: null, isSaved: false, includeReceiptImages: false, detailLang: 'full', pendingReceiptShare: false,
+      claimRoom: null, claimInboxSeen: [], claimLinkShared: true,
+      results: {
+        calculationVersion: 3,
+        personTotals: { '原有朋友': { items: [{ ...item, amount: 99, qty: 1, totalClaimed: 1 }], adjustments: [], subtotal: 99, discount: 0, tax: 9.9, sourceTotal: 108.9, total: 108.9 } },
+        totalItemsCost: 99, itemsSubtotal: 99, discountAmount: 0, taxAmount: 9.9, sourceBillTotal: 108.9,
+        billTotal: 108.9, sourceCurrency: 'HKD', sourceTotal: 108.9, exchangeRate: { rate: 1, date: '2026-11-17' },
+        exchangeRateDate: '2026-11-17', exchangeProvider: 'test', settlementRoundingAdjustmentUnits: 0,
+        reconciliationAllocations: [], date: '2026-11-17', currency: 'HKD'
+      },
+      claimSession: null
+    };
+    if (withSession) {
+      const id = 'A'.repeat(22);
+      data.claimSession = {
+        id, writeToken: 'B'.repeat(43), expiresAt: Date.now() + 7 * 24 * 60 * 60 * 1000, ttlDays: '7',
+        link: `https://example.invalid/claim.html?session=${id}`
+      };
+    }
+    return { schema: 1, assetRevision: 'green-action-gradient-result-test', hasAssets: false, data };
+  }
   fs.mkdirSync(screenshotDir, { recursive: true });
   const browser = await chromium.launch({ headless: true, executablePath: process.env.CHROMIUM_EXECUTABLE || undefined, args: ['--no-sandbox'] });
   try {
     for (const width of widths) {
       const context = await browser.newContext({ viewport: { width, height: 844 }, deviceScaleFactor: 1, locale: 'zh-HK' });
       const page = await context.newPage();
+      await page.route('**/api/shares**', route => route.abort('blockedbyclient'));
       await page.goto(new URL('tests/README.md', base).toString(), { waitUntil: 'domcontentloaded' });
       await page.evaluate(() => {
         localStorage.clear();
@@ -186,7 +214,7 @@ async function assertRenderedSoftActiveStep(button, label) {
       });
       await page.goto(base.toString(), { waitUntil: 'networkidle', timeout: 60000 });
       const release = await page.locator('meta[name="bill-app-release"]').getAttribute('content');
-      assert.equal(release, 'v183-step-one-method-layout-20261117', `served page must be the R170 candidate, not a stale local preview (${release})`);
+      assert.equal(release, 'v184-result-share-gradient-20261117', `served page must be the current result-step candidate, not a stale local preview (${release})`);
       const themeHref = await page.locator('link[rel="stylesheet"][href*="theme.css"]').getAttribute('href');
       assert.ok(themeHref?.includes(release), `theme.css must use the same R170 cache token (${themeHref})`);
       assert.equal(await page.getByTestId('app-version-label').innerText(), 'R170');
@@ -253,6 +281,43 @@ async function assertRenderedSoftActiveStep(button, label) {
       await page.mouse.move(0, 0);
       await page.mouse.up();
       console.log(`${resultLabel}: normal ${resultNormal}; hover ${resultHover}; pressed ${resultPressed}`);
+
+      for (const withSession of [false, true]) {
+        await page.goto(new URL('tests/README.md', base).toString(), { waitUntil: 'domcontentloaded' });
+        await page.evaluate(record => {
+          localStorage.clear();
+          sessionStorage.clear();
+          localStorage.setItem('billSplitterActiveDraftV1', JSON.stringify(record));
+          localStorage.setItem('billSplitterFirstVisitVideoHubSeenV1', '1');
+          localStorage.setItem('billSplitterLanguage', 'zh-HK');
+          localStorage.setItem('billSplitterHistory', '[]');
+        }, resultDraft(withSession));
+        await page.goto(base.toString(), { waitUntil: 'networkidle', timeout: 60000 });
+        await page.waitForFunction(() => document.querySelector('#root main[data-current-step="4"] [data-testid="results-step"]'), null, { timeout: 60000 });
+        const actionIds = withSession
+          ? ['publish-same-link-result', 'friend-whatsapp-share']
+          : ['create-friend-share-link'];
+        if (withSession) await page.getByTestId('friend-share-ready').waitFor({ state: 'visible', timeout: 15000 });
+        for (const id of actionIds) {
+          const button = page.getByTestId(id);
+          await button.waitFor({ state: 'visible', timeout: 15000 });
+          assert.equal(await button.isEnabled(), true, `${width}px ${id} must be enabled in its matching share state`);
+          await page.mouse.move(0, 0);
+          const normal = await assertRenderedDirection(button, `${width}px ${id} normal`);
+          await button.hover();
+          const hover = await assertRenderedDirection(button, `${width}px ${id} hover`);
+          await page.mouse.down();
+          const active = await assertRenderedDirection(button, `${width}px ${id} pressed`);
+          await page.mouse.move(0, 0);
+          await page.mouse.up();
+          console.log(`${width}px ${id}: normal ${normal}; hover ${hover}; pressed ${active}`);
+        }
+        if (width === 390 && withSession) {
+          await page.mouse.move(0, 0);
+          await page.getByTestId('friend-network-option').scrollIntoViewIfNeeded();
+          await page.screenshot({ path: path.join(screenshotDir, 'result-step-share-actions-390.png'), fullPage: false, animations: 'disabled' });
+        }
+      }
       await context.close();
     }
   } finally {

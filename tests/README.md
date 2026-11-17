@@ -58,7 +58,7 @@ R103 免密碼的 `friend-revisions.cjs` 及舊 relay 收帳 mock 不代表 R104
 
 ## R170 樣式、快取與手機可讀性回歸
 
-`green-action-gradient.test.cjs` 對照原始 `icons/icon.svg` 的色標與陰影；主選單按鈕維持 R170 實心綠色，結果步驟標籤一般狀態為淡綠底／深色字，hover 和按下才使用原標誌漸層白字。原標誌最亮色的白字對比低於 4.5:1；Chromium 像素測試記錄左下／右上實際像素及對比，不以 4.5:1 拒絕這組既有操作按鈕色標。`claim-mobile-accessibility.cjs` 在 390／320px 驗證提示至少 15px、文字操作觸控區至少 44px、提示及選中藍色按鈕對比至少 4.5:1，並檢查補加朋友控制項。`google-ai-button.test.cjs` 驗證 R182 service worker cache epoch、各頁共用樣式查詢版本及 R170 app 標籤。此前無認領案例逾時是測試先等第三步、未按實際流程由第二步前進所致，不是頁面卡住；測試現改為點擊真實導覽並固定供應 runtime。請在未佔用的埠（例如 4220）啟動靜態伺服器：
+`green-action-gradient.test.cjs` 對照原始 `icons/icon.svg` 的色標與陰影，並鎖定結果步驟三個啟用中分享按鈕。Chromium 渲染測試載入真實第四步，在 320／390／430px 檢查建立連結、更新結果及 WhatsApp 按鈕的原標誌漸層方向和正常、hover、按下狀態；主選單仍維持 R170 實心綠色，結果步驟標籤一般狀態則保持淡綠底／深色字。原標誌最亮色的白字對比低於 4.5:1；像素測試記錄左下／右上實際像素及對比，不以 4.5:1 拒絕這組既有按鈕色標。`claim-mobile-accessibility.cjs` 在 390／320px 驗證提示至少 15px、文字操作觸控區至少 44px、提示及選中藍色按鈕對比至少 4.5:1，並檢查補加朋友控制項。`google-ai-button.test.cjs` 驗證 R184 service worker cache epoch、各頁共用樣式查詢版本及 R170 app 標籤。此前無認領案例逾時是測試先等第三步、未按實際流程由第二步前進所致，不是頁面卡住；測試現改為點擊真實導覽並固定供應 runtime。請在未佔用的埠（例如 4220）啟動靜態伺服器：
 
 ```sh
 python3 -m http.server 4220 --bind 127.0.0.1

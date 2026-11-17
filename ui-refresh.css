@@ -243,6 +243,27 @@ html[lang="en"] #root .app-header-row h1 { font-size: 17px !important; }
 #root main button.green-action:not(.host-primary):not(:disabled):hover {
   box-shadow: 0 4px 12px rgba(18, 102, 66, .18) !important;
 }
+#root main[data-current-step="4"] [data-testid="results-step"] button:is(
+  [data-testid="publish-same-link-result"],
+  [data-testid="friend-whatsapp-share"],
+  [data-testid="create-friend-share-link"]
+):not(:disabled) {
+  background-image: var(--brand-action-gradient) !important;
+  background-color: #0F6B42 !important;
+  border-color: #043d2b !important;
+  box-shadow: var(--brand-action-shadow) !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, .42) !important;
+}
+#root main[data-current-step="4"] [data-testid="results-step"] button:is([data-testid="publish-same-link-result"], [data-testid="friend-whatsapp-share"], [data-testid="create-friend-share-link"]):not(:disabled):hover {
+  background-image: var(--brand-action-gradient-hover) !important;
+  box-shadow: var(--brand-action-shadow-hover) !important;
+}
+#root main[data-current-step="4"] [data-testid="results-step"] button:is([data-testid="publish-same-link-result"], [data-testid="friend-whatsapp-share"], [data-testid="create-friend-share-link"]):not(:disabled):active {
+  background-image: var(--brand-action-gradient-active) !important;
+  box-shadow: var(--brand-action-shadow-active) !important;
+}
 #root button.green-action:disabled,
 #root button.bg-brand-600:disabled {
   background-image: none !important;

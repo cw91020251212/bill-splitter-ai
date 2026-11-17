@@ -23,7 +23,7 @@ const correctedItemPayload = Buffer.from(JSON.stringify([
 ])).toString('base64url');
 const claimUrl = new URL('./claim.html', base);
 claimUrl.searchParams.set('lang', 'zh-HK');
-claimUrl.searchParams.set('v', 'v133-compact-progress-20261111');
+claimUrl.searchParams.set('v', 'v139-gemini-button-order-20261113');
 claimUrl.searchParams.set('session', sessionId);
 const claimMetadata = {
   title: '週末聚餐', createdAt, expiresAt, customName: '週末聚餐', expiryDays: '7'
@@ -49,7 +49,7 @@ function draft() {
       ],
       readReceipt: true,
       taxAmount: '0', discountAmount: '0', taxNote: '', receiptAdjustmentDetails: null,
-      friendsReplies: '姓名：阿明\n01 = 1\n02 = 2\n姓名：小美\n01 = 1\n02 = 1\n姓名：阿強\n01 = 1\n02 = 3',
+      friendsReplies: '姓名：阿明\n01 = 1件\n02 = 2\n姓名：小美\n01 = 1件\n02 = 1\n姓名：阿強\n01 = 1件\n02 = 3',
       payer: '阿明', detectedCurrency: 'JPY', currency: 'HKD', taxSplitMethod: 'proportional',
       paymentMethods: ['現金'], results: null, reconciliation: null, isSaved: false,
       claimRoom: null, claimActivityName: '週末聚餐', claimExpiryDays: '7',
