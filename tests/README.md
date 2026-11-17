@@ -4,7 +4,7 @@
 
 ## R127 複查回歸
 
-`calculation-regressions.cjs` 驗證負／無效商品價與數量會在第二步顯示錯誤、舊草稿認領需要逐項核對、未提交的收據文字可在本機還原且新單確認後清除。`text-import.cjs` 覆蓋有效但有負稅／折扣／商品錯誤的 JSON 不會外送 AI。`recognition-retry-ui.cjs` 用 mock OCR 測試同名不同規格的順序變更會沿用正確認領編號；完全重複而無法唯一配對時，會改發新編號並停用舊認帳。它仍只使用 localhost／mock，不寫入正式或公開帳單 API。
+`calculation-regressions.cjs` 驗證負／無效商品價與數量會在第二步顯示錯誤、空白或只有姓名的認領會沿實際第二步→第三步流程被拒絕且不會產生報告、舊草稿認領需要逐項核對、未提交的收據文字可在本機還原且新單確認後清除。React／ReactDOM／Babel 先載入後由本機路由供應，避免瀏覽器初始化與 CDN 競態。`text-import.cjs` 覆蓋有效但有負稅／折扣／商品錯誤的 JSON 不會外送 AI。`recognition-retry-ui.cjs` 用 mock OCR 測試同名不同規格的順序變更會沿用正確認領編號；完全重複而無法唯一配對時，會改發新編號並停用舊認帳。它仍只使用 localhost／mock，不寫入正式或公開帳單 API。
 
 ## R116 四字元英數符號選填認證碼
 
@@ -56,9 +56,9 @@ R104 下述八字强制密碼介面測試是歷史規格；R105 新介面以 `fr
 
 R103 免密碼的 `friend-revisions.cjs` 及舊 relay 收帳 mock 不代表 R104 驗收，修改流程以 `friend-password.cjs` 為準。純數量比對仍可用 `node --test claim-revisions.test.cjs`。認帳等待頁的「返回主程式」只會開啟同源主程式；帳單仍保存在各自裝置，不會因連結而分享給朋友。
 
-## R170 原標誌色綠色操作按鈕像素回歸
+## R170 樣式、快取與手機可讀性回歸
 
-`green-action-gradient.test.cjs` 對照原始 `icons/icon.svg`，要求每個狀態都使用相同的 0%／50%／100% 色標 `#0F6B42`、`#1F9A64`、`#62D29A`，並保留白字陰影及按鈕陰影。原標誌最亮色的白字對比低於 4.5:1；Chromium 像素測試會記錄左下／右上實際像素及白字對比，不以 4.5:1 拒絕這組指定色標。測試涵蓋綠色主操作和只在結果狀態變綠的第 4 步頁籤於正常、hover、按下時的實際渲染，並測 320／390／430px；中性灰色頁籤與藍色按鈕保持不變。測試會確認本機伺服器提供 R170 資源標記，避免接到舊預覽。請在未佔用的埠（例如 4220）啟動靜態伺服器：
+`green-action-gradient.test.cjs` 對照原始 `icons/icon.svg` 的色標與陰影；主選單按鈕維持 R170 實心綠色，結果步驟標籤一般狀態為淡綠底／深色字，hover 和按下才使用原標誌漸層白字。原標誌最亮色的白字對比低於 4.5:1；Chromium 像素測試記錄左下／右上實際像素及對比，不以 4.5:1 拒絕這組既有操作按鈕色標。`claim-mobile-accessibility.cjs` 在 390／320px 驗證提示至少 15px、文字操作觸控區至少 44px、提示及選中藍色按鈕對比至少 4.5:1，並檢查補加朋友控制項。`google-ai-button.test.cjs` 驗證 R181 service worker cache epoch、各頁共用樣式查詢版本及 R170 app 標籤。此前無認領案例逾時是測試先等第三步、未按實際流程由第二步前進所致，不是頁面卡住；測試現改為點擊真實導覽並固定供應 runtime。請在未佔用的埠（例如 4220）啟動靜態伺服器：
 
 ```sh
 python3 -m http.server 4220 --bind 127.0.0.1
@@ -70,8 +70,9 @@ python3 -m http.server 4220 --bind 127.0.0.1
 PLAYWRIGHT_MODULE=/path/to/playwright \
 CHROMIUM_EXECUTABLE=/usr/bin/chromium \
 BASE_URL=http://127.0.0.1:4220/ \
-SCREENSHOT_DIR=/tmp/green-gradient-r170 \
+SCREENSHOT_DIR=/tmp/green-gradient-r181 \
 node tests/green-action-gradient-rendered.cjs
+PLAYWRIGHT_MODULE=/path/to/playwright CHROMIUM_EXECUTABLE=/usr/bin/chromium BASE_URL=http://127.0.0.1:4220/ node tests/claim-mobile-accessibility.cjs
 node --test tests/green-action-gradient.test.cjs tests/google-ai-button.test.cjs
 ```
 

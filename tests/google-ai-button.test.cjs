@@ -5,7 +5,7 @@ const path = require('node:path');
 
 const root = path.join(__dirname, '..');
 const read = name => fs.readFileSync(path.join(root, name), 'utf8');
-const release = 'v179-logo-gradient-r169-20261116';
+const release = 'v181-ui-refresh-r170-a11y-20261117';
 
 function linearize(channel) {
   const value = channel / 255;
@@ -141,14 +141,18 @@ test('PWA icon launches navigate an existing app window to the main app start UR
   assert.match(claim, manifestLink);
 });
 
-test('R179 cache epoch and R169 app version are consistent on the host shell', () => {
+test('R181 cache epoch and R170 app version are consistent across the app pages', () => {
   const index = read('index.html');
   const sw = read('sw.js');
   const pwa = read('pwa.js');
   assert.match(index, new RegExp(`theme\\.css\\?v=${release}`));
+  assert.match(index, new RegExp(`ui-refresh\\.css\\?v=${release}`));
   assert.match(index, new RegExp(`pwa\\.js\\?v=${release}`));
+  for (const script of ['sync-diagnostics', 'card-redaction', 'card-share-review']) {
+    assert.match(index, new RegExp(`${script}\\.js\\?v=${release}`));
+  }
   assert.match(index, new RegExp(`name="bill-app-release" content="${release}"`));
-  assert.match(index, />R169</);
+  assert.match(index, />R170</);
   assert.doesNotMatch(index, /v142-dark-green-white-label-20261114/);
   assert.doesNotMatch(index, />R148</);
   assert.doesNotMatch(index, />R147</);
@@ -156,17 +160,16 @@ test('R179 cache epoch and R169 app version are consistent on the host shell', (
   assert.doesNotMatch(index, />R142</);
   assert.match(sw, new RegExp(`const CACHE_VERSION = '${release}'`));
   assert.match(pwa, new RegExp(`var RELEASE_VERSION = '${release}'`));
-  assert.match(pwa, /version: 'R169'/);
+  assert.match(pwa, /version: 'R170'/);
   assert.match(index, /data-testid="external-ai-action-backdrop"/);
   assert.match(index, /setShowExternalAiActionOverlay\(true\)/);
   for (const name of ['claim.html', 'detailed-view.html']) {
     const text = read(name);
-    const withoutVersionedManifestLink = text.replace(/<link rel="manifest" href="\.\/manifest\.webmanifest\?v=[^"]+">/, '');
     assert.equal(text.includes('theme.css'), false, `${name} must not load host theme.css`);
     assert.equal(text.includes('pwa.js'), false, `${name} must not load host pwa.js`);
+    assert.match(text, new RegExp(`ui-refresh\\.css\\?v=${release}`), `${name} must use the current R170 stylesheet cache token`);
     assert.equal(text.includes('copy-prompt-open-google-ai'), false, name);
     assert.equal(text.includes('host-primary'), false, name);
-    assert.equal(withoutVersionedManifestLink.includes(release), false, name);
     assert.equal(text.includes('copyPromptAndOpenGoogleAI'), false, name);
     assert.equal(text.includes('icons.refresh'), false, name);
     assert.equal(text.includes('#ffe566'), false, name);

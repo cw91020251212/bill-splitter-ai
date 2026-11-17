@@ -120,6 +120,55 @@ async function assertRenderedDirection(button, label) {
   return metrics;
 }
 
+async function assertRenderedSolidBrand(button, label) {
+  const style = await button.evaluate(node => {
+    const css = getComputedStyle(node);
+    return { background: css.backgroundColor, image: css.backgroundImage, color: css.color, textFill: css.webkitTextFillColor, textShadow: css.textShadow, boxShadow: css.boxShadow };
+  });
+  const image = decodePng(await button.screenshot({ animations: 'disabled', caret: 'hide' }));
+  const insetX = Math.min(10, Math.max(7, Math.floor(image.width / 4)));
+  const insetY = Math.min(10, Math.max(7, Math.floor(image.height / 4)));
+  const lowerLeft = averagePatch(image, insetX, image.height - insetY);
+  const upperRight = averagePatch(image, image.width - insetX, insetY);
+  const metrics = JSON.stringify({ lowerLeft, upperRight, background: style.background, image: style.image });
+  assert.equal(style.background, 'rgb(29, 138, 91)', `${label}: R170 menu control uses the solid brand-green background (${metrics})`);
+  assert.equal(style.image, 'none', `${label}: R170 menu control intentionally has no gradient (${metrics})`);
+  for (const patch of [lowerLeft, upperRight]) {
+    assert.ok(patch.every((value, index) => Math.abs(value - [29, 138, 91][index]) <= 2), `${label}: rendered pixels match the solid brand-green background (${metrics})`);
+  }
+  assert.equal(style.color, 'rgb(255, 255, 255)', `${label}: button label must be white`);
+  assert.equal(style.textFill, 'rgb(255, 255, 255)', `${label}: rendered text fill must be white`);
+  assert.equal(style.textShadow, 'none', `${label}: R170 menu control intentionally has no text shadow`);
+  assert.notEqual(style.boxShadow, 'none', `${label}: menu control must retain its shadow`);
+  return metrics;
+}
+
+async function assertRenderedSoftActiveStep(button, label) {
+  const style = await button.evaluate(node => {
+    const css = getComputedStyle(node);
+    const number = getComputedStyle(node.querySelector('.step-nav-number'));
+    const text = getComputedStyle(node.querySelector('span:nth-child(2)'));
+    return { background: css.backgroundColor, image: css.backgroundImage, color: css.color, textFill: css.webkitTextFillColor, textShadow: css.textShadow, boxShadow: css.boxShadow, numberColor: number.color, numberFill: number.webkitTextFillColor, textColor: text.color, textFillLabel: text.webkitTextFillColor };
+  });
+  const image = decodePng(await button.screenshot({ animations: 'disabled', caret: 'hide' }));
+  const insetX = Math.min(10, Math.max(7, Math.floor(image.width / 4)));
+  const insetY = Math.min(10, Math.max(7, Math.floor(image.height / 4)));
+  const lowerLeft = averagePatch(image, insetX, image.height - insetY);
+  const upperRight = averagePatch(image, image.width - insetX, insetY);
+  const metrics = JSON.stringify({ lowerLeft, upperRight, background: style.background, fill: style.textFill });
+  assert.equal(style.background, 'rgb(231, 244, 236)', `${label}: normal active step keeps the approved soft-green background (${metrics})`);
+  assert.equal(style.image, 'none', `${label}: normal active step has no gradient (${metrics})`);
+  for (const patch of [lowerLeft, upperRight]) {
+    assert.ok(patch.every((value, index) => Math.abs(value - [231, 244, 236][index]) <= 2), `${label}: rendered pixels match the soft-green background (${metrics})`);
+  }
+  for (const key of ['color', 'textFill', 'numberColor', 'numberFill', 'textColor', 'textFillLabel']) {
+    assert.equal(style[key], 'rgb(18, 102, 66)', `${label}: active-step text uses readable dark green (${key}: ${style[key]})`);
+  }
+  assert.equal(style.textShadow, 'none', `${label}: dark text does not use the white-state shadow`);
+  assert.equal(style.boxShadow, 'none', `${label}: normal active step retains the calm flat treatment`);
+  return metrics;
+}
+
 (async () => {
   fs.mkdirSync(screenshotDir, { recursive: true });
   const browser = await chromium.launch({ headless: true, executablePath: process.env.CHROMIUM_EXECUTABLE || undefined, args: ['--no-sandbox'] });
@@ -137,10 +186,10 @@ async function assertRenderedDirection(button, label) {
       });
       await page.goto(base.toString(), { waitUntil: 'networkidle', timeout: 60000 });
       const release = await page.locator('meta[name="bill-app-release"]').getAttribute('content');
-      assert.equal(release, 'v179-logo-gradient-r169-20261116', `served page must be the R169 candidate, not a stale local preview (${release})`);
+      assert.equal(release, 'v181-ui-refresh-r170-a11y-20261117', `served page must be the R170 candidate, not a stale local preview (${release})`);
       const themeHref = await page.locator('link[rel="stylesheet"][href*="theme.css"]').getAttribute('href');
-      assert.ok(themeHref?.includes(release), `theme.css must use the same R169 cache token (${themeHref})`);
-      assert.equal(await page.getByTestId('app-version-label').innerText(), 'R169');
+      assert.ok(themeHref?.includes(release), `theme.css must use the same R170 cache token (${themeHref})`);
+      assert.equal(await page.getByTestId('app-version-label').innerText(), 'R170');
       await page.getByTestId('receipt-camera').waitFor({ state: 'visible', timeout: 60000 });
       await page.screenshot({ path: path.join(screenshotDir, `green-actions-${width}.png`), fullPage: true, animations: 'disabled' });
 
@@ -155,6 +204,18 @@ async function assertRenderedDirection(button, label) {
         const testId = await button.getAttribute('data-testid') || (await button.innerText()).trim().replace(/\s+/g, ' ').slice(0, 36);
         tested.push(testId);
         const label = `${width}px ${testId}`;
+        if (testId === 'header-action-menu-toggle') {
+          await page.mouse.move(0, 0);
+          const normal = await assertRenderedSolidBrand(button, `${label} normal`);
+          await button.hover();
+          const hover = await assertRenderedSolidBrand(button, `${label} hover`);
+          await page.mouse.down();
+          const active = await assertRenderedSolidBrand(button, `${label} pressed`);
+          await page.mouse.move(0, 0);
+          await page.mouse.up();
+          console.log(`${label}: approved R170 solid brand control; normal ${normal}; hover ${hover}; pressed ${active}`);
+          continue;
+        }
         await page.mouse.move(0, 0);
         const normal = await assertRenderedDirection(button, `${label} normal`);
         await button.hover();
@@ -170,19 +231,25 @@ async function assertRenderedDirection(button, label) {
       }
       console.log(`${width}px screenshots saved; tested ${tested.length} visible green buttons: ${tested.join(', ')}`);
 
-      // The result-step tab is green only in this existing CSS state; exercise its rendered pixels without running bill calculations.
+      // Render the active result-step CSS state without running bill calculations.
       await page.locator('#root main[data-current-step]').evaluate(node => node.setAttribute('data-current-step', '4'));
       await page.waitForTimeout(250); // Let the step-nav's 150ms color/shadow transition settle before checking computed styles.
       const resultStep = page.locator('#root:has(main[data-current-step="4"]) .step-nav button:nth-child(4)');
-      const resultLabel = `${width}px green result-step tab`;
+      const resultLabel = `${width}px active result-step tab`;
       await page.mouse.move(0, 0);
-      const resultNormal = await assertRenderedDirection(resultStep, `${resultLabel} normal`);
+      const resultNormal = await assertRenderedSoftActiveStep(resultStep, `${resultLabel} normal`);
       const resultNumberColor = await resultStep.locator('.step-nav-number').evaluate(node => getComputedStyle(node).color);
-      assert.equal(resultNumberColor, 'rgb(255, 255, 255)', `${resultLabel}: the step number must remain white`);
+      assert.equal(resultNumberColor, 'rgb(18, 102, 66)', `${resultLabel}: the step number must be readable on the pale active background`);
       await resultStep.hover();
+      await page.waitForTimeout(250);
       const resultHover = await assertRenderedDirection(resultStep, `${resultLabel} hover`);
+      const resultHoverNumberColor = await resultStep.locator('.step-nav-number').evaluate(node => getComputedStyle(node).webkitTextFillColor);
+      assert.equal(resultHoverNumberColor, 'rgb(255, 255, 255)', `${resultLabel}: hovered gradient step number remains white`);
       await page.mouse.down();
+      await page.waitForTimeout(250);
       const resultPressed = await assertRenderedDirection(resultStep, `${resultLabel} pressed`);
+      const resultPressedNumberColor = await resultStep.locator('.step-nav-number').evaluate(node => getComputedStyle(node).webkitTextFillColor);
+      assert.equal(resultPressedNumberColor, 'rgb(255, 255, 255)', `${resultLabel}: pressed gradient step number remains white`);
       await page.mouse.move(0, 0);
       await page.mouse.up();
       console.log(`${resultLabel}: normal ${resultNormal}; hover ${resultHover}; pressed ${resultPressed}`);

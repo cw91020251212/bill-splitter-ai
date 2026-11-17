@@ -6,6 +6,7 @@ const path = require('node:path');
 const root = path.join(__dirname, '..');
 const theme = fs.readFileSync(path.join(root, 'theme.css'), 'utf8');
 const detailed = fs.readFileSync(path.join(root, 'detailed-view.html'), 'utf8');
+const refresh = fs.readFileSync(path.join(root, 'ui-refresh.css'), 'utf8');
 const icon = fs.readFileSync(path.join(root, 'icons/icon.svg'), 'utf8').toLowerCase();
 
 function ruleBlock(source, selector) {
@@ -70,6 +71,16 @@ test('green action gradients reuse the original logo stops in every state and ke
   assert.match(activeStep, expectedFallback);
   assert.match(activeStep, /box-shadow:\s*var\(--brand-action-shadow\)/);
   assert.match(theme, /#root:has\(main\[data-current-step="4"\]\) \.step-nav button:nth-child\(4\) > span:first-child \{ color: #fff !important; \}/);
+  const solidHeader = ruleBlock(refresh, '#root button#header-action-menu-toggle {');
+  const normalResultStep = lastRuleBlock(refresh, '#root:has(main[data-current-step="4"]) .step-nav button:nth-child(4) {');
+  const interactiveResultStep = ruleBlock(refresh, '#root:has(main[data-current-step="4"]) .step-nav button:nth-child(4):hover,');
+  assert.match(solidHeader, /background:\s*var\(--ui-brand\)\s*!important/);
+  assert.match(solidHeader, /background-image:\s*none\s*!important/);
+  assert.match(normalResultStep, /background:\s*var\(--ui-brand-soft\)\s*!important/);
+  assert.match(normalResultStep, /-webkit-text-fill-color:\s*var\(--ui-brand-dark\)\s*!important/);
+  assert.match(normalResultStep, /text-shadow:\s*none\s*!important/);
+  assert.match(interactiveResultStep, /-webkit-text-fill-color:\s*#fff\s*!important/);
+  assert.match(interactiveResultStep, /text-shadow:\s*0 1px 2px rgba\(0, 0, 0, \.42\)\s*!important/);
   const brandButton = ruleBlock(theme, '#root button.bg-brand-600:not(:disabled) {');
   assert.match(brandButton, expectedFallback);
   assert.match(theme, /#root \.app-brand-icon \{ background-image: linear-gradient\(to top right, #49b88b 0%, #80d9aa 55%, #b5f2cf 100%\); \}/, 'do not repaint the static logo surface');
@@ -88,7 +99,7 @@ test('the detail page uses the exact logo gradient only for green controls and p
   assert.match(fontOption, /text-shadow:/);
 
   const sharedBlueButton = detailed.match(/body\.shared-link-view \.paid-notice-button\s*\{[^}]*\}/)?.[0] || '';
-  assert.match(sharedBlueButton, /background-image:linear-gradient\(to top right,#326fae 0%,#3978b6 60%,#4c8dc9 100%\)/);
+  assert.match(sharedBlueButton, /background-image:linear-gradient\(to top right,#3f94d0 0%,#4a94d4 60%,#6bb0e8 100%\)/);
   assert.match(sharedBlueButton, /box-shadow:none/);
   assert.match(sharedBlueButton, /text-shadow:0 1px 1px rgba\(0,0,0,\.35\)/);
   assert.match(detailed, /\.total-card \{[^}]*background:linear-gradient\(120deg,#176a43,#104d31\)/, 'do not change the static payable-total surface');

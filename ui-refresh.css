@@ -138,13 +138,27 @@ html[lang="en"] #root .app-header-row h1 { font-size: 17px !important; }
 #root:has(main[data-current-step="1"]) .step-nav button:nth-child(1) { background: #edf1f5 !important; border-color: #8c9bab !important; color: #3d4d60 !important; }
 #root:has(main[data-current-step="2"]) .step-nav button:nth-child(2) { background: #f0edfa !important; border-color: #9a92c8 !important; color: #4a427e !important; }
 #root:has(main[data-current-step="3"]) .step-nav button:nth-child(3) { background: #fff3dc !important; border-color: #d7ae63 !important; color: #7a530d !important; }
-#root:has(main[data-current-step="4"]) .step-nav button:nth-child(4) { background: var(--ui-brand-soft) !important; border-color: var(--ui-brand) !important; color: var(--ui-brand-dark) !important; }
+#root:has(main[data-current-step="4"]) .step-nav button:nth-child(4) {
+  background: var(--ui-brand-soft) !important;
+  border-color: var(--ui-brand) !important;
+  color: var(--ui-brand-dark) !important;
+  -webkit-text-fill-color: var(--ui-brand-dark) !important;
+  text-shadow: none !important;
+}
 #root:has(main[data-current-step="4"]) .step-nav button:nth-child(4) > span:first-child {
   background-image: none !important;
   background-color: transparent !important;
   border: 0 !important;
   color: var(--ui-brand-dark) !important;
   box-shadow: none !important;
+}
+#root:has(main[data-current-step="4"]) .step-nav button:nth-child(4):hover,
+#root:has(main[data-current-step="4"]) .step-nav button:nth-child(4):active,
+#root:has(main[data-current-step="4"]) .step-nav button:nth-child(4):hover > span,
+#root:has(main[data-current-step="4"]) .step-nav button:nth-child(4):active > span {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, .42) !important;
 }
 
 /* ---------- 4. Cards: soft paper, not heavy outlines ---------- */

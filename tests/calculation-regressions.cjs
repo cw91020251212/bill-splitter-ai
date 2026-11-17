@@ -5,8 +5,17 @@
 const assert = require('node:assert/strict');
 const { URL } = require('node:url');
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
+const { promisify } = require('node:util');
+const execFile = promisify(require('node:child_process').execFile);
 const base = new URL(process.env.BASE_URL || 'http://127.0.0.1:4178/');
 if (!['127.0.0.1', 'localhost'].includes(base.hostname)) throw new Error('This calculation test only runs against a local server.');
+const runtimeUrls = [
+  'https://unpkg.com/react@18/umd/react.production.min.js',
+  'https://unpkg.com/react-dom@18/umd/react-dom.production.min.js',
+  'https://unpkg.com/@babel/standalone/babel.min.js'
+];
+const runtimeAssets = new Map();
+const localRuntimeSources = new Set();
 const activeDraftKey = 'billSplitterActiveDraftV1';
 const assetRecordId = 'active-bill-draft-assets-v1';
 const ONE_PIXEL_PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a2ioAAAAASUVORK5CYII=';
@@ -44,10 +53,26 @@ function draft(data) {
   }};
 }
 
+async function preloadRuntime() {
+  await Promise.all(runtimeUrls.map(async url => {
+    const { stdout } = await execFile('curl', ['--fail', '--location', '--silent', '--show-error', '--max-time', '45', url], { maxBuffer: 20 * 1024 * 1024 });
+    assert(stdout.length > 1000, `CDN runtime returned an incomplete response: ${url}`);
+    runtimeAssets.set(url, stdout);
+  }));
+}
+
 async function openCalculator(browser, data, { expectCalculateEnabled = true } = {}) {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' });
   const page = await context.newPage();
   page.on('pageerror', error => failures.push(error.message));
+  await page.route('**/*', async route => {
+    const url = route.request().url();
+    if (runtimeAssets.has(url)) {
+      localRuntimeSources.add(url);
+      return route.fulfill({ status: 200, contentType: 'application/javascript', body: runtimeAssets.get(url) });
+    }
+    return route.continue();
+  });
   await page.route('https://openrouter.ai/**', async route => { interceptedBusinessRequests += 1; await route.abort(); });
   await page.route('https://*.workers.dev/**', async route => { interceptedBusinessRequests += 1; await route.abort(); });
   await page.route('https://api.frankfurter.dev/**', route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ base: 'HKD', quote: 'USD', rate: 0.5, date: '2026-11-10' }) }));
@@ -99,6 +124,7 @@ async function readSavedResults(page) {
 }
 
 (async () => {
+  await preloadRuntime();
   const browser = await chromium.launch({ headless: true, executablePath: process.env.CHROMIUM_EXECUTABLE || undefined, args: ['--no-sandbox', '--disable-dev-shm-usage'] });
   try {
     // Reconciliation creates a second charge bearer (the payer) who did not claim an item.
@@ -108,6 +134,7 @@ async function readSavedResults(page) {
       friendsReplies: '姓名：阿明\n01 = 1件',
       payer: '主辦人', taxAmount: '3', discountAmount: '0', reconciliation: null
     });
+    assert.deepEqual([...localRuntimeSources].sort(), [...runtimeUrls].sort(), 'React, ReactDOM and Babel must be served from the deterministic local test harness');
     await averageTax.page.getByTestId('calculate-split').click();
     await averageTax.page.locator('input[name="reconciliationPolicy"]').first().check();
     await averageTax.page.getByTestId('calculate-split').click();
@@ -196,13 +223,32 @@ async function readSavedResults(page) {
     console.log('PASS a priced item with no claimant cannot disappear from the bill');
     await unclaimed.context.close();
 
+    const emptyClaims = await openCalculator(browser, {
+      step: 2, items: [{ id: '01', name: '茶', price: 20, total: 20, totalQty: null, unit: '' }],
+      friendsReplies: '', payer: '主辦人', taxAmount: '0', discountAmount: '0', reconciliation: null
+    });
+    await emptyClaims.page.getByTestId('go-to-payer').click();
+    await emptyClaims.page.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '3', null, { timeout: 10000 });
+    await emptyClaims.page.getByTestId('calculate-split').click();
+    await emptyClaims.page.getByTestId('step-error').waitFor({ state: 'visible' });
+    await emptyClaims.page.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '2', null, { timeout: 10000 });
+    assert.match(await emptyClaims.page.getByTestId('step-error').innerText(), /未收到可用認帳/);
+    assert.equal(await emptyClaims.page.evaluate(() => JSON.parse(localStorage.getItem('billSplitterActiveDraftV1')).data.results), null, 'empty claims cannot generate a report');
+    console.log('PASS empty claims are rejected and no settlement report is generated');
+    await emptyClaims.context.close();
+
     const nameOnly = await openCalculator(browser, {
       items: [{ id: '01', name: '茶', price: 20, total: 20, totalQty: null, unit: '' }],
       friendsReplies: '姓名：只寫姓名', payer: '主辦人', taxAmount: '1', discountAmount: '0', reconciliation: null
     }, { expectCalculateEnabled: false });
     assert.equal(await nameOnly.page.getByTestId('calculate-split').isEnabled(), true, 'CTA stays available and explains that a claim is missing instead of silently disabling');
     assert.match(await nameOnly.page.getByTestId('status-compact-region').innerText(), /未有有效認領/);
-    console.log('PASS name-only replies do not enable settlement');
+    await nameOnly.page.getByTestId('calculate-split').click();
+    await nameOnly.page.getByTestId('step-error').waitFor({ state: 'visible' });
+    await nameOnly.page.waitForFunction(() => document.querySelector('[data-live-app] main')?.dataset.currentStep === '2', null, { timeout: 10000 });
+    assert.match(await nameOnly.page.getByTestId('step-error').innerText(), /尚未有人認領任何項目/);
+    assert.equal(await nameOnly.page.evaluate(() => JSON.parse(localStorage.getItem('billSplitterActiveDraftV1')).data.results), null, 'a name without a valid item claim cannot generate a report');
+    console.log('PASS name-only replies remain unable to generate a settlement report');
     await nameOnly.context.close();
 
     const pennyTax = await openCalculator(browser, {
@@ -586,7 +632,8 @@ async function readSavedResults(page) {
 
     assert.equal(interceptedBusinessRequests, 0, 'all business APIs remain untouched');
     assert.deepEqual(failures, [], 'no browser exceptions occur');
-    console.log(JSON.stringify({ tests: 24, passed: 24, interceptedBusinessRequests, browserErrors: failures.length }));
+    assert.deepEqual([...localRuntimeSources].sort(), [...runtimeUrls].sort(), 'React, ReactDOM and Babel must be served from the deterministic local test harness');
+    console.log(JSON.stringify({ tests: 25, passed: 25, interceptedBusinessRequests, locallyServedRuntimeAssets: localRuntimeSources.size, browserErrors: failures.length }));
   } finally {
     await browser.close();
   }
