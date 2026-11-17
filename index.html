@@ -8,7 +8,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="分帳管家">
-  <link rel="manifest" href="./manifest.webmanifest?v=v181-ui-refresh-r170-a11y-20261117">
+  <link rel="manifest" href="./manifest.webmanifest?v=v182-step-one-method-badges-20261117">
   <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" sizes="180x180">
   <link rel="icon" href="./icons/icon.svg" type="image/svg+xml">
   <link rel="icon" href="./icons/favicon-32.png" type="image/png" sizes="32x32">
@@ -142,13 +142,13 @@
     ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
     ::-webkit-scrollbar-thumb:hover { background: #64748b; }
   </style>
-  <link rel="stylesheet" href="./theme.css?v=v181-ui-refresh-r170-a11y-20261117">
+  <link rel="stylesheet" href="./theme.css?v=v182-step-one-method-badges-20261117">
   <link rel="stylesheet" href="./tutorial.css?v=v86-free-models-only">
   <!-- UI Refresh: visual-only layer. Remove this line to restore the original appearance. -->
-  <link rel="stylesheet" href="./ui-refresh.css?v=v181-ui-refresh-r170-a11y-20261117">
+  <link rel="stylesheet" href="./ui-refresh.css?v=v182-step-one-method-badges-20261117">
   <!-- R157: on-device sensitive-data masking before receipt sharing. -->
-  <meta name="bill-app-release" content="v181-ui-refresh-r170-a11y-20261117">
-  <script defer src="./pwa.js?v=v181-ui-refresh-r170-a11y-20261117"></script>
+  <meta name="bill-app-release" content="v182-step-one-method-badges-20261117">
+  <script defer src="./pwa.js?v=v182-step-one-method-badges-20261117"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
@@ -160,9 +160,9 @@
   <script src="./receipt-adjustments.js"></script>
   <script src="./share-config.js"></script>
   <script src="./bill-share-api.js?v=v107-code-focus-visible"></script>
-  <script src="./sync-diagnostics.js?v=v181-ui-refresh-r170-a11y-20261117"></script>
-  <script src="./card-redaction.js?v=v181-ui-refresh-r170-a11y-20261117"></script>
-  <script src="./card-share-review.js?v=v181-ui-refresh-r170-a11y-20261117"></script>
+  <script src="./sync-diagnostics.js?v=v182-step-one-method-badges-20261117"></script>
+  <script src="./card-redaction.js?v=v182-step-one-method-badges-20261117"></script>
+  <script src="./card-share-review.js?v=v182-step-one-method-badges-20261117"></script>
   <script src="./exchange-rates.js?v=v90-cross-currency-settlement"></script>
     <script src="./tutorial.js?v=v139-gemini-button-order-20261113"></script>
   <script type="text/babel">
@@ -5356,14 +5356,17 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                   <span className="w-8 h-8 rounded-full bg-brand-100 border border-brand-500 text-brand-700 flex items-center justify-center font-bold">1</span>
                   <h2 className="text-2xl font-bold text-slate-800 tracking-tight">{tr("上載並分析單據")}</h2>
                 </div>
-                <p data-testid="step-one-methods-intro" className="step1-compact-copy text-sm text-slate-700 leading-5 whitespace-nowrap">{bi('以下三種方法處理單據：', 'Three ways to handle a bill:')}</p>
+                <p data-testid="step-one-methods-intro" className="step1-compact-copy text-sm text-slate-700 leading-5 whitespace-nowrap">{bi(<>以下<span data-testid="step-one-method-count" className="step1-method-count">3</span>種方法處理單據：</>, 'Three ways to handle a bill:')}</p>
 
                 <Card data-testid="receipt-text-import" className="step1-option border-slate-400 bg-white">
                   <button type="button" data-testid="toggle-receipt-text-import" aria-controls="receipt-text-import-content" aria-expanded={showReceiptTextImport} onClick={() => { const nextOpen = !showReceiptTextImport; setShowReceiptTextImport(nextOpen); if (!tutorialDemo) writeUiDisclosure('receipt-ai-import-r133', nextOpen); }} className="relative -mx-5 w-[calc(100%+1.25rem)] sm:mx-0 sm:w-full min-h-[44px] flex items-center justify-between gap-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700">
                       <span className="min-w-0 flex-1 pl-3 sm:pl-0">
                         <span data-testid="receipt-text-import-title-row" className="flex min-w-0 flex-nowrap items-baseline justify-between gap-0">
-                          <span data-testid="receipt-text-import-title" aria-label={bi('揾其他 AI 翻譯', 'Find other AI translation')} className="step1-compact-heading shrink-0 whitespace-nowrap text-base font-bold leading-tight text-slate-800">
-                            {bi('揾其他 AI 翻譯', 'Find other AI translation')}
+                          <span className="inline-flex shrink-0 items-center gap-1.5">
+                            <span data-testid="method-badge-ai" aria-hidden="true" className="step1-method-badge">1</span>
+                            <span data-testid="receipt-text-import-title" aria-label={bi('揾其他 AI 翻譯', 'Find other AI translation')} className="step1-compact-heading shrink-0 whitespace-nowrap text-base font-bold leading-tight text-slate-800">
+                              {bi('揾其他 AI 翻譯', 'Find other AI translation')}
+                            </span>
                           </span>
                           <span data-testid="external-ai-provider-examples" aria-label={bi('Google AI 等', 'Google AI, etc.')} className="step1-compact-copy shrink-0 whitespace-nowrap text-right text-xs font-normal leading-tight text-slate-500">{bi('（Google AI 等）', '(Google AI, etc.)')}</span>
                         </span>
@@ -5420,11 +5423,11 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                     <div className="flex flex-col items-center w-full">
                       <div data-testid="receipt-upload-prompt" className="flex w-full items-center justify-center gap-2 sm:hidden">
                         {uploadError && <Icon path={icons.alert} size={18} className="shrink-0 text-amber-700"/>}
-                        <h3 className="m-0 text-base font-bold text-slate-800">{uploadError ? tr("讀取失敗") : lastImageData.length ? bi('已保留上次單據圖片', 'Previous receipt image is ready') : bi('收據／帳單圖片；最多選 5 張圖片', 'Receipt / bill images (up to 5)')}</h3>
+                        <h3 className="m-0 flex items-center gap-2 text-base font-bold text-slate-800"><span data-testid="method-badge-photo" aria-hidden="true" className="step1-method-badge">2</span>{uploadError ? tr("讀取失敗") : lastImageData.length ? bi('已保留上次單據圖片', 'Previous receipt image is ready') : bi('收據／帳單圖片；最多選 5 張圖片', 'Receipt / bill images (up to 5)')}</h3>
                       </div>
                       <div className="hidden w-full flex-col items-center sm:flex">
                         <div className={`w-20 h-20 ${uploadError ? 'bg-amber-50 text-amber-600 border-amber-300' : 'bg-slate-100 text-slate-500 border-slate-400'} rounded-full flex items-center justify-center mb-4 shadow-sm border`}><Icon path={uploadError ? icons.alert : icons.fileImage} size={36} /></div>
-                        <h3 className="text-lg font-bold text-slate-800">{uploadError ? tr("讀取失敗") : lastImageData.length ? bi('已保留上次單據圖片', 'Previous receipt image is ready') : bi('選擇單據圖片（收據／帳單）', 'Select receipt / bill images')}</h3>
+                        <h3 className="flex items-center gap-2 text-lg font-bold text-slate-800"><span data-testid="method-badge-photo-desktop" aria-hidden="true" className="step1-method-badge">2</span>{uploadError ? tr("讀取失敗") : lastImageData.length ? bi('已保留上次單據圖片', 'Previous receipt image is ready') : bi('選擇單據圖片（收據／帳單）', 'Select receipt / bill images')}</h3>
                         {!uploadError && <p className="text-base font-medium text-slate-600 mt-2">{lastImageData.length ? bi('可重試或拍新單。', 'Retry or take a new receipt.') : bi('最多選 5 張圖片。', 'Up to 5 images.')}</p>}
                       </div>
                       {uploadError ? (
@@ -5539,7 +5542,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
 
                 <div data-testid="entry-method-choice" className="text-center py-2">
                   <ChoiceDivider />
-                  <Button data-testid="start-manual" variant="secondary" className="w-full mt-4 border-slate-500 !text-sm" onClick={startManualEntry}>{bi('手動輸入項目', 'Enter items manually')}<Icon path={icons.arrowRight} size={18}/></Button>
+                  <Button data-testid="start-manual" variant="secondary" className="w-full mt-4 border-slate-500 !text-sm" onClick={startManualEntry}><span data-testid="method-badge-manual" aria-hidden="true" className="step1-method-badge">3</span>{bi('手動輸入項目', 'Enter items manually')}<Icon path={icons.arrowRight} size={18}/></Button>
                   <p className="step1-compact-copy text-sm text-slate-600 mt-2 leading-relaxed">{bi('讀唔到？手動輸入。', 'Could not scan? Enter items manually.')}</p>
                 </div>
               </div>

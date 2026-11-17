@@ -5,7 +5,7 @@ const path = require('node:path');
 
 const root = path.join(__dirname, '..');
 const read = name => fs.readFileSync(path.join(root, name), 'utf8');
-const release = 'v181-ui-refresh-r170-a11y-20261117';
+const release = 'v182-step-one-method-badges-20261117';
 
 function linearize(channel) {
   const value = channel / 255;
@@ -141,7 +141,7 @@ test('PWA icon launches navigate an existing app window to the main app start UR
   assert.match(claim, manifestLink);
 });
 
-test('R181 cache epoch and R170 app version are consistent across the app pages', () => {
+test('R182 cache epoch and R170 app version are consistent across the app pages', () => {
   const index = read('index.html');
   const sw = read('sw.js');
   const pwa = read('pwa.js');
