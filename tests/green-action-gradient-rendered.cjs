@@ -214,7 +214,7 @@ async function assertRenderedSoftActiveStep(button, label) {
       });
       await page.goto(base.toString(), { waitUntil: 'networkidle', timeout: 60000 });
       const release = await page.locator('meta[name="bill-app-release"]').getAttribute('content');
-      assert.equal(release, 'v184-result-share-gradient-20261117', `served page must be the current result-step candidate, not a stale local preview (${release})`);
+      assert.equal(release, 'v185-step4-green-actions-20261117', `served page must be the current result-step candidate, not a stale local preview (${release})`);
       const themeHref = await page.locator('link[rel="stylesheet"][href*="theme.css"]').getAttribute('href');
       assert.ok(themeHref?.includes(release), `theme.css must use the same R170 cache token (${themeHref})`);
       assert.equal(await page.getByTestId('app-version-label').innerText(), 'R170');
@@ -294,14 +294,28 @@ async function assertRenderedSoftActiveStep(button, label) {
         }, resultDraft(withSession));
         await page.goto(base.toString(), { waitUntil: 'networkidle', timeout: 60000 });
         await page.waitForFunction(() => document.querySelector('#root main[data-current-step="4"] [data-testid="results-step"]'), null, { timeout: 60000 });
-        const actionIds = withSession
-          ? ['publish-same-link-result', 'friend-whatsapp-share']
-          : ['create-friend-share-link'];
         if (withSession) await page.getByTestId('friend-share-ready').waitFor({ state: 'visible', timeout: 15000 });
-        for (const id of actionIds) {
+        for (const id of ['late-person-flow-summary', 'missing-bill-flow-summary', 'report-fallback-toggle']) {
+          await page.getByTestId(id).click();
+        }
+        const greenButtons = page.locator('#root main[data-current-step="4"] button.green-action:not(:disabled), #root main[data-current-step="4"] button.bg-brand-600:not(:disabled), #root main[data-current-step="4"] button[class*="bg-emerald-700"]:not(:disabled)');
+        const greenIds = [];
+        for (let i = 0; i < await greenButtons.count(); i++) {
+          const button = greenButtons.nth(i);
+          if (!(await button.isVisible())) continue;
+          assert.equal(await button.isEnabled(), true, `${width}px enumerated green control must be enabled`);
+          const id = await button.getAttribute('data-testid');
+          assert.ok(id, `${width}px every enabled green result control has a stable test ID`);
+          greenIds.push(id);
+        }
+        const expectedGreenIds = withSession
+          ? ['publish-same-link-result', 'friend-whatsapp-share', 'share-summary-report', 'share-detailed-report', 'receive-late-person-claims', 'receive-bill-claims', 'save-final-report', 'new-bill']
+          : ['create-friend-share-link', 'share-summary-report', 'share-detailed-report', 'save-final-report', 'new-bill'];
+        assert.deepEqual([...greenIds].sort(), [...expectedGreenIds].sort(), `${width}px enumerate all enabled green controls across the expanded result step`);
+        for (const id of greenIds) {
           const button = page.getByTestId(id);
-          await button.waitFor({ state: 'visible', timeout: 15000 });
-          assert.equal(await button.isEnabled(), true, `${width}px ${id} must be enabled in its matching share state`);
+          await button.evaluate(node => node.scrollIntoView({ block: 'center', inline: 'center' }));
+          await page.waitForTimeout(75);
           await page.mouse.move(0, 0);
           const normal = await assertRenderedDirection(button, `${width}px ${id} normal`);
           await button.hover();
@@ -313,9 +327,7 @@ async function assertRenderedSoftActiveStep(button, label) {
           console.log(`${width}px ${id}: normal ${normal}; hover ${hover}; pressed ${active}`);
         }
         if (width === 390 && withSession) {
-          await page.mouse.move(0, 0);
-          await page.getByTestId('friend-network-option').scrollIntoViewIfNeeded();
-          await page.screenshot({ path: path.join(screenshotDir, 'result-step-share-actions-390.png'), fullPage: false, animations: 'disabled' });
+          await page.screenshot({ path: path.join(screenshotDir, 'result-step-all-green-390.png'), fullPage: true, animations: 'disabled' });
         }
       }
       await context.close();

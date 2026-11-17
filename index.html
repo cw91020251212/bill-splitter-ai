@@ -8,7 +8,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="分帳管家">
-  <link rel="manifest" href="./manifest.webmanifest?v=v184-result-share-gradient-20261117">
+  <link rel="manifest" href="./manifest.webmanifest?v=v185-step4-green-actions-20261117">
   <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" sizes="180x180">
   <link rel="icon" href="./icons/icon.svg" type="image/svg+xml">
   <link rel="icon" href="./icons/favicon-32.png" type="image/png" sizes="32x32">
@@ -142,13 +142,13 @@
     ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
     ::-webkit-scrollbar-thumb:hover { background: #64748b; }
   </style>
-  <link rel="stylesheet" href="./theme.css?v=v184-result-share-gradient-20261117">
+  <link rel="stylesheet" href="./theme.css?v=v185-step4-green-actions-20261117">
   <link rel="stylesheet" href="./tutorial.css?v=v86-free-models-only">
   <!-- UI Refresh: visual-only layer. Remove this line to restore the original appearance. -->
-  <link rel="stylesheet" href="./ui-refresh.css?v=v184-result-share-gradient-20261117">
+  <link rel="stylesheet" href="./ui-refresh.css?v=v185-step4-green-actions-20261117">
   <!-- R157: on-device sensitive-data masking before receipt sharing. -->
-  <meta name="bill-app-release" content="v184-result-share-gradient-20261117">
-  <script defer src="./pwa.js?v=v184-result-share-gradient-20261117"></script>
+  <meta name="bill-app-release" content="v185-step4-green-actions-20261117">
+  <script defer src="./pwa.js?v=v185-step4-green-actions-20261117"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
@@ -160,9 +160,9 @@
   <script src="./receipt-adjustments.js"></script>
   <script src="./share-config.js"></script>
   <script src="./bill-share-api.js?v=v107-code-focus-visible"></script>
-  <script src="./sync-diagnostics.js?v=v184-result-share-gradient-20261117"></script>
-  <script src="./card-redaction.js?v=v184-result-share-gradient-20261117"></script>
-  <script src="./card-share-review.js?v=v184-result-share-gradient-20261117"></script>
+  <script src="./sync-diagnostics.js?v=v185-step4-green-actions-20261117"></script>
+  <script src="./card-redaction.js?v=v185-step4-green-actions-20261117"></script>
+  <script src="./card-share-review.js?v=v185-step4-green-actions-20261117"></script>
   <script src="./exchange-rates.js?v=v90-cross-currency-settlement"></script>
     <script src="./tutorial.js?v=v139-gemini-button-order-20261113"></script>
   <script type="text/babel">
@@ -6223,7 +6223,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                           <div className="p-4 bg-slate-50 border-b border-slate-400">
                             <h3 className="font-bold text-slate-800 text-base">{bi('簡版', 'Summary')}</h3>
                             <div data-testid="summary-report-actions" className="flex items-center gap-2 mt-3">
-                              <Button onClick={() => shareCurrentReport(getSimplifiedResult(), tr("分帳追數結果"))} variant="primary" className="flex-1 !w-auto !px-2 !py-2 text-sm">{bi('分享', 'Share')}</Button>
+                              <Button data-testid="share-summary-report" onClick={() => shareCurrentReport(getSimplifiedResult(), tr("分帳追數結果"))} variant="primary" className="flex-1 !w-auto !px-2 !py-2 text-sm">{bi('分享', 'Share')}</Button>
                               <ChoiceDivider inline />
                               <Button onClick={() => copyCurrentReport(getSimplifiedResult(), tr("追數版"), bi('已複製', 'Copied'))} variant="outline" className="flex-1 !w-auto !px-2 !py-2 text-sm bg-white hover:bg-brand-50 border-slate-500 text-slate-700 hover:text-brand-700 hover:border-brand-500"><Icon path={icons.copy} size={16}/>{bi(' 複製', ' Copy')}</Button>
                             </div>
@@ -6238,7 +6238,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                               <h3 className="font-bold text-slate-800 text-base">{bi('詳細', 'Details')}</h3>
                             </div>
                             <div data-testid="detail-report-actions" className="flex items-center gap-2 mb-4">
-                              <Button onClick={shareDetailedCurrentReport} variant="primary" className="flex-1 !w-auto !px-2 !py-2 text-sm">{bi('分享', 'Share')}</Button>
+                              <Button data-testid="share-detailed-report" onClick={shareDetailedCurrentReport} variant="primary" className="flex-1 !w-auto !px-2 !py-2 text-sm">{bi('分享', 'Share')}</Button>
                               <ChoiceDivider inline />
                               <Button onClick={copyDetailedCurrentReport} variant="secondary" className="flex-1 !w-auto !px-2 !py-2 text-sm bg-white border-slate-500"><Icon path={icons.copy} size={16}/>{bi(' 複製', ' Copy')}</Button>
                             </div>
@@ -6252,7 +6252,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                 </div>
 
                 <div className="pt-2">
-                  <Button onClick={saveCurrentRecord} disabled={isSaved || isSavingRecord} variant={isSaved ? 'secondary' : 'primary'} className={`w-full ${isSaved ? '!bg-emerald-50 !text-emerald-900 !border-emerald-700 disabled:!opacity-100 disabled:!cursor-default !shadow-none !transition-none' : ''}`}>
+                  <Button data-testid="save-final-report" onClick={saveCurrentRecord} disabled={isSaved || isSavingRecord} variant={isSaved ? 'secondary' : 'primary'} className={`w-full ${isSaved ? '!bg-emerald-50 !text-emerald-900 !border-emerald-700 disabled:!opacity-100 disabled:!cursor-default !shadow-none !transition-none' : ''}`}>
                     {isSavingRecord ? bi('儲存中…', 'Saving…') : isSaved ? <><Icon path={icons.check} size={20}/> {bi('已儲存', 'Saved')}</> : <><Icon path={icons.save} size={20}/> {bi('儲存', 'Save')}</>}
                   </Button>
                   {lastImageData.length > 0 && <p data-testid="saved-record-photo-note" className="text-xs text-slate-500 text-center mt-2">{bi('相片只存此機。', 'Photos stay on this device.')}</p>}

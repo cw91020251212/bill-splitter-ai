@@ -88,16 +88,22 @@ test('green action gradients reuse the original logo stops in every state and ke
   assert.match(theme, /button\.green-action:disabled[\s\S]*?background-image:\s*none\s*!important/);
 });
 
-test('enabled green actions in result step 4 reuse the exact logo gradient', () => {
-  const ids = ['publish-same-link-result', 'friend-whatsapp-share', 'create-friend-share-link'];
+test('all enabled green controls in result step 4 reuse the exact logo gradient', () => {
+  const ids = [
+    'publish-same-link-result', 'friend-whatsapp-share', 'create-friend-share-link',
+    'share-summary-report', 'share-detailed-report', 'receive-late-person-claims',
+    'receive-bill-claims', 'save-final-report', 'new-bill'
+  ];
   const resultsStep = app.indexOf('{/* Step 4: Results */}');
   for (const id of ids) {
     const index = app.indexOf(`data-testid="${id}"`, resultsStep);
-    assert.ok(index >= 0, `${id} is a real fourth-step control`);
-    assert.match(app.slice(index, index + 500), /className="[^"]*green-action-dark/, `${id} retains the existing green-action class`);
+    assert.ok(index >= 0, `${id} is an inventoried fourth-step control`);
+    if (['publish-same-link-result', 'friend-whatsapp-share', 'create-friend-share-link'].includes(id)) {
+      assert.match(app.slice(index, index + 500), /className="[^"]*green-action-dark/, `${id} retains the existing green-action class`);
+    }
   }
 
-  const resultActions = ruleBlock(refresh, '#root main[data-current-step="4"] [data-testid="results-step"] button:is(');
+  const resultActions = ruleBlock(refresh, '#root main[data-current-step="4"] button:is(');
   for (const id of ids) assert.ok(resultActions.includes(`[data-testid="${id}"]`), `result-step override includes ${id}`);
   assert.match(resultActions, /:not\(:disabled\)/, 'disabled controls are excluded');
   assert.match(resultActions, /background-image:\s*var\(--brand-action-gradient\)\s*!important/);
@@ -106,10 +112,20 @@ test('enabled green actions in result step 4 reuse the exact logo gradient', () 
   assert.match(resultActions, /text-shadow:\s*0 1px 2px rgba\(0,\s*0,\s*0,\s*\.42\)\s*!important/);
   assert.match(resultActions, /box-shadow:\s*var\(--brand-action-shadow\)\s*!important/);
 
-  const resultHover = ruleBlock(refresh, '#root main[data-current-step="4"] [data-testid="results-step"] button:is([data-testid="publish-same-link-result"], [data-testid="friend-whatsapp-share"], [data-testid="create-friend-share-link"]):not(:disabled):hover {');
-  const resultActive = ruleBlock(refresh, '#root main[data-current-step="4"] [data-testid="results-step"] button:is([data-testid="publish-same-link-result"], [data-testid="friend-whatsapp-share"], [data-testid="create-friend-share-link"]):not(:disabled):active {');
+  const resultHover = refresh.match(/#root main\[data-current-step="4"\] button:is\([\s\S]*?\):not\(:disabled\):hover \{[^}]*\}/)?.[0] || '';
+  const resultActive = refresh.match(/#root main\[data-current-step="4"\] button:is\([\s\S]*?\):not\(:disabled\):active \{[^}]*\}/)?.[0] || '';
   assert.match(resultHover, /background-image:\s*var\(--brand-action-gradient-hover\)\s*!important/);
   assert.match(resultActive, /background-image:\s*var\(--brand-action-gradient-active\)\s*!important/);
+});
+
+test('summary and detailed fallback share buttons have stable regression-test IDs', () => {
+  const ids = ['share-summary-report', 'share-detailed-report'];
+  const resultsStep = app.indexOf('{/* Step 4: Results */}');
+  for (const id of ids) {
+    const index = app.indexOf(`data-testid="${id}"`, resultsStep);
+    assert.ok(index >= 0, `${id} must be identifiable as a step-four green control`);
+    assert.match(app.slice(index, index + 500), /variant="primary"/, `${id} remains a primary green action`);
+  }
 });
 
 test('the detail page uses the exact logo gradient only for green controls and preserves the blue exception', () => {
