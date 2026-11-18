@@ -40,7 +40,7 @@
     window.navigator.standalone === true;
 
   /* ---------------------------------------------------------- service worker */
-  var RELEASE_VERSION = 'v187-beginner-flow-20261123';
+  var RELEASE_VERSION = 'v188-compact-ui-20261124';
   var waitingWorker = null;
   var registrationPromise = null;
   var reloadRequested = false;
@@ -223,7 +223,7 @@
     e.preventDefault();
     deferredPrompt = e;
     if (isStandalone || stored(DISMISS_KEY)) return;
-    showBar('📲 安裝分帳管家，用起嚟快啲', '安裝', function () {
+    showBar('安裝分帳管家', '安裝', function () {
       removeBar();
       if (!deferredPrompt) return;
       deferredPrompt.prompt();

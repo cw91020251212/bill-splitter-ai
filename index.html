@@ -8,7 +8,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="分帳管家">
-  <link rel="manifest" href="./manifest.webmanifest?v=v187-beginner-flow-20261123">
+  <link rel="manifest" href="./manifest.webmanifest?v=v188-compact-ui-20261124">
   <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" sizes="180x180">
   <link rel="icon" href="./icons/icon.svg" type="image/svg+xml">
   <link rel="icon" href="./icons/favicon-32.png" type="image/png" sizes="32x32">
@@ -142,13 +142,13 @@
     ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
     ::-webkit-scrollbar-thumb:hover { background: #64748b; }
   </style>
-  <link rel="stylesheet" href="./theme.css?v=v187-teaching-copy-20261123">
-  <link rel="stylesheet" href="./tutorial.css?v=v86-free-models-only">
+  <link rel="stylesheet" href="./theme.css?v=v188-compact-ui-20261124">
+  <link rel="stylesheet" href="./tutorial.css?v=v188-compact-ui-20261124">
   <!-- UI Refresh: visual-only layer. Remove this line to restore the original appearance. -->
-  <link rel="stylesheet" href="./ui-refresh.css?v=v187-beginner-flow-20261123">
+  <link rel="stylesheet" href="./ui-refresh.css?v=v188-compact-ui-20261124">
   <!-- R157: on-device sensitive-data masking before receipt sharing. -->
-  <meta name="bill-app-release" content="v187-beginner-flow-20261123">
-  <script defer src="./pwa.js?v=v187-beginner-flow-20261123"></script>
+  <meta name="bill-app-release" content="v188-compact-ui-20261124">
+  <script defer src="./pwa.js?v=v188-compact-ui-20261124"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
@@ -160,11 +160,11 @@
   <script src="./receipt-adjustments.js"></script>
   <script src="./share-config.js"></script>
   <script src="./bill-share-api.js?v=v107-code-focus-visible"></script>
-  <script src="./sync-diagnostics.js?v=v187-beginner-flow-20261123"></script>
-  <script src="./card-redaction.js?v=v187-beginner-flow-20261123"></script>
-  <script src="./card-share-review.js?v=v187-beginner-flow-20261123"></script>
+  <script src="./sync-diagnostics.js?v=v188-compact-ui-20261124"></script>
+  <script src="./card-redaction.js?v=v188-compact-ui-20261124"></script>
+  <script src="./card-share-review.js?v=v188-compact-ui-20261124"></script>
   <script src="./exchange-rates.js?v=v90-cross-currency-settlement"></script>
-    <script src="./tutorial.js?v=v139-gemini-button-order-20261113"></script>
+    <script src="./tutorial.js?v=v188-compact-ui-20261124"></script>
   <script type="text/babel">
     const { useState, useRef, useEffect, useLayoutEffect, useMemo } = React;
     const tr = value => window.BillI18n.t(value);
@@ -1742,9 +1742,7 @@ Format (keep every field; items may contain multiple entries, and adjustments mu
             if (needsCurrencyRecalculation && restoredStep === 3) setStepError(bi('分帳計算已更新，請重新產生結果。', 'Settlement calculation was updated. Recalculate the result.'));
             setStep(restoredStep);
             if (restoredStep === 1 && images.length) setUploadError('圖片已恢復；按重試。');
-            setDraftNotice(assetsMissing
-              ? '附件需重選'
-              : '已恢復');
+            setDraftNotice(assetsMissing ? '附件需重選' : '');
           } catch (error) {
             if (!cancelled) setDraftNotice('讀取失敗；請用原瀏覽器。');
           } finally { if (!cancelled) setDraftReady(true); }
@@ -1752,19 +1750,6 @@ Format (keep every field; items may contain multiple entries, and adjustments mu
         restore();
         return () => { cancelled = true; };
       }, []);
-
-      useEffect(() => {
-        if (tutorialDemo || !draftReady || firstVisitPromptCheckedRef.current) return;
-        firstVisitPromptCheckedRef.current = true;
-        const firstVisitState = firstVisitStateRef.current || { seen: false, hasPriorUse: false };
-        if (!firstVisitState.seen) {
-          try { localStorage.setItem('billSplitterFirstVisitVideoHubSeenV1', '1'); }
-          catch (e) { try { sessionStorage.setItem('billSplitterFirstVisitVideoHubSeenV1', '1'); } catch (sessionError) {} }
-        }
-        if (firstVisitState.seen || firstVisitState.hasPriorUse) return;
-        tutorialMenuOrigin.current = { x: window.scrollX, y: window.scrollY };
-        setShowTutorial(true);
-      }, [tutorialDemo, draftReady]);
 
       useEffect(() => {
         if (tutorialDemo || !draftReady) return;
@@ -3149,15 +3134,15 @@ Format (keep every field; items may contain multiple entries, and adjustments mu
 
       const triggerUpload = () => {
         if (tutorialDemo) { onTutorialAction?.('receipt'); return; }
-        if (!apiKey.trim()) { toast('讀單據先要你自己的免費 OpenRouter 鎖匙。', 'error'); setShowSettings(true); return; }
+        if (!apiKey.trim()) { toast('請先設定 OpenRouter 鎖匙。', 'error'); setShowSettings(true); return; }
         openReceiptImagePicker(fileInputRef);
       };
 
       const triggerCamera = () => {
         if (tutorialDemo) { onTutorialAction?.('receipt'); return; }
-        if (!apiKey.trim()) { toast('讀單據先要你自己的免費 OpenRouter 鎖匙。', 'error'); setShowSettings(true); return; }
+        if (!apiKey.trim()) { toast('請先設定 OpenRouter 鎖匙。', 'error'); setShowSettings(true); return; }
         if (!navigator.mediaDevices?.getUserMedia) {
-          toast('⚠️ 此瀏覽器不支援網頁相機，請改用「選擇圖片」', 'error');
+          toast('請選擇圖片。', 'error');
           if (cameraInputRef.current) cameraInputRef.current.click();
           return;
         }
@@ -3174,7 +3159,7 @@ Format (keep every field; items may contain multiple entries, and adjustments mu
               }
             });
           })
-          .catch(() => { if (generation === billGenerationRef.current) toast('⚠️ 未能開啟相機，請允許此網站使用相機，或改用「選擇圖片」', 'error'); });
+          .catch(() => { if (generation === billGenerationRef.current) toast('相機失敗，請選擇圖片。', 'error'); });
       };
 
       const closeCamera = () => {
@@ -3308,7 +3293,7 @@ Format (keep every field; items may contain multiple entries, and adjustments mu
             : 0;
           const batchBytes = files => files.reduce((sum, file) => sum + file.size, 0);
           if (existingBytes + batchBytes(redactedFiles) > 12 * 1024 * 1024) redactedFiles = await makeBatch(0.82);
-          if (existingBytes + batchBytes(redactedFiles) > 12 * 1024 * 1024) throw new Error('遮蓋後圖片總容量仍超過 12 MB，請減少圖片數量或分批處理。');
+          if (existingBytes + batchBytes(redactedFiles) > 12 * 1024 * 1024) throw new Error('圖片超過 12 MB。');
           if (receiptAttachmentOnly && lastImageData.length + redactedFiles.length > 5) throw new Error('收據圖片最多 5 張，請先移除部分圖片再試。');
           if (generation !== billGenerationRef.current) return;
           if (receiptAttachmentOnly) {
@@ -3482,7 +3467,7 @@ Format (keep every field; items may contain multiple entries, and adjustments mu
               throw new Error(bi('未設定免費 OpenRouter 鎖匙。一般文字需要免費模型整理；想免鎖匙匯入，請複製下方讀圖提示詞，讓另一個 AI 輸出 JSON，再貼上或上載。', 'No free OpenRouter key is set. Free-form text needs a model; for no-key import, copy the image-reading prompt below and paste or upload the JSON it returns.'));
             }
           } else {
-            if (!apiKey.trim()) throw new Error('讀單據先要你自己的免費 OpenRouter 鎖匙。');
+            if (!apiKey.trim()) throw new Error('請先設定 OpenRouter 鎖匙。');
             const base64Promises = files.map(file => {
               return new Promise((resolve, reject) => {
                 const reader = new FileReader();
@@ -3612,7 +3597,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
               } catch (parseError) {
                 const message = String(parseError?.message || '').includes('不是有效 JSON')
                   ? parseError.message
-                  : 'AI 回傳的內容不是有效 JSON，請重試或改用其他模型。';
+                  : 'AI 格式錯誤，請重試。';
                 throw markTransient(parseError, message);
               }
               if (!Array.isArray(shaped.items) || shaped.items.length === 0) throw markTransient(null, 'AI 回傳格式不符。');
@@ -4257,7 +4242,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
         const nextFiles = [...claimAttachments, ...selectedFiles];
         if (nextFiles.length > 10) { toast('⚠️ 一次最多可選擇 10 個附件。', 'error'); return; }
         if (nextFiles.reduce((sum, file) => sum + file.size, 0) > 20 * 1024 * 1024) {
-          toast('⚠️ 附件總容量不可超過 20 MB，請移除部分檔案後再試。', 'error');
+          toast('附件超過 20 MB。', 'error');
           return;
         }
         setClaimAttachments(nextFiles);
@@ -4545,7 +4530,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
         const hasOverClaim = reconciliationIssues.some(issue => issue.difference < 0);
         if (hasOverClaim) {
           setReconciliation({ issues: reconciliationIssues, policy: '' });
-          setStepError('⚠️ 有項目認帳數量超過單據總量，請返回修改後再計算。');
+          setStepError('認帳數量過多。');
           return;
         }
         if (reconciliationIssues.some(issue => issue.requiresClaimCorrection)) {
@@ -4555,7 +4540,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
         }
         if (reconciliationIssues.length && !selectedReconciliationPolicy) {
           setReconciliation({ issues: reconciliationIssues, policy: '' });
-          setStepError('⚠️ 有實際單位尚未完成數量核對，請選擇剩餘數量由誰承擔。');
+          setStepError('請分配剩餘數量。');
           return;
         }
 
@@ -4650,7 +4635,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
 
         const discountNum = ReceiptMath.roundMoney(toNum(discountAmount), detectedCurrency);
         if (discountNum < 0 || !ReceiptMath.isDiscountWithinSubtotal(discountNum, totalItemsCost, detectedCurrency)) {
-          setStepError('⚠️ 整張單折扣不可多於已分攤項目小計，請核對折扣金額。'); focusField('discount-amount'); return;
+          setStepError('折扣過高。'); focusField('discount-amount'); return;
         }
         const preDiscountItemsCost = ReceiptMath.roundMoney(totalItemsCost, detectedCurrency);
         const discountShares = allocateCurrencyAmount(discountNum,
@@ -4699,7 +4684,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
         try {
           convertedTotals = ExchangeRates.convertAggregatedAmounts({ amounts: sourceAmounts, totalAmount: sourceBillTotal, rate: conversionRate, targetCurrency: currency, moneyMath: ReceiptMath });
         } catch (error) {
-          setStepError('⚠️ 原幣分帳小計未能與全單總額核對，請檢查認帳數量及折扣／稅費。');
+          setStepError('總額不符，請核對。');
           return false;
         }
         Object.entries(convertedTotals.amounts).forEach(([person, amount]) => {
@@ -4937,10 +4922,10 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
 
         if (!isOnline && (step === 1 || isAnalyzing)) push(4, 'E4', '而家冇網絡，暫時讀唔到單據', '連線後再影相。而家亦可以手動輸入。', { label: '手動輸入', run: () => { setShowSettings(false); startManualEntry(); } });
 
-        if (step === 3 && !payer.trim()) push(2, 'S1', '未填墊支人姓名', '填咗才可以出結果', { label: '跳去輸入', run: () => focusField('payer') });
+        if (step === 3 && !payer.trim()) push(2, 'S1', '請填墊支人', '', { label: '填寫', run: () => focusField('payer') });
         if (step === 2 && items.length > 0) {
             const emptyNameIdx = items.findIndex(i => !i.name.trim());
-            if (emptyNameIdx !== -1) push(2, 'S2', `項目 ${displayBillItemNumber(emptyNameIdx)} 未填寫名稱`, '請填寫名稱以便認帳', { label: '填寫', run: () => focusField(`item-name-${emptyNameIdx}`) });
+            if (emptyNameIdx !== -1) push(2, 'S2', '請填項目名稱', '', { label: '填寫', run: () => focusField(`item-name-${emptyNameIdx}`) });
         }
         if (step >= 2 && items.length === 0) push(2, 'S3', '請至少新增一個項目', '', { label: '新增', run: () => { setStep(2); addItemAndFocus(); } });
         if (step === 2 && !friendsReplies.trim() && items.length > 0) push(2, 'S4', manualClaimsEnabled
@@ -5013,8 +4998,9 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
       }, [isOnline, uploadError, lastImageData, apiKey, step, showSettings, showTutorial, showHistory, payer, items, friendsReplies, manualClaimsEnabled, claimInfo, reconciliation, isAnalyzing, progressText, currency, detectedCurrency, exchangeRate, stepError, uiLang]);
 
       const StatusBar = ({ statuses, expanded, setExpanded, kbOpen }) => {
-          if (!statuses.length) return null;
-          const top = statuses[0];
+          const visibleStatuses = statuses.filter(status => status.level <= 3);
+          if (!visibleStatuses.length) return null;
+          const top = visibleStatuses[0];
 
           /* 將所有邊框提升至 500 深色系 */
           const TONE = {
@@ -5035,12 +5021,12 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                           <span className="shrink-0 text-sm leading-none">{TONE.dot}</span>
                           <div className="flex-1 min-w-0">
                               <div className={`font-bold text-sm leading-tight line-clamp-1 ${TONE.text}`}>
-                                  {tr(top.main)} {statuses.length > 1 && <span className="opacity-70 ml-1">(+{statuses.length - 1})</span>}
+                                  {tr(top.main)} {visibleStatuses.length > 1 && <span className="opacity-70 ml-1">(+{visibleStatuses.length - 1})</span>}
                               </div>
                               {!kbOpen && top.sub && (<div className="text-sm text-slate-600 font-medium mt-0.5 leading-tight line-clamp-1">{tr(top.sub)}</div>)}
                           </div>
                           {!kbOpen && (
-                              <div className="shrink-0 text-sm font-bold text-slate-600 bg-white/80 px-2 py-1 rounded-md border border-slate-500 shadow-sm">{tr("撳一下展開 ⤴")}</div>
+                              <div className="shrink-0 text-sm font-bold text-slate-600 bg-white/80 px-2 py-1 rounded-md border border-slate-500 shadow-sm">{bi('詳情', 'Details')}</div>
                           )}
                       </div>
                     </button>
@@ -5051,13 +5037,13 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                       <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200" onClick={() => setExpanded(false)}>
                           <div id="status-detail-dialog" role="dialog" aria-modal="true" aria-labelledby="status-detail-title" data-testid="status-detail-dialog" className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden mb-4 sm:mb-0 animate-in slide-in-from-bottom-4 duration-300 border border-slate-400" onClick={e => e.stopPropagation()}>
                               <div className="p-4 border-b border-slate-400 flex justify-between items-center bg-slate-50">
-                                  <h3 id="status-detail-title" className="font-bold text-slate-800 text-base">{tr("系統提示與建議 (")}{statuses.length})</h3>
+                                  <h3 id="status-detail-title" className="font-bold text-slate-800 text-base">{bi('提示', 'Notices')}</h3>
                                   <button type="button" data-testid="close-status-details" aria-label={bi('關閉系統提示', 'Close status details')} onClick={() => setExpanded(false)} style={{ width: '44px', height: '44px', minWidth: '44px', minHeight: '44px' }} className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-full bg-white border border-slate-400 text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700">
                                       <Icon path={icons.x} size={16}/>
                                   </button>
                               </div>
                               <div className="max-h-[60vh] overflow-y-auto p-3 space-y-3 bg-slate-50/50">
-                                  {statuses.map(s => {
+                                  {visibleStatuses.map(s => {
                                       const ST = { 1: { dot: '🔴', bg: 'bg-red-50', text: 'text-red-800', border: 'border-red-500' }, 2: { dot: '🟠', bg: 'bg-orange-50', text: 'text-orange-800', border: 'border-orange-500' }, 3: { dot: '🟡', bg: 'bg-amber-50', text: 'text-amber-900', border: 'border-amber-500' }, 4: { dot: '🔵', bg: 'bg-blue-50', text: 'text-blue-800', border: 'border-blue-500' }, 5: { dot: '🔵', bg: 'bg-blue-50', text: 'text-blue-800', border: 'border-blue-500' }, 6: { dot: '⚪', bg: 'bg-white', text: 'text-slate-700', border: 'border-slate-500' } }[s.level] || { dot: '⚪', bg: 'bg-white', text: 'text-slate-700', border: 'border-slate-500' };
                                       const diagnosticTextSize = ['FX1', 'FX0', 'E5'].includes(s.id) ? 'text-base' : 'text-sm';
                                       return (
@@ -5112,8 +5098,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
       const claimSecurityManagementCard = !tutorialDemo && claimSession?.link ? (
         <RememberedDetails data-testid="claim-password-management" preferenceKey="claim-code-reset" defaultOpen={false} persistPreference={!tutorialDemo} className="rounded-xl border border-slate-300 bg-white p-4 space-y-3">
           <summary style={{ minHeight: '40px' }} className="min-h-[40px] cursor-pointer text-sm font-bold text-slate-700">{bi('認證碼重設（有需要先開）', 'Reset recognition code (if needed)')}</summary>
-          <p className="text-sm leading-relaxed text-slate-700">{bi('朋友填姓名就可以認帳；4 字認證碼可選填。忘記已設嘅碼或舊密碼，可由你提供一次性確認碼重設，原認帳會保留。', 'Friends can claim with a name; the 4-character code is optional. If they forget it or an old password, provide a one-time reset code; existing claims stay.')}</p>
-          <p className="text-xs leading-relaxed text-slate-600">{bi('請把確認碼私下交畀本人；唔使每個朋友都設定。', 'Give the reset code privately to the person; not everyone needs to set a code.')}</p>
+          <p className="text-sm leading-relaxed text-slate-700">{bi('忘記認證碼可在此重設。', 'Reset forgotten codes here.')}</p>
           <p data-testid="claim-protection-status" role="status" aria-live="polite" className={`text-sm font-semibold leading-relaxed ${claimSecureError ? 'text-red-800' : 'text-emerald-900'}`}>
             {claimSecureError || (claimSecurePhase === 'setting-up'
               ? bi('正在準備認帳接收…', 'Preparing claim receiving…')
@@ -5128,25 +5113,24 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
               disabled={claimApprovalPhase === 'pending'} onChange={event => { setClaimApprovalName(event.target.value); setClaimApprovalCode(null); setClaimApprovalPhase('idle'); setClaimApprovalError(''); }}
               placeholder={bi('選擇或輸入姓名', 'Choose or enter a name')} className="field-round w-full text-base font-semibold text-slate-800 outline-none" />
             <datalist id="claim-known-members">{Array.from(new Set([...claimSecureMembers.map(member => member?.name), ...inboxPeople].filter(name => typeof name === 'string' && name))).map(name => <option key={name} value={name}/>)}</datalist>
-            <p className="mt-1 text-xs leading-relaxed text-slate-600">{bi('亦可輸入尚未出現在名單內的舊連結姓名；只有你核實後，才應發出確認碼。', 'You may enter a legacy-link name not listed yet. Issue a code only after verifying the person.')}</p>
           </div>
           <Button data-testid="claim-approve-password" variant="primary" className="!w-full" disabled={claimApprovalPhase === 'pending' || !claimApprovalName.trim()} onClick={issueClaimPasswordCode}>
             {claimApprovalPhase === 'pending' ? bi('正在核實及產生確認碼…', 'Confirming protection and generating code…') : bi('產生設定／重設確認碼', 'Generate setup / reset confirmation code')}
           </Button>
-          {claimApprovalError && <p data-testid="claim-approval-error" role="alert" className="rounded-lg border border-red-400 bg-red-50 p-3 text-sm font-semibold text-red-800">{claimApprovalError}{bi(' 未發出確認碼，請重試；不會自動批准。', ' No code was issued. Retry; approval is never automatic.')}</p>}
-          {claimApprovalPhase === 'expired' && <p role="status" className="text-sm font-semibold text-amber-900">{bi('確認碼已到期；如仍需要，重新核實身份後再產生。', 'The code expired. Verify the identity again before generating another if needed.')}</p>}
+          {claimApprovalError && <p data-testid="claim-approval-error" role="alert" className="rounded-lg border border-red-400 bg-red-50 p-3 text-sm font-semibold text-red-800">{claimApprovalError}{bi(' 請重試。', ' Retry.')}</p>}
+          {claimApprovalPhase === 'expired' && <p role="status" className="text-sm font-semibold text-amber-900">{bi('確認碼已到期。', 'Code expired.')}</p>}
           {claimApprovalCode && <div data-testid="claim-approval-code-panel" className="rounded-xl border border-brand-500 bg-brand-50 p-3 space-y-2" role="status">
             <p className="text-sm font-bold text-slate-800">{bi(`只供「${claimApprovalCode.name}」本人使用：`, `For ${claimApprovalCode.name} only:`)}</p>
             <p data-testid="claim-approval-code" className="break-all font-mono text-xl font-bold tracking-wider text-brand-900">{claimApprovalCode.setupCode}</p>
             <p data-testid="claim-approval-expiry" className="text-xs leading-relaxed text-slate-700">{bi('到期時間：', 'Expires: ')}{new Intl.DateTimeFormat(uiLang === 'en' ? 'en-HK' : 'zh-HK', { timeZone: 'Asia/Hong_Kong', dateStyle: 'medium', timeStyle: 'short' }).format(new Date(claimApprovalCode.expiresAt))}{bi('（香港時間）', ' (Hong Kong time)')}</p>
-            <p className="text-xs leading-relaxed text-slate-700">{bi('確認碼最多有效 10 分鐘，只可用一次。請私下交給本人，不要放進群組或連結。朋友兌換後才會設定／重設密碼，並保留原認帳；舊編輯權限會失效。此碼不會儲存到草稿或分享資料。', 'Valid for up to 10 minutes and one use only. Give it privately, not in a group or link. The password changes only when the friend redeems it; previous claims are kept and old edit access is revoked. This code is not saved in drafts or shared data.')}</p>
+            <p className="text-xs leading-relaxed text-slate-700">{bi('10 分鐘內用一次。', 'One use within 10 minutes.')}</p>
             <Button data-testid="claim-copy-approval-code" variant="secondary" className="!w-full" onClick={() => { if (claimApprovalCode.expiresMs <= Date.now()) { setClaimApprovalCode(null); setClaimApprovalPhase('expired'); return; } copyToClipboard(claimApprovalCode.setupCode, bi('確認碼', 'Confirmation code')); }}><Icon path={icons.copy} size={18}/>{bi('複製確認碼', 'Copy confirmation code')}</Button>
           </div>}
         </RememberedDetails>
       ) : !tutorialDemo && claimRoom && !claimSession ? (
         <Card data-testid="claim-legacy-unprotected" className="!p-4 space-y-3 border-amber-500 bg-amber-50">
-          <h3 className="text-lg font-extrabold text-amber-950">{bi('舊連結未受密碼保護', 'This old link is not password-protected')}</h3>
-          <p role="status" className="text-sm font-semibold leading-relaxed text-amber-950">{bi('此連結只有舊接收房間，無法安全加入密碼。已停用公開自動接收，不會接納未驗證的認帳。請建立並分享新的受保護連結；原認帳及結果仍保留，亦可手動貼上 WhatsApp 回覆核對及計算。', 'This link has only an old relay room, so password protection cannot safely be added. Public automatic receiving is disabled and unverified claims will not be accepted. Create and share a new protected link. Existing claims and results are kept; you can still manually paste WhatsApp replies, check them and calculate.')}</p>
+          <h3 className="text-lg font-extrabold text-amber-950">{bi('請更新連結', 'Update link')}</h3>
+          <p role="status" className="text-sm font-semibold leading-relaxed text-amber-950">{bi('建立新連結即可。', 'Create a new link.')}</p>
           <Button data-testid="claim-new-protected-link" variant="primary" className="!w-full" onClick={generateFriendClaimLink}>{bi('建立新的受保護連結', 'Create a new protected link')}</Button>
         </Card>
       ) : null;
@@ -5157,8 +5141,8 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
           {showGoogleAiGuide && <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-950/60 p-4" role="dialog" aria-modal="true" aria-labelledby="google-ai-guide-title" data-testid="google-ai-guide">
             <div className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-2xl border border-slate-300 bg-white p-5 shadow-2xl">
               <h2 id="google-ai-guide-title" className="text-xl font-extrabold text-slate-900">{googleAiCopyStatus === 'failed' ? bi('提示詞未能複製', 'The prompt was not copied') : googleAiCopyStatus === 'pending' ? bi('正在複製提示詞…', 'Copying the prompt…') : bi('提示詞已複製', 'Prompt copied')}</h2>
-              {googleAiCopyStatus === 'failed' && <p role="alert" className="mt-2 rounded-lg bg-amber-50 p-3 text-sm leading-relaxed text-amber-950">{bi('請按「返回」，再用「複製讀圖提示詞」複製一次，然後重新開啟教學。', 'Press Back, then use “Copy photo-reading prompt” to copy it and try again.')}</p>}
-              <ol className="teaching-copy mt-3 list-decimal space-y-2 pl-6 text-sm leading-relaxed text-brand-700">
+              {googleAiCopyStatus === 'failed' && <p role="alert" className="mt-2 rounded-lg bg-amber-50 p-3 text-sm leading-relaxed text-amber-950">{bi('請返回重試。', 'Go back and retry.')}</p>}
+              <ol className="mt-3 list-decimal space-y-2 pl-6 text-sm leading-relaxed text-slate-700">
                 <li>{bi('在輸入欄按「貼上」、加入單據圖片並傳送。', 'Press “Paste” in the input box, add the bill photo, then press Send.')}</li>
                 <li>{bi('複製 Gemini 的完整回答，返回本頁。', 'Copy Gemini’s complete answer and return here.')}</li>
                 <li>{bi('按「整理這段文字」。', 'Press “Process this text”.')}</li>
@@ -5358,9 +5342,8 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
               <div data-testid="scan-start" data-stage-surface="1" className={`step1-stack space-y-4 animate-in fade-in duration-500${isAnalyzing ? ' is-analyzing' : ''}`}>
                 <div className="page-section-heading flex items-center gap-2 mb-2">
                   <span className="w-8 h-8 rounded-full bg-brand-100 border border-brand-500 text-brand-700 flex items-center justify-center font-bold">1</span>
-                  <h2 className="text-2xl font-bold text-slate-800 tracking-tight">{tr("上載並分析單據")}</h2>
+                  <h2 className="text-2xl font-bold text-slate-800 tracking-tight">{bi('讀單據', 'Scan receipt')}</h2>
                 </div>
-                <p data-testid="organizer-flow-intro" className="teaching-copy text-sm leading-relaxed text-brand-700">{bi('朋友唔喺你身邊。先讀張單，核對名稱同金額，再寄出一條連結。佢哋只填自己食咗乜；你計完，結果就係同一條連結。', 'Friends are not with you. Read the bill, check the names and amounts, then send one link. They enter only what they ate; after you calculate, the result is that same link.')}</p>
                 <p data-testid="step-one-methods-intro" className="step1-compact-copy text-sm text-slate-700 leading-5 whitespace-nowrap">{bi(<>以下<span data-testid="step-one-method-count" className="step1-method-count">3</span>種方法處理單據：</>, 'Three ways to handle a bill:')}</p>
 
                 <Card data-testid="receipt-text-import" className="step1-option step1-method-panel border-slate-400 bg-white">
@@ -5375,7 +5358,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                           </span>
                           <span data-testid="external-ai-provider-examples" aria-label={bi('Google AI 等', 'Google AI, etc.')} className="step1-compact-copy shrink-0 whitespace-nowrap text-right text-xs font-normal leading-tight text-slate-500">{bi('（Google AI 等）', '(Google AI, etc.)')}</span>
                         </span>
-                        <span className="teaching-copy step1-compact-copy block mt-1 text-xs leading-relaxed text-brand-700">{bi('複製提示詞，附上單據，再貼回結果。一定要連收據圖片一齊附上。', 'Copy the prompt, attach the bill, then paste the result back. Attach the receipt image as well.')}</span>
+                        <span className="step1-compact-copy block mt-1 text-xs leading-relaxed text-slate-600">{bi('複製提示詞，附上單據，再貼回結果。', 'Copy the prompt, attach the bill, then paste the result back.')}</span>
                       </span>
                       <span aria-hidden="true" data-testid="receipt-text-import-toggle-icon" data-direction={showReceiptTextImport ? 'up' : 'down'} className="absolute -top-5 right-0 z-10 sm:-right-4"><Icon path={showReceiptTextImport ? icons.chevronUp : icons.chevronDown} size={20} className="text-slate-600"/></span>
                     </button>
@@ -5387,8 +5370,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                         <div className="grid grid-cols-1 gap-2">
                           <Button data-testid="copy-receipt-json-prompt" variant="outline" className="w-full border-slate-400 bg-white !text-sm" disabled={tutorialDemo || isAnalyzing} onClick={copyReceiptJsonImportPrompt}><Icon path={icons.copy} size={18}/>{bi('複製讀圖提示詞', 'Copy photo-reading prompt')}</Button>
                         </div>
-                        <p className="step1-compact-copy text-xs leading-relaxed text-slate-600">{bi('開啟 Google AI 後自行附上單據圖片；本程式不會上載圖片。', 'Attach the bill yourself in Google AI; this app does not upload it.')}</p>
-                        <ol data-testid="external-ai-steps" className="teaching-copy step1-compact-copy list-decimal space-y-1 rounded-lg border border-slate-300 bg-slate-50 p-3 pl-8 text-xs leading-relaxed text-brand-700">
+                        <ol data-testid="external-ai-steps" className="step1-compact-copy list-decimal space-y-1 rounded-lg border border-slate-300 bg-slate-50 p-3 pl-8 text-xs leading-relaxed text-slate-700">
                           <li>{bi('開啟 Google AI，附上單據並送出。', 'Open Google AI, attach the bill, and send.')}</li>
                           <li>{bi('把結果貼在下方，再按「整理」。', 'Paste the result below, then tap Process.')}</li>
                           <li>{bi('第二步可加原圖，朋友可在連結查看。', 'Add the original in Step 2 for friends to view.')}</li>
@@ -5423,7 +5405,6 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                         <div className="ocr-indeterminate bg-brand-500 h-3 rounded-full"></div>
                       </div>
                       {lastRecognitionModel && <p data-testid="last-recognition-model" className="mt-2 text-xs text-slate-600 text-left">{recognitionModelLabel(lastRecognitionModel)}</p>}
-                      <p className="text-base text-slate-700 mt-4 leading-relaxed">{bi('請稍候。完成後會帶你去核對項目。', 'Please wait. You can check the items when it finishes.')}</p>
                     </div>
                   ) : (
                     <div className="flex flex-col items-center w-full">
@@ -5457,7 +5438,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                           <div role="dialog" aria-modal="true" aria-labelledby="receipt-image-action-title" data-testid="receipt-image-action-menu" className="w-full max-w-sm rounded-2xl border border-slate-300 bg-white p-4 shadow-2xl" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 1rem)' }} onClick={event => event.stopPropagation()}>
                             <div className="mb-3 flex items-start justify-between gap-3">
                               <div>
-                                <h3 id="receipt-image-action-title" className="text-lg font-bold text-slate-900">{bi('選擇圖片操作', 'Choose a photo action')}</h3>
+                                <h3 id="receipt-image-action-title" className="text-lg font-bold text-slate-900">{bi('選擇圖片', 'Choose photos')}</h3>
                               </div>
                               <button type="button" data-testid="close-receipt-image-menu" onClick={() => setShowImageActionMenu(false)} aria-label={tr('關閉')} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-400 text-2xl leading-none text-slate-600 hover:bg-slate-100">×</button>
                             </div>
@@ -5466,7 +5447,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                                 <Icon path={icons.fileImage} size={20}/><span className="flex flex-col items-start"><span>{bi('從「下載」選單據圖片', 'Choose receipt photos from Downloads')}</span><span className="host-action-hint text-xs font-normal">{bi('優先開啟下載資料夾；否則在檔案瀏覽器選「下載」（最多 5 張）', 'Starts in Downloads when supported; otherwise choose Downloads in Files (up to 5)')}</span></span>
                               </Button>
                               <Button data-testid="reuse-last-receipt-photos" variant="secondary" className="!justify-start !py-3 text-left" disabled={!lastImageData.length || isAnalyzing} onClick={() => { setShowImageActionMenu(false); retryLastUpload(); }}>
-                                <Icon path={icons.fileImage} size={20}/><span className="flex flex-col items-start"><span>{bi('用上一次的圖片重新識別', 'Re-recognize the last photos')}</span><span className="text-xs font-normal text-slate-600">{lastImageData.length ? bi(`重用整批 ${lastImageData.length} 張相片`, `Reuse all ${lastImageData.length} photos`) : bi('暫無可重用的相片', 'No previous photos available')}</span></span>
+                                <Icon path={icons.fileImage} size={20}/><span className="flex flex-col items-start"><span>{bi('重用上次', 'Reuse previous')}</span><span className="text-xs font-normal text-slate-600">{lastImageData.length ? bi(`${lastImageData.length} 張`, `${lastImageData.length} photos`) : bi('暫無圖片', 'No photos')}</span></span>
                               </Button>
                             </div>
                           </div>
@@ -5488,7 +5469,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                       className={`flex min-h-[56px] min-w-0 flex-1 items-center gap-3 rounded-xl border p-3 text-left shadow-sm transition-all active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 ${
                         apiKey.trim()
                           ? 'bg-white border-brand-500 hover:border-brand-600 text-slate-700'
-                          : 'bg-red-50 border-red-500 hover:bg-red-100 text-slate-800'
+                          : 'bg-red-50 border-red-500 hover:bg-red-100 text-red-800'
                       }`}
                     >
                       <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white shadow-sm ${apiKey.trim() ? 'bg-brand-500' : 'bg-red-500'}`}>
@@ -5501,9 +5482,9 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                             ? (!modelUsesFreeTier(apiModel, allowPaidModels)
                               ? bi('✅ 進階模型已開啟', '✅ Advanced model is on')
                               : bi(`✅ 免費 ${Ocr.shortLabel(resolveBillModel(apiModel, allowPaidModels))} 已設定`, `✅ Free ${Ocr.shortLabel(resolveBillModel(apiModel, allowPaidModels))} is set`))
-                            : bi('學一次之後，影相會快啲', 'After one lesson, photos are faster')}
+                            : bi('⚠️ 尚未設定免費鎖匙', '⚠️ Free key is not set yet')}
                         </span>
-                        <span className={`block text-xs font-semibold ${apiKey.trim() ? 'text-slate-600' : 'text-slate-700'}`}>{apiKey.trim() ? bi('按此更改', 'Tap to change') : bi('而家可先用 Google，唔使鎖匙', 'Use Google for now; no key yet')}</span>
+                        <span className={`block text-xs font-semibold ${apiKey.trim() ? 'text-slate-600' : 'text-red-800'}`}>{apiKey.trim() ? bi('按此更改', 'Tap to change') : bi('相片／文字需 Key', 'Photo/text needs a key')}</span>
                       </span>
                       <Icon path={icons.settings} size={20} className="shrink-0 text-slate-500"/>
                     </button>
@@ -5521,9 +5502,9 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                     </button>
                   </div>
                   {showKeyGuidance && <div id="key-guidance-content" data-testid="key-guidance-content" className="mt-3 space-y-1 border-t border-brand-200 pt-3 text-xs leading-relaxed text-slate-700">
-                    <p data-testid="key-guidance-summary" className="teaching-copy step1-compact-copy text-brand-700">{apiKey.trim()
+                    <p data-testid="key-guidance-summary" className="step1-compact-copy">{apiKey.trim()
                       ? bi('相片／文字會用已設定的 Key；手動／JSON 免 Key。', 'Photos/text use this key; manual/JSON needs no key.')
-                      : bi('影相先學一次免費 Key，之後快啲。未學用 Google。手動／JSON 免 Key。', 'One free Key lesson makes photos faster. Use Google until then. Manual/JSON needs no Key.')}</p>
+                      : bi('相片／文字需免費 OpenRouter Key；按「鎖匙設定」申請。手動／JSON 免 Key。', 'Photos/text need a free OpenRouter key; get one in Key settings. Manual/JSON needs no key.')}</p>
                     <div data-testid="scan-model-settings" className="mt-3 space-y-2 border-t border-brand-200 pt-3">
                       <Label htmlFor="scan-model-select" className="text-base">{bi('今次辨識用邊個模型？', 'Choose a model for this scan')}</Label>
                       <select
@@ -5549,7 +5530,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                 <div data-testid="entry-method-choice" className="text-center py-2">
                   <ChoiceDivider />
                   <Button data-testid="start-manual" variant="secondary" className="step1-method-panel step1-manual-method w-full mt-4 border-slate-500 !text-sm" onClick={startManualEntry}><span data-testid="method-badge-manual" aria-hidden="true" className="step1-method-badge">3</span>{bi('手動輸入項目', 'Enter items manually')}<Icon path={icons.arrowRight} size={18}/></Button>
-                  <p className="teaching-copy step1-compact-copy text-sm text-brand-700 mt-2 leading-relaxed">{bi('讀唔到？手動輸入。', 'Could not scan? Enter items manually.')}</p>
+                  <p className="step1-compact-copy text-sm text-slate-600 mt-2 leading-relaxed">{bi('讀唔到？手動輸入。', 'Could not scan? Enter items manually.')}</p>
                 </div>
               </div>
             )}
@@ -5624,7 +5605,6 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                       onChange={(e) => { setClaimActivityName(e.target.value.slice(0, 80)); claimLinkMetaRef.current = null; setClaimLinkMeta(null); }}
                       placeholder={bi('如：大阪旅行', 'e.g. Osaka trip')}
                       className="field-round w-full text-base font-semibold text-slate-800 outline-none" />
-                    <p className="text-xs text-slate-600 mt-1">{bi('留空用連結建立時間。', 'Leave blank to use the creation time.')}</p>
                   </div>
                   <div>
                     <label htmlFor="claim-expiry-days" className="block text-base font-bold text-slate-800 mb-1.5">{bi('連結有效期', 'Link validity')}</label>
@@ -5637,11 +5617,10 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                       <option value="7">{bi('7 日', '7 days')}</option>
                       <option value="14">{bi('14 日', '14 days')}</option>
                     </select>
-                    <p className="text-xs text-slate-600 mt-1">{bi('伺服器計時，到期停用。', 'Server-timed; disabled at expiry.')}</p>
                   </div>
                   {claimSession?.link && <p className="text-xs font-semibold text-emerald-800">{bi('連結已建立；名稱和期限不能改。', 'Link created; name and expiry cannot be changed.')}</p>}
                   {items.length > 0 && <div className="flex justify-end pt-1">
-                    <Button data-testid="activity-settings-next" variant="primary" className="host-primary !w-auto min-w-24 text-sm" onClick={scrollToStep2Next}>{bi('前往結算區', 'Go to settlement')}</Button>
+                    <Button data-testid="activity-settings-next" variant="primary" className="host-primary !w-auto min-w-24 text-sm" onClick={scrollToStep2Next}>{bi('下一步', 'Next')}</Button>
                   </div>}
                 </Card>
 
@@ -5650,7 +5629,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                 <div className="space-y-4">
                   {!receiptWasRead && (
                   <div className="flex justify-between items-end mb-1">
-                    <Label className="!mb-0 text-lg">{tr("消費項目清單")}</Label>
+                    <Label className="!mb-0 text-lg">{bi('項目', 'Items')}</Label>
                     <span className="text-sm font-semibold text-brand-700 bg-brand-50 px-2.5 py-1 rounded-md border border-brand-500">{tr("共 ")}{items.length}{tr(" 項")}</span>
                   </div>
                   )}
@@ -5706,7 +5685,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                       ) : (
                       <div className="grid gap-4">
                         <div>
-                          <label htmlFor={itemFieldId('name')} className="text-base font-bold text-slate-700 uppercase tracking-wider mb-1.5 block">{tr("編號 ")}{displayBillItemNumber(idx)}{tr(" - 名稱")}</label>
+                          <label htmlFor={itemFieldId('name')} className="text-base font-bold text-slate-700 uppercase tracking-wider mb-1.5 block">{displayBillItemNumber(idx)} {bi('名稱', 'Name')}</label>
                           <input id={itemFieldId('name')} type="text" data-testid="item-name" ref={el => fieldRefs.current[`item-name-${idx}`] = el} value={displayItemName(item)} onChange={(e) => updateItem(idx, uiLang === 'en' && (item.nameEn || item.nameEnEdited) ? 'nameEn' : 'name', e.target.value)} onKeyDown={(e) => handleItemKeyDown(e, 'name', idx)} className="field-round w-full text-base font-semibold text-slate-800 outline-none" placeholder={tr("輸入項目名稱...")} />
                           {(item.original || item.ja) && <div className="mt-1 text-xs font-normal text-slate-500 italic truncate" title={item.original || item.ja}>{tr("原文：")}{item.original || item.ja}</div>}
                         </div>
@@ -5721,12 +5700,12 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                             </div>
                           </div>
                           <div className="w-40 shrink-0">
-                            <label htmlFor={itemFieldId('qty')} className="text-base font-bold text-slate-700 uppercase tracking-wider mb-1.5 block">{tr("單據總量")}</label>
+                            <label htmlFor={itemFieldId('qty')} className="text-base font-bold text-slate-700 uppercase tracking-wider mb-1.5 block">{bi('數量', 'Quantity')}</label>
                             <input id={itemFieldId('qty')} type="number" inputMode="decimal" min="0" step="any" data-testid="item-qty" ref={el => fieldRefs.current[`item-qty-${idx}`] = el} value={invalidQtyForCorrection(item, detectedCurrency) ?? item.totalQty ?? ''} onChange={(e) => updateItem(idx, 'totalQty', e.target.value === '' ? null : e.target.value)} onKeyDown={(e) => handleItemKeyDown(e, 'qty', idx)} className="field-round w-full text-base font-semibold text-slate-800 outline-none text-center" placeholder={tr("未知可留空")} />
                           </div>
                         </div>
                         <div>
-                          <label htmlFor={itemFieldId('unit')} className="text-base font-bold text-slate-700 uppercase tracking-wider mb-1.5 block">{bi('單位（留空按份數比例）', 'Unit (leave blank to split by shares)')}</label>
+                          <label htmlFor={itemFieldId('unit')} className="text-base font-bold text-slate-700 uppercase tracking-wider mb-1.5 block">{bi('單位（選填）', 'Unit (optional)')}</label>
                           <input id={itemFieldId('unit')} type="text" value={item.unit || ''} onChange={(e) => updateItem(idx, 'unit', e.target.value)} className="field-round w-full text-base font-semibold text-slate-800 outline-none" placeholder={bi('件、杯、碟', 'e.g. item, cup, plate')} />
                         </div>
                         {item.amountReviewRequired === true && <div>
@@ -5752,15 +5731,14 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                   </dialog>
                   {items.length > 0 && (
                     <React.Fragment>
-                      <Button data-testid="add-item" variant="outline" onClick={addItem} className="w-full border-dashed border-brand-500 bg-white/50 hover:bg-brand-50 text-brand-700"><Icon path={icons.plus} size={18}/>{tr(" 新增一筆項目")}</Button>
-                      <button type="button" data-testid="scan-another" onClick={openAiScan} className="w-full text-base font-semibold text-slate-700 underline py-2">{bi('再影一張單據', 'Scan another receipt')}</button>
+                      <Button data-testid="add-item" variant="outline" onClick={addItem} className="w-full border-dashed border-brand-500 bg-white/50 hover:bg-brand-50 text-brand-700"><Icon path={icons.plus} size={18}/>{bi('新增項目', 'Add item')}</Button>
+                      <button type="button" data-testid="scan-another" onClick={openAiScan} className="w-full text-base font-semibold text-slate-700 underline py-2">{bi('讀新單', 'New receipt')}</button>
                     </React.Fragment>
                   )}
                 </div>
 
                 {items.length > 0 && <React.Fragment>
                 <Card className="bg-slate-50">
-                  <p className="text-sm text-slate-700 leading-relaxed mb-4">{bi('讀單已計入稅費／折扣，勿重複填。', 'Scanning includes tax/discounts. Do not enter amounts already included.')}</p>
                   <div className="grid gap-4">
                     <div data-tutorial-target="fee" className="flex justify-between items-center gap-4">
                       <div className="flex-1">
@@ -5776,7 +5754,6 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                     <div className="flex justify-between items-center gap-4 border-t border-slate-300 pt-3">
                       <div className="flex-1">
                         <Label htmlFor={discountAmountInputId} className="!mb-0.5">{bi('整單折扣', 'Bill-wide discount')}</Label>
-                        <p id={discountAmountHintId} data-testid="discount-amount-hint" className="text-sm text-slate-600 font-medium">{bi('整單按消費比例分攤；單項已計入。', 'Bill-wide discount is split by spending; item discounts are included.')}</p>
                       </div>
                       <div className="field-round flex items-center w-36 shrink-0 overflow-hidden shadow-sm">
                         <span className="pl-3 pr-1 text-slate-600 font-bold border-r border-slate-500 py-2">{getCurrencySymbol(detectedCurrency)}</span>
@@ -5789,21 +5766,19 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
 
                 <div className="border-t border-slate-400 my-6 pt-6 space-y-6">
                   <div data-testid="claim-share-block" className="claim-share-block">
-                    <Label className="flex items-center justify-between mb-3"><span>{tr("1. 分享認帳連結")}</span></Label>
-                    <p className="teaching-copy text-base text-brand-700 mb-3 leading-relaxed">{claimRoom && !claimSession && !tutorialDemo ? bi('請建立新的受保護連結；舊連結只可手動交回及核對。', 'Create a protected link; the old link supports manual replies and checking only.') : bi('朋友填姓名和項目；4 字認證碼可選填。', 'Friends enter a name and items; the 4-character code is optional.')}</p>
-                    <p className="teaching-copy text-sm text-brand-700 mb-3 leading-relaxed">{bi('核對好名稱同金額後，按下面「產生連結並寄出」。朋友只填自己食咗乜；你計完，結果寫返同一條連結。', 'After the names and amounts check out, tap “Create the link and send it” below. Friends enter only what they ate; after you calculate, the result is written on that same link.')}</p>
+                    <Label className="flex items-center justify-between mb-3"><span>{bi('分享認帳', 'Share claims')}</span></Label>
+                    <p className="text-base text-slate-700 mb-3 leading-relaxed">{claimRoom && !claimSession && !tutorialDemo ? bi('請建立新連結。', 'Create a new link.') : bi('朋友填姓名及項目。', 'Friends enter a name and items.')}</p>
                     <div data-testid="claim-link-actions" className="flex flex-col gap-3">
                       <Button data-testid="copy-friend-claim-link" variant="secondary" onClick={generateFriendClaimLink} className="!w-full text-sm bg-white hover:bg-slate-50 border-slate-500">
-                        <Icon path={icons.copy} size={18} className="text-slate-600"/>{tr(" 複製認帳連結給朋友")}</Button>
+                        <Icon path={icons.copy} size={18} className="text-slate-600"/>{bi('複製連結', 'Copy link')}</Button>
                       <ChoiceDivider />
                         <Button data-testid="open-claim-share-button" data-tutorial-target="open-claim-share" variant="primary" onClick={shareFriendClaimLink} className="host-primary !w-full text-sm">
-                        <Icon path={icons.share} size={18}/><span>{bi('產生連結並寄出', 'Create the link and send it')}</span></Button>
+                        <Icon path={icons.share} size={18}/><span>{bi('分享', 'Share')}</span></Button>
                     </div>
                   </div>
                 {!tutorialDemo && !manualClaimsEnabled && !claimLinkShared && !claimSession && !claimRoom && !hasInboundClaim && (
                   <Card data-testid="manual-claim-entry-option" className="!p-4 mb-4 border-slate-400 bg-slate-50 !shadow-none">
-                    <h3 className="text-base font-bold text-slate-800">{bi('不建立連結？可手動輸入認帳', 'No link? Enter claims manually')}</h3>
-                    <p className="mt-2 text-sm leading-relaxed text-slate-700">{bi('手動回覆只保存在本機；建立連結時不會預先上傳。之後仍可照常建立連結。', 'Manual replies stay on this device and are not prefilled to a link. You can still create a link later.')}</p>
+                    <h3 className="text-base font-bold text-slate-800">{bi('手動輸入認帳', 'Enter claims manually')}</h3>
                     <Button data-testid="enable-manual-claim-entry" variant="outline" className="!w-full min-h-11 mt-3" onClick={() => {
                       setManualClaimsEnabled(true);
                       setStepError('');
@@ -5828,9 +5803,9 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                     <h3 className="text-lg font-extrabold text-slate-800">{bi('認帳回覆', 'Share replies')}</h3>
                     <p data-testid="claim-inbox-status" className="mt-3 text-base font-bold leading-relaxed text-slate-800" role="status">
                       {!tutorialDemo && manualClaimsEnabled && !claimSession
-                        ? bi('手動輸入已開啟；回覆只保存在本機。', 'Manual entry is on; replies stay on this device.')
+                        ? bi('手動輸入已開啟。', 'Manual entry is on.')
                         : !tutorialDemo && claimRoom && !claimSession
-                        ? bi('舊公開自動接收已停用。請建立新的受保護連結，或手動貼回覆。', 'Old public receiving is disabled. Create a protected link, or paste replies manually.')
+                        ? bi('請建立新連結或貼上回覆。', 'Create a new link or paste replies.')
                         : !tutorialDemo && claimSecureError
                           ? claimSecureError
                           : !tutorialDemo && claimSecurePhase === 'setting-up'
@@ -5841,17 +5816,14 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                                 ? bi(`現有認帳 ${inboxPeople.length} 位：${inboxPeople.join('、')}`, `Current claims ${inboxPeople.length}: ${inboxPeople.join(', ')}`)
                                 : tutorialDemo
                                   ? bi('先複製或分享上面的連結。', 'Copy or share the link above first.')
-                                  : bi('等候朋友交返認帳。', 'Waiting for friends to send their claims.')}
+                                  : bi('等候認帳。', 'Waiting for claims.')}
                     </p>
-                    {manualClaimsEnabled && <p data-testid="manual-claim-local-status" className="mt-2 text-sm leading-relaxed text-slate-700" role="note">{claimSession
-                      ? bi('建立連結不會預先上傳手動回覆；朋友經連結交回的回覆仍會正常接收。', 'Manual replies are not prefilled to the link; replies submitted through the link still sync normally.')
-                      : bi('手動回覆留在本機，不使用線上收件。', 'Manual replies stay on this device; the online inbox is not used.')}</p>}
                     {inboxNote && claimSession && <p className="mt-2 text-base font-semibold text-brand-800">{bi(`最新交到：${inboxNote}`, `Latest: ${inboxNote}`)}</p>}
                     {(!manualClaimsEnabled || claimSession) && <Button data-testid="claim-inbox-refresh" variant="outline" className="!w-full mt-3" disabled={!claimSession || inboxPhase === 'receiving' || claimSecurePhase === 'setting-up'} onClick={() => pullClaimsRef.current(true)}>{bi('重新接收', 'Check again')}</Button>}
                   </Card>
                   {legacyClaimReviewRequired && <Card data-testid="legacy-claim-review" role="alert" className="!p-4 space-y-3 border-amber-600 bg-amber-50">
                     <h3 className="text-base font-extrabold text-amber-950">{bi('舊草稿：先核對認領項目', 'Older draft: review item claims')}</h3>
-                    <p className="text-sm leading-relaxed text-amber-950">{bi('舊版本可能曾在刪除項目後改動編號。請逐項對照下方編號、名稱及朋友回覆；核對前不會重新結算。', 'An older version may have changed item IDs after deletion. Compare the IDs and names below with each friend reply. Recalculation is blocked until you confirm.')}</p>
+                    <p className="text-sm leading-relaxed text-amber-950">{bi('請核對項目編號及回覆。', 'Check item numbers and replies.')}</p>
                     <ul className="list-disc pl-5 text-sm font-semibold leading-relaxed text-amber-950">{items.map((item, idx) => <li key={item.id}>{displayBillItemNumber(idx)} — {displayItemName(item)}</li>)}</ul>
                     <button type="button" data-testid="confirm-legacy-claim-review" onClick={() => { setLegacyClaimReviewRequired(false); setStepError(''); }} className="min-h-[44px] w-full rounded-lg border border-amber-800 bg-white px-4 py-2 text-sm font-bold text-amber-950">{bi('已逐項核對，可以繼續', 'I checked each item; continue')}</button>
                   </Card>}
@@ -5867,11 +5839,11 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                     ref={el => fieldRefs.current.replies = el} value={friendsReplies} onChange={(e) => {setFriendsReplies(e.target.value); setReconciliation(null); setStepError('');}} onPaste={handlePasteReplies} onFocus={onFocusReplies} onBlur={onBlurReplies}
                     placeholder={manualClaimsEnabled && !claimSession
                       ? bi('貼上朋友回覆；只保存在本機。', 'Paste replies here; they stay on this device.')
-                      : bi('朋友回覆會顯示於此；亦可貼上 WhatsApp 後備。', 'Friend replies appear here. You can also paste a WhatsApp backup.')}
+                      : bi('朋友認帳會顯示於此', 'Claims appear here')}
                     className="w-full h-48 bg-white border border-slate-500 rounded-xl p-4 text-base font-mono text-slate-700 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none resize-y shadow-inner leading-relaxed">
                   </textarea>
                   {manualClaimsEnabled && <div id="manual-claim-guidance" data-testid="manual-claim-guidance" className="mt-2 rounded-lg border border-slate-300 bg-slate-50 p-3 text-sm leading-relaxed text-slate-800" role="note">
-                    <p>{bi('每人至少認領一項；只填姓名不會分帳。格式：', 'Each person must claim an item; a name alone is not counted. Format:')}</p>
+                    <p>{bi('格式：', 'Format:')}</p>
                     <pre data-testid="manual-claim-example" className="mt-1 whitespace-pre-wrap font-mono text-sm">{bi(`姓名：阿明\n${displayBillItemNumber(0)} = 1`, `Name: Alex\n${displayBillItemNumber(0)} = 1`)}</pre>
                   </div>}
                 </div>
@@ -5890,7 +5862,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
               <div data-testid="calculation-step" data-stage-surface="3" className="space-y-6 animate-in fade-in duration-500">
                 <div className="page-section-heading flex items-center gap-2 mb-2">
                   <span className="w-8 h-8 rounded-full bg-brand-100 border border-brand-500 text-brand-700 flex items-center justify-center font-bold">3</span>
-                  <h2 className="text-2xl font-bold text-slate-800 tracking-tight">{tr("結算細節設定")}</h2>
+                  <h2 className="text-2xl font-bold text-slate-800 tracking-tight">{bi('設定', 'Settings')}</h2>
                 </div>
 
                 {stepError && <div role="alert" data-testid="step-error" className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm font-semibold text-amber-900">{stepError}</div>}
@@ -5902,7 +5874,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                       ? bi('舊草稿已標記總額不符，但沒有保存印刷總額；請回看單據核對。', 'An older draft flagged a mismatch but did not save the printed total. Check the receipt.')
                       : <>{bi('收據印刷總額：', 'Printed receipt total: ')}{formatSourceMoney(receiptTotalReview.printedAmount, receiptTotalReview.printedCurrency)} {receiptTotalReview.printedCurrency}</>}</p>
                     <p className="text-sm leading-relaxed text-amber-950">{bi('目前品項＋稅費－折扣：', 'Current items + tax − discounts: ')}{formatSourceMoney(receiptTotalReview.calculatedAmount, receiptTotalReview.calculatedCurrency)} {receiptTotalReview.calculatedCurrency}</p>
-                    <p className="text-sm leading-relaxed text-amber-900">{bi('請修正項目／稅費／折扣，或按下方明確確認差異；未確認前不會產生分帳報告。', 'Correct the items, tax or discounts, or explicitly acknowledge the difference below. No settlement report is created until you confirm.')}</p>
+                    <p className="text-sm leading-relaxed text-amber-900">{bi('請修正或確認差異。', 'Fix or confirm the difference.')}</p>
                     <div className="grid gap-2">
                       <Button data-testid="edit-receipt-total" variant="secondary" className="w-full" onClick={() => { setReceiptTotalReview(null); setStep(2); }}>{bi('返回核對項目及金額', 'Review items and amounts')}</Button>
                       <Button data-testid="acknowledge-receipt-total" variant="primary" className="w-full" onClick={() => { setReceiptTotalAcknowledgement(receiptTotalReview.signature); setReceiptTotalReview(null); setStepError(''); }}>{bi('我已核對差異，仍要繼續', 'I checked the difference; continue')}</Button>
@@ -5913,10 +5885,10 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                 {reconciliation?.issues?.length > 0 && (
                   <Card data-testid="unit-quantity-reconciliation" className="border-amber-500 bg-amber-50 space-y-4">
                     <div>
-                      <h3 className="font-bold text-amber-900 text-lg">{tr("⚠️ 實際數量未完全核對")}</h3>
+                      <h3 className="font-bold text-amber-900 text-lg">{bi('數量未對上', 'Quantities do not match')}</h3>
                       <p className="text-sm text-amber-800 mt-1">{reconciliation.issues.some(issue => issue.shareClaimCount > 0)
-                        ? bi('單據已知實物總量時，只填「份數」不等於件數；未核實的數量／金額不會自動分給其他認帳人。', 'When a receipt has a known physical quantity, a share without a unit is not a counted item. Unverified quantities or amounts will not be silently assigned to other claimants.')
-                        : tr("只填單位嘅項目必須同單據總量對得上；未認帳數量唔會無故消失。")}</p>
+                        ? bi('請核對份數及實際數量。', 'Check shares and quantities.')
+                        : bi('請核對單據總量。', 'Check the receipt quantity.')}</p>
                     </div>
                     <div className="space-y-2">
                       {reconciliation.issues.map(issue => (
@@ -5980,10 +5952,10 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                   </div>
 
                   <div data-testid="exchange-rate-status" role="status" aria-live="polite" className={`rounded-xl border p-3 text-sm ${exchangeRate.status === 'error' ? 'border-red-400 bg-red-50 text-red-900' : 'border-sky-300 bg-sky-50 text-slate-800'}`}>
-                    {detectedCurrency === currency && <p className="font-semibold">{bi(`原幣與結算貨幣相同（${detectedCurrency}），不需換算。`, `Receipt and settlement currencies are both ${detectedCurrency}; no conversion is needed.`)}</p>}
-                    {detectedCurrency !== currency && exchangeRate.status === 'loading' && <p className="font-semibold">{bi(`正在取得 ${detectedCurrency} → ${currency} 最新匯率…`, `Fetching the latest ${detectedCurrency} → ${currency} exchange rate…`)}</p>}
-                    {detectedCurrency !== currency && exchangeRate.status === 'error' && exchangeRate.base === detectedCurrency && exchangeRate.quote === currency && <div className="flex flex-wrap items-center justify-between gap-2"><p className="font-semibold">{bi(`暫時未能取得 ${detectedCurrency} → ${currency} 匯率；第 4 步結果尚未產生。請重試，或選擇其他結算貨幣。`, `The ${detectedCurrency} → ${currency} rate is unavailable, so Step 4 has not been generated. Retry or choose another settlement currency.`)}</p><button type="button" onClick={() => setExchangeRateAttempt(current => current + 1)} className="rounded-lg border border-red-500 bg-white px-3 py-2 font-bold">{bi('重試', 'Retry')}</button></div>}
-                    {detectedCurrency !== currency && exchangeRate.status === 'ready' && exchangeRate.base === detectedCurrency && exchangeRate.quote === currency && <div className="space-y-1"><p className="font-bold">{bi('最新匯率', 'Latest exchange rate')}: 1 {detectedCurrency} = {formatExchangeRate(exchangeRate.rate)} {currency} <span className="font-normal">({exchangeRate.date || bi('日期未提供', 'date unavailable')} · {exchangeRate.provider || 'Frankfurter'})</span></p><p>{bi('換算示例', 'Example')}: {formatMoney(1000, detectedCurrency)} {detectedCurrency} → {formatMoney(ExchangeRates.convertMoney(1000, exchangeRate.rate, currency, ReceiptMath), currency)} {currency}</p><p className="text-xs">{bi('報告會列出原單總額、換算後總額及本次採用的匯率。', 'The report will show the receipt total, converted total and rate used.')}</p></div>}
+                    {detectedCurrency === currency && <p className="font-semibold">{bi('無需換算', 'No conversion')}</p>}
+                    {detectedCurrency !== currency && exchangeRate.status === 'loading' && <p className="font-semibold">{bi('取得匯率…', 'Fetching rate…')}</p>}
+                    {detectedCurrency !== currency && exchangeRate.status === 'error' && exchangeRate.base === detectedCurrency && exchangeRate.quote === currency && <div className="flex flex-wrap items-center justify-between gap-2"><p className="font-semibold">{bi('匯率失敗', 'Rate unavailable')}</p><button type="button" onClick={() => setExchangeRateAttempt(current => current + 1)} className="rounded-lg border border-red-500 bg-white px-3 py-2 font-bold">{bi('重試', 'Retry')}</button></div>}
+                    {detectedCurrency !== currency && exchangeRate.status === 'ready' && exchangeRate.base === detectedCurrency && exchangeRate.quote === currency && <p className="font-bold">1 {detectedCurrency} = {formatExchangeRate(exchangeRate.rate)} {currency}</p>}
                   </div>
 
                   <div>
@@ -6034,8 +6006,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                 <div className="flex gap-3 pt-2">
                   <Button variant="secondary" className="w-1/3 !px-2 border-slate-500" onClick={() => setStep(2)}>{tr("上一步")}</Button>
                   <Button data-testid="calculate-split" variant="primary" className="host-primary w-2/3 flex-col gap-1 text-center leading-tight" onClick={() => { const calculated = calculateSplit(); if (tutorialDemo) onTutorialAction?.(calculated ? 'calculated' : 'calculation-error', !payer.trim() ? 'payer' : 'replies'); }}>
-                    <span data-testid="calculate-split-title" className="inline-flex items-center justify-center gap-2">{tr("產生分帳報告 ")}<Icon path={icons.check} size={18}/></span>
-                    <span data-testid="calculate-split-hint" className="host-action-hint w-full text-[11px] font-medium leading-snug text-white">{claimSession?.link ? bi('按下後會計算，朋友可在原本連結查看結果。', 'Calculate; friends can view the result on their original link.') : bi('按下後會計算並產生分帳報告。', 'Calculate and create the bill-splitting report.')}</span>
+                    <span data-testid="calculate-split-title" className="inline-flex items-center justify-center gap-2">{bi('計算', 'Calculate')}<Icon path={icons.check} size={18}/></span>
                   </Button>
                 </div>
               </div>
@@ -6286,12 +6257,11 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                 <section data-testid="video-lessons-directory" aria-labelledby="video-lessons-title" className="space-y-3">
                   <Card className="p-0 overflow-hidden border-brand-600 bg-white shadow-sm">
                     <div className="px-5 pt-4 pb-3">
-                      <h2 id="video-lessons-title" className="text-lg font-extrabold text-slate-800">{bi('影片教學', 'Video lessons')}</h2>
+                      <h2 id="video-lessons-title" className="text-lg font-extrabold text-slate-800">{bi('影片', 'Videos')}</h2>
                     </div>
                     <div className="space-y-4 px-4 pb-4">
                       <article id="openrouter-key-video" data-testid="openrouter-video-card" className="scroll-mt-24 rounded-xl border border-slate-400 bg-slate-50 p-3">
-                        <h3 className="text-base font-bold text-slate-800">{bi('1. OpenRouter API Key 設定教學', '1. OpenRouter API key setup')}</h3>
-                        <p className="mt-1 mb-3 text-sm leading-relaxed text-slate-700">{bi('示範申請及設定 OpenRouter API Key。', 'Create and add an OpenRouter API key.')}</p>
+                        <h3 className="text-base font-bold text-slate-800">{bi('設定 API 鎖匙', 'Set up API key')}</h3>
                         <video data-testid="tutorial-openrouter-video" controls playsInline preload="none" aria-label={bi('OpenRouter API Key 設定影片', 'OpenRouter API key setup video')} className="mx-auto block max-h-[56dvh] w-auto max-w-full rounded-xl bg-black">
                           <source src="./assets/OpenRouter_API_Key_Tutorial_Circled.mp4?v=20261103-1" type="video/mp4" />
                           {bi('你的瀏覽器未能播放 MP4 影片。', 'Your browser cannot play this MP4 video.')}
@@ -6299,8 +6269,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                     </article>
 
                       <article data-testid="operation-video-card" className="rounded-xl border border-slate-400 bg-slate-50 p-3">
-                        <h3 className="text-base font-bold text-slate-800">{bi('2. 分帳操作示範', '2. Bill-splitting walkthrough')}</h3>
-                        <p className="mt-1 mb-3 text-sm leading-relaxed text-slate-700">{bi('約 1 分鐘示範分帳流程。', 'A one-minute bill-splitting walkthrough.')}</p>
+                        <h3 className="text-base font-bold text-slate-800">{bi('分帳示範', 'Bill splitting')}</h3>
                         <video data-testid="tutorial-operation-video" controls playsInline preload="none" aria-label={bi('分帳操作廣東話示範短片', 'Cantonese bill-splitting tutorial video')} className="mx-auto block max-h-[56dvh] w-auto max-w-full rounded-xl bg-black">
                           <source src="./assets/bill-splitter-operation-cantonese.mp4" type="video/mp4" />
                           {bi('你的瀏覽器未能播放 MP4 影片。', 'Your browser cannot play this MP4 video.')}
@@ -6313,13 +6282,12 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                 <section data-testid="interactive-guide-directory" aria-labelledby="interactive-guide-title">
                   <Card className="border-slate-500 bg-white shadow-sm">
                     <h2 id="interactive-guide-title" className="text-lg font-extrabold text-slate-800">{bi('互動教學', 'Interactive guide')}</h2>
-                    <p className="mt-1 mb-4 text-sm leading-relaxed text-slate-700">{bi('使用示例，不會修改你的賬單。', 'Uses sample data; your bill stays unchanged.')}</p>
                     <Button data-testid="start-interactive-tutorial" className="host-primary w-full" onClick={() => {
                       if (!onStartTutorial || typeof window.BillTutorial !== 'function') return;
                       const origin = tutorialMenuOrigin.current || { x: window.scrollX, y: window.scrollY };
                       setShowTutorial(false);
                       onStartTutorial(() => setShowTutorial(true), origin);
-                    }}>{bi('開始教學', 'Start guide')}</Button>
+                    }}>{bi('開始', 'Start')}</Button>
                   </Card>
                 </section>
               </div>

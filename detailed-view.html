@@ -183,14 +183,14 @@
     body.shared-link-view .paid-notice-button:focus-visible { outline:2px solid #2b5879; }
   </style>
   <!-- UI Refresh: visual-only layer. Remove this line to restore the original appearance. -->
-  <link rel="stylesheet" href="./ui-refresh.css?v=v187-beginner-flow-20261123">
+  <link rel="stylesheet" href="./ui-refresh.css?v=v188-compact-ui-20261124">
 </head>
 <body>
   <header class="topbar">
     <span id="friend-page-heading" class="back">分帳結果</span>
     <button id="edit-claims" class="edit-claims-button" type="button" hidden disabled>修改認帳</button>
     <a id="local-back" class="back" hidden>← 返回分帳報告</a>
-    <span id="local-tag" class="local-tag" hidden>本機預覽・不會公開</span>
+    <span id="local-tag" class="local-tag" hidden>本機預覽</span>
     <div id="font-size-toggle" class="font-size-toggle" role="group" aria-label="字體大小 / Text size">
       <button class="font-size-option" type="button" data-font-size="small" aria-label="小字體 / Smaller text" title="小字體 / Smaller text" aria-pressed="false">A−</button>
       <button class="font-size-option" type="button" data-font-size="normal" aria-label="標準字體 / Standard text" title="標準字體 / Standard text" aria-pressed="true">A</button>
@@ -203,13 +203,13 @@
     </section>
     <section id="empty-state" class="empty" hidden>
       <h1>未有分帳資料</h1>
-      <p>請返回分帳報告，再開一次朋友埋單頁。</p>
+      <p>請重新開啟。</p>
     </section>
     <div id="preview-content" hidden>
       <section id="member-gate" class="member-gate">
         <h1 id="member-gate-heading">朋友埋單</h1>
         <select id="member-select" data-testid="member-select" aria-label="請選擇成員"><option value="">請揀你個名</option></select>
-        <p id="share-privacy" class="share-privacy" hidden>持有此連結者可查看全單及收據。<br><strong id="share-expiry" data-testid="share-expiry"></strong></p>
+        <p id="share-privacy" class="share-privacy" hidden><strong id="share-expiry" data-testid="share-expiry"></strong></p>
       </section>
       <div id="member-content" hidden>
       <h1 id="page-title" class="page-title"></h1>
@@ -230,12 +230,12 @@
         <dl class="detail-list"><dt>收款人</dt><dd id="payment-recipient">未指定</dd><dt>方式</dt><dd id="payment-methods">未指定</dd></dl>
       </section>
       <section class="card paid-notice-card" data-testid="paid-notice-card" aria-label="WhatsApp 通知收款人">
-        <button id="share-paid-notice" data-testid="share-paid-notice" class="paid-notice-button" type="button">付款後請通知收款人</button>
+        <button id="share-paid-notice" data-testid="share-paid-notice" class="paid-notice-button" type="button">通知已付款</button>
         <p id="paid-notice-status" data-testid="paid-notice-status" class="paid-notice-status" role="status" aria-live="polite"></p>
       </section>
       <div class="content-grid">
         <section class="card items-card" aria-labelledby="items-title">
-          <div class="card-heading"><h2 id="items-title">項目明細</h2><button id="toggle-all-item-details" class="item-detail-toggle" data-testid="toggle-all-item-details" type="button" aria-controls="item-rows" aria-expanded="false" disabled>展開全部明細</button></div>
+          <div class="card-heading"><h2 id="items-title">項目明細</h2><button id="toggle-all-item-details" class="item-detail-toggle" data-testid="toggle-all-item-details" type="button" aria-controls="item-rows" aria-expanded="false" disabled>展開</button></div>
           <div class="table-wrap">
             <table data-testid="detail-items-table">
               <thead><tr><th id="item-heading" scope="col">項目／分食比例</th><th id="amount-heading" scope="col">分攤金額</th></tr></thead>
@@ -251,7 +251,7 @@
         </aside>
       </div>
       <details id="other-details" class="optional" data-testid="other-details">
-        <summary>其他單據資料（折扣、稅項及匯率）</summary>
+        <summary>其他資料</summary>
         <div class="optional-content">
           <dl id="bill-details" class="detail-list"></dl>
           <p id="adjustment-note" class="notice" hidden></p>
@@ -442,7 +442,7 @@
         const allOpen = details.length > 0 && details.every(detail => detail.open);
         toggleAllItemDetailsButton.disabled = details.length === 0;
         toggleAllItemDetailsButton.setAttribute('aria-expanded', String(allOpen));
-        toggleAllItemDetailsButton.textContent = allOpen ? '收起全部明細' : '展開全部明細';
+        toggleAllItemDetailsButton.textContent = allOpen ? '收起' : '展開';
       };
       toggleAllItemDetailsButton.addEventListener('click', () => {
         const details = Array.from($('#item-rows').querySelectorAll('details.item-details'));
@@ -673,8 +673,8 @@
         if (!selected) return;
         const amountText = formatMoney(selected.total, currency).replace(/,/g, '').replace(/[^\d.-]/g, '');
         const copied = await copyText(amountText);
-        $('#copy-payable-status').textContent = copied ? `已複製應付金額：${amountText}` : '複製失敗，請手動抄寫金額。';
-        copyPayableButton.textContent = copied ? '已複製' : '重試複製';
+        $('#copy-payable-status').textContent = copied ? '已複製' : '複製失敗';
+        copyPayableButton.textContent = copied ? '已複製' : '重試';
         window.setTimeout(() => { copyPayableButton.textContent = '複製'; }, 1600);
       });
       paidNoticeButton.addEventListener('click', notifyPayerOfPayment);

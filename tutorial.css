@@ -64,7 +64,7 @@
 .bt-key-help:hover { background: #dff2e4; }
 .bt-feedback { margin: 8px 0 0; padding: 7px 8px; border-radius: 7px; background: #e8f5ec; color: #235d3e; font-size: 12px; line-height: 1.5; font-weight: 700; }
 .bt-controls { display: flex; align-items: center; gap: 7px; padding: 10px 13px 12px; border-top: 1px solid #e1e8e1; background: #f8faf6; flex: 0 0 auto; }
-.bt-controls button { min-height: 40px; padding: 8px 12px; border: 1px solid #b9c9bd; border-radius: 11px; font: inherit; font-size: 12px; font-weight: 800; line-height: 1.25; cursor: pointer; }
+.bt-controls button { min-height: 44px; padding: 8px 12px; border: 1px solid #b9c9bd; border-radius: 11px; font: inherit; font-size: 12px; font-weight: 800; line-height: 1.25; cursor: pointer; }
 .bt-previous, .bt-help { background: #fff; color: #35513e; }
 .bt-help { padding-inline: 7px !important; font-size: 11px !important; }
 .bt-next { margin-left: auto; background: #38976e; border-color: #287c58 !important; color: #fff; }
@@ -83,6 +83,6 @@
   .bt-copy { padding-bottom: 8px; }
   .bt-description { font-size: 12px; line-height: 1.5; }
   .bt-controls { padding-top: 7px; padding-bottom: 7px; }
-  .bt-controls button { min-height: 36px; padding-block: 6px; }
+  .bt-controls button { min-height: 44px; padding-block: 6px; }
 }
 @media (prefers-reduced-motion: reduce) { .bt-progress > span { transition: none; } }

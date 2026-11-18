@@ -9,24 +9,24 @@
   var useLayoutEffect = React.useLayoutEffect;
   var FOCUSABLE = 'button:not([disabled]),a[href],input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
   var STEPS = [
-    { key: 'upload', step: 1, target: '[data-testid="receipt-source-actions"]', title: ['由單據開始', 'Start with a receipt'], copy: ['最多 5 張；也可貼上或上載 AI 文字。JSON 免鎖匙，純文字需鎖匙整理。第 2 步可加入原圖，分享後顯示在同一連結。示例圖不會送出。', 'Scan up to 5 photos or import AI text. JSON needs no key; plain text does. Add the original in Step 2 to show below the same result link. Demo photos are not sent.'] },
-    { key: 'manual', step: 1, target: '[data-testid="start-manual"]', title: ['沒有圖片也可以', 'No image? Enter items manually'], copy: ['無圖或讀取失敗，可手動輸入；教學不會清空你的賬單。', 'No photo or scan failure? Enter items manually. Your bill stays untouched.'] },
-    { key: 'verify', step: 2, target: '[data-testid="verify-item"]', title: ['先核對，有錯才改', 'Check first; edit only mistakes'], copy: ['先核對名稱和金額；按「改」展開欄位。', 'Check names and amounts; Edit opens the fields.'] },
-    { key: 'items', step: 2, target: '[data-tutorial-target="item-fields"]', title: ['試改示例價錢', 'Try changing the sample price'], copy: ['可試改價格；未知數量留空，按認帳比例分。', 'Try editing the price; leave unknown quantities blank to split by shares.'] },
-    { key: 'fee', step: 2, target: '[data-tutorial-target="fee"]', title: ['服務費填金額，不是百分比', 'Enter a fee amount, not a percentage'], copy: ['服務費／附加稅填金額；示例是 $12。', 'Enter the fee or tax amount; the sample is $12.'] },
-    { key: 'share', step: 2, target: '[data-tutorial-target="open-claim-share"]', title: ['核對好，再請朋友認帳', 'Invite friends after checking'], copy: ['朋友用連結填份數，無需你的鎖匙；教學只開示例。', 'Friends claim via the link without your key; this tutorial only opens a sample.'] },
-    { key: 'share-options', step: 2, target: '[data-tutorial-target="send-claim-link"]', title: ['隱藏的分享選項在這裡', 'Inside the sharing options'], copy: ['收據相片會顯示在同一結果連結下方。教學只載入示例，不會分享。', 'Receipt photos appear below the result on the same link. This demo shares nothing.'], prefer: 'top' },
-    { key: 'replies', step: 2, target: '[data-testid="claim-replies"]', title: ['在此核對朋友回覆', 'Check friend replies here'], copy: ['在第二步接收或貼上回覆；有效認帳才能產生報告。', 'Receive or paste replies in Step 2; a valid claim is needed for the report.'], prefer: 'top' },
-    { key: 'payer', step: 3, target: '[data-tutorial-target="calculation-settings"]', title: ['誰先付款，就填誰', 'Name the person who paid first'], copy: ['填墊支人姓名，須與認帳姓名一致。', 'Enter the payer’s name as it appears in the claim.'] },
-    { key: 'currency', step: 3, target: '[data-tutorial-target="currency"]', title: ['選擇結算貨幣', 'Choose the settlement currency'], copy: ['先確認單據貨幣，再選結算貨幣。', 'Confirm the receipt currency, then choose the settlement currency.'] },
-    { key: 'payment', step: 3, target: '[data-testid="payment-methods"]', title: ['收款方式可以多選', 'Choose one or more payment methods'], copy: ['可多選收款方式；報告只列出，不會扣款。', 'Select payment methods; they appear in the report only.'] },
-    { key: 'tax-method', step: 3, target: '[data-tutorial-target="tax-method"]', title: ['決定服務費怎樣分', 'Choose how to split the fee'], copy: ['服務費可按消費比例或平均分。', 'Split the fee by spend or equally.'] },
-    { key: 'calculate', step: 3, target: '[data-testid="calculate-split"]', title: ['收到有效認帳後才計算', 'Calculate only after a usable claim'], copy: ['按「產生分帳報告」計算；只會顯示示例。', 'Use Calculate to view the sample; nothing is published.'], prefer: 'top' },
-    { key: 'report', step: 4, target: '[data-testid="friend-web-preferred-badge"]', title: ['計算完成，網頁版是首選', 'Calculated: the web link is preferred'], copy: ['先用網頁版分享結果；簡單版和詳細版留作後備。', 'Share the result on the web first; Summary and Detailed are backups.'], prefer: 'top' },
-    { key: 'report-web', step: 4, target: '[data-testid="friend-web-intro"]', title: ['朋友由同一條連結查看結果', 'Friends view results on the same link'], copy: ['朋友用同一認帳連結看結果，不用另發；教學不會真的傳送。', 'Friends use the same claim link; no second link. This guide sends nothing.'], prefer: 'top' },
-    { key: 'report-fallback', step: 4, target: '[data-testid="report-fallback-toggle"]', title: ['簡單版和詳細版是後備', 'Summary and Detailed are backups'], copy: ['網頁連結打不開時，才用文字後備。', 'Use text backups only if the web link fails.'], prefer: 'top' },
-    { key: 'report-share', step: 4, target: '[data-testid="summary-report-actions"]', title: ['簡單版：快速通知應付金額', 'Summary: a quick reimbursement message'], copy: ['簡單版列出每人金額；按鈕只顯示示例。', 'Summary lists each person’s amount; buttons show a demo only.'] },
-    { key: 'detail', step: 4, target: '[data-testid="detail-report-actions"]', title: ['詳細版：逐項核對的後備', 'Detailed: an item-by-item backup'], copy: ['詳細版逐項列帳；教學示例的修改會在結束時丟棄。', 'Detailed lists every item; tutorial edits are discarded when you finish.'] }
+    { key: 'upload', step: 1, target: '[data-testid="receipt-source-actions"]', title: ['讀單據', 'Scan receipt'], copy: ['最多 5 張。', 'Up to 5 photos.'] },
+    { key: 'manual', step: 1, target: '[data-testid="start-manual"]', title: ['手動輸入', 'Enter manually'], copy: ['冇相都可以。', 'No photo needed.'] },
+    { key: 'verify', step: 2, target: '[data-testid="verify-item"]', title: ['核對項目', 'Check items'], copy: ['有錯先改。', 'Edit mistakes only.'] },
+    { key: 'items', step: 2, target: '[data-tutorial-target="item-fields"]', title: ['修改項目', 'Edit item'], copy: ['數量未知可留空。', 'Quantity can stay blank.'] },
+    { key: 'fee', step: 2, target: '[data-tutorial-target="fee"]', title: ['稅／服務費', 'Tax / fee'], copy: ['填金額。', 'Enter an amount.'] },
+    { key: 'share', step: 2, target: '[data-tutorial-target="open-claim-share"]', title: ['分享認帳', 'Share claims'], copy: ['朋友用連結認帳。', 'Friends claim by link.'] },
+    { key: 'share-options', step: 2, target: '[data-tutorial-target="send-claim-link"]', title: ['分享選項', 'Share options'], copy: ['可加收據相片。', 'Receipt photos are optional.'], prefer: 'top' },
+    { key: 'replies', step: 2, target: '[data-testid="claim-replies"]', title: ['認帳回覆', 'Claim replies'], copy: ['在此核對。', 'Check them here.'], prefer: 'top' },
+    { key: 'payer', step: 3, target: '[data-tutorial-target="calculation-settings"]', title: ['墊支人', 'Payer'], copy: ['填先付款的人。', 'Enter who paid first.'] },
+    { key: 'currency', step: 3, target: '[data-tutorial-target="currency"]', title: ['貨幣', 'Currency'], copy: ['選結算貨幣。', 'Choose settlement currency.'] },
+    { key: 'payment', step: 3, target: '[data-testid="payment-methods"]', title: ['收款方式', 'Payment'], copy: ['可以多選。', 'Choose one or more.'] },
+    { key: 'tax-method', step: 3, target: '[data-tutorial-target="tax-method"]', title: ['費用分法', 'Fee split'], copy: ['按消費或平均。', 'By spend or equally.'] },
+    { key: 'calculate', step: 3, target: '[data-testid="calculate-split"]', title: ['計算', 'Calculate'], copy: ['收到認帳後計算。', 'Calculate after replies.'], prefer: 'top' },
+    { key: 'report', step: 4, target: '[data-testid="friend-web-preferred-badge"]', title: ['分帳結果', 'Results'], copy: ['網頁版係首選。', 'Web is preferred.'], prefer: 'top' },
+    { key: 'report-web', step: 4, target: '[data-testid="friend-web-intro"]', title: ['同一連結', 'Same link'], copy: ['朋友喺原連結睇結果。', 'Friends view results there.'], prefer: 'top' },
+    { key: 'report-fallback', step: 4, target: '[data-testid="report-fallback-toggle"]', title: ['文字後備', 'Text backup'], copy: ['需要先使用。', 'Use when needed.'], prefer: 'top' },
+    { key: 'report-share', step: 4, target: '[data-testid="summary-report-actions"]', title: ['簡版', 'Summary'], copy: ['列出每人金額。', 'Shows each amount.'] },
+    { key: 'detail', step: 4, target: '[data-testid="detail-report-actions"]', title: ['詳細版', 'Details'], copy: ['逐項列帳。', 'Lists every item.'] }
   ];
   var MAIN_NAMES = [['上載睇單', 'Upload receipt'], ['各自認帳', 'Claim items'], ['分帳運算', 'Calculate'], ['最終結果', 'Review report']];
   var clamp = function (n, min, max) { return Math.max(min, Math.min(max, n)); };
@@ -54,9 +54,9 @@
       if (destinations[action]) goKey(destinations[action]);
       else if (action === 'calculation-error') {
         goKey(detail === 'payer' ? 'payer' : 'replies');
-        setFeedback(english ? 'Please correct the sample data before calculating again.' : '請先修正示例資料，再繼續計算。');
+        setFeedback(english ? 'Fix the sample first.' : '請先修正示例。');
       } else if (action === 'report-preview') {
-        setFeedback(english ? 'Demo only: report previewed. Nothing was shared or copied.' : '已試用報告按鈕；教學沒有分享內容，亦沒有改動剪貼簿。');
+        setFeedback(english ? 'Previewed.' : '已預覽。');
       }
     };
 

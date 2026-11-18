@@ -498,7 +498,7 @@ body :is(h1, h2, h3, h4, h5, h6, label, button, input, textarea, select,
   background: #f7fbf8 !important;
 }
 #root [data-testid="manual-claim-entry-option"]::before {
-  content: "先揀一個方式收集認帳";
+  content: "揀收集方式";
   display: block;
   font-weight: 800;
   font-size: 14px;
@@ -509,7 +509,7 @@ body :is(h1, h2, h3, h4, h5, h6, label, button, input, textarea, select,
   opacity: .72;
 }
 #root [data-testid="claim-followup"].claim-await-share::before {
-  content: "選定收集方式後，呢度先會啟動。";
+  content: "";
   display: block;
   padding: 8px 12px;
   margin-bottom: 8px;
