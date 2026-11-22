@@ -75,8 +75,8 @@ async function assertOriginalFirstStep(page, width, height) {
 
   const keyCard = page.locator('.api-settings-card');
   assert.equal(await keyCard.isVisible(), true, `${label}: original Key status/action card is visible`);
-  assert.match(await keyCard.innerText(), /尚未設定免費鎖匙/);
-  assert.match(await keyCard.innerText(), /相片／文字需 Key/);
+  assert.match(await keyCard.innerText(), /學一次之後，影相會快啲/);
+  assert.match(await keyCard.innerText(), /而家可先用 Google，唔使鎖匙/);
   assert.equal(await page.getByTestId('open-free-key-settings').isVisible(), true, `${label}: the Key card opens the existing setup route`);
   const keyHelpToggle = page.getByTestId('toggle-key-guidance');
   assert.equal(await keyHelpToggle.getAttribute('aria-expanded'), 'false', `${label}: Key explanation starts collapsed`);

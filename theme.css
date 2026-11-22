@@ -893,6 +893,10 @@ body.bg-slate-50 { background: var(--page-grey); color: var(--ink); }
   -webkit-text-fill-color: var(--claim-mute-ink) !important;
   text-shadow: none !important;
 }
+#root .teaching-copy {
+  color: var(--brand-readable) !important;
+  -webkit-text-fill-color: var(--brand-readable) !important;
+}
 #root .claim-await-share button svg,
 #root .claim-await-share svg {
   color: var(--claim-mute-ink) !important;

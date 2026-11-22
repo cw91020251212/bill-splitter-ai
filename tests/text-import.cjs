@@ -348,6 +348,10 @@ const ensureAIImportOpen = async page => {
     assert.match(copiedPrompt, /amountText/);
     assert.match(copiedPrompt, /"amountUncertain":false/);
     assert.match(copiedPrompt, /S12\.50/);
+    assert.match(copiedPrompt, /如果今次訊息沒有附上收據圖片/);
+    assert.match(copiedPrompt, /未見收據圖片。請而家喺呢度補上收據圖片，再送出一次。/);
+    assert.match(copiedPrompt, /不要輸出 JSON/);
+    assert.match(copiedPrompt, /不要照抄下方示例/);
 
     await noKeyPage.evaluate(() => localStorage.setItem('billSplitterLanguage', 'en'));
     await noKeyPage.reload();
@@ -368,6 +372,10 @@ const ensureAIImportOpen = async page => {
     assert.match(copiedEnglishPrompt, /amountText/);
     assert.match(copiedEnglishPrompt, /"amountUncertain":false/);
     assert.match(copiedEnglishPrompt, /S12\.50/);
+    assert.match(copiedEnglishPrompt, /If this message has no receipt image attached/);
+    assert.match(copiedEnglishPrompt, /No receipt image attached\. Attach the receipt photo here, then send again\./);
+    assert.match(copiedEnglishPrompt, /do not output JSON/);
+    assert.match(copiedEnglishPrompt, /do not copy the example/);
     traceStart = await traceFrom();
     await noKeyPage.getByTestId('copy-prompt-open-google-ai').click();
     const englishEvents = await assertCopiedBeforeOpen(traceStart, 'English mode');

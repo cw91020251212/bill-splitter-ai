@@ -214,7 +214,7 @@ async function assertRenderedSoftActiveStep(button, label) {
       });
       await page.goto(base.toString(), { waitUntil: 'networkidle', timeout: 60000 });
       const release = await page.locator('meta[name="bill-app-release"]').getAttribute('content');
-      assert.equal(release, 'v186-divider-centered-20261117', `served page must be the current result-step candidate, not a stale local preview (${release})`);
+      assert.equal(release, 'v187-beginner-flow-20261123', `served page must be the current result-step candidate, not a stale local preview (${release})`);
       const themeHref = await page.locator('link[rel="stylesheet"][href*="theme.css"]').getAttribute('href');
       assert.ok(themeHref?.includes(release), `theme.css must use the same R170 cache token (${themeHref})`);
       assert.equal(await page.getByTestId('app-version-label').innerText(), 'R170');

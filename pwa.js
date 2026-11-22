@@ -40,7 +40,7 @@
     window.navigator.standalone === true;
 
   /* ---------------------------------------------------------- service worker */
-  var RELEASE_VERSION = 'v186-divider-centered-20261117';
+  var RELEASE_VERSION = 'v187-beginner-flow-20261123';
   var waitingWorker = null;
   var registrationPromise = null;
   var reloadRequested = false;

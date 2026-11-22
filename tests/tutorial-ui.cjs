@@ -353,7 +353,7 @@ async function runKeyStatusHintSmoke(browser) {
     await page.goto(base, { waitUntil: 'networkidle' });
     await page.waitForFunction(hasKey => {
       const text = document.querySelector('[data-testid="open-free-key-settings"]')?.innerText || '';
-      return hasKey ? text.includes('已設定') : text.includes('尚未設定免費鎖匙');
+      return hasKey ? text.includes('已設定') : text.includes('學一次之後，影相會快啲');
     }, Boolean(key));
     const statusText = await page.getByTestId('open-free-key-settings').innerText();
     if (key) {
@@ -363,12 +363,12 @@ async function runKeyStatusHintSmoke(browser) {
       assert(!statusText.includes('The default needs no top-up'));
       assert(!statusText.includes('Tap to change the model or key'));
     } else {
-      assert.match(statusText, /尚未設定免費鎖匙/);
+      assert.match(statusText, /學一次之後，影相會快啲/);
       const keyHelpToggle = page.getByTestId('toggle-key-guidance');
       if (await keyHelpToggle.getAttribute('aria-expanded') !== 'true') await keyHelpToggle.click();
       const keyHelpText = await page.getByTestId('key-guidance-content').innerText();
-      assert.match(keyHelpText, /相片及一般文字辨識需要 OpenRouter 免費 Key/);
-      assert.match(keyHelpText, /指定 JSON 可本機匯入/);
+      assert.match(keyHelpText, /影相先學一次免費 Key/);
+      assert.match(keyHelpText, /手動／JSON 免 Key/);
     }
     await context.close();
   }

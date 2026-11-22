@@ -5,7 +5,7 @@ const path = require('node:path');
 
 const root = path.join(__dirname, '..');
 const read = name => fs.readFileSync(path.join(root, name), 'utf8');
-const release = 'v186-divider-centered-20261117';
+const release = 'v187-beginner-flow-20261123';
 
 function linearize(channel) {
   const value = channel / 255;
@@ -228,7 +228,7 @@ test('R146 white action labels, yellow icons, Google wordmark, and bold labels s
   const copyClaim = index.split('\n').find(row => row.includes('<Button data-testid="copy-friend-claim-link"'));
   assert.match(shareClaim, /\bhost-primary\b/);
   assert.doesNotMatch(copyClaim, /\bhost-primary\b/);
-  assert.match(index, /分享認帳連結給朋友/);
+  assert.match(index, /產生連結並寄出/);
   const shareLabel = ruleBlock(css, '#root button.host-primary.green-action[data-testid="open-claim-share-button"]:not(:disabled):not([data-testid="copy-prompt-open-google-ai"])');
   const shareIcon = ruleBlock(css, '#root button.host-primary.green-action[data-testid="open-claim-share-button"]:not(:disabled) svg');
   assert.match(shareLabel, /color:\s*#fff\s*!important/);

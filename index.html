@@ -8,7 +8,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="分帳管家">
-  <link rel="manifest" href="./manifest.webmanifest?v=v186-divider-centered-20261117">
+  <link rel="manifest" href="./manifest.webmanifest?v=v187-beginner-flow-20261123">
   <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" sizes="180x180">
   <link rel="icon" href="./icons/icon.svg" type="image/svg+xml">
   <link rel="icon" href="./icons/favicon-32.png" type="image/png" sizes="32x32">
@@ -142,13 +142,13 @@
     ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
     ::-webkit-scrollbar-thumb:hover { background: #64748b; }
   </style>
-  <link rel="stylesheet" href="./theme.css?v=v186-divider-centered-20261117">
+  <link rel="stylesheet" href="./theme.css?v=v187-teaching-copy-20261123">
   <link rel="stylesheet" href="./tutorial.css?v=v86-free-models-only">
   <!-- UI Refresh: visual-only layer. Remove this line to restore the original appearance. -->
-  <link rel="stylesheet" href="./ui-refresh.css?v=v186-divider-centered-20261117">
+  <link rel="stylesheet" href="./ui-refresh.css?v=v187-beginner-flow-20261123">
   <!-- R157: on-device sensitive-data masking before receipt sharing. -->
-  <meta name="bill-app-release" content="v186-divider-centered-20261117">
-  <script defer src="./pwa.js?v=v186-divider-centered-20261117"></script>
+  <meta name="bill-app-release" content="v187-beginner-flow-20261123">
+  <script defer src="./pwa.js?v=v187-beginner-flow-20261123"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
@@ -160,9 +160,9 @@
   <script src="./receipt-adjustments.js"></script>
   <script src="./share-config.js"></script>
   <script src="./bill-share-api.js?v=v107-code-focus-visible"></script>
-  <script src="./sync-diagnostics.js?v=v186-divider-centered-20261117"></script>
-  <script src="./card-redaction.js?v=v186-divider-centered-20261117"></script>
-  <script src="./card-share-review.js?v=v186-divider-centered-20261117"></script>
+  <script src="./sync-diagnostics.js?v=v187-beginner-flow-20261123"></script>
+  <script src="./card-redaction.js?v=v187-beginner-flow-20261123"></script>
+  <script src="./card-share-review.js?v=v187-beginner-flow-20261123"></script>
   <script src="./exchange-rates.js?v=v90-cross-currency-settlement"></script>
     <script src="./tutorial.js?v=v139-gemini-button-order-20261113"></script>
   <script type="text/babel">
@@ -318,9 +318,11 @@
     const PAID_AI_MAX_EDGE = 1600;
     const PAID_AI_JPEG_QUALITY = 0.72;
     const LOCAL_PADDLE_MODEL_ID = 'local/paddleocr-js';
-    const RECEIPT_JSON_IMPORT_PROMPT_ZH = `請辨認我附上的收據圖片，將商品名稱翻譯成香港繁體中文，並依照下方固定格式輸出一個有效 JSON 物件。多張圖片只有在屬於同一張收據（例如不同角度或續頁）時才合併；若明顯是不同收據，不要混在一起。
+    const RECEIPT_JSON_IMPORT_PROMPT_ZH = `如果今次訊息沒有附上收據圖片：不要輸出 JSON，不要照抄下方示例，不要猜測或捏造任何商品、金額或收據。只回覆這一句，不要加其他文字：「未見收據圖片。請而家喺呢度補上收據圖片，再送出一次。」有收據圖片時才繼續下面的辨認。
 
-輸出方式：只回覆一個 Markdown JSON 程式碼區塊（以 \`\`\`json 開始、以 \`\`\` 結束），讓聊天介面顯示「複製」按鈕，方便一鍵複製整份內容。程式碼區塊內只放完整 JSON 物件；不要建立或要求下載附件，不要在區塊外加標題、說明或其他文字，不要分段或拆成多個區塊。
+請辨認我附上的收據圖片，將商品名稱翻譯成香港繁體中文，並依照下方固定格式輸出一個有效 JSON 物件。多張圖片只有在屬於同一張收據（例如不同角度或續頁）時才合併；若明顯是不同收據，不要混在一起。
+
+輸出方式：有收據圖片時，只回覆一個 Markdown JSON 程式碼區塊（以 \`\`\`json 開始、以 \`\`\` 結束），讓聊天介面顯示「複製」按鈕，方便一鍵複製整份內容。程式碼區塊內只放完整 JSON 物件；不要建立或要求下載附件，不要在區塊外加標題、說明或其他文字，不要分段或拆成多個區塊。
 
 辨認規則：
 - 只把實際購買的商品放在 items；稅、服務費及折扣各自放在 adjustments。小計、合計、應付金額、付款額及找零不可放入 items 或 adjustments。
@@ -333,9 +335,11 @@
 
 格式（每個欄位都必須保留；items 可有多項，adjustments 沒有時用 []）：
 {"items":[{"name":"拉麵","nameEn":"","original":"ラーメン","ja":"","price":100,"qty":1,"totalQty":null,"unit":"碗","total":100,"amountText":"100","amountUncertain":false}],"adjustments":[{"label":"消費税","kind":"tax","ratePercent":8,"amount":null,"baseAmount":null,"application":"separate","scope":"receipt","itemIndex":null,"order":0}],"taxTotal":null,"taxNote":"","currency":"JPY","date":"2026-03-14","receiptTotal":108}`;
-    const RECEIPT_JSON_IMPORT_PROMPT_EN = `Read the receipt image(s) I attach, translate item names into Hong Kong Traditional Chinese, and return one valid JSON object using the exact structure below. Combine multiple images only when they show the same receipt (for example, different angles or continuation pages); do not mix clearly separate receipts.
+    const RECEIPT_JSON_IMPORT_PROMPT_EN = `If this message has no receipt image attached: do not output JSON, do not copy the example below, and do not guess or invent any items, amounts, or receipt. Reply with only this sentence and nothing else: "No receipt image attached. Attach the receipt photo here, then send again." Continue below only when a receipt image is attached.
 
-Output format: Reply with exactly one Markdown JSON code block (starting with \`\`\`json and ending with \`\`\`) so the chat interface can show its one-click Copy button for the complete content. Put only the complete JSON object inside the code block. Do not create or request a downloadable attachment, and do not add a title, explanation, or any other text outside the block. Do not split the response or use multiple blocks.
+Read the receipt image(s) I attach, translate item names into Hong Kong Traditional Chinese, and return one valid JSON object using the exact structure below. Combine multiple images only when they show the same receipt (for example, different angles or continuation pages); do not mix clearly separate receipts.
+
+Output format: When a receipt image is attached, reply with exactly one Markdown JSON code block (starting with \`\`\`json and ending with \`\`\`) so the chat interface can show its one-click Copy button for the complete content. Put only the complete JSON object inside the code block. Do not create or request a downloadable attachment, and do not add a title, explanation, or any other text outside the block. Do not split the response or use multiple blocks.
 
 Recognition rules:
 - Put actual purchased goods in items only. Put tax, service fees, and discounts in adjustments. Never put subtotal, total, amount due, payment, or change in items or adjustments.
@@ -5154,7 +5158,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
             <div className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-2xl border border-slate-300 bg-white p-5 shadow-2xl">
               <h2 id="google-ai-guide-title" className="text-xl font-extrabold text-slate-900">{googleAiCopyStatus === 'failed' ? bi('提示詞未能複製', 'The prompt was not copied') : googleAiCopyStatus === 'pending' ? bi('正在複製提示詞…', 'Copying the prompt…') : bi('提示詞已複製', 'Prompt copied')}</h2>
               {googleAiCopyStatus === 'failed' && <p role="alert" className="mt-2 rounded-lg bg-amber-50 p-3 text-sm leading-relaxed text-amber-950">{bi('請按「返回」，再用「複製讀圖提示詞」複製一次，然後重新開啟教學。', 'Press Back, then use “Copy photo-reading prompt” to copy it and try again.')}</p>}
-              <ol className="mt-3 list-decimal space-y-2 pl-6 text-sm leading-relaxed text-slate-700">
+              <ol className="teaching-copy mt-3 list-decimal space-y-2 pl-6 text-sm leading-relaxed text-brand-700">
                 <li>{bi('在輸入欄按「貼上」、加入單據圖片並傳送。', 'Press “Paste” in the input box, add the bill photo, then press Send.')}</li>
                 <li>{bi('複製 Gemini 的完整回答，返回本頁。', 'Copy Gemini’s complete answer and return here.')}</li>
                 <li>{bi('按「整理這段文字」。', 'Press “Process this text”.')}</li>
@@ -5356,6 +5360,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                   <span className="w-8 h-8 rounded-full bg-brand-100 border border-brand-500 text-brand-700 flex items-center justify-center font-bold">1</span>
                   <h2 className="text-2xl font-bold text-slate-800 tracking-tight">{tr("上載並分析單據")}</h2>
                 </div>
+                <p data-testid="organizer-flow-intro" className="teaching-copy text-sm leading-relaxed text-brand-700">{bi('朋友唔喺你身邊。先讀張單，核對名稱同金額，再寄出一條連結。佢哋只填自己食咗乜；你計完，結果就係同一條連結。', 'Friends are not with you. Read the bill, check the names and amounts, then send one link. They enter only what they ate; after you calculate, the result is that same link.')}</p>
                 <p data-testid="step-one-methods-intro" className="step1-compact-copy text-sm text-slate-700 leading-5 whitespace-nowrap">{bi(<>以下<span data-testid="step-one-method-count" className="step1-method-count">3</span>種方法處理單據：</>, 'Three ways to handle a bill:')}</p>
 
                 <Card data-testid="receipt-text-import" className="step1-option step1-method-panel border-slate-400 bg-white">
@@ -5370,7 +5375,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                           </span>
                           <span data-testid="external-ai-provider-examples" aria-label={bi('Google AI 等', 'Google AI, etc.')} className="step1-compact-copy shrink-0 whitespace-nowrap text-right text-xs font-normal leading-tight text-slate-500">{bi('（Google AI 等）', '(Google AI, etc.)')}</span>
                         </span>
-                        <span className="step1-compact-copy block mt-1 text-xs leading-relaxed text-slate-600">{bi('複製提示詞，附上單據，再貼回結果。', 'Copy the prompt, attach the bill, then paste the result back.')}</span>
+                        <span className="teaching-copy step1-compact-copy block mt-1 text-xs leading-relaxed text-brand-700">{bi('複製提示詞，附上單據，再貼回結果。一定要連收據圖片一齊附上。', 'Copy the prompt, attach the bill, then paste the result back. Attach the receipt image as well.')}</span>
                       </span>
                       <span aria-hidden="true" data-testid="receipt-text-import-toggle-icon" data-direction={showReceiptTextImport ? 'up' : 'down'} className="absolute -top-5 right-0 z-10 sm:-right-4"><Icon path={showReceiptTextImport ? icons.chevronUp : icons.chevronDown} size={20} className="text-slate-600"/></span>
                     </button>
@@ -5383,7 +5388,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                           <Button data-testid="copy-receipt-json-prompt" variant="outline" className="w-full border-slate-400 bg-white !text-sm" disabled={tutorialDemo || isAnalyzing} onClick={copyReceiptJsonImportPrompt}><Icon path={icons.copy} size={18}/>{bi('複製讀圖提示詞', 'Copy photo-reading prompt')}</Button>
                         </div>
                         <p className="step1-compact-copy text-xs leading-relaxed text-slate-600">{bi('開啟 Google AI 後自行附上單據圖片；本程式不會上載圖片。', 'Attach the bill yourself in Google AI; this app does not upload it.')}</p>
-                        <ol data-testid="external-ai-steps" className="step1-compact-copy list-decimal space-y-1 rounded-lg border border-slate-300 bg-slate-50 p-3 pl-8 text-xs leading-relaxed text-slate-700">
+                        <ol data-testid="external-ai-steps" className="teaching-copy step1-compact-copy list-decimal space-y-1 rounded-lg border border-slate-300 bg-slate-50 p-3 pl-8 text-xs leading-relaxed text-brand-700">
                           <li>{bi('開啟 Google AI，附上單據並送出。', 'Open Google AI, attach the bill, and send.')}</li>
                           <li>{bi('把結果貼在下方，再按「整理」。', 'Paste the result below, then tap Process.')}</li>
                           <li>{bi('第二步可加原圖，朋友可在連結查看。', 'Add the original in Step 2 for friends to view.')}</li>
@@ -5483,7 +5488,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                       className={`flex min-h-[56px] min-w-0 flex-1 items-center gap-3 rounded-xl border p-3 text-left shadow-sm transition-all active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 ${
                         apiKey.trim()
                           ? 'bg-white border-brand-500 hover:border-brand-600 text-slate-700'
-                          : 'bg-red-50 border-red-500 hover:bg-red-100 text-red-800'
+                          : 'bg-red-50 border-red-500 hover:bg-red-100 text-slate-800'
                       }`}
                     >
                       <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white shadow-sm ${apiKey.trim() ? 'bg-brand-500' : 'bg-red-500'}`}>
@@ -5496,9 +5501,9 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                             ? (!modelUsesFreeTier(apiModel, allowPaidModels)
                               ? bi('✅ 進階模型已開啟', '✅ Advanced model is on')
                               : bi(`✅ 免費 ${Ocr.shortLabel(resolveBillModel(apiModel, allowPaidModels))} 已設定`, `✅ Free ${Ocr.shortLabel(resolveBillModel(apiModel, allowPaidModels))} is set`))
-                            : bi('⚠️ 尚未設定免費鎖匙', '⚠️ Free key is not set yet')}
+                            : bi('學一次之後，影相會快啲', 'After one lesson, photos are faster')}
                         </span>
-                        <span className={`block text-xs font-semibold ${apiKey.trim() ? 'text-slate-600' : 'text-red-800'}`}>{apiKey.trim() ? bi('按此更改', 'Tap to change') : bi('相片／文字需 Key', 'Photo/text needs a key')}</span>
+                        <span className={`block text-xs font-semibold ${apiKey.trim() ? 'text-slate-600' : 'text-slate-700'}`}>{apiKey.trim() ? bi('按此更改', 'Tap to change') : bi('而家可先用 Google，唔使鎖匙', 'Use Google for now; no key yet')}</span>
                       </span>
                       <Icon path={icons.settings} size={20} className="shrink-0 text-slate-500"/>
                     </button>
@@ -5516,9 +5521,9 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                     </button>
                   </div>
                   {showKeyGuidance && <div id="key-guidance-content" data-testid="key-guidance-content" className="mt-3 space-y-1 border-t border-brand-200 pt-3 text-xs leading-relaxed text-slate-700">
-                    <p data-testid="key-guidance-summary" className="step1-compact-copy">{apiKey.trim()
+                    <p data-testid="key-guidance-summary" className="teaching-copy step1-compact-copy text-brand-700">{apiKey.trim()
                       ? bi('相片／文字會用已設定的 Key；手動／JSON 免 Key。', 'Photos/text use this key; manual/JSON needs no key.')
-                      : bi('相片／文字需免費 OpenRouter Key；按「鎖匙設定」申請。手動／JSON 免 Key。', 'Photos/text need a free OpenRouter key; get one in Key settings. Manual/JSON needs no key.')}</p>
+                      : bi('影相先學一次免費 Key，之後快啲。未學用 Google。手動／JSON 免 Key。', 'One free Key lesson makes photos faster. Use Google until then. Manual/JSON needs no Key.')}</p>
                     <div data-testid="scan-model-settings" className="mt-3 space-y-2 border-t border-brand-200 pt-3">
                       <Label htmlFor="scan-model-select" className="text-base">{bi('今次辨識用邊個模型？', 'Choose a model for this scan')}</Label>
                       <select
@@ -5544,7 +5549,7 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                 <div data-testid="entry-method-choice" className="text-center py-2">
                   <ChoiceDivider />
                   <Button data-testid="start-manual" variant="secondary" className="step1-method-panel step1-manual-method w-full mt-4 border-slate-500 !text-sm" onClick={startManualEntry}><span data-testid="method-badge-manual" aria-hidden="true" className="step1-method-badge">3</span>{bi('手動輸入項目', 'Enter items manually')}<Icon path={icons.arrowRight} size={18}/></Button>
-                  <p className="step1-compact-copy text-sm text-slate-600 mt-2 leading-relaxed">{bi('讀唔到？手動輸入。', 'Could not scan? Enter items manually.')}</p>
+                  <p className="teaching-copy step1-compact-copy text-sm text-brand-700 mt-2 leading-relaxed">{bi('讀唔到？手動輸入。', 'Could not scan? Enter items manually.')}</p>
                 </div>
               </div>
             )}
@@ -5785,14 +5790,14 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                 <div className="border-t border-slate-400 my-6 pt-6 space-y-6">
                   <div data-testid="claim-share-block" className="claim-share-block">
                     <Label className="flex items-center justify-between mb-3"><span>{tr("1. 分享認帳連結")}</span></Label>
-                    <p className="text-base text-slate-700 mb-3 leading-relaxed">{claimRoom && !claimSession && !tutorialDemo ? bi('請建立新的受保護連結；舊連結只可手動交回及核對。', 'Create a protected link; the old link supports manual replies and checking only.') : bi('朋友填姓名和項目；4 字認證碼可選填。', 'Friends enter a name and items; the 4-character code is optional.')}</p>
-                    <p className="text-sm text-emerald-800 mb-3 leading-relaxed">{bi('朋友先認帳；你結算後，結果更新到同一連結。', 'Share one link: friends enter their items, and your calculated result updates the same link automatically.')}</p>
+                    <p className="teaching-copy text-base text-brand-700 mb-3 leading-relaxed">{claimRoom && !claimSession && !tutorialDemo ? bi('請建立新的受保護連結；舊連結只可手動交回及核對。', 'Create a protected link; the old link supports manual replies and checking only.') : bi('朋友填姓名和項目；4 字認證碼可選填。', 'Friends enter a name and items; the 4-character code is optional.')}</p>
+                    <p className="teaching-copy text-sm text-brand-700 mb-3 leading-relaxed">{bi('核對好名稱同金額後，按下面「產生連結並寄出」。朋友只填自己食咗乜；你計完，結果寫返同一條連結。', 'After the names and amounts check out, tap “Create the link and send it” below. Friends enter only what they ate; after you calculate, the result is written on that same link.')}</p>
                     <div data-testid="claim-link-actions" className="flex flex-col gap-3">
                       <Button data-testid="copy-friend-claim-link" variant="secondary" onClick={generateFriendClaimLink} className="!w-full text-sm bg-white hover:bg-slate-50 border-slate-500">
                         <Icon path={icons.copy} size={18} className="text-slate-600"/>{tr(" 複製認帳連結給朋友")}</Button>
                       <ChoiceDivider />
                         <Button data-testid="open-claim-share-button" data-tutorial-target="open-claim-share" variant="primary" onClick={shareFriendClaimLink} className="host-primary !w-full text-sm">
-                        <Icon path={icons.share} size={18}/><span>{bi('分享認帳連結給朋友', 'Share claim link with friends')}</span></Button>
+                        <Icon path={icons.share} size={18}/><span>{bi('產生連結並寄出', 'Create the link and send it')}</span></Button>
                     </div>
                   </div>
                 {!tutorialDemo && !manualClaimsEnabled && !claimLinkShared && !claimSession && !claimRoom && !hasInboundClaim && (
