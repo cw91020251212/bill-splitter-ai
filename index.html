@@ -8,7 +8,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="分帳管家">
-  <link rel="manifest" href="./manifest.webmanifest?v=v188-compact-ui-20261124">
+  <link rel="manifest" href="./manifest.webmanifest?v=v189-tutorial-media-20261124">
   <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" sizes="180x180">
   <link rel="icon" href="./icons/icon.svg" type="image/svg+xml">
   <link rel="icon" href="./icons/favicon-32.png" type="image/png" sizes="32x32">
@@ -142,13 +142,13 @@
     ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
     ::-webkit-scrollbar-thumb:hover { background: #64748b; }
   </style>
-  <link rel="stylesheet" href="./theme.css?v=v188-compact-ui-20261124">
-  <link rel="stylesheet" href="./tutorial.css?v=v188-compact-ui-20261124">
+  <link rel="stylesheet" href="./theme.css?v=v189-tutorial-media-20261124">
+  <link rel="stylesheet" href="./tutorial.css?v=v189-tutorial-media-20261124">
   <!-- UI Refresh: visual-only layer. Remove this line to restore the original appearance. -->
-  <link rel="stylesheet" href="./ui-refresh.css?v=v188-compact-ui-20261124">
+  <link rel="stylesheet" href="./ui-refresh.css?v=v189-tutorial-media-20261124">
   <!-- R157: on-device sensitive-data masking before receipt sharing. -->
-  <meta name="bill-app-release" content="v188-compact-ui-20261124">
-  <script defer src="./pwa.js?v=v188-compact-ui-20261124"></script>
+  <meta name="bill-app-release" content="v189-tutorial-media-20261124">
+  <script defer src="./pwa.js?v=v189-tutorial-media-20261124"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
   <div id="root"></div>
@@ -160,11 +160,11 @@
   <script src="./receipt-adjustments.js"></script>
   <script src="./share-config.js"></script>
   <script src="./bill-share-api.js?v=v107-code-focus-visible"></script>
-  <script src="./sync-diagnostics.js?v=v188-compact-ui-20261124"></script>
-  <script src="./card-redaction.js?v=v188-compact-ui-20261124"></script>
-  <script src="./card-share-review.js?v=v188-compact-ui-20261124"></script>
+  <script src="./sync-diagnostics.js?v=v189-tutorial-media-20261124"></script>
+  <script src="./card-redaction.js?v=v189-tutorial-media-20261124"></script>
+  <script src="./card-share-review.js?v=v189-tutorial-media-20261124"></script>
   <script src="./exchange-rates.js?v=v90-cross-currency-settlement"></script>
-    <script src="./tutorial.js?v=v188-compact-ui-20261124"></script>
+    <script src="./tutorial.js?v=v189-tutorial-media-20261124"></script>
   <script type="text/babel">
     const { useState, useRef, useEffect, useLayoutEffect, useMemo } = React;
     const tr = value => window.BillI18n.t(value);
@@ -6271,9 +6271,16 @@ ${isTextInput ? '以下是一份已翻譯的收據文字（沒有圖片附件）
                       <article data-testid="operation-video-card" className="rounded-xl border border-slate-400 bg-slate-50 p-3">
                         <h3 className="text-base font-bold text-slate-800">{bi('分帳示範', 'Bill splitting')}</h3>
                         <video data-testid="tutorial-operation-video" controls playsInline preload="none" aria-label={bi('分帳操作廣東話示範短片', 'Cantonese bill-splitting tutorial video')} className="mx-auto block max-h-[56dvh] w-auto max-w-full rounded-xl bg-black">
-                          <source src="./assets/bill-splitter-operation-cantonese.mp4" type="video/mp4" />
+                          <source src="./assets/bill-splitter-operation-cantonese.mp4?v=20261124-1" type="video/mp4" />
                           {bi('你的瀏覽器未能播放 MP4 影片。', 'Your browser cannot play this MP4 video.')}
                         </video>
+                      </article>
+
+                      <article data-testid="manga-guide-card" className="rounded-xl border border-emerald-700 bg-emerald-950 p-3">
+                        <h3 className="mb-2 text-base font-bold text-white">{bi('漫畫速讀', 'Comic guide')}</h3>
+                        <a href="./assets/bill-splitter-manga-guide.webp?v=20261124-1" target="_blank" rel="noopener" aria-label={bi('放大漫畫教學', 'Open comic guide')}>
+                          <img src="./assets/bill-splitter-manga-guide.webp?v=20261124-1" loading="lazy" decoding="async" alt={bi('六格分帳教學：影單、核對、分享、認帳、設定、結果', 'Six-panel guide: scan, check, share, claim, set up, results')} className="mx-auto block h-auto w-full rounded-lg" />
+                        </a>
                       </article>
                     </div>
                   </Card>

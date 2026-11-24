@@ -14,8 +14,7 @@
     { key: 'verify', step: 2, target: '[data-testid="verify-item"]', title: ['核對項目', 'Check items'], copy: ['有錯先改。', 'Edit mistakes only.'] },
     { key: 'items', step: 2, target: '[data-tutorial-target="item-fields"]', title: ['修改項目', 'Edit item'], copy: ['數量未知可留空。', 'Quantity can stay blank.'] },
     { key: 'fee', step: 2, target: '[data-tutorial-target="fee"]', title: ['稅／服務費', 'Tax / fee'], copy: ['填金額。', 'Enter an amount.'] },
-    { key: 'share', step: 2, target: '[data-tutorial-target="open-claim-share"]', title: ['分享認帳', 'Share claims'], copy: ['朋友用連結認帳。', 'Friends claim by link.'] },
-    { key: 'share-options', step: 2, target: '[data-tutorial-target="send-claim-link"]', title: ['分享選項', 'Share options'], copy: ['可加收據相片。', 'Receipt photos are optional.'], prefer: 'top' },
+    { key: 'share', step: 2, target: '[data-tutorial-target="open-claim-share"]', title: ['分享認帳', 'Share claims'], copy: ['撳掣分享連結。', 'Tap to share the link.'] },
     { key: 'replies', step: 2, target: '[data-testid="claim-replies"]', title: ['認帳回覆', 'Claim replies'], copy: ['在此核對。', 'Check them here.'], prefer: 'top' },
     { key: 'payer', step: 3, target: '[data-tutorial-target="calculation-settings"]', title: ['墊支人', 'Payer'], copy: ['填先付款的人。', 'Enter who paid first.'] },
     { key: 'currency', step: 3, target: '[data-tutorial-target="currency"]', title: ['貨幣', 'Currency'], copy: ['選結算貨幣。', 'Choose settlement currency.'] },
@@ -50,7 +49,7 @@
     };
     var goKey = function (key) { var next = STEPS.findIndex(function (s) { return s.key === key; }); if (next !== -1) goTo(next); };
     var onAction = function (action, detail) {
-      var destinations = { receipt: 'verify', manual: 'items', edit: 'items', 'share-open': 'share-options', shared: 'replies', calculated: 'report', 'fallback-open': 'report-share' };
+      var destinations = { receipt: 'verify', manual: 'items', edit: 'items', 'share-open': 'replies', shared: 'replies', calculated: 'report', 'fallback-open': 'report-share' };
       if (destinations[action]) goKey(destinations[action]);
       else if (action === 'calculation-error') {
         goKey(detail === 'payer' ? 'payer' : 'replies');

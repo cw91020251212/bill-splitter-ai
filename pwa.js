@@ -40,7 +40,7 @@
     window.navigator.standalone === true;
 
   /* ---------------------------------------------------------- service worker */
-  var RELEASE_VERSION = 'v188-compact-ui-20261124';
+  var RELEASE_VERSION = 'v189-tutorial-media-20261124';
   var waitingWorker = null;
   var registrationPromise = null;
   var reloadRequested = false;

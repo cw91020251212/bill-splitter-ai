@@ -5,7 +5,7 @@ const path = require('node:path');
 
 const root = path.join(__dirname, '..');
 const read = name => fs.readFileSync(path.join(root, name), 'utf8');
-const release = 'v187-beginner-flow-20261123';
+const release = 'v189-tutorial-media-20261124';
 
 function linearize(channel) {
   const value = channel / 255;
